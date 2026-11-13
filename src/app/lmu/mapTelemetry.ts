@@ -14,7 +14,7 @@ import { lapTimeOrAbsent } from './sentinels';
 import { lmuTrackWetness } from './trackWetness';
 import { lmuCarCompound, lmuCompoundChannel } from './tireCompound';
 import { lmuTrackLimitsChannel, lmuTrackLimitsMax } from './trackLimits';
-import { lmuEnergyChannel } from './fuelEnergy';
+import { lmuEnergyChannels, type LmuEnergyState } from './fuelEnergy';
 import {
   TYRE_ZONE_COUNT,
   lmuTyreOptimalTemperatures,
@@ -296,7 +296,14 @@ export function mapLmuTelemetry(
    * inferences from shared memory stand, as they did before. See
    * gameState.ts.
    */
-  gameState?: LmuGameState
+  gameState?: LmuGameState,
+  /**
+   * Which cars have been seen running on virtual energy, owned by the caller
+   * so it survives between frames. Omitted -- as most specs do -- a car at
+   * exactly 0 virtual energy is read as fuel-limited, as it always was. See
+   * fuelEnergy.ts.
+   */
+  energyState?: LmuEnergyState
 ): Telemetry {
   // Boundary note: a handful of generated Telemetry keys (e.g. SessionTime) are
   // typed with an `undefined[]` value shape although the iRacing native layer
@@ -532,16 +539,21 @@ export function mapLmuTelemetry(
   t.LmuCarIdxTrackLimitsPoints = numArr(
     lmuTrackLimitsChannel(raw.vehTrackLimitsSteps, raw.trackLimitsStepsPerPoint)
   );
-  // One figure per car: virtual energy where the car runs on it, fuel
-  // otherwise. Which budget applies is a property of the car, not the session,
-  // so the choice is made per car here rather than once for the grid.
   // Count only: scoring has no field for which penalty it is.
   t.LmuCarIdxPenalties = numArr(raw.vehNumPenalties);
   // The sim's own per-car finish status, which names the flag outright.
   t.LmuCarIdxFinishStatus = numArr(raw.vehFinishStatus);
-  t.LmuCarIdxEnergyRemaining = numArr(
-    lmuEnergyChannel(raw.vehFuelFraction, raw.vehVirtualEnergy)
+  // One figure per car: virtual energy where the car runs on it, fuel
+  // otherwise. Which budget applies is a property of the car, not the session,
+  // so the choice is made per car here rather than once for the grid, and the
+  // companion channel says which it was so a reader never has to guess.
+  const energy = lmuEnergyChannels(
+    raw.vehFuelFraction,
+    raw.vehVirtualEnergy,
+    energyState
   );
+  t.LmuCarIdxEnergyRemaining = { value: energy.remaining };
+  t.LmuCarIdxEnergyIsVirtual = { value: energy.isVirtual };
   t.LmuTrackLimitsPointsMax = num(
     lmuTrackLimitsMax(
       raw.trackLimitsStepsPerPenalty,
@@ -615,9 +627,10 @@ export function mapLmuTelemetry(
 
   // Shared memory, unlike the cells above. The addon always writes these when
   // LMU is running, so the guard is only for a tape or a build predating the
-  // export -- not for a car without a hybrid system, which reports 0. A
-  // consumer wanting "does this car use virtual energy?" should ask the pit
-  // menu via LmuRefuelTargetIsVirtualEnergy, not infer it from a 0 here.
+  // export -- not for a fuel-limited car, which reports a virtual energy of
+  // 0. A consumer wanting "does this car run on virtual energy?" should read
+  // LmuCarIdxEnergyIsVirtual for the car, which remembers having seen it
+  // above 0, rather than infer it from a 0 here.
   if (raw.virtualEnergy !== undefined) {
     t.LmuVirtualEnergy = num(raw.virtualEnergy);
   }
@@ -759,7 +772,10 @@ export function mapLmuTelemetry(
   // Car condition
   t.WaterTemp = num(raw.engineWaterTemp);
   t.OilTemp = num(raw.engineOilTemp);
-  t.FuelLevel = num(raw.fuel);
+  // Absent rather than 0 when the player has no car: at the monitor or
+  // spectating the sim writes no fuel at all, and a 0 was drawn as an empty
+  // tank.
+  if (raw.fuel !== undefined) t.FuelLevel = num(raw.fuel);
   // Derived, because LMU publishes litres and a capacity on the player's
   // 100 Hz telemetry but no fraction there -- mFuelFraction is per-car on the
   // 5 Hz scoring block, and its scale is unverified.

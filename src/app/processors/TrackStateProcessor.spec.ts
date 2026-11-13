@@ -77,6 +77,41 @@ describe('TrackStateProcessor', () => {
     });
   });
 
+  it("carries LMU's refuel target with its unit, and drops it on disconnect", () => {
+    const processor = new TrackStateProcessor();
+    processor.onFrame(frame({}));
+    // Absent under iRacing, and under LMU until its pit menu has answered.
+    expect(processor.snapshot().refuelTarget).toBeUndefined();
+    expect(processor.snapshot().refuelTargetIsVirtualEnergy).toBeUndefined();
+
+    processor.onFrame(
+      frame({
+        LmuRefuelTarget: [45],
+        LmuRefuelTargetIsVirtualEnergy: [true],
+      })
+    );
+    expect(processor.snapshot()).toMatchObject({
+      refuelTarget: 45,
+      refuelTargetIsVirtualEnergy: true,
+    });
+
+    // Litres for a fuel-limited car: the same field, the other unit.
+    processor.onFrame(
+      frame({
+        LmuRefuelTarget: [30.5],
+        LmuRefuelTargetIsVirtualEnergy: [false],
+      })
+    );
+    expect(processor.snapshot()).toMatchObject({
+      refuelTarget: 30.5,
+      refuelTargetIsVirtualEnergy: false,
+    });
+
+    processor.onLifecycle({ type: 'disconnect' });
+    expect(processor.snapshot().refuelTarget).toBeUndefined();
+    expect(processor.snapshot().refuelTargetIsVirtualEnergy).toBeUndefined();
+  });
+
   it("carries LMU's not-in-a-session flag, and drops it on disconnect", () => {
     const processor = new TrackStateProcessor();
     processor.onFrame(frame({}));

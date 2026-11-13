@@ -175,6 +175,8 @@ export const useCarState = () => {
     snapshot?.carIdxTrackLimitsPoints ?? EMPTY_NUMBERS;
   const carIdxEnergyRemaining =
     snapshot?.carIdxEnergyRemaining ?? EMPTY_NUMBERS;
+  const carIdxEnergyIsVirtual =
+    snapshot?.carIdxEnergyIsVirtual ?? EMPTY_BOOLEANS;
   const carIdxPenalties = snapshot?.carIdxPenalties ?? EMPTY_NUMBERS;
   const carIdxPenaltyKind = snapshot?.carIdxPenaltyKind ?? EMPTY_NUMBERS;
   const carIdxPenaltySeconds = snapshot?.carIdxPenaltySeconds ?? EMPTY_NUMBERS;
@@ -191,6 +193,7 @@ export const useCarState = () => {
         wheelCompounds: wheelCompoundsFor(carIdxWheelCompounds, index),
         trackLimitsPoints: trackLimitsFor(carIdxTrackLimitsPoints, index),
         energyRemaining: energyFor(carIdxEnergyRemaining, index),
+        energyIsVirtual: carIdxEnergyIsVirtual[index],
         penalties: carIdxPenalties[index] ?? 0,
         penaltyKind: lmuPenaltyKindFromCode(carIdxPenaltyKind[index]),
         penaltySeconds: carIdxPenaltySeconds[index],
@@ -208,6 +211,7 @@ export const useCarState = () => {
     carIdxWheelCompounds,
     carIdxTrackLimitsPoints,
     carIdxEnergyRemaining,
+    carIdxEnergyIsVirtual,
     carIdxPenalties,
     carIdxPenaltyKind,
     carIdxPenaltySeconds,
@@ -372,6 +376,7 @@ export const useDriverStandings = () => {
             wheelCompounds: carState?.wheelCompounds,
             trackLimitsPoints: carState?.trackLimitsPoints,
             energyRemaining: carState?.energyRemaining,
+            energyIsVirtual: carState?.energyIsVirtual,
             // Decoded upstream in useCarState, so the code is already a
             // kind here; the fallback rule is in lmuPenaltyBadge.
             penaltyKind:

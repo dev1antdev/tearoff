@@ -60,6 +60,8 @@ const commonTelemetryProperties = [
     label: 'LMU Refuel Is Virtual Energy',
   },
   { path: 'LmuVirtualEnergy', label: 'LMU Virtual Energy' },
+  { path: 'LmuCarIdxEnergyRemaining', label: 'LMU Car Energy Remaining' },
+  { path: 'LmuCarIdxEnergyIsVirtual', label: 'LMU Car Energy Is Virtual' },
   { path: 'LmuStateOfCharge', label: 'LMU State Of Charge' },
   { path: 'LmuRegen', label: 'LMU Regen' },
   { path: 'LmuBrakeWear', label: 'LMU Brake Wear' },

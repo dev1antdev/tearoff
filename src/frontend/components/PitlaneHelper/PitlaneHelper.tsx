@@ -5,6 +5,10 @@ import { usePitlaneVisibility } from './hooks/usePitlaneVisibility';
 import { usePitLimiterWarning } from './hooks/usePitLimiterWarning';
 import { usePitlaneTraffic } from './hooks/usePitlaneTraffic';
 import {
+  usePitRefuelTarget,
+  type PitRefuelTargetResult,
+} from './hooks/usePitRefuelTarget';
+import {
   useTrackStateSelector,
   useDashboard,
   useSessionVisibility,
@@ -23,6 +27,7 @@ import type {
 import { shallow } from 'zustand/shallow';
 import { PitCountdownBar } from './components/PitCountdownBar';
 import { PitExitInputs } from './components/PitExitInputs';
+import { PitRefuelTarget } from './components/PitRefuelTarget';
 import { PitSpeedBar } from './components/PitSpeedBar';
 
 const EMPTY_PIT_STATE: readonly [number, boolean, number | undefined] = [
@@ -65,6 +70,7 @@ export const PitlaneHelper = () => {
   const isVisible = usePitlaneVisibility();
   const limiterWarning = usePitLimiterWarning(config.enablePitLimiterWarning);
   const traffic = usePitlaneTraffic(config.showPitlaneTraffic);
+  const refuel = usePitRefuelTarget(config.showRefuelTarget !== false);
 
   // Generate demo data when in demo mode
   if (isDemoMode) {
@@ -117,6 +123,7 @@ export const PitlaneHelper = () => {
       shouldShowInputs={shouldShowInputs}
       showEarlyPitboxWarning={showEarlyPitboxWarning}
       traffic={traffic}
+      refuel={refuel}
     />
   );
 };
@@ -128,6 +135,7 @@ interface PitlaneHelperDisplayProps {
   isVisible: boolean;
   limiterWarning: PitLimiterWarningResult;
   traffic: PitlaneTrafficResult;
+  refuel: PitRefuelTargetResult;
   surface: number;
   config: PitlaneHelperWidgetSettings['config'];
 }
@@ -138,6 +146,7 @@ const PitlaneHelperDisplay = ({
   isVisible,
   limiterWarning,
   traffic,
+  refuel,
   surface,
   config,
 }: PitlaneHelperDisplayProps) => {
@@ -184,6 +193,7 @@ const PitlaneHelperDisplay = ({
       shouldShowInputs={shouldShowInputs}
       showEarlyPitboxWarning={showEarlyPitboxWarning}
       traffic={traffic}
+      refuel={config.showRefuelTarget !== false ? refuel : undefined}
     />
   );
 };
@@ -200,6 +210,8 @@ interface PitlaneHelperBodyProps {
   shouldShowInputs: boolean | undefined;
   showEarlyPitboxWarning: boolean;
   traffic: PitlaneTrafficResult;
+  /** What the next stop will put in. Absent when the sim does not say. */
+  refuel?: PitRefuelTargetResult;
 }
 
 export const PitlaneHelperBody = ({
@@ -213,6 +225,7 @@ export const PitlaneHelperBody = ({
   shouldShowInputs,
   showEarlyPitboxWarning,
   traffic,
+  refuel,
 }: PitlaneHelperBodyProps) => {
   return (
     <div className="flex flex-col h-full">
@@ -415,6 +428,7 @@ export const PitlaneHelperBody = ({
         (inBlendZone && position.distanceToPitEntry === 0) ||
         limiterWarning.showWarning ||
         showEarlyPitboxWarning ||
+        refuel !== undefined ||
         (config.showPitlaneTraffic && traffic.totalCars > 0)) && (
         <div
           className="flex flex-col gap-2 p-2 rounded-b bg-slate-800/(--bg-opacity)"
@@ -457,6 +471,13 @@ export const PitlaneHelperBody = ({
             <div className="bg-blue-700 text-center text-xs py-1 px-2 rounded">
               {traffic.carsAhead} ahead · {traffic.carsBehind} behind
             </div>
+          )}
+
+          {refuel !== undefined && (
+            <PitRefuelTarget
+              amount={refuel.amount}
+              isVirtualEnergy={refuel.isVirtualEnergy}
+            />
           )}
         </div>
       )}

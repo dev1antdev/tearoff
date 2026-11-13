@@ -178,6 +178,13 @@ export class StandingsProcessor implements TelemetryProcessor<StandingsSnapshot>
       'LmuCarIdxEnergyRemaining',
       this.latest.carIdxEnergyRemaining
     );
+    // Which of the two that figure is, so a fuel reading is never taken for
+    // virtual energy.
+    copyBooleanArray(
+      frame,
+      'LmuCarIdxEnergyIsVirtual',
+      this.latest.carIdxEnergyIsVirtual
+    );
     copyNumberArray(frame, 'LmuCarIdxPenalties', this.latest.carIdxPenalties);
     // LMU only, and only while its UI websocket is answering. The kind, as a
     // code; the count above says nothing about which penalty it is.
@@ -295,6 +302,7 @@ export class StandingsProcessor implements TelemetryProcessor<StandingsSnapshot>
     this.latest.carIdxWheelCompounds.length = 0;
     this.latest.carIdxTrackLimitsPoints.length = 0;
     this.latest.carIdxEnergyRemaining.length = 0;
+    this.latest.carIdxEnergyIsVirtual.length = 0;
     this.latest.carIdxPenalties.length = 0;
     this.latest.carIdxPenaltyKind.length = 0;
     this.latest.carIdxPenaltySeconds.length = 0;
@@ -331,6 +339,7 @@ export class StandingsProcessor implements TelemetryProcessor<StandingsSnapshot>
       carIdxWheelCompounds: [],
       carIdxTrackLimitsPoints: [],
       carIdxEnergyRemaining: [],
+      carIdxEnergyIsVirtual: [],
       carIdxPenalties: [],
       carIdxPenaltyKind: [],
       carIdxPenaltySeconds: [],

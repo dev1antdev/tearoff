@@ -67,6 +67,7 @@ const TELEMETRY_UNITS: Readonly<Record<string, string>> = {
   // Litres or a virtual-energy percentage -- LmuRefuelTargetIsVirtualEnergy
   // says which, so no single unit can be printed here.
   LmuVirtualEnergy: 'fraction',
+  LmuCarIdxEnergyRemaining: 'fraction',
   LmuStateOfCharge: 'fraction',
   LmuBrakeWear: 'fraction',
   LmuSuspensionDamage: 'fraction',

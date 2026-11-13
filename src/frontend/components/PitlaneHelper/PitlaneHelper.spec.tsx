@@ -16,6 +16,8 @@ const mockSnapshots = (read: (key: string) => unknown) => {
     playerTrackSurface: read('PlayerTrackSurface'),
     onPitRoad: read('OnPitRoad'),
     displayUnits: read('DisplayUnits'),
+    refuelTarget: read('LmuRefuelTarget'),
+    refuelTargetIsVirtualEnergy: read('LmuRefuelTargetIsVirtualEnergy'),
   };
   vi.mocked(context.useTrackStateSelector).mockImplementation(
     (selector) => selector(trackState as never) as never
@@ -172,6 +174,64 @@ describe('PitlaneHelper', () => {
       const { container } = render(<PitlaneHelper />);
 
       expect(container.firstChild).toBeInTheDocument();
+    });
+  });
+
+  describe('Refuel target', () => {
+    const withRefuel = (amount: number, isVirtualEnergy: boolean) =>
+      mockSnapshots((key) => {
+        if (key === 'PlayerTrackSurface') return 2;
+        if (key === 'OnPitRoad') return true;
+        if (key === 'LmuRefuelTarget') return amount;
+        if (key === 'LmuRefuelTargetIsVirtualEnergy') return isVirtualEnergy;
+        return undefined;
+      });
+
+    it('shows a virtual energy target as a percentage', () => {
+      withRefuel(45, true);
+
+      const { getByTestId } = render(<PitlaneHelper />);
+
+      const badge = getByTestId('pit-refuel-target');
+      expect(badge.textContent).toBe('Refuel45%');
+      expect(
+        badge.querySelector('[aria-label="Virtual energy"]')
+      ).not.toBeNull();
+    });
+
+    it('shows a fuel target in litres', () => {
+      withRefuel(30.5, false);
+
+      const { getByTestId } = render(<PitlaneHelper />);
+
+      const badge = getByTestId('pit-refuel-target');
+      expect(badge.textContent).toBe('Refuel30.5 L');
+      expect(badge.querySelector('[aria-label="Fuel"]')).not.toBeNull();
+    });
+
+    it('shows nothing when the sim states no target', () => {
+      // iRacing, and LMU before its pit menu has answered.
+      mockSnapshots((key) => {
+        if (key === 'PlayerTrackSurface') return 2;
+        if (key === 'OnPitRoad') return true;
+        return undefined;
+      });
+
+      const { queryByTestId } = render(<PitlaneHelper />);
+
+      expect(queryByTestId('pit-refuel-target')).toBeNull();
+    });
+
+    it('can be switched off', () => {
+      withRefuel(45, true);
+      vi.mocked(usePitlaneHelperSettings).mockReturnValue({
+        ...defaultConfig,
+        showRefuelTarget: false,
+      });
+
+      const { queryByTestId } = render(<PitlaneHelper />);
+
+      expect(queryByTestId('pit-refuel-target')).toBeNull();
     });
   });
 

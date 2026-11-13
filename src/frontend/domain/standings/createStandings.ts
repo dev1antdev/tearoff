@@ -75,6 +75,11 @@ export interface Standings {
    */
   energyRemaining?: number;
   /**
+   * Which budget energyRemaining is: true for virtual energy, false for
+   * fuel. Undefined where the sim does not say.
+   */
+  energyIsVirtual?: boolean;
+  /**
    * The penalty this driver is serving, where it can be told apart.
    *
    * From LMU's UI websocket for any car while it answers. Without it, only the
@@ -233,6 +238,8 @@ export const createDriverStandings = (
     carIdxTrackLimitsPointsValue?: number[];
     /** 0..1 per car, -1 unavailable. Empty under iRacing. */
     carIdxEnergyRemainingValue?: number[];
+    /** Whether that figure is virtual energy rather than fuel, per car. */
+    carIdxEnergyIsVirtualValue?: boolean[];
     /** Outstanding penalties per car. A count, not a kind. */
     carIdxPenaltiesValue?: number[];
     /**
@@ -386,6 +393,7 @@ export const createDriverStandings = (
           telemetry?.carIdxEnergyRemainingValue,
           result.CarIdx
         ),
+        energyIsVirtual: telemetry?.carIdxEnergyIsVirtualValue?.[result.CarIdx],
         penaltyKind: lmuPenaltyBadge(
           telemetry?.carIdxPenaltyKindValue?.[result.CarIdx],
           result.CarIdx === session?.ownCarIdx,
@@ -507,6 +515,7 @@ export const createDriverStandings = (
           telemetry?.carIdxEnergyRemainingValue,
           driver.CarIdx
         ),
+        energyIsVirtual: telemetry?.carIdxEnergyIsVirtualValue?.[driver.CarIdx],
         penaltyKind: lmuPenaltyBadge(
           telemetry?.carIdxPenaltyKindValue?.[driver.CarIdx],
           driver.CarIdx === session?.ownCarIdx,

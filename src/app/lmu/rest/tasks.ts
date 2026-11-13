@@ -189,11 +189,16 @@ const fourCorners = (value: unknown): number[] | undefined => {
  * What the next pit stop will put in, from the pit menu.
  *
  * Two units share this one field, which is why the flag travels with it. A
- * Hypercar or LMDh is energy-limited, so its menu offers VIRTUAL ENERGY as a
- * percentage; everything else offers FUEL, as a volume that LMU words in
- * either litres or gallons depending on the player's units. A number that is
- * sometimes a percentage and sometimes litres, with nothing saying which, is
- * a bug waiting to be written downstream.
+ * Hypercar, an LMDh or an LMGT3 is energy-limited, so its menu offers VIRTUAL
+ * ENERGY as a percentage; everything else offers FUEL, as a volume that LMU
+ * words in either litres or gallons depending on the player's units. A number
+ * that is sometimes a percentage and sometimes litres, with nothing saying
+ * which, is a bug waiting to be written downstream.
+ *
+ * The energy entry lists every whole percent from 0 to 100, so its selected
+ * index is the percentage and no text has to be parsed: a recorded LMGT3 at
+ * 45 % read index 45 with the label "45% 20 laps". It is the level the stop
+ * fills to, not an amount added on top.
  */
 const refuelTarget = (
   payload: unknown

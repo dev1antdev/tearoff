@@ -79,6 +79,14 @@ export type Telemetry = {
   LmuPenaltySeconds?: TelemetryVar<number[]>;
   LmuCarIdxEnergyRemaining?: TelemetryVar<number[]>;
   /**
+   * Which budget LmuCarIdxEnergyRemaining holds for each car: true for virtual
+   * energy, false for fuel (or for no reading).
+   *
+   * A car is remembered as an energy car once it has read above 0, so one that
+   * has run its energy out reads 0 here rather than its fuel.
+   */
+  LmuCarIdxEnergyIsVirtual?: TelemetryVar<boolean[]>;
+  /**
    * True when the sim has stopped writing shared memory, so this frame is the
    * last one it wrote rather than a current reading.
    *
