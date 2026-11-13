@@ -18,5 +18,6 @@ export * from './useCarSystemsSnapshot';
 export * from './useLapTraceSampleSnapshot';
 export * from './useTrackStateSnapshot';
 export * from './useTyreStateSnapshot';
+export * from './useMinimapSnapshot';
 export * from './useSessionLifecycle';
 export * from './useStreamChatSnapshot';

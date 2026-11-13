@@ -48,7 +48,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 1. In LMU, enable **Settings > Gameplay > Enable Plugins**, then restart the simulator.
 2. Start Tearoff and load into an LMU session to receive telemetry.
 
-**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Information Bar, and Tyres. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Fuel Calculator, both track maps, Radar, Gantry, Car Systems, Lap Timer, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Information Bar, Tyres, and Minimap. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Fuel Calculator, both full-size track maps, Radar, Gantry, Car Systems, Lap Timer, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
@@ -310,6 +310,21 @@ Displays a track map with the current position of the cars on track and the trac
 - Styling customizations: toggle minimal track outline and minimal car marker shadows
 
 ![Track Map](./docs/assets/trackmap.png)
+
+### Minimap
+
+A close-range map of the track around the car you are watching, with the cars near you. Works in iRacing and Le Mans Ultimate.
+
+**Features:**
+
+- A circular map centred on your car, showing the stretch of track within a range you choose (75 to 800 m)
+- Every car in range as a marker coloured by class, labelled with its position, class position or car number
+- Your own car in white with a ring in your highlight colour
+- Fixed orientation, matching the full track map, or heading up so your car always points to the top
+- Other parts of the track that pass close by are drawn too, with the cars on them
+- Start/finish line marker, and cars on pit road drawn faded
+- In Le Mans Ultimate the map comes with the session; a circuit without a bundled map appears after one full lap has been driven
+- Adjustable track width, marker size, background opacity, session visibility and an option to show only when on track
 
 ### Flat Track Map
 

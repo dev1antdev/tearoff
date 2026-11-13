@@ -58,6 +58,7 @@ const SNAPSHOT_CHANNELS = [
   'standings.snapshot',
   'track-state.snapshot',
   'tyre-state.snapshot',
+  'minimap.snapshot',
   'lap-trace.sample',
 ] as const satisfies readonly SnapshotChannelName[];
 

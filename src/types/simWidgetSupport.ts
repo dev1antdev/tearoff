@@ -48,6 +48,9 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   'input',
   'laptimelog',
   'laptrace',
+  // Drawn from the map LMU sends with the session, not from the iRacing
+  // drawings the two full-size maps need.
+  'minimap',
   'pitlanehelper',
   'relative',
   // Timed over nominal thirds of the lap, not LMU's own sector lines: LMU
@@ -134,7 +137,7 @@ export const DEFAULT_SIM_WIDGET_SUPPORT: SimWidgetSupportConfig = {
  * it did, which costs a user their hand edits once per change and is why the
  * number is bumped only for a real one.
  */
-export const SIM_WIDGET_SUPPORT_VERSION = 8;
+export const SIM_WIDGET_SUPPORT_VERSION = 9;
 
 /**
  * Whether a widget is unavailable under the running sim.

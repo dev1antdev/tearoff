@@ -12,6 +12,7 @@ import { FuelProjectionProcessor } from './FuelProjectionProcessor';
 import { LapLogProcessor } from './LapLogProcessor';
 import { LapTimesProcessor } from './LapTimesProcessor';
 import { LapTraceSampleProcessor } from './LapTraceSampleProcessor';
+import { MinimapProcessor } from './MinimapProcessor';
 import type {
   AnyProcessorDefinition,
   ProcessorMetrics,
@@ -170,6 +171,11 @@ export const createProcessorDefinitions = ({
     channel: 'tyre-state.snapshot',
     metricsPrefix: 'tyreState',
     create: () => new TyreStateProcessor(),
+  }),
+  defineProcessor({
+    channel: 'minimap.snapshot',
+    metricsPrefix: 'minimap',
+    create: () => new MinimapProcessor(),
   }),
   defineProcessor({
     channel: 'lap-trace.sample',

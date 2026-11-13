@@ -22,7 +22,7 @@ import {
 import {
   progressToTrackPoint,
   useProgressAnimation,
-} from './useProgressAnimation';
+} from '@irdashies/domain/track/useProgressAnimation';
 
 const EMPTY_PIT_STATE: readonly boolean[] = [];
 import type { SectorColor } from '@irdashies/context';

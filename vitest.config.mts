@@ -7,6 +7,16 @@ export default defineConfig({
   test: {
     globals: true,
     testTimeout: 10_000,
+    // Vitest keeps transformed modules in node_modules/.vitest-cache and
+    // reuses them between runs. Its cache key does not notice a file that
+    // newly matches an import.meta.glob, and that is how widgets register:
+    // a manifest or widget.ts added since the cache was written stays
+    // invisible, so the registry specs fail on a new widget ("No default
+    // config found") and would pass on a removed one. CI restores
+    // node_modules from its cache, stale modules included, unless the
+    // lockfile or native sources changed. Slower cold starts are the price of
+    // specs that see the files actually on disk.
+    fsModuleCache: false,
     projects: [
       {
         extends: true,

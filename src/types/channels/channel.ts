@@ -34,6 +34,7 @@ export interface ChannelPayloads {
   'standings.snapshot': StandingsSnapshot;
   'track-state.snapshot': TrackStateSnapshot;
   'tyre-state.snapshot': TyreStateSnapshot;
+  'minimap.snapshot': MinimapSnapshot;
   'lap-trace.sample': LapTraceSampleSnapshot;
   'session.lifecycle': SessionLifecycleEvent;
   'raceControl.incidents': Incident;
@@ -345,6 +346,26 @@ export interface TyreStateSnapshot {
   available: boolean;
   /** LF, RF, LR, RR. */
   wheels: readonly TyreWheelState[];
+  sessionNum: number | null;
+  version: number;
+}
+
+/**
+ * Where every car is on the lap, for the close-range minimap.
+ *
+ * `track-state.snapshot` carries the same fractions rounded to three decimals,
+ * which is sub-pixel on a whole-track map and a visible 14 m step at Le Mans
+ * once the map is zoomed in on a few hundred metres. These keep five.
+ */
+export interface MinimapSnapshot {
+  /** The car the map centres on: the one the camera follows, else the player. */
+  focusCarIdx: number | null;
+  /** Lap fraction per car slot; negative for a slot with no car on track. */
+  carIdxLapDistPct: readonly number[];
+  carIdxOnPitRoad: readonly boolean[];
+  /** Overall position per car slot; 0 where the sim has not ranked the car. */
+  carIdxPosition: readonly number[];
+  carIdxClassPosition: readonly number[];
   sessionNum: number | null;
   version: number;
 }
@@ -804,6 +825,12 @@ export const channelRegistry = {
     kind: 'snapshot',
     defaultRateHz: 5,
     maxRateHz: 10,
+  },
+  // Positional, like track-state; the renderer interpolates between snapshots.
+  'minimap.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 25,
+    maxRateHz: 25,
   },
   'lap-trace.sample': {
     kind: 'snapshot',
