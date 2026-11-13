@@ -157,7 +157,7 @@ export const createMockLapLibrary = (
     sessions = sessions
       .map((session) => {
         const own = laps.filter((entry) => entry.sessionId === session.id);
-        const complete = own.filter((entry) => entry.complete);
+        const complete = own.filter((entry) => entry.complete && !entry.voided);
         return {
           ...session,
           lapCount: own.length,

@@ -207,7 +207,9 @@ export class LapLibraryDatabase {
     const rows = this.statement(
       `SELECT s.*,
               count(l.id) AS lap_count,
-              min(CASE WHEN l.complete = 1 THEN l.lap_time END) AS best_lap_time
+              min(
+                CASE WHEN l.complete = 1 AND l.voided = 0 THEN l.lap_time END
+              ) AS best_lap_time
          FROM session s
          LEFT JOIN lap l ON l.session_id = s.id
         GROUP BY s.id
@@ -262,12 +264,21 @@ export class LapLibraryDatabase {
       'SELECT session_id FROM lap WHERE id = ?'
     ).get(lapId) as Row | undefined;
     if (!session) return false;
-    this.statement('DELETE FROM lap WHERE id = ?').run(lapId);
-    // A session with no laps left is nothing to list.
-    this.statement(
-      `DELETE FROM session
-        WHERE id = ? AND NOT EXISTS (SELECT 1 FROM lap WHERE session_id = ?)`
-    ).run(session.session_id as number, session.session_id as number);
+    // Together or not at all: the lap gone and its session left behind with
+    // none would be listed as an empty session.
+    this.db.exec('BEGIN');
+    try {
+      this.statement('DELETE FROM lap WHERE id = ?').run(lapId);
+      // A session with no laps left is nothing to list.
+      this.statement(
+        `DELETE FROM session
+          WHERE id = ? AND NOT EXISTS (SELECT 1 FROM lap WHERE session_id = ?)`
+      ).run(session.session_id as number, session.session_id as number);
+      this.db.exec('COMMIT');
+    } catch (error) {
+      this.db.exec('ROLLBACK');
+      throw error;
+    }
     return true;
   }
 
