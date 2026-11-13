@@ -19,6 +19,7 @@ export * from './cornerName';
 export * from './lapTrace';
 export * from './lapTraceLayout';
 export * from './lapLibrary';
+export * from './overlayVisibility';
 export * from './layoutTree';
 export * from './lmu';
 export * from './logBridge';

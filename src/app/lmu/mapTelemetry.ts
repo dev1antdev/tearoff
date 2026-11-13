@@ -897,6 +897,10 @@ export function mapLmuTelemetry(
   // Falsifying the pit flags instead would misreport the car to everything
   // else that reads them.
   t.LmuOutOfCar = bool(gameState !== undefined && !lmuInCar(gameState));
+  // Paused in the car with a menu open. Only the sim's own word, like the two
+  // above: it takes the whole overlay off the screen, and a block that has
+  // merely stopped being written is also what the end of a session looks like.
+  t.LmuGamePaused = bool(gameState === 'paused');
   // Reported as the snapshot has them, frozen or not. Falsifying these while
   // frozen was a mistake: isDriving reads them as `!isInGarage`, so clearing
   // them removed the one term that would have excluded a parked player.

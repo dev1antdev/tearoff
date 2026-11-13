@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ToggleSwitch } from '../components/ToggleSwitch';
+import { OverlayPauseSetting } from '../components/OverlayPauseSetting';
 import { useAvailableSimulators, useDashboard } from '@irdashies/context';
 import { SIMULATOR_IDS, SIMULATOR_LABELS } from '@irdashies/types';
 import type { GeneralSettingsType } from '@irdashies/types';
@@ -593,6 +594,7 @@ export const GeneralSettings = ({ previewMode }: GeneralSettingsProps = {}) => {
             <h3 className="text-lg font-semibold text-slate-200">
               Application &amp; connectivity
             </h3>
+            <OverlayPauseSetting />
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-4">
                 <div>

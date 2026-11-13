@@ -49,6 +49,9 @@ const fakeOverlayManager = {
   toggleLockOverlays: () => undefined,
 } as unknown as OverlayManager;
 
+const mockToggleUserHidden = vi.fn();
+const fakeOverlayVisibility = { toggleUserHidden: mockToggleUserHidden };
+
 const bindingsWithBadAccelerator = (): KeybindingsMap => ({
   'toggle-hide-ui': {
     accelerator: 'Pause',
@@ -112,7 +115,10 @@ describe('KeybindingManager', () => {
       });
       mockRegister.mockReturnValue(true);
 
-      const manager = new KeybindingManager(fakeOverlayManager);
+      const manager = new KeybindingManager(
+        fakeOverlayManager,
+        fakeOverlayVisibility
+      );
       manager.registerAll();
 
       // The two valid accelerators were still registered
@@ -141,7 +147,10 @@ describe('KeybindingManager', () => {
       mockIsRegistered.mockReturnValue(false);
       mockRegister.mockReturnValue(false);
 
-      const manager = new KeybindingManager(fakeOverlayManager);
+      const manager = new KeybindingManager(
+        fakeOverlayManager,
+        fakeOverlayVisibility
+      );
       manager.registerAll();
 
       expect(manager.getRegistrationErrors()['toggle-edit-mode']).toBe(
@@ -166,7 +175,10 @@ describe('KeybindingManager', () => {
       } as unknown as KeybindingsMap);
       mockIsRegistered.mockReturnValue(true);
 
-      const manager = new KeybindingManager(fakeOverlayManager);
+      const manager = new KeybindingManager(
+        fakeOverlayManager,
+        fakeOverlayVisibility
+      );
       manager.registerAll();
 
       expect(mockRegister).not.toHaveBeenCalled();
@@ -185,7 +197,10 @@ describe('KeybindingManager', () => {
         return true;
       });
 
-      const manager = new KeybindingManager(fakeOverlayManager);
+      const manager = new KeybindingManager(
+        fakeOverlayManager,
+        fakeOverlayVisibility
+      );
       manager.unregisterAll();
 
       expect(mockUnregister).toHaveBeenCalledWith('F6');
@@ -214,7 +229,10 @@ describe('KeybindingManager', () => {
       mockIsRegistered.mockReturnValue(false);
       mockRegister.mockReturnValue(true);
 
-      const manager = new KeybindingManager(fakeOverlayManager);
+      const manager = new KeybindingManager(
+        fakeOverlayManager,
+        fakeOverlayVisibility
+      );
       manager.registerAll();
 
       expect(mockRegister).not.toHaveBeenCalled();
@@ -263,7 +281,10 @@ describe('KeybindingManager', () => {
       bindings['toggle-edit-mode'].accelerator = `${alias}+H`;
       mockGetKeybindings.mockReturnValue(bindings);
       mockRegister.mockReturnValue(true);
-      const manager = new KeybindingManager(fakeOverlayManager);
+      const manager = new KeybindingManager(
+        fakeOverlayManager,
+        fakeOverlayVisibility
+      );
       manager.registerAll();
       expect(manager.getRegistrationErrors()['toggle-edit-mode']).toContain(
         'already bound'
@@ -274,6 +295,21 @@ describe('KeybindingManager', () => {
       );
     }
   );
+
+  it('hands Hide / Show UI to the overlay visibility rather than keeping a flag', () => {
+    mockGetKeybindings.mockReturnValue(bindingsWithBadAccelerator());
+    mockToggleUserHidden.mockClear();
+    const manager = new KeybindingManager(
+      fakeOverlayManager,
+      fakeOverlayVisibility
+    );
+
+    manager.triggerAction('toggle-hide-ui');
+    manager.triggerAction('toggle-hide-ui');
+
+    // The state lives where the tray and the settings window can see it too.
+    expect(mockToggleUserHidden).toHaveBeenCalledTimes(2);
+  });
 
   it('preserves app-owned callbacks and propagates unexpected probe errors', () => {
     mockIsRegistered.mockReturnValue(true);

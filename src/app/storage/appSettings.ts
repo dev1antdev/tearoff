@@ -6,6 +6,19 @@ const SHOW_PROFILE_BANNER_KEY = 'showProfileBanner';
 const SESSION_PROFILE_MAP_KEY = 'sessionProfileMap';
 const GARAGE61_LAST_FOLDER_KEY = 'garage61LastFolder';
 const IBT_LAST_FOLDER_KEY = 'ibtLastFolder';
+const HIDE_OVERLAY_WHEN_PAUSED_KEY = 'hideOverlayWhenPaused';
+
+/**
+ * Whether a paused game takes the overlay off the screen. On unless it has
+ * been turned off: a pause menu is not something to read lap times over.
+ */
+export const getHideOverlayWhenPaused = (): boolean => {
+  return readData<boolean>(HIDE_OVERLAY_WHEN_PAUSED_KEY) ?? true;
+};
+
+export const setHideOverlayWhenPaused = (enabled: boolean): void => {
+  writeData(HIDE_OVERLAY_WHEN_PAUSED_KEY, enabled);
+};
 
 export const getCycleProfiles = (): boolean => {
   return readData<boolean>(CYCLE_PROFILES_KEY) ?? false;

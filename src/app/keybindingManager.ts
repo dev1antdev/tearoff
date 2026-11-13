@@ -19,16 +19,28 @@ import logger from './logger';
 import { toggleWidgetHidden } from './widgetVisibility';
 import { GamepadManager } from './gamepad/gamepadManager';
 
+/** As much of the overlay's visibility as the shortcut needs. */
+export interface OverlayHideToggle {
+  toggleUserHidden(): void;
+}
+
 export class KeybindingManager {
   private bindings: KeybindingsMap;
   private actionHandlers: Map<KeybindingActionId, () => void>;
-  private hideState = false;
   private registrationErrors: KeybindingRegistrationErrors = {};
 
   /** Owns the gamepad token -> action map, capture mode, and WebHID host. */
   private gamepad: GamepadManager;
 
-  constructor(private overlayManager: OverlayManager) {
+  /**
+   * @param overlayVisibility What Hide / Show UI switches. The shortcut is
+   *   one of several things that turn the overlay off, so the state is kept
+   *   there and not here.
+   */
+  constructor(
+    private overlayManager: OverlayManager,
+    private overlayVisibility: OverlayHideToggle
+  ) {
     this.bindings = getKeybindings();
     this.actionHandlers = new Map();
     this.setupActionHandlers();
@@ -39,10 +51,7 @@ export class KeybindingManager {
 
   private setupActionHandlers(): void {
     this.actionHandlers.set('toggle-hide-ui', () => {
-      this.hideState = !this.hideState;
-      this.overlayManager.getOverlays().forEach(({ window }) => {
-        window.webContents.send('global-toggle-hide', this.hideState);
-      });
+      this.overlayVisibility.toggleUserHidden();
     });
 
     this.actionHandlers.set('toggle-edit-mode', () => {

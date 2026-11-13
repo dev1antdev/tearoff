@@ -114,6 +114,14 @@ export type Telemetry = {
    */
   LmuOutOfCar?: TelemetryVar<boolean[]>;
   /**
+   * True while LMU's GetGameState says PAUSED: the player is in the car with
+   * a menu open. The widgets keep their state through it, which is why the
+   * in-car channels above still read as driving; this is for the one thing
+   * that does want to know, taking the overlay off the screen while the menu
+   * is up. False whenever the game state is anything else or unknown.
+   */
+  LmuGamePaused?: TelemetryVar<boolean[]>;
+  /**
    * The points a drive-through is served at, 0 when the session has not said.
    *
    * A session constant, carried beside the per-car figure because neither is

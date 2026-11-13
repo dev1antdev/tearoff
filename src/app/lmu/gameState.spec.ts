@@ -233,6 +233,26 @@ describe('mapLmuTelemetry with a game state', () => {
     );
   });
 
+  it('says the game is paused only on the sim saying so', () => {
+    expect(map(fixture(), 'paused').LmuGamePaused?.value[0]).toBe(true);
+    // The widgets keep their state through a pause: still in the car.
+    expect(map(fixture(), 'paused').IsOnTrack.value[0]).toBe(true);
+
+    for (const state of [
+      'driving',
+      'monitor',
+      'notInSession',
+      'notInGame',
+      undefined,
+    ] as const) {
+      expect(map(fixture(), state).LmuGamePaused?.value[0]).toBe(false);
+    }
+    // A block that has stopped being written is also what the end of a
+    // session looks like, so it is not taken for a pause.
+    expect(map(fixture(), undefined, true).LmuGamePaused?.value[0]).toBe(false);
+    expect(map(fixture(), 'driving', true).LmuGamePaused?.value[0]).toBe(false);
+  });
+
   it('falls back to shared memory when the sim has not said', () => {
     const raw = fixture();
     expect(map(raw, undefined).IsOnTrack.value[0]).toBe(true);
