@@ -1083,6 +1083,34 @@ export interface TyresConfig {
   showOnlyWhenOnTrack: boolean;
 }
 
+/**
+ * Close-range map centred on the car being watched.
+ *
+ * Distances are metres on the real track, so the same settings look the same
+ * on a short circuit and at Le Mans.
+ */
+export interface MinimapConfig {
+  background: { opacity: number };
+  /** Metres from the centre of the map to its edge. */
+  range: number;
+  /**
+   * `fixed` keeps the track the way the full map draws it; `heading` turns it
+   * so the car always points up.
+   */
+  orientation: 'fixed' | 'heading';
+  /** What each car's marker says. */
+  label: 'position' | 'classPosition' | 'carNumber' | 'none';
+  /** Marker diameter in pixels, before the widget's own scale. */
+  markerSize: number;
+  /** Width the track is drawn at, metres. */
+  trackWidth: number;
+  useClassColors: boolean;
+  showStartFinish: boolean;
+  dimCarsInPits: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
 export interface DeltaSpeedConfig {
   background: { opacity: number };
   /**
@@ -1560,6 +1588,7 @@ export interface WidgetConfigMap {
   deltaspeed: DeltaSpeedConfig;
   carsystems: CarSystemsConfig;
   tyres: TyresConfig;
+  minimap: MinimapConfig;
   heartrate: HeartRateConfig;
   cornername: CornerNameOverlayConfig;
   battle: BattleConfig;
@@ -1682,6 +1711,7 @@ export type SectorDeltaWidgetSettings = BaseWidgetSettings<SectorDeltaConfig>;
 export type DeltaSpeedWidgetSettings = BaseWidgetSettings<DeltaSpeedConfig>;
 export type CarSystemsWidgetSettings = BaseWidgetSettings<CarSystemsConfig>;
 export type TyresWidgetSettings = BaseWidgetSettings<TyresConfig>;
+export type MinimapWidgetSettings = BaseWidgetSettings<MinimapConfig>;
 export type HeartRateWidgetSettings = BaseWidgetSettings<HeartRateConfig>;
 export type CornerNameWidgetSettings =
   BaseWidgetSettings<CornerNameOverlayConfig>;
