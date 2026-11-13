@@ -35,6 +35,7 @@ export interface ChannelPayloads {
   'track-state.snapshot': TrackStateSnapshot;
   'tyre-state.snapshot': TyreStateSnapshot;
   'minimap.snapshot': MinimapSnapshot;
+  'lap-delta.snapshot': LapDeltaSnapshot;
   'lap-trace.sample': LapTraceSampleSnapshot;
   'session.lifecycle': SessionLifecycleEvent;
   'raceControl.incidents': Incident;
@@ -675,6 +676,48 @@ export interface RelativeGapsSnapshot {
 export interface ReferenceLapsSnapshot {
   bestLaps: readonly (readonly [number, ReferenceLap])[];
   persistedLaps: readonly (readonly [number, ReferenceLap])[];
+  /**
+   * The player's own best clean lap on this track in this car model, across
+   * every session, or null when there is none yet.
+   *
+   * Not the same thing as an entry of `persistedLaps`: those are the best of a
+   * class, whoever drove it, and are not kept at all under Le Mans Ultimate.
+   * Optional so snapshot literals written before it compile unchanged.
+   */
+  playerAllTimeLap?: ReferenceLap | null;
+  sessionNum: number | null;
+  version: number;
+}
+
+/** The player's lap measured against one reference lap. */
+export interface LapDeltaReference {
+  /** The reference lap's time in seconds. Null when no such lap exists yet. */
+  lapTime: number | null;
+  /**
+   * Seconds against the reference at this point of the lap; negative is
+   * faster. Null without a reference, and on a lap not seen from its start.
+   */
+  delta: number | null;
+  /**
+   * How the delta is moving, in seconds gained or lost per second; negative
+   * is gaining. Null until there is enough of the lap to tell.
+   */
+  trend: number | null;
+}
+
+/**
+ * The player's current lap against their own reference laps.
+ *
+ * Both references travel together and the widget picks one, so changing the
+ * setting needs no round trip and a missing reference is never quietly
+ * replaced by the other. The predicted lap is `lapTime + delta`, left to the
+ * renderer because it is one addition.
+ */
+export interface LapDeltaSnapshot {
+  /** Against the best clean lap of this session. */
+  sessionBest: LapDeltaReference;
+  /** Against the best clean lap ever kept for this track and car. */
+  allTime: LapDeltaReference;
   sessionNum: number | null;
   version: number;
 }
@@ -853,6 +896,13 @@ export const channelRegistry = {
   'minimap.snapshot': {
     kind: 'snapshot',
     defaultRateHz: 25,
+    maxRateHz: 25,
+  },
+  // A figure to read rather than a position to animate: 15 Hz keeps the
+  // hundredths legible, and the processor still measures at 25.
+  'lap-delta.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 15,
     maxRateHz: 25,
   },
   'lap-trace.sample': {

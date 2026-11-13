@@ -4,11 +4,15 @@ import type {
   ReferenceLapsSnapshot,
   Telemetry,
 } from '@irdashies/types';
-import type { ReferenceLapPersistence } from './ReferenceLapProcessor';
+import type {
+  PlayerReferenceLapPersistence,
+  ReferenceLapPersistence,
+} from './ReferenceLapProcessor';
 import { CarSpeedsProcessor } from './CarSpeedsProcessor';
 import { BlindSpotProcessor } from './BlindSpotProcessor';
 import { DriverControlsProcessor } from './DriverControlsProcessor';
 import { FuelProjectionProcessor } from './FuelProjectionProcessor';
+import { LapDeltaProcessor } from './LapDeltaProcessor';
 import { LapLogProcessor } from './LapLogProcessor';
 import { LapTimesProcessor } from './LapTimesProcessor';
 import { LapTraceSampleProcessor } from './LapTraceSampleProcessor';
@@ -36,6 +40,12 @@ import type { PoleSideSettings } from '@irdashies/types';
 
 interface ProcessorRegistryOptions {
   referenceLapPersistence: ReferenceLapPersistence;
+  /**
+   * Where the player's own all-time best lap per track and car is kept.
+   * Without it nothing is loaded or saved and the all-time reference is the
+   * best of the running session only.
+   */
+  playerReferenceLapPersistence?: PlayerReferenceLapPersistence;
   /** The radar's dev tuning from the current dashboard; defaults without. */
   radarTuning?: () => RadarProcessorTuning;
   /** The player's own pole side per track; the table's without. */
@@ -71,6 +81,7 @@ const defineProcessor = <K extends AnyProcessorDefinition['channel']>(
 
 export const createProcessorDefinitions = ({
   referenceLapPersistence,
+  playerReferenceLapPersistence,
   radarTuning,
   radarPoleSides,
 }: ProcessorRegistryOptions): readonly AnyProcessorDefinition[] => [
@@ -104,8 +115,20 @@ export const createProcessorDefinitions = ({
       new ReferenceLapProcessor(
         aggregateReplay
           ? { load: () => null, save: () => undefined }
-          : referenceLapPersistence
+          : referenceLapPersistence,
+        // A replayed tape is somebody's old session: its laps are not the
+        // player's to keep, and the player's are not its to be measured by.
+        aggregateReplay ? undefined : playerReferenceLapPersistence
       ),
+  }),
+  defineProcessor({
+    channel: 'lap-delta.snapshot',
+    dependencies: ['reference-laps.snapshot'],
+    metricsPrefix: 'lapDelta',
+    create: ({ snapshot }) =>
+      new LapDeltaProcessor({
+        snapshot: () => snapshot('reference-laps.snapshot') ?? noReferenceLaps,
+      }),
   }),
   defineProcessor({
     channel: 'relative-gaps.snapshot',

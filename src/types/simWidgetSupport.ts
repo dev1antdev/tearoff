@@ -46,6 +46,9 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   'garagecover',
   'infobar',
   'input',
+  // Timed from where the lap fraction wraps, which is where the reference
+  // laps are recorded from, rather than from LMU's own lap clock.
+  'lapdelta',
   'laptimelog',
   'laptrace',
   // Drawn from the map LMU sends with the session, not from the iRacing
@@ -137,7 +140,7 @@ export const DEFAULT_SIM_WIDGET_SUPPORT: SimWidgetSupportConfig = {
  * it did, which costs a user their hand edits once per change and is why the
  * number is bumped only for a real one.
  */
-export const SIM_WIDGET_SUPPORT_VERSION = 9;
+export const SIM_WIDGET_SUPPORT_VERSION = 10;
 
 /**
  * Whether a widget is unavailable under the running sim.

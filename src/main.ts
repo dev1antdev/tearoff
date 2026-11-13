@@ -50,6 +50,10 @@ import {
   validateReferenceLapFile,
   flushReferenceLapsOnShutdown,
 } from './app/storage/referenceLaps';
+import {
+  loadPlayerReferenceLaps,
+  flushPlayerReferenceLapsOnShutdown,
+} from './app/storage/playerReferenceLaps';
 import { flushLapTracesOnShutdown } from './app/storage/lapTraces';
 import { flushPitLaneDataOnShutdown } from './app/storage/pitLaneData';
 import {
@@ -473,6 +477,9 @@ void app.whenReady().then(async () => {
 
   // Perform one-time cleanup of old reference laps
   validateReferenceLapFile();
+  // Not awaited: no session is running yet, and a lookup that beats the read
+  // simply finds no lap.
+  void loadPlayerReferenceLaps();
 
   const bridge = getCurrentBridge();
 
@@ -711,6 +718,7 @@ const handleBeforeQuit = createBeforeQuitHandler({
       flushLapTracesOnShutdown(),
       flushPitLaneDataOnShutdown(),
       flushReferenceLapsOnShutdown(),
+      flushPlayerReferenceLapsOnShutdown(),
       fuelDatabase?.flush(),
       flushIncidentsOnShutdown(),
       flushLapHistoryOnShutdown(),

@@ -1086,6 +1086,37 @@ export interface TyresConfig {
 }
 
 /**
+ * The player's lap against one of their own reference laps.
+ *
+ * Times are seconds throughout, as the channel carries them.
+ */
+export interface LapDeltaConfig {
+  background: { opacity: number };
+  /**
+   * Which lap the delta is measured against: the best clean lap of this
+   * session, or the best one kept for this track and car across sessions.
+   * Where the chosen one does not exist yet the widget shows dashes rather
+   * than falling back to the other.
+   */
+  reference: 'sessionBest' | 'allTime';
+  /** Decimal places on the delta. */
+  decimals: 2 | 3;
+  /** The bar showing whether time is being gained or lost right now. */
+  showTrend: boolean;
+  /**
+   * The rate that fills the trend bar, in seconds gained or lost per second
+   * of driving.
+   */
+  trendRange: number;
+  /** The lap time this lap is heading for. */
+  showPredictedLap: boolean;
+  /** The reference lap's own time, and which reference it is. */
+  showReferenceLap: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
  * Close-range map centred on the car being watched.
  *
  * Distances are metres on the real track, so the same settings look the same
@@ -1591,6 +1622,7 @@ export interface WidgetConfigMap {
   carsystems: CarSystemsConfig;
   tyres: TyresConfig;
   minimap: MinimapConfig;
+  lapdelta: LapDeltaConfig;
   heartrate: HeartRateConfig;
   cornername: CornerNameOverlayConfig;
   battle: BattleConfig;
@@ -1714,6 +1746,7 @@ export type DeltaSpeedWidgetSettings = BaseWidgetSettings<DeltaSpeedConfig>;
 export type CarSystemsWidgetSettings = BaseWidgetSettings<CarSystemsConfig>;
 export type TyresWidgetSettings = BaseWidgetSettings<TyresConfig>;
 export type MinimapWidgetSettings = BaseWidgetSettings<MinimapConfig>;
+export type LapDeltaWidgetSettings = BaseWidgetSettings<LapDeltaConfig>;
 export type HeartRateWidgetSettings = BaseWidgetSettings<HeartRateConfig>;
 export type CornerNameWidgetSettings =
   BaseWidgetSettings<CornerNameOverlayConfig>;

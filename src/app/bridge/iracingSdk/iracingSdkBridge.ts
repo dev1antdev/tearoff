@@ -197,6 +197,9 @@ export async function publishIRacingSDKEvents(
     const referenceLapStorage = channelBus
       ? await import('../../storage/referenceLaps')
       : undefined;
+    const playerReferenceLapStorage = channelBus
+      ? await import('../../storage/playerReferenceLaps')
+      : undefined;
     const radarTuningStorage = channelBus
       ? await import('../../storage/radarTuning')
       : undefined;
@@ -215,6 +218,21 @@ export async function publishIRacingSDKEvents(
             referenceLapPersistence: {
               load: referenceLapStorage.getReferenceLap,
               save: referenceLapStorage.saveReferenceLap,
+            },
+            playerReferenceLapPersistence: playerReferenceLapStorage && {
+              load: (trackId, carKey) =>
+                playerReferenceLapStorage.getPlayerReferenceLap(
+                  'iracing',
+                  trackId,
+                  carKey
+                ),
+              save: (trackId, carKey, lap) =>
+                playerReferenceLapStorage.savePlayerReferenceLap(
+                  'iracing',
+                  trackId,
+                  carKey,
+                  lap
+                ),
             },
             radarTuning: radarTuningStorage?.getRadarTuning,
             radarPoleSides: radarPoleSideStorage?.radarPoleSideOverrides,
