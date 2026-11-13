@@ -48,7 +48,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 1. In LMU, enable **Settings > Gameplay > Enable Plugins**, then restart the simulator.
 2. Start Tearoff and load into an LMU session to receive telemetry.
 
-**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Information Bar, Tyres, and Minimap. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Fuel Calculator, both full-size track maps, Radar, Gantry, Car Systems, Lap Timer, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Information Bar, Tyres, Minimap, and Lap Delta. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Fuel Calculator, both full-size track maps, Radar, Gantry, Car Systems, Lap Timer, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
@@ -591,6 +591,22 @@ Displays per-sector timing deltas for the current lap, colour-coded by performan
 - Adjustable background opacity
 
 ![Sector Delta](./docs/assets/sector-delta.png)
+
+### Lap Delta
+
+Your current lap against your own best: how far up or down you are, whether you are gaining or losing right now, and the lap time you are heading for. Works in iRacing and Le Mans Ultimate.
+
+**Features:**
+
+- The delta to the reference lap at the point of the track you are at, green when ahead and red when behind, to two or three decimals
+- A trend bar that fills green while you are gaining on the reference and red while you are losing to it, with adjustable sensitivity
+- Predicted lap time: the reference lap plus the current delta
+- A choice of reference: your best clean lap of this session, or your all-time best clean lap on this track in this car, which is kept between sessions
+- Dashes rather than a guess: before the chosen reference exists, and on a lap that was not seen from its start (the out-lap, or after a return to the pits), nothing is shown in its place
+- The all-time best is your own lap only. A lap driven by a team-mate or the AI is not kept, nor is a lap the sim voided for track limits in Le Mans Ultimate or one with an incident in iRacing
+- Adjustable background opacity, session visibility and an option to show only when on track
+
+Laps are timed from the point where the lap distance wraps rather than from the sim's own lap clock, so the delta and the reference always share one start line. In Le Mans Ultimate that point is a couple of metres from the timing line, so a predicted lap can differ from the official time by a hundredth or two. There the lap that opens a race is not used as a reference either: the sim reports no lap position until the car first reaches the line, so that lap has no start to time it from.
 
 ### Delta Speed
 

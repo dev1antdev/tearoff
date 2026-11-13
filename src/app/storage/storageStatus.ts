@@ -1,7 +1,7 @@
 import { EventEmitter } from 'node:events';
 import type { StorageStatus } from '../../types/storageStatus';
 
-type StorageSource = 'fuel' | 'referenceLaps';
+type StorageSource = 'fuel' | 'referenceLaps' | 'playerReferenceLaps';
 const diskFullSources = new Set<StorageSource>();
 const events = new EventEmitter();
 
