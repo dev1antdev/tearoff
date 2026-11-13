@@ -23,7 +23,10 @@ export interface LapLibrarySession {
   sessionType: string | null;
   sessionName: string | null;
   lapCount: number;
-  /** The quickest complete lap in the session, pit laps included. */
+  /**
+   * The quickest lap in the session that was timed in full and that the sim
+   * did not void. What the other laps' gaps are measured from.
+   */
   bestLapTime: number | null;
 }
 

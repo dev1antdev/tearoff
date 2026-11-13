@@ -234,6 +234,16 @@ describe('LapLibraryDatabase recording', () => {
     expect(db.listSessions()[0].bestLapTime).toBeNull();
   });
 
+  it('does not count a voided lap as the best of its session', () => {
+    // The sim took the lap away. Every other lap's gap is measured from the
+    // session's best, so it has to be a lap that stands.
+    db.recordLap(session(), lap(86.216));
+    db.recordLap(session(), lap(85.902, { voided: true }));
+    db.recordLap(session(), lap(86.744));
+
+    expect(db.listSessions()[0].bestLapTime).toBe(86.216);
+  });
+
   it('keeps unknowns as unknown rather than zero', () => {
     const { sessionId } = db.recordLap(
       session(),

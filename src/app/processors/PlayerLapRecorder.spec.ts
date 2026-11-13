@@ -103,7 +103,18 @@ interface Recorded {
   lap: LapInput;
 }
 
-const setup = (simulator = 'iracing', start = session()) => {
+/** An LMU entry as it is while the player is in the car. */
+const LMU_CAR = {
+  CarPath: '74_26_KESS',
+  CarModel: 'Ferrari 296 LMGT3 Evo',
+  CarScreenName: 'Kessel Racing #74',
+};
+
+const setup = (
+  simulator = 'iracing',
+  // LMU files laps under the car's model, which iRacing does not report.
+  start = session(simulator === 'lmu' ? { car: LMU_CAR } : {})
+) => {
   const recorded: Recorded[] = [];
   let clock = Date.UTC(2026, 10, 13, 16, 0, 0);
   const recorder = new PlayerLapRecorder(
@@ -211,6 +222,68 @@ describe('PlayerLapRecorder', () => {
       carKey: 'Ferrari 296 LMGT3 Evo',
       carName: 'Kessel Racing #74',
     });
+  });
+
+  it('carries a session on through a trip out of the car under LMU', () => {
+    // At the monitor LMU names no player car at all, and an entry without a
+    // telemetry block has no model. Neither is a different car: a stop in
+    // the garage must not split the session in the list.
+    const ferrari = {
+      CarPath: '74_26_KESS',
+      CarModel: 'Ferrari 296 LMGT3 Evo',
+      CarScreenName: 'Kessel Racing #74',
+    };
+    const { recorder, recorded } = setup('lmu', session({ car: ferrari }));
+    crossLine(recorder, 100);
+    driveLap(recorder, 100, 60);
+    // Part of the next lap, then out of the car.
+    for (let point = 0; point < 40; point += 1) {
+      const pct = (point + 0.5) / 100;
+      recorder.onFrame(frame(pct, 160 + pct * 60));
+    }
+
+    recorder.onSession(session({ playerCarIdx: -1, car: ferrari }));
+    recorder.onFrame(frame(0.9, 230));
+    // Back in the garage: the entry is there, the model is not yet.
+    recorder.onSession(session({ car: { CarPath: '74_26_KESS' } }));
+    recorder.onFrame(frame(0.9, 240));
+    recorder.onSession(session({ car: ferrari }));
+
+    crossLine(recorder, 300);
+    driveLap(recorder, 300, 61);
+
+    // The interrupted lap is not one; the two whole laps share a session.
+    expect(recorded).toHaveLength(2);
+    expect(recorded[0].session.token).toBe(recorded[1].session.token);
+    expect(recorded[1].session.carKey).toBe('Ferrari 296 LMGT3 Evo');
+    expect(recorded[1].session.carName).toBe('Kessel Racing #74');
+  });
+
+  it('never files an LMU lap under the livery', () => {
+    // Before the model is known there is no car to file a lap under.
+    const { recorder, recorded } = setup(
+      'lmu',
+      session({ car: { CarPath: '74_26_KESS' } })
+    );
+
+    crossLine(recorder, 100);
+    driveLap(recorder, 100, 60);
+
+    expect(recorded).toHaveLength(0);
+  });
+
+  it('carries a session on through spectating under iRacing', () => {
+    const { recorder, recorded } = setup();
+    crossLine(recorder, 100);
+    driveLap(recorder, 100, 60);
+
+    recorder.onSession(session({ playerCarIdx: -1 }));
+    recorder.onSession(session());
+    crossLine(recorder, 300);
+    driveLap(recorder, 300, 61);
+
+    expect(recorded).toHaveLength(2);
+    expect(recorded[0].session.token).toBe(recorded[1].session.token);
   });
 
   it('trusts no session id from an iRacing test session either', () => {

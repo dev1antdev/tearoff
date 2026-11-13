@@ -97,6 +97,11 @@ interface ActiveLap {
  */
 export class PlayerLapRecorder {
   private playerCarIdx = -1;
+  /** False while the sim names no car for the player. */
+  private playerPresent = false;
+  /** What the laps are filed under, kept while the player is out of the car. */
+  private carKey = '';
+  private carName = '';
   private sessionInfo: Session | null = null;
   private identity = '';
   private trackLengthM = 0;
@@ -147,18 +152,38 @@ export class PlayerLapRecorder {
     const player = session.DriverInfo?.Drivers?.find(
       (driver) => driver?.CarIdx === playerCarIdx
     );
+    // Le Mans Ultimate names the model apart from CarPath, which there is the
+    // livery file and differs between two entries of one car. It names it
+    // only while the entry has a telemetry block, so without a model the car
+    // is not known, rather than being a different one.
+    const carKey =
+      this.options.simulator === 'lmu'
+        ? (player?.CarModel ?? '')
+        : (player?.CarModel ?? player?.CarPath ?? '');
+    if (playerCarIdx < 0 || carKey === '') {
+      // Out of the car: at the monitor under LMU the sim names no player at
+      // all. That is not a different car and not the end of the session, so
+      // what follows the return to the car carries on in the same one. The
+      // lap that was being driven is over all the same.
+      this.playerPresent = false;
+      this.abandonLap();
+      return;
+    }
+    this.playerPresent = true;
+    this.carName = player?.CarScreenName || carKey;
     const trackLengthM = trackLengthFrom(session);
     const identity = [
       session.WeekendInfo?.SubSessionID ?? -1,
       session.WeekendInfo?.TrackID ?? -1,
       trackLengthM,
       playerCarIdx,
-      player?.CarModel ?? player?.CarPath ?? '',
+      carKey,
     ].join('|');
     if (identity === this.identity) return;
     // A different event, track or car: not a continuation of anything.
     this.identity = identity;
     this.playerCarIdx = playerCarIdx;
+    this.carKey = carKey;
     this.trackLengthM = trackLengthM;
     this.pointsCount = trackLengthM > 0 ? pointsCountFor(trackLengthM) : 0;
     this.interval = this.pointsCount > 0 ? intervalFor(this.pointsCount) : 0;
@@ -169,7 +194,12 @@ export class PlayerLapRecorder {
   }
 
   onFrame(frame: Telemetry): void {
-    if (!this.enabled || this.pointsCount === 0 || this.playerCarIdx < 0) {
+    if (
+      !this.enabled ||
+      !this.playerPresent ||
+      this.pointsCount === 0 ||
+      this.playerCarIdx < 0
+    ) {
       return;
     }
     const sessionTime = numberAt(frame, 'SessionTime');
@@ -337,9 +367,6 @@ export class PlayerLapRecorder {
 
   private sessionInput(session: Session): LapSessionInput {
     const weekend = session.WeekendInfo;
-    const player = session.DriverInfo?.Drivers?.find(
-      (driver) => driver?.CarIdx === this.playerCarIdx
-    );
     const current = session.SessionInfo?.Sessions?.find(
       (entry) => entry?.SessionNum === this.sessionNum
     );
@@ -358,9 +385,8 @@ export class PlayerLapRecorder {
       trackName: weekend?.TrackDisplayName || weekend?.TrackName || 'Unknown',
       trackConfig: weekend?.TrackConfigName || null,
       trackLengthM: this.trackLengthM,
-      carKey: player?.CarModel ?? player?.CarPath ?? '',
-      carName:
-        player?.CarScreenName || player?.CarModel || player?.CarPath || '',
+      carKey: this.carKey,
+      carName: this.carName,
       sessionType: current?.SessionType || null,
       sessionName: current?.SessionName || null,
     };
