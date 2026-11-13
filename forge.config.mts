@@ -25,7 +25,20 @@ const optionalResources = fs.existsSync(lmuRecorderPath)
   ? [lmuRecorderPath]
   : [];
 
+/**
+ * Where packaged builds are written, when it should not be `out`.
+ *
+ * Windows keeps the files of a running app locked, so a build cannot replace
+ * a packaged copy that is open -- and the copy being raced with is exactly the
+ * one worth leaving alone. Setting IRDASHIES_OUT_DIR builds a second copy
+ * beside it instead, for example `out/next`. Unset, nothing changes.
+ */
+const outDir = process.env.IRDASHIES_OUT_DIR
+  ? path.resolve(import.meta.dirname, process.env.IRDASHIES_OUT_DIR)
+  : undefined;
+
 const config: ForgeConfig = {
+  ...(outDir ? { outDir } : {}),
   hooks: {
     postStart: async (_config, appProcess) => {
       // Windows treats SIGTERM as a hard kill. Let the development parent
