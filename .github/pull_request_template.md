@@ -7,9 +7,11 @@
 <!-- If this PR includes visual changes, please provide before/after screenshots or videos -->
 
 ### Before
+
 <!-- Screenshot or description of the current behaviour -->
 
 ### After
+
 <!-- Screenshot or description of the new behaviour -->
 
 ## Type of Change
@@ -27,7 +29,6 @@
 
 <!-- Check all that apply. Put an x in the brackets: [x] -->
 
-- [ ] I have discussed this change in the discord server
 - [ ] I have tested this in iRacing (either in an online session or with AI)
 - [ ] All tests pass locally via `npm test`
 - [ ] I have added tests that prove my fix is effective or that my feature works

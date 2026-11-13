@@ -56,7 +56,7 @@ describe('hiddenRatingColumns', () => {
 
     // `badge` holds the LMU rank pair, and marks AI entries without it.
     expect(hidden.has('badge')).toBe(false);
-    // Only RaceOS fills it, and RaceOS is switched off.
+    // Only a rating service could fill it, and this build has none.
     expect(hidden.has('lmuBadge')).toBe(true);
     // LMU reports no iRating, so its change column stays hidden.
     expect(hidden.has('iratingChange')).toBe(true);
@@ -72,7 +72,7 @@ describe('hiddenRatingColumns', () => {
 
   it('hides only columns no simulator fills before one is detected', () => {
     // With no sim to be incompatible with, hiding anything else would be
-    // guessing; the LMU badge has no source at all while RaceOS is off.
+    // guessing; the LMU badge has no source at all in this build.
     for (const sim of [undefined, null]) {
       expect([...hiddenRatingColumns(sim)]).toEqual(['lmuBadge']);
     }

@@ -5,6 +5,7 @@ import type {
   ReleaseNotesResult,
   ReleaseNotesStatus,
 } from '@irdashies/types';
+import { GITHUB_REPOSITORY, GITHUB_REPOSITORY_URL } from '@irdashies/types';
 import type {
   ReleaseNotesState,
   ReleaseNotesStore,
@@ -38,7 +39,9 @@ export function advanceInstalledVersion(
 }
 
 const githubUrl = (tag: string) =>
-  `https://github.com/tariknz/irdashies/releases/tag/${encodeURIComponent(tag)}`;
+  `${GITHUB_REPOSITORY_URL}/releases/tag/${encodeURIComponent(tag)}`;
+
+const GITHUB_RELEASES_API = `https://api.github.com/repos/${GITHUB_REPOSITORY}/releases`;
 
 const GITHUB_HEADERS = {
   Accept: 'application/vnd.github+json',
@@ -76,7 +79,7 @@ export async function fetchGitHubReleases(
 ): Promise<ReleaseNotesHistoryResult> {
   try {
     const response = await fetcher(
-      `https://api.github.com/repos/tariknz/irdashies/releases?per_page=${HISTORY_PAGE_SIZE}&page=${page}`,
+      `${GITHUB_RELEASES_API}?per_page=${HISTORY_PAGE_SIZE}&page=${page}`,
       {
         headers: GITHUB_HEADERS,
         signal: AbortSignal.timeout(8_000),
@@ -127,7 +130,7 @@ export async function fetchGitHubRelease(
     // Fetch the exact release, never /latest: beta, skipped and installed versions differ.
     for (const tag of [`v${version}`, version]) {
       const response = await fetcher(
-        `https://api.github.com/repos/tariknz/irdashies/releases/tags/${encodeURIComponent(tag)}`,
+        `${GITHUB_RELEASES_API}/tags/${encodeURIComponent(tag)}`,
         {
           headers: GITHUB_HEADERS,
           signal: AbortSignal.timeout(8_000),

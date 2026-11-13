@@ -1,11 +1,11 @@
 {
-  "name": "irdashies",
-  "productName": "irdashies",
+  "name": "tearoff",
+  "productName": "tearoff",
   "version": "2.1.1",
-  "description": "iRacing Dashboards & Overlays",
+  "description": "Sim racing dashboards & overlays (fork of irDashies)",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tariknz/irdashies"
+    "url": "https://github.com/dev1antdev/tearoff"
   },
   "main": ".vite/build/main.cjs",
   "scripts": {
@@ -35,8 +35,6 @@
     "publish:ci": "electron-forge publish",
     "publish": "npx env-cmd electron-forge publish",
     "lint": "tsc --project ./tsconfig.json --noEmit && eslint . --max-warnings 0",
-    "site": "vite --config site/vite.config.mts site",
-    "site:build": "vite build --config site/vite.config.mts site",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "test": "vitest --coverage",

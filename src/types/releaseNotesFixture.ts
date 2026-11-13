@@ -1,10 +1,11 @@
 import type { ReleaseNotes } from './releaseNotes';
+import { GITHUB_REPOSITORY_URL } from './repository';
 
 /** Local preview data; never used in a packaged app. */
 export const releaseNotesFixture = (version = '2.1.0'): ReleaseNotes => ({
   version,
   title: `irDashies ${version}`,
-  url: `https://github.com/tariknz/irdashies/releases/tag/v${version}`,
+  url: `${GITHUB_REPOSITORY_URL}/releases/tag/v${version}`,
   publishedAt: '2026-10-18T00:00:00Z',
   body: `## What's new
 
@@ -25,7 +26,7 @@ export const releaseNotesFixture = (version = '2.1.0'): ReleaseNotes => ({
 - Fixed an issue with saving layout preferences.
 - Improved recovery after a simulator disconnect.
 
-Read more on [GitHub](https://github.com/tariknz/irdashies).
+Read more on [GitHub](${GITHUB_REPOSITORY_URL}).
 
 \`\`\`text
 This is sample content for local testing.

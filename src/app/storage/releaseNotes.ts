@@ -1,6 +1,7 @@
 import * as fsp from 'node:fs/promises';
 import path from 'node:path';
 import type { ReleaseNotes } from '@irdashies/types';
+import { GITHUB_REPOSITORY_URL } from '@irdashies/types';
 import { normalizeVersion } from '../releaseNotes/version';
 import logger from '../logger';
 
@@ -35,7 +36,7 @@ export function sanitizeRelease(value: unknown): ReleaseNotes | null {
   )
     return null;
   // Cache and GitHub data cannot inject arbitrary links into View on GitHub.
-  const expected = 'https://github.com/tariknz/irdashies/releases/tag/';
+  const expected = `${GITHUB_REPOSITORY_URL}/releases/tag/`;
   if (!raw.url.startsWith(expected)) return null;
   const tag = decodeURIComponent(raw.url.slice(expected.length));
   if (normalizeVersion(tag) !== version) return null;

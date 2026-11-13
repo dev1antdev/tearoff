@@ -125,9 +125,6 @@ PITLANE_DETECTION_FIXES.md
 storybook-static/
 perf-results/
 
-# landing site
-site/dist/
-site/node_modules/
 .gstack/
 docs/dashboard.json
 ka-local/register-task.ps1

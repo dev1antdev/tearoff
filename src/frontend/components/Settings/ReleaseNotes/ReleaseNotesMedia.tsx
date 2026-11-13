@@ -1,6 +1,7 @@
 import { createContext, useContext, useState } from 'react';
 import type { ReactNode } from 'react';
 import { defaultSchema, type Options } from 'rehype-sanitize';
+import { GITHUB_REPOSITORY } from '@irdashies/types';
 
 /** Keep the normal Markdown schema, plus the small media subset GitHub emits. */
 export const releaseNotesSchema: Options = {
@@ -28,7 +29,7 @@ export function releaseMediaUrl(value: unknown): string | null {
     const userImage = url.hostname === 'user-images.githubusercontent.com';
     const repoImage =
       url.hostname === 'raw.githubusercontent.com' &&
-      url.pathname.startsWith('/tariknz/irdashies/');
+      url.pathname.startsWith(`/${GITHUB_REPOSITORY}/`);
     return attachment || userImage || repoImage ? url.href : null;
   } catch {
     return null;

@@ -173,7 +173,7 @@ if (options.target === 'packaged') {
   if (process.platform !== 'win32') {
     throw new Error('The packaged benchmark target is currently Windows-only.');
   }
-  childCommand = path.resolve('out/irdashies-win32-x64/irdashies.exe');
+  childCommand = path.resolve('out/tearoff-win32-x64/tearoff.exe');
   try {
     await fs.access(childCommand);
   } catch {

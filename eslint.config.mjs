@@ -47,7 +47,7 @@ export default defineConfig([
   tseslint.configs.stylistic,
   {
     ...eslintReactRecommended,
-    files: ['src/frontend/**/*.{ts,tsx}', 'site/src/**/*.{ts,tsx}'],
+    files: ['src/frontend/**/*.{ts,tsx}'],
     rules: {
       ...eslintReactErrorRules,
       // Preserve dependency checking from react-hooks/recommended-latest.

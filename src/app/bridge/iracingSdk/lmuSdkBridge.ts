@@ -14,7 +14,6 @@ import type { ChannelBus } from '../channelBridge';
 import { createDefaultProcessorHost } from '../../processors/processorRegistry';
 import { sessionSecondsFrameClock } from '../../processors/ProcessorHost';
 import { mapLmuSession } from '../../lmu/mapSession';
-import { isLmuAiEntry, lmuPlayerSlot } from '../../lmu/aiControl';
 import {
   lmuRosterSignature,
   lmuSessionSignature,
@@ -57,16 +56,6 @@ import {
   LmuTrackMapStorage,
   tinyPedalTrackMapDirectories,
 } from '../../lmu/trackMap';
-import { createRaceosClient, type RaceosClient } from '../../lmu/raceos/client';
-import { raceosUsername } from '../../lmu/raceos/parse';
-import { createLmuTapeRatingClient } from '../../lmu/raceos/tapeRatings';
-import { createRaceosTransport } from '../../lmu/raceos/httpsJson';
-import { createTicketFetcher } from '../../lmu/raceos/ticket';
-import { RACEOS_ENABLED } from '../../lmu/raceos/enabled';
-import {
-  createDriverRatingCache,
-  type DriverRatingCache,
-} from '../../storage/driverRatings';
 import { app } from 'electron';
 import path from 'node:path';
 
@@ -146,56 +135,6 @@ const FROZEN_POLL_INTERVAL = 250;
 const perfRunConfig = getPerfRunConfig();
 const perfTelemetryDeliveryEnabled =
   !perfRunConfig.enabled || perfRunConfig.telemetryDelivery === 'on';
-
-/**
- * The driver names on the grid to ask the rating service about.
- *
- * Names, not Steam ids. The sim reports 0 for every driver's Steam id -- in
- * shared memory and over its own REST API alike -- so there was never an id to
- * key on, and the service takes a list of usernames in any case.
- *
- * Canonicalised by raceosUsername, which is also applied to the names coming
- * back, so both sides of the join agree.
- */
-const gridUsernames = (raw: {
-  readonly drivers: readonly {
-    id: number;
-    name: string;
-    control?: number;
-    isPlayer?: boolean;
-  }[];
-  readonly playerHasVehicle?: boolean;
-  readonly playerVehicleIdx?: number;
-}): string[] => {
-  const ownSlot = lmuPlayerSlot(raw);
-  return (
-    raw.drivers
-      // AI entries are left out, and not as an optimisation. RaceOS is asked by
-      // name, the sim names its AI after real people, and the service has no way
-      // to know the difference -- so an AI called "Herve Attard" is handed that
-      // person's rank and badge. The lookup is the first of two places this is
-      // blocked; mapSession declines to merge one too, because a cached answer
-      // for a human of the same name needs no lookup to reach an AI's row.
-      //
-      // The player is never an AI, whatever control says: LMU holds your car
-      // under AI control until you take it, so this skipped your own name for as
-      // long as you sat in the garage, and your row showed the AI badge while
-      // every other driver was ranked. See aiControl.ts.
-      //
-      // `control === 1` only otherwise. isLmuAiEntry returns undefined when the
-      // sim did not report control at all, and `!undefined` keeps the entry: a
-      // missing field must not quietly cost a human their rank.
-      .filter(
-        (driver) =>
-          !isLmuAiEntry({
-            control: driver.control,
-            isPlayer: driver.isPlayer || driver.id === ownSlot,
-          })
-      )
-      .map((driver) => raceosUsername(driver.name ?? ''))
-      .filter((name) => name.length > 0)
-  );
-};
 
 /**
  * Starts the Le Mans Ultimate bridge: reads shared memory and the REST API,
@@ -299,8 +238,6 @@ export async function publishLmuSDKEvents(
   };
   let latestSession: Session | null = null;
   let lastSessionSignature: string | null = null;
-  /** Last reported rating tally, so a settled grid is reported once. */
-  let lastRatingTally: string | null = null;
   /** When a slow rebuild was last reported, for the rate limit. */
   let lastSlowSessionLog = Number.NEGATIVE_INFINITY;
   /** Set by the rebuild, read by the publish below, so both are timed once. */
@@ -350,65 +287,6 @@ export async function publishLmuSDKEvents(
   // Per-car integrators, so opponents get a poll-rate lap position too rather
   // than the 5 Hz scoring steps everything downstream would differentiate.
   const opponentLapDistanceState = createLmuOpponentLapDistanceState();
-
-  // Driver ranks and badges, from the rating service LMU's own ecosystem uses.
-  //
-  // Deliberately the loosest coupling in this bridge. The loop hands the
-  // client the grid's driver names and reads back only what it has already
-  // resolved, synchronously -- every request, token exchange, retry and cache
-  // write happens on the client's own timers. So the service being slow, down
-  // or unreachable costs the telemetry loop nothing and leaves the standings
-  // rendering exactly as they do without ratings at all.
-  //
-  // The credential chain is documented in raceos/client.ts; the short version
-  // is that it needs a Steam auth ticket the sim mints, so ratings exist only
-  // while LMU is running and signed in. The join is on driver name, because
-  // the sim reports 0 for every Steam id it publishes.
-  //
-  // A replay takes the other branch entirely, because the recorder never
-  // captures that ticket -- it is a live credential and a tape is a fixture.
-  // `anonymise` bakes the ratings into the tape instead, keyed by the same
-  // pseudonymised names its snapshots carry, so a replay shows the badges it
-  // was recorded with and carries no real identity.
-  //
-  // All of it is behind RACEOS_ENABLED, which is off: then neither branch is
-  // taken and the client below answers nothing, live or replayed.
-  let ratingCache: DriverRatingCache | undefined;
-  let ratingClient: RaceosClient;
-  if (!RACEOS_ENABLED) {
-    logger.info('[lmuSdkBridge] Driver ratings: off (RaceOS is disabled)');
-    ratingClient = {
-      get: () => undefined,
-      request: () => undefined,
-      reset: () => undefined,
-    };
-  } else if (isTapeReplay) {
-    logger.info(
-      '[lmuSdkBridge] Driver ratings: reading what the tape was anonymised with'
-    );
-    ratingClient = createLmuTapeRatingClient(sdk);
-  } else {
-    logger.info(
-      '[lmuSdkBridge] Driver ratings: looking up live via the rating service'
-    );
-    ratingCache = createDriverRatingCache(app.getPath('userData'));
-    // Awaited before the loop starts so the first grid is matched against what
-    // the last session already learned, rather than re-asking for all of it.
-    await ratingCache.load();
-    ratingClient = createRaceosClient({
-      transport: createRaceosTransport(),
-      cache: ratingCache,
-      fetchTicket: createTicketFetcher(restTransport),
-      // Ratings land long after the snapshot that asked for them was
-      // published, so something has to force a republish. Dropping the
-      // signature is the same lever the track map and the REST revision pull
-      // above; without it a resolved rank would sit in the cache unseen until
-      // an unrelated field happened to move the signature on its own.
-      onResolved: () => {
-        lastSessionSignature = null;
-      },
-    });
-  }
 
   const telemetryCallbacks = new Set<(value: Telemetry) => void>();
   const sessionCallbacks = new Set<(value: Session) => void>();
@@ -510,10 +388,6 @@ export async function publishLmuSDKEvents(
           lastGameState = undefined;
           restPoller.setActive(false);
           liveStandings?.setActive(false);
-          // The token was bought with a ticket this sim run minted, and a
-          // queue that outlives the session has nothing left to ask with.
-          // What was already resolved stays: that lives in the cache.
-          ratingClient.reset();
         }
         unavailableSince = null;
         await new Promise((resolve) => setTimeout(resolve, RETRY_INTERVAL));
@@ -667,11 +541,6 @@ export async function publishLmuSDKEvents(
 
       if (rawSession) {
         lastSessionPollTime = tickTime;
-        // Queued on every session poll, not only when the snapshot is rebuilt
-        // below. A driver joining mid-session is a reason to ask even if
-        // nothing else about the grid moved, and an id already resolved,
-        // remembered as a miss or in flight costs one set lookup to skip.
-        ratingClient.request(gridUsernames(rawSession));
         // Flags for an online grid: a burst of teams polls a second after a
         // driver arrives, until every driver on it has one or the burst runs
         // out. Offline, the watch never calls for one.
@@ -717,34 +586,13 @@ export async function publishLmuSDKEvents(
             rawSession,
             trackMap,
             restData.session,
-            (driverName) => ratingClient.get(driverName),
+            // No rating source: this build has no driver-rating service, so
+            // LmuRating carries only the country the sim itself reports.
+            undefined,
             sessionIdentity
           );
           mapSessionMs = performance.now() - mapStartedAt;
           perfMetrics.markEnd('mapSession');
-
-          // What actually went out, counted on the published snapshot rather
-          // than inferred from the lookup.
-          //
-          // "Matched n/n" says the service answered and the answers were filed
-          // under names the grid presents. It does not say they reached a
-          // driver: the country arrives by a different route, so a snapshot
-          // with flags and no ranks looks identical from the renderer's side
-          // and from the log's. This is the only line that tells the two
-          // apart, and it reads the object that is about to be published.
-          const drivers = session.DriverInfo?.Drivers ?? [];
-          const ranked = drivers.filter(
-            (d) => d.LmuRating?.driverRank || d.LmuRating?.safetyRank
-          ).length;
-          const flagged = drivers.filter(
-            (d) => d.LmuRating?.countryCode
-          ).length;
-          const badged = drivers.filter((d) => d.LmuRating?.badge).length;
-          const tally = `${ranked} ranked, ${badged} badged, ${flagged} flagged of ${drivers.length}`;
-          if (tally !== lastRatingTally) {
-            lastRatingTally = tally;
-            logger.info(`[lmuSdkBridge] Published ratings: ${tally}`);
-          }
         }
       }
 
@@ -923,7 +771,6 @@ export async function publishLmuSDKEvents(
     }
     restPoller.setActive(false);
     liveStandings?.stop();
-    ratingClient.reset();
     publishRunningState(false);
   });
 
@@ -957,15 +804,6 @@ export async function publishLmuSDKEvents(
       leaveLifecycle();
       unsubscribeOverlayReady?.();
       restPoller.stop();
-      ratingClient.reset();
-      // Cache writes are debounced behind an unref'd timer, so a rating
-      // resolved in the last second before a quit is only on disk if it is
-      // asked for. Losing it would just mean asking again, hence no await.
-      void ratingCache
-        ?.flush()
-        .catch((error: unknown) =>
-          logger.warn('[lmuSdkBridge] Failed to flush driver ratings', error)
-        );
       // Dropped too, so nothing can replay this bridge's last session after it
       // has gone.
       latestSession = null;

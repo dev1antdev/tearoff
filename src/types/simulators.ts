@@ -66,9 +66,10 @@ export const RATING_COLUMN_IDS = [
  * alone and `lmuBadge` is LMU's. A single boolean could not say that, and
  * hid LMU's ranks for as long as LMU had none to show.
  *
- * `lmuBadge` is listed under no simulator while RaceOS, its only source, is
- * switched off (src/app/lmu/raceos/enabled.ts). The LMU half of `badge` is
- * empty for the same reason, but the column stays: it still marks AI entries.
+ * `lmuBadge` is listed under no simulator: its only source was the RaceOS
+ * rating service, and this build has no rating service at all. The LMU half
+ * of `badge` is empty for the same reason, but the column stays: it still
+ * marks AI entries.
  */
 export const SIMULATOR_RATING_COLUMNS: Record<
   ActiveSimulator,

@@ -133,16 +133,17 @@ const safeErrorDetails = (error: unknown) => {
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) app.quit();
 
-// Only the official build auto-updates.
+// Only the released build auto-updates.
 //
-// Side-by-side betas are built with a different app identity (name and
-// productName become irdashies-beta) so they install alongside the real app.
-// The update feed only ever publishes the official app, so a beta that checks
-// it is offered a release built for a *different* application, downloads it in
-// the background, and Squirrel applies it on the next launch — after which the
-// beta no longer starts. The version number is not the problem and bumping it
-// would not help; the identity mismatch is.
-if (app.getName() === 'irdashies') {
+// The update feed is this fork's own GitHub releases (package.json
+// `repository`), which only ever publish the app named below. A build with a
+// different app identity (a side-by-side beta with another name/productName)
+// that checked the feed would be offered a release built for a *different*
+// application, download it in the background, and Squirrel would apply it on
+// the next launch — after which that build no longer starts. The version
+// number is not the problem and bumping it would not help; the identity
+// mismatch is. Keep this in step with `name`/`productName` in package.json.
+if (app.getName() === 'tearoff') {
   updateElectronApp();
 } else {
   log.info(
