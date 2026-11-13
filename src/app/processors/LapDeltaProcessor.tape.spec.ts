@@ -7,13 +7,16 @@ import { mapLmuSession } from '../lmu/mapSession';
 import { mapLmuTelemetry } from '../lmu/mapTelemetry';
 import { createLmuLapDistanceState } from '../lmu/lapDistance';
 import { createLmuOpponentLapDistanceState } from '../lmu/opponentLapDistance';
+import type { LapInput, LapSessionInput, ReferenceLap } from '@irdashies/types';
+import { isEligibleLap } from '../storage/lapLibrary/LapLibraryDatabase';
 import { ReferenceLapProcessor } from './ReferenceLapProcessor';
 import { LapDeltaProcessor } from './LapDeltaProcessor';
+import { PlayerLapRecorder } from './PlayerLapRecorder';
 
 /**
- * The recorder and the delta, end to end on a recorded Le Mans Ultimate
- * session: a four-minute race at Laguna Seca in a Ferrari 296 LMGT3, joined as
- * the field rolls up to the start.
+ * The lap library's recorder, the reference recorder and the delta, end to
+ * end on a recorded Le Mans Ultimate session: a four-minute race at Laguna
+ * Seca in a Ferrari 296 LMGT3, joined as the field rolls up to the start.
  *
  * The sim publishes its own delta to the player's best lap. It is not what
  * the widget shows -- there is no all-time variant of it, and iRacing's is a
@@ -52,18 +55,40 @@ const playTape = async () => {
     };
   };
   const sdk = new LmuSdkNode();
-  const saved: { trackId: number; carKey: string; lapTime: number }[] = [];
+  // A lap library in miniature: every lap the recorder passes on, and the
+  // quickest eligible one as the all-time reference, with a revision that
+  // moves when that changes. The real one keeps them in a database.
+  const recorded: { session: LapSessionInput; lap: LapInput }[] = [];
+  let allTime: ReferenceLap | null = null;
+  let revision = 0;
+  let clock = Date.UTC(2026, 9, 7, 20, 0, 0);
+  const recorder = new PlayerLapRecorder(
+    {
+      record: (session, lap) => {
+        recorded.push({ session, lap });
+        if (!isEligibleLap(lap) || !lap.curve) return;
+        if (allTime && lap.lapTime >= allTime.finishTime) return;
+        const pointsCount = lap.curve.pointPos.length;
+        allTime = {
+          pointPos: lap.curve.pointPos,
+          times: lap.curve.times,
+          tangents: new Float32Array(pointsCount),
+          interval: lap.curve.interval,
+          pointsCount,
+          startTime: 0,
+          finishTime: lap.lapTime,
+          lastTrackedPct: 0,
+          isCleanLap: true,
+        };
+        revision += 1;
+      },
+    },
+    { simulator: 'lmu', bootId: 'tape', now: () => (clock += 1000) }
+  );
+  recorder.onEnter();
   const reference = new ReferenceLapProcessor(
     { load: () => null, save: () => undefined },
-    {
-      load: () => null,
-      save: (trackId, carKey, lap) =>
-        saved.push({
-          trackId,
-          carKey,
-          lapTime: lap.finishTime - lap.startTime,
-        }),
-    }
+    { load: () => allTime, revision: () => revision }
   );
   const delta = new LapDeltaProcessor(reference);
   reference.onLifecycle({ type: 'enter', replay: false });
@@ -97,6 +122,7 @@ const playTape = async () => {
       // The bridge rebuilds the session twice a second; so does this.
       if (elapsed - lastSessionAt >= 0.5) {
         const session = mapLmuSession(sdk.readSession());
+        recorder.onSession(session);
         reference.init(session);
         delta.init(session);
         lastSessionAt = elapsed;
@@ -104,6 +130,7 @@ const playTape = async () => {
       const telemetry = mapLmuTelemetry(raw, lapDistanceState, opponentState);
       const playerIdx = telemetry.PlayerCarIdx?.value?.[0] as number;
       const versionBefore = reference.snapshot().version;
+      recorder.onFrame(telemetry);
       reference.onFrame(telemetry);
       if (reference.snapshot().version !== versionBefore) {
         const best = reference
@@ -137,12 +164,12 @@ const playTape = async () => {
     sdk.stop();
     vi.unstubAllEnvs();
   }
-  return { frames, samples, bestLapEvents, saved, simBestLap, delta };
+  return { frames, samples, bestLapEvents, recorded, simBestLap, delta };
 };
 
 describe.skipIf(!available)('lap delta on a recorded LMU session', () => {
   it('times laps from the line and agrees with the delta the sim reports', async () => {
-    const { frames, samples, bestLapEvents, saved, simBestLap, delta } =
+    const { frames, samples, bestLapEvents, recorded, simBestLap, delta } =
       await playTape();
 
     // The whole recording was read, not a prefix of it.
@@ -164,11 +191,31 @@ describe.skipIf(!available)('lap delta on a recorded LMU session', () => {
     expect(simBestLap).toBeCloseTo(86.66, 2);
     expect(Math.abs(bestLapEvents[0].lapTime - simBestLap)).toBeLessThan(0.03);
 
-    // Kept as the player's all-time best, once, under the car's model rather
-    // than the livery file LMU puts in CarPath.
-    expect(saved).toHaveLength(1);
-    expect(saved[0].carKey).toBe('Ferrari 296 LMGT3 Evo');
-    expect(saved[0].lapTime).toBe(bestLapEvents[0].lapTime);
+    // The library's recorder passed on that same lap and no other: the
+    // opening stretch is not a lap, and the recording ends part-way round
+    // the next. Filed under the car's model rather than the livery file LMU
+    // puts in CarPath, and fit to be a reference.
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0].session).toMatchObject({
+      simulator: 'lmu',
+      sessionKey: '',
+      trackName: 'WeatherTech Raceway Laguna Seca',
+      carKey: 'Ferrari 296 LMGT3 Evo',
+      sessionType: 'Race',
+    });
+    expect(recorded[0].lap.lapTime).toBeCloseTo(bestLapEvents[0].lapTime, 6);
+    expect(recorded[0].lap).toMatchObject({
+      complete: true,
+      pit: false,
+      voided: false,
+      own: true,
+    });
+    expect(isEligibleLap(recorded[0].lap)).toBe(true);
+    // An LMGT3 runs on virtual energy; a lap costs it about a twentieth.
+    expect(recorded[0].lap.energyUsed).toBeGreaterThan(0.02);
+    expect(recorded[0].lap.energyUsed).toBeLessThan(0.08);
+    expect(recorded[0].lap.fuelUsed).toBeGreaterThan(1);
+    expect(recorded[0].lap.fuelUsed).toBeLessThan(5);
 
     // No delta until there is a reference and a lap timed from its start.
     const firstDelta = samples.find((sample) => sample.delta !== null);
@@ -198,9 +245,14 @@ describe.skipIf(!available)('lap delta on a recorded LMU session', () => {
       expect(Math.abs(difference)).toBeLessThan(0.15);
     }
 
-    // The session best is the all-time best here, so the two read alike.
+    // The session best and the all-time reference are the same lap here,
+    // recorded twice: once by the reference recorder, once by the library's.
+    // Their curves are sampled a frame apart at the line, so the two deltas
+    // agree to a thousandth or two rather than exactly.
     for (const sample of compared) {
-      expect(sample.allTimeDelta).toBe(sample.delta);
+      expect(
+        Math.abs((sample.allTimeDelta as number) - (sample.delta as number))
+      ).toBeLessThan(0.003);
     }
 
     // The player ends the recording 0.94 s up on that lap, by both accounts.

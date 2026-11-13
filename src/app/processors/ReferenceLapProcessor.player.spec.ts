@@ -2,11 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ReferenceLap, Session, Telemetry } from '@irdashies/types';
 import {
   ReferenceLapProcessor,
-  type PlayerReferenceLapPersistence,
+  type PlayerReferenceLapSource,
 } from './ReferenceLapProcessor';
 
 /**
- * The player's all-time best lap, and the line crossing it is timed from.
+ * The line crossing laps are timed from, and the player's all-time reference
+ * lap, which the recorder reads from the lap library rather than decides.
  *
  * One kilometre of track, so a lap is 100 points and a point is 1% of it.
  */
@@ -120,11 +121,23 @@ const stored = (lapTime: number, pointsCount = 100): ReferenceLap => {
 
 const noClassLaps = { load: () => null, save: () => undefined };
 
-const setup = (held: ReferenceLap | null = null, start = session()) => {
-  const playerLaps = {
-    load: vi.fn<PlayerReferenceLapPersistence['load']>(() => held),
-    save: vi.fn<PlayerReferenceLapPersistence['save']>(),
+/** A stand-in for the lap library: one lap, swappable, with a revision. */
+const library = (initial: ReferenceLap | null = null) => {
+  let held = initial;
+  let revision = 1;
+  return {
+    load: vi.fn<PlayerReferenceLapSource['load']>(() => held),
+    revision: () => revision,
+    /** What the library does when a lap is recorded, deleted or pinned. */
+    set(lap: ReferenceLap | null) {
+      held = lap;
+      revision += 1;
+    },
   };
+};
+
+const setup = (held: ReferenceLap | null = null, start = session()) => {
+  const playerLaps = library(held);
   const processor = new ReferenceLapProcessor(noClassLaps, playerLaps);
   processor.init(start);
   return { processor, playerLaps };
@@ -181,158 +194,111 @@ describe('ReferenceLapProcessor line crossing', () => {
   });
 });
 
-describe("ReferenceLapProcessor player's all-time best", () => {
-  it('keeps a clean lap and saves it under the track and car', () => {
-    const { processor, playerLaps } = setup();
+describe("ReferenceLapProcessor player's all-time reference", () => {
+  it('asks the library for the lap of this track, car and track length', () => {
+    const { playerLaps } = setup();
 
-    crossLine(processor, 100);
-    driveLap(processor, 100, 60);
-
-    expect(playerLaps.save).toHaveBeenCalledOnce();
-    const [trackId, carKey, lap] = playerLaps.save.mock.calls[0];
-    expect(trackId).toBe(TRACK_ID);
-    expect(carKey).toBe(PLAYER_CAR);
-    expect(lapTimeOf(lap)).toBeCloseTo(60, 5);
-    expect(lapTimeOf(processor.snapshot().playerAllTimeLap)).toBeCloseTo(60, 5);
+    expect(playerLaps.load).toHaveBeenCalledWith(TRACK_ID, PLAYER_CAR, 100);
   });
 
-  it('keys the lap by the car model where the sim names one', () => {
+  it('asks by the car model where the sim names one', () => {
     // Le Mans Ultimate: CarPath is the livery file, which differs between
     // two entries of the same car.
-    const { processor, playerLaps } = setup(
+    const { playerLaps } = setup(
       null,
       session({
         playerCar: { CarPath: '74_26_KESS', CarModel: 'Ferrari 296 LMGT3 Evo' },
       })
     );
 
-    crossLine(processor, 100);
-    driveLap(processor, 100, 60);
-
     expect(playerLaps.load).toHaveBeenCalledWith(
       TRACK_ID,
-      'Ferrari 296 LMGT3 Evo'
+      'Ferrari 296 LMGT3 Evo',
+      100
     );
-    expect(playerLaps.save.mock.calls[0][1]).toBe('Ferrari 296 LMGT3 Evo');
   });
 
-  it('loads the lap held from earlier sessions and publishes it', () => {
-    const { processor, playerLaps } = setup(stored(58));
+  it('publishes the lap the library holds', () => {
+    const { processor } = setup(stored(58));
 
-    expect(playerLaps.load).toHaveBeenCalledWith(TRACK_ID, PLAYER_CAR);
     const allTime = processor.snapshot().playerAllTimeLap;
     expect(lapTimeOf(allTime)).toBe(58);
-    // The store keeps no tangents; a lap without them reads as a flat line.
+    // The library keeps no tangents; a lap without them reads as a flat line.
     expect(allTime?.tangents.every((value) => value > 0)).toBe(true);
   });
 
-  it('ignores a held lap recorded against a different track length', () => {
+  it('ignores a lap recorded against a different track length', () => {
     const { processor } = setup(stored(58, 120));
 
     expect(processor.snapshot().playerAllTimeLap).toBeNull();
   });
 
-  it('replaces the held lap only with a faster one', () => {
-    const { processor, playerLaps } = setup(stored(58));
+  it("does not make a lap the reference itself: that is the library's call", () => {
+    // The recorder sees a clean lap quicker than anything held. Whether it
+    // is the player's own, and free of incidents, it does not know.
+    const { processor } = setup(stored(62));
 
     crossLine(processor, 100);
     driveLap(processor, 100, 60);
-    // A session best, but two seconds off the all-time lap.
-    expect(processor.snapshot().bestLaps).toHaveLength(2);
-    expect(playerLaps.save).not.toHaveBeenCalled();
-    expect(lapTimeOf(processor.snapshot().playerAllTimeLap)).toBe(58);
 
-    driveLap(processor, 160, 57);
-    expect(playerLaps.save).toHaveBeenCalledOnce();
-    expect(lapTimeOf(processor.snapshot().playerAllTimeLap)).toBeCloseTo(57, 5);
+    expect(lapTimeOf(processor.snapshot().bestLaps[0][1])).toBeCloseTo(60, 5);
+    expect(lapTimeOf(processor.snapshot().playerAllTimeLap)).toBe(62);
   });
 
-  it('keeps a clean lap that beats it even when it is not the session best', () => {
-    // The session best has an incident on it, so it cannot be the all-time
-    // lap. The clean lap after it is slower than that and still quicker than
-    // anything held.
-    const { processor, playerLaps } = setup(stored(60));
+  it('takes the new lap when the library says the reference has changed', () => {
+    const { processor, playerLaps } = setup(stored(62));
     crossLine(processor, 100);
-    driveLap(processor, 100, 58, (pct) => ({ incidents: pct < 0.5 ? 0 : 1 }));
-    expect(playerLaps.save).not.toHaveBeenCalled();
     const version = processor.snapshot().version;
 
-    driveLap(processor, 158, 59, () => ({ incidents: 1 }));
+    // A lap was recorded: the library has a quicker reference now.
+    playerLaps.set(stored(60));
+    processor.onFrame(frame(0.02, 101.2));
 
-    expect(playerLaps.save).toHaveBeenCalledOnce();
-    expect(lapTimeOf(processor.snapshot().playerAllTimeLap)).toBeCloseTo(59, 5);
+    expect(lapTimeOf(processor.snapshot().playerAllTimeLap)).toBe(60);
     expect(processor.snapshot().version).toBeGreaterThan(version);
-    // The session best is untouched: still the quicker lap.
-    const best = processor
-      .snapshot()
-      .bestLaps.find(([carIdx]) => carIdx === 0)?.[1];
-    expect(lapTimeOf(best)).toBeCloseTo(58, 5);
-    // And the lap held has tangents, or the delta against it would be flat.
-    expect(
-      processor.snapshot().playerAllTimeLap?.tangents.every((v) => v > 0)
-    ).toBe(true);
   });
 
-  it("does not keep another car's lap", () => {
-    const { processor, playerLaps } = setup();
+  it('first learns of a lap the library was still reading at the start', () => {
+    // The library answers from memory and reads the database in the
+    // background, so the first answer for a track and car is "none yet".
+    const { processor, playerLaps } = setup(null);
+    expect(processor.snapshot().playerAllTimeLap).toBeNull();
 
-    // Car 1 laps; the player is parked half way round.
-    processor.onFrame(frame(0.5, 99.9, { otherPct: 0.999 }));
-    processor.onFrame(frame(0.5, 100.1, { otherPct: 0.001 }));
-    for (let point = 0; point < 100; point += 1) {
-      const pct = (point + 0.5) / 100;
-      processor.onFrame(frame(0.5, 100 + pct * 60, { otherPct: pct }));
+    playerLaps.set(stored(58));
+    processor.onFrame(frame(0.5, 10));
+
+    expect(lapTimeOf(processor.snapshot().playerAllTimeLap)).toBe(58);
+  });
+
+  it('drops the lap when the library no longer has one', () => {
+    const { processor, playerLaps } = setup(stored(58));
+
+    // Deleted from the settings page.
+    playerLaps.set(null);
+    processor.onFrame(frame(0.5, 10));
+
+    expect(processor.snapshot().playerAllTimeLap).toBeNull();
+  });
+
+  it('publishes nothing while the library hands back the same lap', () => {
+    const { processor, playerLaps } = setup(stored(58));
+    const version = processor.snapshot().version;
+
+    // LMU rebuilds the session twice a second; every frame checks too.
+    for (let tick = 0; tick < 20; tick += 1) {
+      processor.init(session());
+      processor.onFrame(frame(0.5 + tick / 1000, 10 + tick / 60));
     }
-    processor.onFrame(frame(0.5, 159.94, { otherPct: 0.999 }));
-    processor.onFrame(frame(0.5, 160.06, { otherPct: 0.001 }));
 
-    expect(processor.snapshot().bestLaps.map(([carIdx]) => carIdx)).toEqual([
-      1,
-    ]);
-    expect(playerLaps.save).not.toHaveBeenCalled();
-    expect(processor.snapshot().playerAllTimeLap).toBeNull();
-  });
-
-  it('does not keep a lap the player was not driving throughout', () => {
-    // A team-mate's stint, or the car handed to the AI: a lap in the
-    // player's car that is not the player's.
-    const { processor, playerLaps } = setup();
-
-    crossLine(processor, 100);
-    driveLap(processor, 100, 60, (pct) => ({
-      onTrack: pct < 0.4 || pct > 0.45,
-    }));
-
-    // Still the car's best lap this session, as it always was.
-    expect(processor.snapshot().bestLaps).toHaveLength(2);
-    expect(playerLaps.save).not.toHaveBeenCalled();
-    expect(processor.snapshot().playerAllTimeLap).toBeNull();
-  });
-
-  it('does not keep a lap with an incident on it', () => {
-    // iRacing counts one for the off-track that makes a lap quick.
-    const { processor, playerLaps } = setup();
-
-    crossLine(processor, 100, { incidents: 3 });
-    driveLap(processor, 100, 60, (pct) => ({ incidents: pct < 0.7 ? 3 : 4 }));
-    expect(playerLaps.save).not.toHaveBeenCalled();
-    expect(processor.snapshot().playerAllTimeLap).toBeNull();
-    // It is still the best lap of the session, as it always was.
-    expect(processor.snapshot().bestLaps).toHaveLength(2);
-
-    // The next lap starts with the count at 4 and ends with it at 4: clean,
-    // and the first lap there is to hold, though a second off the session
-    // best.
-    driveLap(processor, 160, 61, () => ({ incidents: 4 }));
-    expect(playerLaps.save).toHaveBeenCalledOnce();
-    expect(lapTimeOf(processor.snapshot().playerAllTimeLap)).toBeCloseTo(61, 5);
+    expect(processor.snapshot().version).toBe(version);
+    expect(playerLaps.load.mock.calls.length).toBeGreaterThan(1);
   });
 
   it('does not time a lap from a car held at the line', () => {
     // Le Mans Ultimate holds the lap fraction at exactly 0 until a car on
     // the grid, or rolling up to the start, reaches the line. A lap timed
     // from the first such frame would include the wait.
-    const { processor, playerLaps } = setup();
+    const { processor } = setup();
 
     for (let tick = 0; tick < 50; tick += 1) {
       processor.onFrame(frame(0, 70 + tick * 0.5));
@@ -345,15 +311,14 @@ describe("ReferenceLapProcessor player's all-time best", () => {
     processor.onFrame(frame(0.001, 160.06));
 
     expect(processor.snapshot().bestLaps).toHaveLength(0);
-    expect(playerLaps.save).not.toHaveBeenCalled();
 
     // The lap after it starts at a crossing that was seen.
     driveLap(processor, 160, 60);
-    expect(lapTimeOf(processor.snapshot().playerAllTimeLap)).toBeCloseTo(60, 5);
+    expect(lapTimeOf(processor.snapshot().bestLaps[0][1])).toBeCloseTo(60, 5);
   });
 
   it('holds the all-time lap across a change of session', () => {
-    const { processor } = setup();
+    const { processor } = setup(stored(58));
     crossLine(processor, 100);
     driveLap(processor, 100, 60);
 
@@ -361,71 +326,47 @@ describe("ReferenceLapProcessor player's all-time best", () => {
     processor.onFrame(frame(0.3, 5, { sessionNum: 2 }));
 
     expect(processor.snapshot().bestLaps).toHaveLength(0);
-    expect(lapTimeOf(processor.snapshot().playerAllTimeLap)).toBeCloseTo(60, 5);
+    expect(lapTimeOf(processor.snapshot().playerAllTimeLap)).toBe(58);
   });
 
-  it('neither records nor saves while replaying', () => {
-    const { processor, playerLaps } = setup();
-    processor.onLifecycle({ type: 'enter', replay: true });
-
-    crossLine(processor, 100);
-    driveLap(processor, 100, 60);
-
-    expect(playerLaps.save).not.toHaveBeenCalled();
-    expect(processor.snapshot().playerAllTimeLap).toBeNull();
-  });
-
-  it('loads the lap for the new car when the player changes car', () => {
+  it('asks for the new car when the player changes car', () => {
     const { processor, playerLaps } = setup(stored(58));
     expect(lapTimeOf(processor.snapshot().playerAllTimeLap)).toBe(58);
 
-    playerLaps.load.mockReturnValue(null);
+    playerLaps.set(null);
     processor.init(session({ playerCar: { CarPath: 'porsche992rgt3' } }));
 
     expect(playerLaps.load).toHaveBeenLastCalledWith(
       TRACK_ID,
-      'porsche992rgt3'
+      'porsche992rgt3',
+      100
     );
     expect(processor.snapshot().playerAllTimeLap).toBeNull();
   });
 
-  it('drops the held lap on a different track', () => {
+  it('asks for the new track on a different track', () => {
     const { processor, playerLaps } = setup(stored(58));
 
-    playerLaps.load.mockReturnValue(null);
-    processor.init(session({ trackId: 10, subSessionId: 2 }));
+    playerLaps.set(null);
+    processor.init(
+      session({ trackId: 10, subSessionId: 2, trackLength: '2 km' })
+    );
 
-    expect(playerLaps.load).toHaveBeenLastCalledWith(10, PLAYER_CAR);
+    expect(playerLaps.load).toHaveBeenLastCalledWith(10, PLAYER_CAR, 200);
     expect(processor.snapshot().playerAllTimeLap).toBeNull();
   });
 
-  it('looks again on a later session update when no lap was found', () => {
-    // The store loads its file in the background at startup, and LMU
-    // rebuilds the session twice a second.
-    const { processor, playerLaps } = setup(null);
-    expect(processor.snapshot().playerAllTimeLap).toBeNull();
-
-    playerLaps.load.mockReturnValue(stored(58));
-    processor.init(session());
-
-    expect(lapTimeOf(processor.snapshot().playerAllTimeLap)).toBe(58);
-  });
-
-  it('keeps nothing when the player has no car in the session', () => {
+  it('has no reference when the player has no car in the session', () => {
     const { processor, playerLaps } = setup(
       stored(58),
       session({ playerCarIdx: -1 })
     );
 
-    crossLine(processor, 100);
-    driveLap(processor, 100, 60);
-
     expect(playerLaps.load).not.toHaveBeenCalled();
-    expect(playerLaps.save).not.toHaveBeenCalled();
     expect(processor.snapshot().playerAllTimeLap).toBeNull();
   });
 
-  it('works without a player lap store at all', () => {
+  it('has no reference without a library at all', () => {
     // The mock and preview runtimes pass none.
     const processor = new ReferenceLapProcessor(noClassLaps);
     processor.init(session());
@@ -433,8 +374,8 @@ describe("ReferenceLapProcessor player's all-time best", () => {
     crossLine(processor, 100);
     driveLap(processor, 100, 60);
 
-    // Still held for the session, so the all-time delta has something to
-    // measure against until the app is restarted.
-    expect(lapTimeOf(processor.snapshot().playerAllTimeLap)).toBeCloseTo(60, 5);
+    // Both cars lapped, so both have a session best. Neither is all-time.
+    expect(processor.snapshot().bestLaps).toHaveLength(2);
+    expect(processor.snapshot().playerAllTimeLap).toBeNull();
   });
 });

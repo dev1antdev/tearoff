@@ -7,8 +7,16 @@ import type {
   Telemetry,
 } from '@irdashies/types';
 import type { TelemetryProcessor } from './TelemetryProcessor';
+import {
+  bucketIndex,
+  crossingTime,
+  intervalFor,
+  isHeldAtLine,
+  isLineCrossing,
+  pointsCountFor,
+  trackLengthFrom,
+} from './lapTiming';
 
-const TARGET_SPACING_METERS = 10;
 const VALID_PACE_RATIO = 0.85;
 /** Conversion from the m/s of the raw `Speed` channel to the km/h we store. */
 const MS_TO_KPH = 3.6;
@@ -24,20 +32,33 @@ export interface ReferenceLapPersistence {
 }
 
 /**
- * Where the player's own best lap per track and car is kept across sessions.
+ * Where the player's all-time reference lap for a track and car comes from:
+ * the lap library, which records every lap the player completes and says
+ * which one the reference is -- the quickest clean lap, or one chosen by hand.
  *
- * Keyed by the car model rather than a class or series, because it is the
- * player's lap in that car and nobody else's. The simulator is the adapter's
- * business: the same track id means different things in each.
+ * This processor only reads it. It does not decide which lap qualifies, so
+ * there is one answer to that and it is the library's.
  */
-export interface PlayerReferenceLapPersistence {
-  load(trackId: number, carKey: string): ReferenceLap | null;
-  save(trackId: number, carKey: string, lap: ReferenceLap): void;
+export interface PlayerReferenceLapSource {
+  /**
+   * The reference lap, or null when there is none or none is known yet.
+   * Tangents may be left zeroed; they are derived here.
+   *
+   * Must hand back the same object for as long as the lap is the same one:
+   * a new object is taken for a new lap and published as such.
+   */
+  load(
+    trackId: number,
+    carKey: string,
+    pointsCount: number
+  ): ReferenceLap | null;
+  /** Moves whenever what `load` returns may have changed. */
+  revision(): number;
 }
 
-const noPlayerPersistence: PlayerReferenceLapPersistence = {
+const noPlayerLaps: PlayerReferenceLapSource = {
   load: () => null,
-  save: () => undefined,
+  revision: () => 0,
 };
 
 const numericValue = (
@@ -48,58 +69,8 @@ const numericValue = (
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 };
 
-const trackLengthFrom = (session: Session): number => {
-  const [value, unit] = session.WeekendInfo?.TrackLength?.split(' ') ?? [];
-  const parsed = Number.parseFloat(value);
-  if (!Number.isFinite(parsed)) return 0;
-  return unit === 'km' ? parsed * 1000 : parsed;
-};
-
-/**
- * Longest gap between two frames that the line crossing is placed inside.
- * Past this the two frames are not neighbours and the later one is used as is.
- */
-const MAX_CROSSING_GAP_SECONDS = 0.5;
-
-/**
- * When the car crossed the line, between the last frame before it and the
- * first one after.
- *
- * Taking the later frame's time, as this once did, starts every lap up to a
- * frame late -- 16 ms at 60 Hz -- and by a different amount each lap, which a
- * delta between two laps then carries for its whole length. The crossing is
- * placed by distance instead: the car covers the two sides of the line at
- * very nearly one speed.
- */
-const crossingTime = (
-  previousPct: number | undefined,
-  trackPct: number,
-  previousTime: number | null,
-  sessionTime: number
-): number => {
-  if (previousTime === null || previousPct === undefined) return sessionTime;
-  if (!(previousPct > 0.5) || !(trackPct < 0.5)) return sessionTime;
-  const elapsed = sessionTime - previousTime;
-  if (!(elapsed > 0) || elapsed > MAX_CROSSING_GAP_SECONDS) return sessionTime;
-  const before = 1 - previousPct;
-  const span = before + trackPct;
-  return span > 0 ? previousTime + (before / span) * elapsed : sessionTime;
-};
-
 /** Where a lap is far enough from the line that LMU's void flag is its own. */
 const INVALIDATION_START_PCT = 0.05;
-
-const bucketIndex = (trackPct: number, pointsCount: number): number =>
-  Math.min(Math.max(Math.floor(trackPct * pointsCount), 0), pointsCount - 1);
-
-/**
- * A lap fraction of exactly 0 is not a position. Le Mans Ultimate reports it
- * for a car that has not reached the line yet -- waiting on the grid, or
- * rolling up to the start -- and holds it there until the car crosses. A lap
- * timed from such a frame would count the wait as part of the lap, so no lap
- * starts on one. A moving car is never sampled at exactly 0.
- */
-const isHeldAtLine = (trackPct: number): boolean => trackPct === 0;
 
 const createLap = (
   pointsCount: number,
@@ -192,15 +163,13 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
   /** The player's car model, which the all-time lap is kept under. */
   private playerCarKey = '';
   private playerAllTime: ReferenceLap | null = null;
-  /** Whether the player has been at the wheel for all of their current lap. */
-  private playerLapOwn = false;
-  /** The player's incident count when their current lap began. */
-  private playerLapIncidents: number | null = null;
+  /** The source's revision when the all-time lap was last read from it. */
+  private playerRevision = -1;
   private latest: ReferenceLapsSnapshot = this.emptySnapshot();
 
   constructor(
     private readonly persistence: ReferenceLapPersistence,
-    private readonly playerPersistence: PlayerReferenceLapPersistence = noPlayerPersistence
+    private readonly playerLaps: PlayerReferenceLapSource = noPlayerLaps
   ) {}
 
   init(session: Session): void {
@@ -231,8 +200,8 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
     this.seriesId = seriesId;
     this.trackId = trackId;
     this.sessionIdentity = sessionIdentity;
-    this.pointsCount = Math.ceil(trackLength / TARGET_SPACING_METERS);
-    this.interval = Number.parseFloat((1 / this.pointsCount).toFixed(6));
+    this.pointsCount = pointsCountFor(trackLength);
+    this.interval = intervalFor(this.pointsCount);
     this.activeLaps.clear();
     this.bestLaps.clear();
     this.persistedLaps.clear();
@@ -241,7 +210,6 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
     this.prevFrameTime = null;
     // A different track: whatever was held belongs to the last one.
     this.playerAllTime = null;
-    this.playerCarKey = '';
     this.loadPersistedForDrivers(session.DriverInfo?.PaceCarIdx ?? -1);
     this.loadPlayerAllTime(playerCarKey);
     this.publish();
@@ -249,6 +217,14 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
 
   onFrame(frame: Telemetry): void {
     if (!this.aggregationEnabled || this.pointsCount === 0) return;
+    // The library has recorded a lap, or one was deleted or chosen by hand:
+    // whichever it is, the reference may be a different lap now.
+    if (
+      this.playerLaps.revision() !== this.playerRevision &&
+      this.loadPlayerAllTime(this.playerCarKey)
+    ) {
+      this.publish();
+    }
     const sessionNum = numericValue(frame, 'SessionNum');
     if (
       this.sessionNum !== null &&
@@ -273,13 +249,6 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
     ) {
       return;
     }
-    // Both only decide whether a lap may be kept as the player's all-time
-    // best. A team-mate's stint, or an AI driving the car, sets laps in the
-    // player's car that are not the player's; and iRacing counts an incident
-    // for the off-track that makes a lap quick.
-    const onTrack = frame.IsOnTrack?.value?.[0] as unknown;
-    const playerDriving = onTrack === true || onTrack === 1;
-    const playerIncidents = numericValue(frame, 'PlayerCarMyIncidentCount');
 
     for (const driver of this.drivers) {
       if (!driver) continue;
@@ -295,8 +264,6 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
       }
       const previousPct = this.prevPcts[carIdx];
       this.prevPcts[carIdx] = trackPct;
-      const isPlayer = carIdx === this.playerCarIdx;
-      if (isPlayer && !playerDriving) this.playerLapOwn = false;
       // The void flag is ignored just after the line, where it may still be
       // the previous lap's: it stays set for the rest of a voided lap, so a
       // cut early in the lap is caught once past it.
@@ -317,13 +284,9 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
             clean
           )
         );
-        if (isPlayer) {
-          this.playerLapOwn = playerDriving;
-          this.playerLapIncidents = playerIncidents;
-        }
         continue;
       }
-      if (active.lastTrackedPct > 0.95 && trackPct < 0.05) {
+      if (isLineCrossing(active.lastTrackedPct, trackPct)) {
         const crossedAt = crossingTime(
           previousPct,
           trackPct,
@@ -331,21 +294,11 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
           sessionTime
         );
         active.finishTime = crossedAt;
-        this.promote(
-          driver,
-          active,
-          isPlayer &&
-            this.playerLapOwn &&
-            playerIncidents === this.playerLapIncidents
-        );
+        this.promote(driver, active);
         this.activeLaps.set(
           carIdx,
           createLap(this.pointsCount, this.interval, crossedAt, trackPct, clean)
         );
-        if (isPlayer) {
-          this.playerLapOwn = playerDriving;
-          this.playerLapIncidents = playerIncidents;
-        }
         continue;
       }
       if (!clean) active.isCleanLap = false;
@@ -393,16 +346,7 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
     this.prevFrameTime = null;
   }
 
-  /**
-   * @param ownCleanLap True when this is the player's lap, driven by them
-   *   from line to line without an incident. Only such a lap may become the
-   *   all-time best; the session best takes any clean lap, as it always did.
-   */
-  private promote(
-    driver: Driver,
-    lap: ReferenceLap,
-    ownCleanLap = false
-  ): void {
+  private promote(driver: Driver, lap: ReferenceLap): void {
     const lapTime = lap.finishTime - lap.startTime;
     // Deliberately not gated on CarClassID: bestLaps is keyed by CarIdx and
     // nothing on this path needs a class. iRacing reports CarClassID 0 in test
@@ -419,19 +363,8 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
     if (persistedTime && persistedTime / lapTime < VALID_PACE_RATIO) return;
     const best = this.bestLaps.get(driver.CarIdx);
     const bestTime = best ? best.finishTime - best.startTime : null;
-    const isSessionBest = !bestTime || lapTime < bestTime;
-    // Judged on its own, not only when the lap is also the session best: the
-    // session best may be a lap that cannot be the all-time one -- a
-    // team-mate's, or one with an incident on it -- and a clean lap a little
-    // slower than that can still beat the all-time lap held.
-    const isAllTimeBest = ownCleanLap && this.beatsPlayerAllTime(lapTime);
-    if (!isSessionBest && !isAllTimeBest) return;
+    if (bestTime && lapTime >= bestTime) return;
     precomputeTangents(lap);
-    if (isAllTimeBest) this.keepPlayerAllTime(lap);
-    if (!isSessionBest) {
-      this.publish();
-      return;
-    }
     this.bestLaps.set(driver.CarIdx, lap);
     // classId > 0 guards persistence only. The disk key is
     // seriesId_trackId_classId, so class-0 laps from different cars in offline
@@ -459,47 +392,27 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
     this.publish();
   }
 
-  /** Whether a lap of this length would be the player's all-time best. */
-  private beatsPlayerAllTime(lapTime: number): boolean {
-    if (!this.playerCarKey) return false;
-    const held = this.playerAllTime;
-    return !held || lapTime < held.finishTime - held.startTime;
-  }
-
-  /** Holds a lap as the player's all-time best and hands it to the store. */
-  private keepPlayerAllTime(lap: ReferenceLap): void {
-    this.playerAllTime = lap;
-    if (this.persistenceEnabled) {
-      this.playerPersistence.save(this.trackId, this.playerCarKey, lap);
-    }
-  }
-
   /**
-   * Loads the player's all-time lap for the car they are in, once it is
-   * known which car that is. Returns whether the held lap changed.
+   * Reads the player's all-time lap for the car they are in from the lap
+   * library. Returns whether the lap held is now a different one.
    */
   private loadPlayerAllTime(carKey: string): boolean {
-    let changed = false;
-    if (carKey !== this.playerCarKey) {
-      this.playerCarKey = carKey;
-      if (this.playerAllTime) {
-        this.playerAllTime = null;
-        changed = true;
-      }
-    }
-    if (this.playerAllTime || !carKey) return changed;
-    const lap = this.playerPersistence.load(this.trackId, carKey);
+    this.playerCarKey = carKey;
+    this.playerRevision = this.playerLaps.revision();
+    const found = carKey
+      ? this.playerLaps.load(this.trackId, carKey, this.pointsCount)
+      : null;
     // A lap recorded against a different track length has a different number
     // of points and cannot be read at this one's distances.
-    if (
-      !lap ||
-      lap.pointsCount !== this.pointsCount ||
-      !(lap.finishTime > lap.startTime) ||
-      lap.pointPos.includes(-1)
-    ) {
-      return changed;
-    }
-    precomputeTangents(lap);
+    const lap =
+      found &&
+      found.pointsCount === this.pointsCount &&
+      found.finishTime > found.startTime &&
+      !found.pointPos.includes(-1)
+        ? found
+        : null;
+    if (lap === this.playerAllTime) return false;
+    if (lap) precomputeTangents(lap);
     this.playerAllTime = lap;
     return true;
   }

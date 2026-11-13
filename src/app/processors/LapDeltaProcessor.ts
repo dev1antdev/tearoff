@@ -8,16 +8,13 @@ import type {
   Telemetry,
 } from '@irdashies/types';
 import type { TelemetryProcessor } from './TelemetryProcessor';
+import { crossingTime, isLineCrossing, trackLengthFrom } from './lapTiming';
 import { referenceLapTime, referenceTimeAt } from './referenceLapTime';
 
 export interface LapDeltaReferenceSource {
   snapshot(): ReferenceLapsSnapshot;
 }
 
-/** The line is crossed when the lap fraction falls from above this... */
-const WRAP_FROM_PCT = 0.95;
-/** ...to below this, the same test the reference recorder applies. */
-const WRAP_TO_PCT = 0.05;
 /**
  * Further back than this in one step is not driving: the car was returned to
  * its pit, or the sim reset it. A spin that rolls backwards stays inside it.
@@ -27,11 +24,6 @@ const BACKWARD_JUMP_METERS = 50;
 const BACKWARD_JUMP_PCT = 0.02;
 /** Further forward than this in one step is not driving either. */
 const FORWARD_JUMP_PCT = 0.25;
-/**
- * Longest gap between two frames that the line crossing is placed inside,
- * as in the recorder.
- */
-const MAX_CROSSING_GAP_SECONDS = 0.5;
 
 /** How much of the lap just driven the trend is taken over. */
 const TREND_WINDOW_SECONDS = 1;
@@ -50,13 +42,6 @@ const numericValue = (
 
 const round3 = (value: number | null): number | null =>
   value === null ? null : Math.round(value * 1000) / 1000;
-
-const trackLengthFrom = (session: Session): number => {
-  const [value, unit] = session.WeekendInfo?.TrackLength?.split(' ') ?? [];
-  const parsed = Number.parseFloat(value);
-  if (!Number.isFinite(parsed)) return 0;
-  return unit === 'km' ? parsed * 1000 : parsed;
-};
 
 /**
  * The slope of the delta over the last second, by least squares.
@@ -271,14 +256,10 @@ export class LapDeltaProcessor implements TelemetryProcessor<LapDeltaSnapshot> {
       this.stopTiming();
       return;
     }
-    if (prevPct > WRAP_FROM_PCT && trackPct < WRAP_TO_PCT) {
-      const elapsed = sessionTime - prevTime;
-      const before = 1 - prevPct;
-      const span = before + trackPct;
-      this.lapStart =
-        elapsed > 0 && elapsed <= MAX_CROSSING_GAP_SECONDS && span > 0
-          ? prevTime + (before / span) * elapsed
-          : sessionTime;
+    if (isLineCrossing(prevPct, trackPct)) {
+      // Placed exactly as the recorders place it, so this clock and the
+      // curve it is read against start at the same instant.
+      this.lapStart = crossingTime(prevPct, trackPct, prevTime, sessionTime);
       this.sessionBestTrend.reset();
       this.allTimeTrend.reset();
       return;
