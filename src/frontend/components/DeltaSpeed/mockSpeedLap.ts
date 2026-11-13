@@ -5,7 +5,7 @@ import type { ReferenceLap } from '@irdashies/types';
  * and tests. Not imported by the app.
  *
  * Because the speed at every bucket is generated from a known function, the
- * profile doubles as exact ground truth: interpolateSpeedAtPoint() evaluated at
+ * profile doubles as exact ground truth: referenceSpeedKphAt() evaluated at
  * a bucket position must return that bucket's speed back.
  */
 

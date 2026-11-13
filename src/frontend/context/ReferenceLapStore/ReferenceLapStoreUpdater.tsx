@@ -14,6 +14,7 @@ export const useReferenceLapStoreUpdater = (
         useReferenceLapStore.setState({
           bestLaps: new Map(snapshot.bestLaps),
           persistedLaps: new Map(snapshot.persistedLaps),
+          playerAllTimeLap: snapshot.playerAllTimeLap ?? null,
         });
       }
     );

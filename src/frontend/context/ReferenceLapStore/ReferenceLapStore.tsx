@@ -19,6 +19,12 @@ export const EMPTY_REFERENCE_LAP: Readonly<ReferenceLap> = {
 export interface ReferenceRegistryState {
   bestLaps: Map<number, ReferenceLap>;
   persistedLaps: Map<number, ReferenceLap>;
+  /**
+   * The player's own reference lap on this track in this car across every
+   * session, from the lap library, or null when there is none. Not an entry
+   * of `persistedLaps`, which are the best of a class whoever drove it.
+   */
+  playerAllTimeLap: ReferenceLap | null;
   getReferenceLap(
     carIdx: number,
     classId: number,
@@ -40,6 +46,7 @@ export interface ReferenceRegistryState {
 const emptyState = () => ({
   bestLaps: new Map<number, ReferenceLap>(),
   persistedLaps: new Map<number, ReferenceLap>(),
+  playerAllTimeLap: null as ReferenceLap | null,
 });
 
 /** Compatibility selector store; collection and persistence live in main. */

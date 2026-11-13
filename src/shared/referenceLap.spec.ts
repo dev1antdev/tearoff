@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ReferenceLap } from '@irdashies/types';
-import { referenceLapTime, referenceTimeAt } from './referenceLapTime';
+import {
+  referenceLapTime,
+  referenceSpeedKphAt,
+  referenceTimeAt,
+} from './referenceLap';
 
 const LAP_TIME = 90;
 const POINTS = 100;
@@ -141,5 +145,82 @@ describe('referenceTimeAt', () => {
     expect(referenceTimeAt(holed, 0.505)).toBeNull();
     // Elsewhere on the same lap the samples are intact.
     expect(referenceTimeAt(holed, 0.2)).toBeCloseTo(0.2 * LAP_TIME, 3);
+  });
+});
+
+describe('referenceSpeedKphAt', () => {
+  /** A lap whose speed at a point is a known function, sampled like a time. */
+  const speedLap = (speedAt: (pct: number) => number): ReferenceLap => {
+    const lap = steady();
+    lap.speedsKph = new Float32Array(POINTS);
+    for (let index = 0; index < POINTS; index += 1) {
+      lap.speedsKph[index] = speedAt(lap.pointPos[index]);
+    }
+    return lap;
+  };
+
+  /** Braking in a straight line: 250 km/h at the line, 150 at its end. */
+  const braking = () => speedLap((pct) => 250 - 100 * pct);
+
+  it('reads a speed that changes steadily exactly, anywhere on the lap', () => {
+    const lap = braking();
+    for (const pct of [0.004, 0.25, 0.4, 0.401, 0.7777, 0.99]) {
+      expect(referenceSpeedKphAt(lap, pct)).toBeCloseTo(250 - 100 * pct, 3);
+    }
+  });
+
+  it('reads a point ahead of its bucket sample from the span behind it', () => {
+    // Bucket 40's sample sits at 0.403. A point at 0.401 lies between the
+    // samples of buckets 39 and 40; held at bucket 40's own speed it would
+    // read a fifth of a km/h low.
+    const lap = braking();
+
+    expect(referenceSpeedKphAt(lap, 0.401)).toBeCloseTo(209.9, 3);
+  });
+
+  it('runs on across the line without a lap added, unlike a time', () => {
+    // The last sample is at 0.993 and the first at 0.003: the speed between
+    // them is between theirs, whichever side of the line the point is.
+    const lap = speedLap((pct) => (pct > 0.5 ? 200 : 100));
+
+    expect(referenceSpeedKphAt(lap, 0.998)).toBeCloseTo(150, 1);
+    expect(referenceSpeedKphAt(lap, 0.999)).toBeCloseTo(140, 1);
+    expect(referenceSpeedKphAt(lap, 0.001)).toBeCloseTo(120, 1);
+  });
+
+  it('has no speed on a lap recorded without speeds', () => {
+    expect(referenceSpeedKphAt(steady(), 0.5)).toBeNull();
+  });
+
+  it('has no speed beside a sample whose speed was never written', () => {
+    const lap = braking();
+    (lap.speedsKph as Float32Array)[50] = 0;
+
+    expect(referenceSpeedKphAt(lap, 0.505)).toBeNull();
+    expect(referenceSpeedKphAt(lap, 0.495)).toBeNull();
+    expect(referenceSpeedKphAt(lap, 0.2)).toBeCloseTo(230, 3);
+  });
+
+  it('has no speed past the end of a trace shorter than the lap', () => {
+    const lap = braking();
+    lap.speedsKph = (lap.speedsKph as Float32Array).slice(0, 50);
+
+    expect(referenceSpeedKphAt(lap, 0.7)).toBeNull();
+    expect(referenceSpeedKphAt(lap, 0.2)).toBeCloseTo(230, 3);
+  });
+
+  it('has no speed for a point off the lap', () => {
+    const lap = braking();
+
+    expect(referenceSpeedKphAt(lap, -0.01)).toBeNull();
+    expect(referenceSpeedKphAt(lap, 1.01)).toBeNull();
+    expect(referenceSpeedKphAt(lap, Number.NaN)).toBeNull();
+  });
+
+  it('reads a lap that was never finished, which a time cannot be', () => {
+    const lap = { ...braking(), finishTime: -1 };
+
+    expect(referenceTimeAt(lap, 0.5)).toBeNull();
+    expect(referenceSpeedKphAt(lap, 0.5)).toBeCloseTo(200, 3);
   });
 });

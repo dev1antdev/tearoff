@@ -1,14 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type { ReferenceLap } from '@irdashies/types';
-import {
-  hasCompleteSpeedTrace,
-  interpolateSpeedAtPoint,
-} from './referenceSpeed';
+import { referenceSpeedKphAt } from '@irdashies/shared';
+import { hasCompleteSpeedTrace } from './referenceSpeed';
 import { buildMockSpeedLap, mockSpeedAt } from './mockSpeedLap';
 
 /** Narrows away the null case so assertions read cleanly. */
 function speedAt(lap: ReferenceLap, pct: number): number {
-  const result = interpolateSpeedAtPoint(lap, pct);
+  const result = referenceSpeedKphAt(lap, pct);
   if (result === null) throw new Error(`expected a speed at ${pct}, got null`);
   return result;
 }
@@ -21,7 +19,9 @@ function speedsOf(lap: ReferenceLap): Float32Array {
 /** A single corner right before the line, to exercise the wrap. */
 const CORNER_AT_LINE = [{ pct: 0.99, depthKph: 150, width: 0.02 }];
 
-describe('interpolateSpeedAtPoint', () => {
+// Read by the helper every reference-lap reader shares; exercised here
+// because this folder holds the lap built from a known speed profile.
+describe('referenceSpeedKphAt on a lap with a known speed profile', () => {
   const lap = buildMockSpeedLap();
 
   it('returns the recorded speed back at each bucket position', () => {
@@ -69,7 +69,7 @@ describe('interpolateSpeedAtPoint', () => {
 
   it('returns null for a lap with no speed trace', () => {
     const noSpeeds = buildMockSpeedLap({ withoutSpeeds: true });
-    expect(interpolateSpeedAtPoint(noSpeeds, 0.5)).toBeNull();
+    expect(referenceSpeedKphAt(noSpeeds, 0.5)).toBeNull();
   });
 
   it('returns null when a bounding bucket was never recorded', () => {
@@ -77,7 +77,7 @@ describe('interpolateSpeedAtPoint', () => {
     const idx = 200;
     speedsOf(gapped)[idx] = 0; // the "never recorded" sentinel
 
-    expect(interpolateSpeedAtPoint(gapped, gapped.pointPos[idx])).toBeNull();
+    expect(referenceSpeedKphAt(gapped, gapped.pointPos[idx])).toBeNull();
   });
 
   it('never returns a non-finite value across the whole lap', () => {

@@ -9,7 +9,7 @@ import type {
 } from '@irdashies/types';
 import type { TelemetryProcessor } from './TelemetryProcessor';
 import { crossingTime, isLineCrossing, trackLengthFrom } from './lapTiming';
-import { referenceLapTime, referenceTimeAt } from './referenceLapTime';
+import { referenceLapTime, referenceTimeAt } from '@irdashies/shared';
 
 export interface LapDeltaReferenceSource {
   snapshot(): ReferenceLapsSnapshot;
