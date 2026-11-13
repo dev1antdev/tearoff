@@ -74,11 +74,59 @@ describe('mapLmuTelemetry', () => {
     expect(t.dcPitSpeedLimiterToggle.value[0]).toBe(false);
     expect(t.LatAccel.value[0]).toBeCloseTo(9.80665);
     expect(t.LongAccel.value[0]).toBeCloseTo(-19.6133);
-    expect(t.LFtempCL.value[0]).toBe(80);
+    // Left, middle and right across the car, from the sim's three zones.
+    expect(t.LFtempCL.value[0]).toBeCloseTo(70);
+    expect(t.LFtempCM.value[0]).toBeCloseTo(80);
+    expect(t.LFtempCR.value[0]).toBeCloseTo(90);
+    expect(t.RFtempCL.value[0]).toBeCloseTo(71);
+    expect(t.RFtempCR.value[0]).toBeCloseTo(91);
     expect(t.RRcoldPressure.value[0]).toBe(183);
     expect(t.LRwearM.value[0]).toBe(0.7);
     expect(t.RFbrakeLinePress.value[0]).toBe(0.5);
     expect(t.RRshockDefl.value[0]).toBe(0.07);
+  });
+
+  it('publishes the tyres and brakes in Celsius, outer shoulder first', () => {
+    const t = mapLmuTelemetry(fixture());
+
+    // LF is a left wheel: the sim's left zone is its outer shoulder.
+    expect(t.LmuTyreSurfaceTemp?.value.slice(0, 3).map(Math.round)).toEqual([
+      70, 80, 90,
+    ]);
+    // RF is a right wheel: the sim's right zone is its outer shoulder.
+    expect(t.LmuTyreSurfaceTemp?.value.slice(3, 6).map(Math.round)).toEqual([
+      91, 81, 71,
+    ]);
+    expect(t.LmuTyreInnerLayerTemp?.value.slice(0, 3).map(Math.round)).toEqual([
+      75, 85, 95,
+    ]);
+    expect(t.LmuTyreCarcassTemp?.value.map(Math.round)).toEqual([
+      78, 79, 80, 81,
+    ]);
+    // Already Celsius in shared memory, unlike the rest.
+    expect(t.LmuTyreOptimalTemp?.value).toEqual([92, 92, 92, 92]);
+    expect(t.LmuBrakeTemp?.value.map(Math.round)).toEqual([400, 410, 300, 310]);
+  });
+
+  it('leaves the tyre channels out when the wheels were never written', () => {
+    // Out of the car the block is zeroed, and a zero must not be published as
+    // a tyre at -273 C.
+    const t = mapLmuTelemetry({
+      ...fixture(),
+      tyreSurfaceTemperatureRaw: new Float64Array(12),
+      tyreInnerLayerTemperatureRaw: new Float64Array(12),
+      tyreCarcassTemperatureRaw: new Float64Array(4),
+      tyreOptimalTemperatureRaw: new Float64Array(4),
+      brakeTemperatureRaw: new Float64Array(4),
+    });
+
+    expect(t.LmuTyreSurfaceTemp).toBeUndefined();
+    expect(t.LmuTyreInnerLayerTemp).toBeUndefined();
+    expect(t.LmuTyreCarcassTemp).toBeUndefined();
+    expect(t.LmuTyreOptimalTemp).toBeUndefined();
+    expect(t.LmuBrakeTemp).toBeUndefined();
+    // The averaged reading is still there for anything that used it.
+    expect(t.LFtempCM.value[0]).toBe(80);
   });
 
   it('maps the LMU pit limiter switch, not only active intervention', () => {

@@ -510,6 +510,20 @@ Napi::Value LmuSdkNode::Read(const Napi::CallbackInfo &info)
     auto tyreWear = Napi::Float64Array::New(env, 4);
     auto brakePressure = Napi::Float64Array::New(env, 4);
     auto suspensionDeflection = Napi::Float64Array::New(env, 4);
+    // Per-wheel detail for the tyre widget, exported exactly as the sim
+    // publishes it: no unit conversion and no averaging. What each field
+    // means is decided once, in mapTelemetry.ts, where a spec pins it against
+    // a recorded session -- a conversion baked in here could only be checked
+    // by rebuilding the addon.
+    //
+    // The three-zone arrays hold wheel * 3 + zone, and the zones are left,
+    // centre and right as the car sees them, not inner and outer: on a left
+    // wheel the left zone is the outer shoulder, on a right wheel the inner.
+    auto tyreSurfaceTemperatureRaw = Napi::Float64Array::New(env, 12);
+    auto tyreInnerLayerTemperatureRaw = Napi::Float64Array::New(env, 12);
+    auto tyreCarcassTemperatureRaw = Napi::Float64Array::New(env, 4);
+    auto tyreOptimalTemperatureRaw = Napi::Float64Array::New(env, 4);
+    auto brakeTemperatureRaw = Napi::Float64Array::New(env, 4);
     for (size_t i = 0; i < 4; ++i)
     {
       const auto &wheel = player->mWheels[i];
@@ -519,12 +533,26 @@ Napi::Value LmuSdkNode::Read(const Napi::CallbackInfo &info)
       tyreWear[i] = wheel.mWear;
       brakePressure[i] = wheel.mBrakePressure;
       suspensionDeflection[i] = wheel.mSuspensionDeflection;
+      for (size_t zone = 0; zone < 3; ++zone)
+      {
+        tyreSurfaceTemperatureRaw[i * 3 + zone] = wheel.mTemperature[zone];
+        tyreInnerLayerTemperatureRaw[i * 3 + zone] =
+            wheel.mTireInnerLayerTemperature[zone];
+      }
+      tyreCarcassTemperatureRaw[i] = wheel.mTireCarcassTemperature;
+      tyreOptimalTemperatureRaw[i] = wheel.mOptimalTemp;
+      brakeTemperatureRaw[i] = wheel.mBrakeTemp;
     }
     out.Set("tyreTemperature", tyreTemperature);
     out.Set("tyrePressure", tyrePressure);
     out.Set("tyreWear", tyreWear);
     out.Set("brakePressure", brakePressure);
     out.Set("suspensionDeflection", suspensionDeflection);
+    out.Set("tyreSurfaceTemperatureRaw", tyreSurfaceTemperatureRaw);
+    out.Set("tyreInnerLayerTemperatureRaw", tyreInnerLayerTemperatureRaw);
+    out.Set("tyreCarcassTemperatureRaw", tyreCarcassTemperatureRaw);
+    out.Set("tyreOptimalTemperatureRaw", tyreOptimalTemperatureRaw);
+    out.Set("brakeTemperatureRaw", brakeTemperatureRaw);
 
     double vx = player->mLocalVel.x;
     double vy = player->mLocalVel.y;

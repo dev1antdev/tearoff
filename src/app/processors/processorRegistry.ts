@@ -30,6 +30,7 @@ import { CarSystemsProcessor } from './CarSystemsProcessor';
 import { SessionTimingProcessor } from './SessionTimingProcessor';
 import { StandingsProcessor } from './StandingsProcessor';
 import { TrackStateProcessor } from './TrackStateProcessor';
+import { TyreStateProcessor } from './TyreStateProcessor';
 import type { PoleSideSettings } from '@irdashies/types';
 
 interface ProcessorRegistryOptions {
@@ -164,6 +165,11 @@ export const createProcessorDefinitions = ({
     channel: 'track-state.snapshot',
     metricsPrefix: 'trackState',
     create: () => new TrackStateProcessor(),
+  }),
+  defineProcessor({
+    channel: 'tyre-state.snapshot',
+    metricsPrefix: 'tyreState',
+    create: () => new TyreStateProcessor(),
   }),
   defineProcessor({
     channel: 'lap-trace.sample',

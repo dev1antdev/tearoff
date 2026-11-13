@@ -62,8 +62,22 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // one widget absent from the settings menu, so there would be no toggle to
   // grey out if it were listed as unsupported.
   'telemetryinspector',
+  // Tyre and brake temperatures from LMU's per-wheel telemetry block.
+  'tyres',
   // Without its wind cell, which the widget drops under LMU.
   'weather',
+];
+
+/**
+ * Widgets with nothing to show under iRacing.
+ *
+ * Short on purpose: iRacing is the sim most widgets were written against. A
+ * widget lands here only when iRacing does not publish what it draws at all.
+ */
+export const IRACING_DISABLED_WIDGETS: readonly string[] = [
+  // iRacing reports tyre temperatures as they were when the car last stopped
+  // in the pits, not while it is moving, so there is no live reading.
+  'tyres',
 ];
 
 /** Everything else, hidden while LMU is the running sim. */
@@ -104,7 +118,7 @@ export const LMU_DISABLED_WIDGETS: readonly string[] = [
 export const DEFAULT_SIM_WIDGET_SUPPORT: SimWidgetSupportConfig = {
   message: 'This widget is not compatible with the running sim',
   disabledWidgets: {
-    iracing: [],
+    iracing: [...IRACING_DISABLED_WIDGETS],
     lmu: [...LMU_DISABLED_WIDGETS],
   },
 };
@@ -120,7 +134,7 @@ export const DEFAULT_SIM_WIDGET_SUPPORT: SimWidgetSupportConfig = {
  * it did, which costs a user their hand edits once per change and is why the
  * number is bumped only for a real one.
  */
-export const SIM_WIDGET_SUPPORT_VERSION = 7;
+export const SIM_WIDGET_SUPPORT_VERSION = 8;
 
 /**
  * Whether a widget is unavailable under the running sim.
