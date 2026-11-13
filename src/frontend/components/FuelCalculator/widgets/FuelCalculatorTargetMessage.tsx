@@ -1,12 +1,16 @@
 import React from 'react';
-import { formatFuel } from '../fuelCalculations';
+import {
+  formatFuel,
+  refuelLevelPercent,
+  type FuelDisplayUnit,
+} from '../fuelCalculations';
 import type { FuelCalculation, FuelCalculatorSettings } from '../types';
 import { useFuelProjectionSnapshot } from '@irdashies/context';
 
 interface FuelCalculatorWidgetProps {
   fuelData: FuelCalculation | null;
   displayData: FuelCalculation;
-  fuelUnits?: 'L' | 'gal';
+  fuelUnits?: FuelDisplayUnit;
   settings?: FuelCalculatorSettings;
   widgetId?: string;
   customStyles?: {
@@ -86,10 +90,15 @@ export const FuelCalculatorTargetMessage: React.FC<
       ? `${widgetStyle.fontSize}px`
       : '16px';
 
+  // What the car needs from the target lap to the flag. A tank is told that
+  // as an amount; virtual energy is set as the level to leave the stop with.
+  const isEnergy = fuelUnits === '%';
   const needDisplay =
     isTesting || consumption === 0
       ? '--'
-      : `+${formatFuel(fuelToAddHypothetical, fuelUnits, 1)}`;
+      : isEnergy
+        ? `${refuelLevelPercent(fuelToAddHypothetical)}%`
+        : `+${formatFuel(fuelToAddHypothetical, fuelUnits, 1)}`;
 
   return (
     <div
@@ -113,7 +122,7 @@ export const FuelCalculatorTargetMessage: React.FC<
       </div>
       <div className="text-xs">
         <span className="text-slate-400" style={{ fontSize: labelFontSize }}>
-          Need:
+          {isEnergy ? 'Fill to:' : 'Need:'}
         </span>
         <span
           className="text-white font-medium ml-1"

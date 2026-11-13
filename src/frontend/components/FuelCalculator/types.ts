@@ -1,14 +1,28 @@
 import type {
   SessionVisibilitySettings,
   LayoutNode,
+  FuelBudget,
   FuelLapData,
 } from '@irdashies/types';
-export type { FuelLapData };
+export type { FuelBudget, FuelLapData };
 
 /**
  * Complete fuel calculation result
+ *
+ * The amounts are litres for a car on fuel, as the comments below say. For a
+ * Le Mans Ultimate car on virtual energy every one of them is percent of the
+ * energy budget instead, and `budget` says so.
  */
 export interface FuelCalculation {
+  /** What the amounts count. Absent means fuel. */
+  budget?: FuelBudget;
+  /**
+   * The fuel tank of a car on virtual energy: litres aboard, and how many
+   * laps they last at the car's recent litres a lap, or null before a lap
+   * has been measured. Such a car stops when either runs out, so the tank
+   * is shown beside the energy. Absent for a car on fuel.
+   */
+  tank?: { level: number; laps: number | null };
   /** Current fuel level (liters) */
   fuelLevel: number;
   /** Fuel used on the most recent completed lap (liters) */

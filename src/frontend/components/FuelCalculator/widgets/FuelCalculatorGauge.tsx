@@ -1,11 +1,11 @@
 import React from 'react';
-import { formatFuel } from '../fuelCalculations';
+import { formatFuel, type FuelDisplayUnit } from '../fuelCalculations';
 import type { FuelCalculation, FuelCalculatorSettings } from '../types';
 
 interface FuelCalculatorWidgetProps {
   fuelData: FuelCalculation | null;
   displayData: FuelCalculation;
-  fuelUnits: 'L' | 'gal';
+  fuelUnits: FuelDisplayUnit;
   settings?: FuelCalculatorSettings;
   widgetId?: string;
   customStyles?: {
@@ -96,6 +96,19 @@ export const FuelCalculatorGauge: React.FC<FuelCalculatorWidgetProps> = ({
   const lapsString = displayData.lapsWithFuel.toFixed(1);
   const tankString = formatFuel(tankCapacity, fuelUnits, 0);
 
+  // A car on virtual energy: the bar is its energy, and its fuel tank gets a
+  // line of its own underneath. The car stops when either runs out, and the
+  // two are filled to run out close together, so the tank is always shown
+  // and marked when it is the one that will be empty first.
+  const isEnergy = fuelData.budget === 'virtualEnergy';
+  const tank = isEnergy ? displayData.tank : undefined;
+  const tankUnits = settings?.fuelUnits ?? 'L';
+  const tankEndsFirst =
+    tank !== undefined &&
+    tank.laps !== null &&
+    displayData.lapsWithFuel > 0 &&
+    tank.laps < displayData.lapsWithFuel;
+
   const paddingClass =
     compactMode === 'ultra'
       ? ''
@@ -112,7 +125,7 @@ export const FuelCalculatorGauge: React.FC<FuelCalculatorWidgetProps> = ({
           className="uppercase tracking-wide"
           style={{ fontSize: labelFontSize }}
         >
-          Tank
+          {isEnergy ? 'Energy' : 'Tank'}
         </span>
         <span
           className="text-white font-bold tracking-wide"
@@ -121,12 +134,15 @@ export const FuelCalculatorGauge: React.FC<FuelCalculatorWidgetProps> = ({
           {fuelString} <span className="text-slate-500 font-medium">·</span>{' '}
           {lapsString} laps
         </span>
-        <span
-          className="uppercase tracking-wide"
-          style={{ fontSize: labelFontSize }}
-        >
-          {tankString} cap
-        </span>
+        {/* A budget in percent is full at 100: no capacity to state. */}
+        {!isEnergy && (
+          <span
+            className="uppercase tracking-wide"
+            style={{ fontSize: labelFontSize }}
+          >
+            {tankString} cap
+          </span>
+        )}
       </div>
       <div className="h-1.5 bg-slate-700/80 rounded-sm overflow-hidden">
         <div
@@ -134,6 +150,32 @@ export const FuelCalculatorGauge: React.FC<FuelCalculatorWidgetProps> = ({
           style={{ width: `${fuelPct}%` }}
         />
       </div>
+      {tank && (
+        <div
+          data-testid="fuel-gauge-tank"
+          className={`mt-1 flex justify-between tabular-nums ${tankEndsFirst ? 'text-amber-400' : 'text-slate-400'}`}
+          style={{ fontSize: labelFontSize }}
+          title={
+            tankEndsFirst
+              ? 'The fuel tank will be empty before the virtual energy is'
+              : 'Fuel in the tank'
+          }
+        >
+          <span className="uppercase tracking-wide">
+            {tankEndsFirst ? 'Fuel ends first' : 'Fuel'}
+          </span>
+          <span className={tankEndsFirst ? 'font-bold' : ''}>
+            {formatFuel(tank.level, tankUnits, 1)}
+            {tank.laps !== null && (
+              <>
+                {' '}
+                <span className="text-slate-500 font-medium">·</span>{' '}
+                {tank.laps.toFixed(1)} laps
+              </>
+            )}
+          </span>
+        </div>
+      )}
     </div>
   );
 };

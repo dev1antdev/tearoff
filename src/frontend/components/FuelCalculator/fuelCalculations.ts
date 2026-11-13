@@ -2,7 +2,7 @@
  * Utility functions for fuel calculations
  */
 
-import type { FuelLapData } from './types';
+import type { FuelBudget, FuelLapData } from './types';
 
 // ============================================================================
 // Constants - Session Flags (defined once at module level)
@@ -179,21 +179,57 @@ export function gallonsToLiters(gallons: number): number {
   return gallons / LITERS_TO_GALLONS;
 }
 
-/** Convert an internal litre value to the selected display unit. */
-export function fuelDisplayValue(liters: number, units: 'L' | 'gal'): number {
-  return units === 'gal' ? litersToGallons(liters) : liters;
+/**
+ * What an amount is shown in: the fuel unit the driver chose, or percent for
+ * virtual energy, which has no other unit.
+ */
+export type FuelDisplayUnit = 'L' | 'gal' | '%';
+
+/** The unit a budget is shown in. Only fuel has a choice. */
+export function fuelDisplayUnit(
+  budget: FuelBudget | undefined,
+  fuelUnits: 'L' | 'gal'
+): FuelDisplayUnit {
+  return budget === 'virtualEnergy' ? '%' : fuelUnits;
+}
+
+/**
+ * Convert an internal amount to the display unit: litres to gallons where
+ * gallons were chosen. Litres and percent are shown as they are counted.
+ */
+export function fuelDisplayValue(
+  amount: number,
+  units: FuelDisplayUnit
+): number {
+  return units === 'gal' ? litersToGallons(amount) : amount;
 }
 
 /**
  * Format fuel amount for display
  */
 export function formatFuel(
-  liters: number,
-  units: 'L' | 'gal',
+  amount: number,
+  units: FuelDisplayUnit,
   decimals = 2
 ): string {
-  const value = fuelDisplayValue(liters, units);
-  return `${value.toFixed(decimals)} ${units}`;
+  const value = fuelDisplayValue(amount, units).toFixed(decimals);
+  // A percent sign sits against its number; a unit of volume stands apart.
+  return units === '%' ? `${value}%` : `${value} ${units}`;
+}
+
+/**
+ * The level to set for a stop, for a budget that is refilled to a level
+ * rather than topped up by an amount.
+ *
+ * Le Mans Ultimate's pit menu takes virtual energy as the level the car
+ * leaves with, in whole percent. Rounded up, so the level set is never short
+ * of the one worked out, and held at a full budget: more than that is another
+ * stop, not a bigger number.
+ */
+export function refuelLevelPercent(levelAfterStop: number): number {
+  if (!Number.isFinite(levelAfterStop)) return 0;
+  // The epsilon keeps 62.0000001 from being asked for as 63.
+  return Math.min(100, Math.max(0, Math.ceil(levelAfterStop - 1e-6)));
 }
 
 // ============================================================================

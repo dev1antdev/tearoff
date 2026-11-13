@@ -142,7 +142,8 @@ export default defineWidgetManifest({
     fuelUnits: {
       type: 'enum',
       label: 'Fuel Units',
-      description: 'Show fuel in litres or gallons.',
+      description:
+        'Show fuel in litres or gallons. A Le Mans Ultimate car that runs on virtual energy is counted in percent of its energy instead, whichever is chosen here.',
       options: [
         { value: 'L', label: 'Litres (L)' },
         { value: 'gal', label: 'Gallons (gal)' },
@@ -152,7 +153,8 @@ export default defineWidgetManifest({
     safetyMargin: {
       type: 'number',
       label: 'Safety Margin',
-      description: 'Extra fuel added to "To Finish" calculation.',
+      description:
+        'Extra fuel added to "To Finish" calculation, in the unit shown: litres, gallons, or percent of virtual energy.',
       control: 'input',
       min: 0,
       max: 50,

@@ -15,6 +15,7 @@ import {
 import type { FuelCalculatorSettings, FuelCalculation } from './types';
 import type { LayoutNode } from '@irdashies/types';
 import { DEFAULT_FUEL_LAYOUT_TREE } from './defaults';
+import { fuelDisplayUnit } from './fuelCalculations';
 
 const EMPTY_DATA: FuelCalculation = {
   fuelLevel: 0,
@@ -49,9 +50,15 @@ export const FuelCalculatorDisplay = ({
   // Visual Edit Mode & Demo Mode
   const { editMode, currentDashboard } = useDashboard();
   const generalSettings = currentDashboard?.generalSettings;
-  const { fuelUnits } = settings;
 
   const projection = useFuelProjectionSnapshot();
+  // Percent for a car on virtual energy, whatever fuel unit is chosen. The
+  // data says which first, so a story or the demo decides for itself; the
+  // live snapshot covers the moments before there is any data.
+  const fuelUnits = fuelDisplayUnit(
+    fuelData?.budget ?? projection?.budget,
+    settings.fuelUnits
+  );
   const visibilityKey = projection?.sessionType
     ? {
         Race: 'race',

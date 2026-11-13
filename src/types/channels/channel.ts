@@ -751,9 +751,33 @@ export interface FuelProjectionEngineSnapshot {
   wasOnPitRoad: boolean;
 }
 
+/**
+ * What a fuel projection counts.
+ *
+ * 'fuel' is the tank, in litres. 'virtualEnergy' is the stint budget of a Le
+ * Mans Ultimate Hypercar, LMDh or LMGT3, in percent: such a car stops when its
+ * energy runs out, not its tank, so the energy is what there is to project.
+ */
+export type FuelBudget = 'fuel' | 'virtualEnergy';
+
 export interface FuelProjectionSnapshot {
   /** True for recorded tape sources; recorded laps must not touch live storage. */
   isReplay: boolean;
+  /**
+   * What every amount below is measured in: `fuelLevel`, the usages, the tank
+   * capacity and each lap's `fuelUsed`. Litres for 'fuel', percent of the
+   * budget for 'virtualEnergy'. Absent means 'fuel', which is all there was
+   * before this field.
+   */
+  budget?: FuelBudget;
+  /**
+   * The fuel tank of a car running on virtual energy: litres aboard, and
+   * litres a lap over its recent laps, 0 until one has been measured. It is
+   * here for one question only -- whether the tank will be empty before the
+   * energy is. Absent for a car that runs on fuel, whose tank is the figures
+   * above.
+   */
+  tank?: { level: number; perLap: number };
   fuelLevel: number;
   fuelLevelPct: number;
   currentLap: number;
@@ -775,6 +799,11 @@ export interface FuelProjectionSnapshot {
   sessionType?: string;
   isOnTrack: boolean;
   trackId?: string | number;
+  /**
+   * The car the lap history is kept under, not a name to show. A car running
+   * on virtual energy gets a key of its own, so laps measured in percent are
+   * never averaged with laps measured in litres.
+   */
   carName?: string;
   fuelTankCapacity?: number;
   completedLaps: readonly FuelLapData[];

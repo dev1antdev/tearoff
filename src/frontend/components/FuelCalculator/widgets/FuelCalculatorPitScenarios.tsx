@@ -1,11 +1,34 @@
 import React from 'react';
 import type { FuelCalculation, FuelCalculatorSettings } from '../types';
+import { refuelLevelPercent, type FuelDisplayUnit } from '../fuelCalculations';
 import { useFuelProjectionSnapshot } from '@irdashies/context';
+
+/**
+ * What a stop puts in and what is left at the flag, as the two cells read.
+ *
+ * A tank is topped up by an amount. Virtual energy is set as the level the
+ * car leaves the stop with, in whole percent, so the first cell changes
+ * meaning with the budget and the column heading changes with it.
+ */
+const stopCells = (
+  neededAfterStop: number,
+  leftAtFinish: number,
+  isEnergy: boolean
+): { add: string; finish: string } =>
+  isEnergy
+    ? {
+        add: `${refuelLevelPercent(neededAfterStop)}%`,
+        finish: `${leftAtFinish.toFixed(1)}%`,
+      }
+    : {
+        add: `+${neededAfterStop.toFixed(1)}`,
+        finish: leftAtFinish.toFixed(1),
+      };
 
 interface FuelCalculatorWidgetProps {
   fuelData: FuelCalculation | null;
   displayData: FuelCalculation;
-  fuelUnits?: 'L' | 'gal';
+  fuelUnits?: FuelDisplayUnit;
   settings?: FuelCalculatorSettings;
   widgetId?: string;
   customStyles?: {
@@ -25,6 +48,7 @@ const TargetScenarioRow: React.FC<{
   settings: FuelCalculatorSettings;
   valueFontSize: string;
   isTesting: boolean;
+  isEnergy: boolean;
   compactMode?: 'off' | 'compact' | 'ultra';
 }> = ({
   targetLap,
@@ -33,6 +57,7 @@ const TargetScenarioRow: React.FC<{
   settings,
   valueFontSize,
   isTesting,
+  isEnergy,
   compactMode,
 }) => {
   const lapsLeftAfterPit = Math.max(0, fuelData.totalLaps - targetLap);
@@ -73,12 +98,10 @@ const TargetScenarioRow: React.FC<{
     fuelToAddHypothetical - fuelBurnedToFinish
   );
 
-  const addDisplay =
-    isTesting || consumption === 0
-      ? '--'
-      : `+${fuelToAddHypothetical.toFixed(1)}`;
-  const finishDisplay =
-    isTesting || consumption === 0 ? '--' : estimatedFinishFuel.toFixed(1);
+  const cells = stopCells(fuelToAddHypothetical, estimatedFinishFuel, isEnergy);
+  const hidden = isTesting || consumption === 0;
+  const addDisplay = hidden ? '--' : cells.add;
+  const finishDisplay = hidden ? '--' : cells.finish;
   const rowColor = 'text-white font-bold';
   const cellPadding =
     compactMode === 'ultra' ? '' : compactMode === 'compact' ? 'p-1' : 'p-2';
@@ -118,11 +141,16 @@ export const FuelCalculatorPitScenarios: React.FC<
 > = ({
   fuelData,
   displayData,
+  fuelUnits,
   settings,
   widgetId,
   customStyles,
   compactMode,
 }) => {
+  // The unit handed down, which is percent for a car on virtual energy
+  // whatever the fuel unit setting says.
+  const units = fuelUnits ?? settings?.fuelUnits ?? 'L';
+  const isEnergy = units === '%';
   // Custom style handling for separate label/value sizes
   const widgetStyle =
     customStyles || (widgetId && settings?.widgetStyles?.[widgetId]) || {};
@@ -179,7 +207,7 @@ export const FuelCalculatorPitScenarios: React.FC<
           className="text-slate-500 text-center"
           style={{ fontSize: labelFontSize }}
         >
-          ADD
+          {isEnergy ? 'FILL TO' : 'ADD'}
         </div>
         <div
           className="text-slate-500 text-center"
@@ -211,11 +239,11 @@ export const FuelCalculatorPitScenarios: React.FC<
           const lapsLeftAfterPit = Math.max(0, fuelData.totalLaps - pitLap);
           const safetyMargin = settings?.safetyMargin ?? 0.05;
           const consumption = displayData.avgLaps || displayData.avg10Laps || 0;
-          // Additive Safety Margin logic (value is in Liters/Gallons)
+          // Additive Safety Margin logic, in the unit the margin is typed in:
+          // gallons become the litres the sums are in, litres and percent
+          // of energy already are what they are in.
           const marginAmount =
-            settings?.fuelUnits === 'gal'
-              ? safetyMargin * 3.78541
-              : safetyMargin;
+            units === 'gal' ? safetyMargin * 3.78541 : safetyMargin;
           const calculationFuelNeeded =
             lapsLeftAfterPit * consumption + marginAmount;
           const fuelToAddHypothetical = Math.max(0, calculationFuelNeeded);
@@ -236,12 +264,13 @@ export const FuelCalculatorPitScenarios: React.FC<
             windowStatus = '+1 Lap';
           }
 
-          const addDisplay = isTesting
-            ? '--'
-            : `+${fuelToAddHypothetical.toFixed(1)}`;
-          const finishDisplay = isTesting
-            ? '--'
-            : estimatedFinishFuel.toFixed(1);
+          const cells = stopCells(
+            fuelToAddHypothetical,
+            estimatedFinishFuel,
+            isEnergy
+          );
+          const addDisplay = isTesting ? '--' : cells.add;
+          const finishDisplay = isTesting ? '--' : cells.finish;
           const windowDisplay = isTesting ? '--' : windowStatus;
 
           const rowColor = scenario.isCurrentTarget
@@ -297,6 +326,7 @@ export const FuelCalculatorPitScenarios: React.FC<
             settings={settings}
             valueFontSize={valueFontSize}
             isTesting={isTesting}
+            isEnergy={isEnergy}
             compactMode={compactMode}
           />
         )}

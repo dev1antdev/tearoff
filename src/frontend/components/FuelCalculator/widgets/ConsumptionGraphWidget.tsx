@@ -1,4 +1,4 @@
-import { formatFuel } from '../fuelCalculations';
+import { formatFuel, type FuelDisplayUnit } from '../fuelCalculations';
 import { FuelLapData } from '../types';
 import { demoFuelGraph } from '../demoData';
 
@@ -13,7 +13,7 @@ export interface ConsumptionGraphData {
 interface ConsumptionGraphWidgetProps {
   graphData: ConsumptionGraphData | null;
   consumptionGraphType: 'line' | 'histogram';
-  fuelUnits: 'L' | 'gal';
+  fuelUnits: FuelDisplayUnit;
   showConsumptionGraph: boolean;
   editMode?: boolean;
   manualTarget?: number;
