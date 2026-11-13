@@ -24,6 +24,7 @@ import { GarageCoverSettings } from './sections/GarageCoverSettings';
 import { ProfileSettings } from './sections/ProfileSettings';
 import { FlagSettings } from './sections/FlagSettings';
 import { CarSetupSettings } from './sections/CarSetupSettings';
+import { LapLibrarySettings } from './sections/LapLibrary/LapLibrarySettings';
 import { StreamChatSettings } from './sections/StreamChatSettings';
 import { DriverTagsSettings } from './sections/DriverTagsSettings';
 import { KeybindingsSettings } from './sections/KeybindingsSettings';
@@ -107,6 +108,7 @@ export const SettingsLoader = ({ previewMode }: SettingsLoaderProps = {}) => {
   if (widgetId === 'profiles') return <ProfileSettings />;
   if (widgetId === 'advanced') return <AdvancedSettings />;
   if (widgetId === 'car-setup') return <CarSetupSettings />;
+  if (widgetId === 'laps') return <LapLibrarySettings />;
   if (widgetId === 'about') return <AboutSettings />;
   if (widgetId === 'release-notes') return <ReleaseNotesSettings />;
   if (widgetId === 'driver-tags') return <DriverTagsSettings />;

@@ -5,7 +5,7 @@ import type {
   Telemetry,
 } from '@irdashies/types';
 import type {
-  PlayerReferenceLapPersistence,
+  PlayerReferenceLapSource,
   ReferenceLapPersistence,
 } from './ReferenceLapProcessor';
 import { CarSpeedsProcessor } from './CarSpeedsProcessor';
@@ -41,11 +41,11 @@ import type { PoleSideSettings } from '@irdashies/types';
 interface ProcessorRegistryOptions {
   referenceLapPersistence: ReferenceLapPersistence;
   /**
-   * Where the player's own all-time best lap per track and car is kept.
-   * Without it nothing is loaded or saved and the all-time reference is the
-   * best of the running session only.
+   * The lap library's answer to "which lap is the player's all-time
+   * reference on this track in this car". Without it there is no all-time
+   * reference at all.
    */
-  playerReferenceLapPersistence?: PlayerReferenceLapPersistence;
+  playerReferenceLaps?: PlayerReferenceLapSource;
   /** The radar's dev tuning from the current dashboard; defaults without. */
   radarTuning?: () => RadarProcessorTuning;
   /** The player's own pole side per track; the table's without. */
@@ -81,7 +81,7 @@ const defineProcessor = <K extends AnyProcessorDefinition['channel']>(
 
 export const createProcessorDefinitions = ({
   referenceLapPersistence,
-  playerReferenceLapPersistence,
+  playerReferenceLaps,
   radarTuning,
   radarPoleSides,
 }: ProcessorRegistryOptions): readonly AnyProcessorDefinition[] => [
@@ -116,9 +116,9 @@ export const createProcessorDefinitions = ({
         aggregateReplay
           ? { load: () => null, save: () => undefined }
           : referenceLapPersistence,
-        // A replayed tape is somebody's old session: its laps are not the
-        // player's to keep, and the player's are not its to be measured by.
-        aggregateReplay ? undefined : playerReferenceLapPersistence
+        // A replayed tape is somebody's old session: the player's laps are
+        // not its to be measured by.
+        aggregateReplay ? undefined : playerReferenceLaps
       ),
   }),
   defineProcessor({

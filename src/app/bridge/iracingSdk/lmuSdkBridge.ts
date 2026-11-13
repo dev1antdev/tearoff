@@ -213,9 +213,9 @@ export async function publishLmuSDKEvents(
   const referenceLapStorage = channelBus
     ? await import('../../storage/referenceLaps')
     : undefined;
-  const playerReferenceLapStorage = channelBus
-    ? await import('../../storage/playerReferenceLaps')
-    : undefined;
+  const lapLibrary = channelBus
+    ? (await import('../../storage/lapLibrary')).getLapLibrary()
+    : null;
   const processorHost =
     channelBus && referenceLapStorage
       ? createDefaultProcessorHost({
@@ -230,23 +230,15 @@ export async function publishLmuSDKEvents(
             load: referenceLapStorage.getReferenceLap,
             save: referenceLapStorage.saveReferenceLap,
           },
-          // The one reference-lap store that works here: the class store
-          // above is keyed by a series id, and LMU has none.
-          playerReferenceLapPersistence: playerReferenceLapStorage && {
-            load: (trackId, carKey) =>
-              playerReferenceLapStorage.getPlayerReferenceLap(
-                'lmu',
-                trackId,
-                carKey
-              ),
-            save: (trackId, carKey, lap) =>
-              playerReferenceLapStorage.savePlayerReferenceLap(
-                'lmu',
-                trackId,
-                carKey,
-                lap
-              ),
-          },
+          // The one stored reference that works here: the class store above
+          // is keyed by a series id, and LMU has none.
+          playerReferenceLaps: lapLibrary
+            ? {
+                load: (trackId, carKey, pointsCount) =>
+                  lapLibrary.referenceLap('lmu', trackId, carKey, pointsCount),
+                revision: () => lapLibrary.referenceRevision(),
+              }
+            : undefined,
         })
       : undefined;
 

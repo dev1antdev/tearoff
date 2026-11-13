@@ -4,6 +4,7 @@ import {
   TagIcon,
   ScalesIcon,
   KeyboardIcon,
+  ListNumbersIcon,
   WrenchIcon,
   InfoIcon,
   NewspaperIcon,
@@ -60,6 +61,13 @@ export const toolItems: MenuItem[] = [
     path: '/car-setup',
     label: 'Setup Comparison',
     icon: ScalesIcon,
+    category: 'Tools',
+  },
+  {
+    to: '/settings/laps',
+    path: '/laps',
+    label: 'Laps',
+    icon: ListNumbersIcon,
     category: 'Tools',
   },
 ];

@@ -18,6 +18,8 @@ declare global {
   interface Window {
     widgetPreviewBridge?: import('./types/widgetPreview').WidgetPreviewBridge;
     storageStatusBridge?: import('./types/storageStatus').StorageStatusBridge;
+    /** Absent outside the Electron preload, e.g. the browser server. */
+    lapLibraryBridge?: import('./types/lapLibrary').LapLibraryBridge;
     channelBridge: ChannelBridge;
     irsdkBridge: IrSdkBridge;
     telemetryInspectorBridge: TelemetryInspectorBridge;

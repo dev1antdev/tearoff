@@ -42,10 +42,7 @@ vi.mock('../../storage/referenceLaps', () => ({
   getReferenceLap: vi.fn(),
   saveReferenceLap: vi.fn(),
 }));
-vi.mock('../../storage/playerReferenceLaps', () => ({
-  getPlayerReferenceLap: vi.fn(),
-  savePlayerReferenceLap: vi.fn(),
-}));
+vi.mock('../../storage/lapLibrary', () => ({ getLapLibrary: () => null }));
 vi.mock('../../storage/radarTuning', () => ({ getRadarTuning: vi.fn() }));
 vi.mock('../../storage/radarPoleSideOverrides', () => ({
   radarPoleSideOverrides: {},

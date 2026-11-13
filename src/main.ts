@@ -5,6 +5,7 @@ import { setupReleaseNotesBridge } from './app/bridge/releaseNotesBridge';
 import log from './app/logger';
 import {
   iRacingSDKSetup,
+  getActiveSimulator,
   getCurrentBridge,
   getIsDemoMode,
   getSessionLifecycle,
@@ -51,9 +52,11 @@ import {
   flushReferenceLapsOnShutdown,
 } from './app/storage/referenceLaps';
 import {
-  loadPlayerReferenceLaps,
-  flushPlayerReferenceLapsOnShutdown,
-} from './app/storage/playerReferenceLaps';
+  closeLapLibraryOnShutdown,
+  startLapLibrary,
+} from './app/storage/lapLibrary';
+import { PlayerLapRecorder } from './app/processors/PlayerLapRecorder';
+import { setupLapLibraryBridge } from './app/bridge/lapLibraryBridge';
 import { flushLapTracesOnShutdown } from './app/storage/lapTraces';
 import { flushPitLaneDataOnShutdown } from './app/storage/pitLaneData';
 import {
@@ -186,6 +189,7 @@ let disconnectLifecycleChannel: (() => void) | undefined;
 let sessionProfileSwitcher: SessionProfileSwitcher | undefined;
 let incidentRuntime: IncidentRuntime | undefined;
 let disposeLapHistoryRuntime: (() => void) | undefined;
+let disposeLapLibraryRecording: (() => void) | undefined;
 let disposeStreamChat: (() => void) | undefined;
 let disposeReplayContextRuntime: (() => void) | undefined;
 const knownLocalUserIds = createKnownLocalUserIdStore();
@@ -234,6 +238,88 @@ const replayArchiveIndex: ArchiveIndex = {
   },
 };
 let disposeRendererDataSubscriptions: (() => void) | undefined;
+
+/**
+ * Records every lap the player completes into the lap library.
+ *
+ * Hosted outside the ProcessorHost, like the lap history: a processor runs
+ * only while a window wants its channel, and a library that recorded laps
+ * only while some widget happened to be on screen would have holes nobody
+ * could explain.
+ */
+function setupLapLibraryRecording(replayContext: ReplayContextRuntime): void {
+  const library = startLapLibrary();
+  const disposeBridge = setupLapLibraryBridge(library);
+  const lifecycle = getSessionLifecycle();
+  // A tape is somebody's old session played back for development: its laps
+  // are not the player's.
+  const isTapeReplay = Boolean(
+    process.env.IRDASHIES_TELEMETRY_REPLAY || process.env.IRDASHIES_LMU_REPLAY
+  );
+  const bootId = Date.now().toString(36);
+  let recorder: PlayerLapRecorder | undefined;
+  let replaySource = false;
+
+  const applyEnabled = () => {
+    recorder?.setEnabled(
+      !isTapeReplay &&
+        !replaySource &&
+        !replayContext.isReplayFile() &&
+        !getIsDemoMode()
+    );
+  };
+
+  let unsubscribeSession: (() => void) | undefined;
+  let unsubscribeTelemetry: (() => void) | undefined;
+  const wireToTelemetryBridge = () => {
+    unsubscribeSession?.();
+    unsubscribeTelemetry?.();
+    unsubscribeSession = undefined;
+    unsubscribeTelemetry = undefined;
+    const bridge = getCurrentBridge();
+    const simulator = getActiveSimulator();
+    if (!bridge || !simulator) {
+      recorder = undefined;
+      return;
+    }
+    // A new recorder per bridge: the simulator is part of what a lap is
+    // filed under, and a half-driven lap does not carry over to another sim.
+    const current = new PlayerLapRecorder(
+      { record: (session, lap) => library.recordLap(session, lap) },
+      { simulator, bootId, now: () => Date.now() }
+    );
+    recorder = current;
+    applyEnabled();
+    unsubscribeSession =
+      bridge.onSessionData((session) => current.onSession(session)) ??
+      undefined;
+    unsubscribeTelemetry =
+      bridge.onTelemetry((telemetry) => current.onFrame(telemetry)) ??
+      undefined;
+  };
+  wireToTelemetryBridge();
+  const unsubscribeBridgeChanged = onBridgeChanged(wireToTelemetryBridge);
+  const unsubscribeEnter = lifecycle.onEnter(({ replay }) => {
+    replaySource = replay;
+    recorder?.onEnter();
+    applyEnabled();
+  });
+  const unsubscribeDisconnect = lifecycle.onDisconnect(() =>
+    recorder?.onDisconnect()
+  );
+  const unsubscribeReplayContext = replayContext.onChange(applyEnabled);
+
+  disposeLapLibraryRecording = () => {
+    unsubscribeSession?.();
+    unsubscribeTelemetry?.();
+    unsubscribeBridgeChanged?.();
+    unsubscribeEnter();
+    unsubscribeDisconnect();
+    unsubscribeReplayContext();
+    disposeBridge();
+    recorder = undefined;
+  };
+}
 
 /**
  * Hosts lap-history recording outside the ProcessorHost, the way the incident
@@ -471,15 +557,15 @@ void app.whenReady().then(async () => {
     getSessionLifecycle(),
     channelBus
   );
+  // Before the telemetry bridge: its reference recorder asks the library
+  // for the player's all-time lap as soon as it is created.
+  startLapLibrary();
   await iRacingSDKSetup(overlayManager, channelBus);
   setupTapeReplayBridge(getCurrentBridge);
   if (process.env.IRDASHIES_TELEMETRY_REPLAY) createTapeReplayWindow();
 
   // Perform one-time cleanup of old reference laps
   validateReferenceLapFile();
-  // Not awaited: no session is running yet, and a lookup that beats the read
-  // simply finds no lap.
-  void loadPlayerReferenceLaps();
 
   const bridge = getCurrentBridge();
 
@@ -510,6 +596,7 @@ void app.whenReady().then(async () => {
   );
   setupRaceControlBridge(incidents, dashboard, replayContextRuntime);
   setupLapHistoryRuntime(dashboard, replayContextRuntime);
+  setupLapLibraryRecording(replayContextRuntime);
   disposeStreamChat = setupStreamChat(channelBus, listDashboards);
   // Returns false when the Gantry widget is disabled, so Settings can explain
   // why the button did nothing instead of appearing to be broken.
@@ -708,6 +795,7 @@ const handleBeforeQuit = createBeforeQuitHandler({
     disposeRendererDataSubscriptions?.();
     incidentRuntime?.dispose();
     disposeLapHistoryRuntime?.();
+    disposeLapLibraryRecording?.();
     disposeStreamChat?.();
     disposeReplayContextRuntime?.();
     disposeGarage61SearchSession?.();
@@ -718,7 +806,7 @@ const handleBeforeQuit = createBeforeQuitHandler({
       flushLapTracesOnShutdown(),
       flushPitLaneDataOnShutdown(),
       flushReferenceLapsOnShutdown(),
-      flushPlayerReferenceLapsOnShutdown(),
+      closeLapLibraryOnShutdown(),
       fuelDatabase?.flush(),
       flushIncidentsOnShutdown(),
       flushLapHistoryOnShutdown(),

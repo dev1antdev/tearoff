@@ -105,6 +105,13 @@ const config: ForgeConfig = {
           target: 'main',
         },
         {
+          // A worker thread of the main process, built to its own file beside
+          // main.js. The lap library's database runs on it.
+          entry: 'src/app/storage/lapLibrary/lapLibraryWorker.ts',
+          config: 'vite.worker.config.mts',
+          target: 'main',
+        },
+        {
           entry: 'src/preload.ts',
           config: 'vite.preload.config.mts',
           target: 'preload',
