@@ -98,7 +98,7 @@ export async function fetchGitHubReleases(
       if (!version || release.draft === true) continue;
       const parsed = sanitizeRelease({
         version,
-        title: release.name ?? `irDashies ${version}`,
+        title: release.name ?? `Tearoff ${version}`,
         body: '',
         url: githubUrl(String(release.tag_name)),
         publishedAt: release.published_at,
@@ -157,7 +157,7 @@ export async function fetchGitHubRelease(
         title:
           typeof release.name === 'string'
             ? release.name
-            : `irDashies ${version}`,
+            : `Tearoff ${version}`,
         url: githubUrl(String(release.tag_name)),
         publishedAt: release.published_at,
       });

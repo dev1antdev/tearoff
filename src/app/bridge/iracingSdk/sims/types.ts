@@ -28,7 +28,7 @@ export type PublishSimEvents = (
 ) => Promise<IrSdkSourceBridge>;
 
 /**
- * One telemetry source irDashies can read.
+ * One telemetry source Tearoff can read.
  *
  * Definitions are discovered by the registry rather than listed anywhere, so
  * adding a simulator means adding a directory under `sims/` — no switch

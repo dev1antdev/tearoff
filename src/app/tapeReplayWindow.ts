@@ -11,7 +11,7 @@ export function createTapeReplayWindow(): BrowserWindow {
   if (replayWindow && !replayWindow.isDestroyed()) return replayWindow;
   const { x, y, width, height } = screen.getPrimaryDisplay().workArea;
   const window = new BrowserWindow({
-    title: 'irDashies - Telemetry replay',
+    title: 'Tearoff - Telemetry replay',
     x: Math.round(x + (width - 620) / 2),
     y: Math.round(y + height - 128),
     width: 620,

@@ -51,7 +51,7 @@ if (!input) {
         ? spawn('npm.cmd start', { shell: true, stdio: 'inherit', env })
         : spawn('npm', ['start'], { stdio: 'inherit', env });
     child.on('error', (error) => {
-      process.stderr.write(`Could not start irDashies: ${error.message}\n`);
+      process.stderr.write(`Could not start Tearoff: ${error.message}\n`);
       process.exitCode = 1;
     });
     child.on('exit', (code, signal) => {

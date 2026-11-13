@@ -4,7 +4,7 @@ import { GITHUB_REPOSITORY_URL } from './repository';
 /** Local preview data; never used in a packaged app. */
 export const releaseNotesFixture = (version = '2.1.0'): ReleaseNotes => ({
   version,
-  title: `irDashies ${version}`,
+  title: `Tearoff ${version}`,
   url: `${GITHUB_REPOSITORY_URL}/releases/tag/v${version}`,
   publishedAt: '2026-10-18T00:00:00Z',
   body: `## What's new

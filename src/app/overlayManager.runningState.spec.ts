@@ -101,7 +101,7 @@ vi.mock('./logger', () => ({
 const { OverlayManager } = await import('./overlayManager');
 
 const settingsWindow = () =>
-  createdWindows.find((w) => w.options.title === 'irDashies - Settings');
+  createdWindows.find((w) => w.options.title === 'Tearoff - Settings');
 
 const runningStateSends = (window: FakeBrowserWindow) =>
   window.webContents.send.mock.calls.filter(([key]) => key === 'runningState');

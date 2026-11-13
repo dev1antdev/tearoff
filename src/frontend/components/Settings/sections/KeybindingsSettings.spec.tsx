@@ -56,7 +56,7 @@ it.each(['invalid', 'unavailable'] as const)(
 it.each([
   KEYBINDING_MESSAGES.invalid,
   KEYBINDING_MESSAGES.unavailable,
-  'Shortcut already bound in irDashies.',
+  'Shortcut already bound in Tearoff.',
 ])('preserves the saved shortcut after rejection: %s', async (message) => {
   vi.mocked(bridge.updateKeybinding).mockResolvedValue({ error: message });
   renderRow();

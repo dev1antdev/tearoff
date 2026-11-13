@@ -428,7 +428,7 @@ export class Analytics {
     if (!this.provider) return undefined;
     try {
       // Waits for the stored list to load. A connect noted meanwhile, such as
-      // the sim already running as irdashies started, is merged into it.
+      // the sim already running as Tearoff started, is merged into it.
       const store = getSimulatorUsageStore();
       if (!(await store.ready())) return undefined;
       const properties = buildSimulatorUsageProperties(

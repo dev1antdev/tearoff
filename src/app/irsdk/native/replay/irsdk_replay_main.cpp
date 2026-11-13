@@ -47,7 +47,7 @@ constexpr SharedObjectNames kIRacingObjectNames = {
 constexpr SharedObjectNames kIsolatedReplayObjectNames = {
     IRDASHIES_IRSDK_REPLAY_MAPPING_NAME,
     IRDASHIES_IRSDK_REPLAY_EVENT_NAME,
-    "irDashies replay"};
+    "Tearoff replay"};
 
 BOOL WINAPI handleConsoleSignal(DWORD signal) {
   if (signal == CTRL_C_EVENT || signal == CTRL_BREAK_EVENT ||
@@ -1285,7 +1285,7 @@ int inspectTape(const std::vector<std::wstring>& arguments) {
 
 void printUsage() {
   std::cout
-      << "irDashies iRacing telemetry record/replay tool\n\n"
+      << "Tearoff iRacing telemetry record/replay tool\n\n"
       << "Commands:\n"
       << "  record  --output <capture.irdt> [--duration <seconds>]\n"
       << "  play    --input <capture.irdt> [--speed <factor>] [--loop] "

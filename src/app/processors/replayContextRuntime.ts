@@ -25,7 +25,7 @@ export interface KnownUserIdRecorder extends KnownUserIds {
 
 export interface ReplayContextRuntimeOptions {
   /**
-   * True for the real sim. False for demo data and irDashies tape playback,
+   * True for the real sim. False for demo data and Tearoff tape playback,
    * whose user ids must not be remembered as this PC's.
    */
   isLiveSource: () => boolean;
@@ -98,7 +98,7 @@ export class ReplayContextRuntime {
     return this.processor.snapshot();
   }
 
-  /** False while a replay file is loaded that irDashies did not record. */
+  /** False while a replay file is loaded that Tearoff did not record. */
   canReadArchive(): boolean {
     const { mode, provenance } = this.processor.snapshot();
     return mode !== 'replayFile' || provenance === 'archived';

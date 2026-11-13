@@ -10,7 +10,9 @@
 
 ### What "irdashies" still means here
 
-Only the app identity was renamed (`name`/`productName` in `package.json`, the update feed, the release publisher). Code identifiers keep the old name on purpose: the `@irdashies/*` path aliases, the `IRDASHIES_*` environment variables, and user-visible strings such as window titles. Do not rename them as a side effect of other work.
+The app is called Tearoff everywhere a user can see it: window titles, the tray, the settings wordmark, messages, the browser-source pages and the wheel graphics. New user-visible text must say Tearoff.
+
+Code identifiers keep the old name on purpose: the `@irdashies/*` path aliases, the `IRDASHIES_*` environment variables, the C++ `irdashies::` namespaces, the `--irdashies-perf-*` arguments, storage keys such as `irdashies:github-star-prompt:*`, and the Windows object names in `irsdk_shared_objects.h`. Do not rename them as a side effect of other work. The only places that should still say irDashies in prose are credits to the upstream project.
 
 ### Releases and auto-update
 

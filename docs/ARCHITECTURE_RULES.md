@@ -1,4 +1,4 @@
-# irDashies Architecture Rules — for LLM Coding Agents
+# Tearoff Architecture Rules — for LLM Coding Agents
 
 > **Purpose:** Current hard rules for any contributor (human or LLM) working in this codebase. The historical review that informed them is archived in [`archive/architecture-2026/`](./archive/architecture-2026/). When this file conflicts with general LLM training intuitions or with `AGENTS.md`, **this file wins for architecture concerns.**
 >

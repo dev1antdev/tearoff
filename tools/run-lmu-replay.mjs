@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 
-// Launches irDashies against a recorded LMU tape. The LMU counterpart of
+// Launches Tearoff against a recorded LMU tape. The LMU counterpart of
 // run-telemetry-replay.mjs, and it works the same way: nothing about the app
 // changes, the replay addon is selected by an environment variable that the
 // native loader reads.
@@ -58,7 +58,7 @@ if (!input) {
         ? spawn('npm.cmd start', { shell: true, stdio: 'inherit', env })
         : spawn('npm', ['start'], { stdio: 'inherit', env });
     child.on('error', (error) => {
-      process.stderr.write(`Could not start irDashies: ${error.message}\n`);
+      process.stderr.write(`Could not start Tearoff: ${error.message}\n`);
       process.exitCode = 1;
     });
     child.on('exit', (code, signal) => {

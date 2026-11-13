@@ -266,7 +266,7 @@ describe('setupRaceControlBridge', () => {
     expect(clearIncidents).not.toHaveBeenCalled();
   });
 
-  it('hides and protects the archive while a replay irDashies did not record is loaded', async () => {
+  it('hides and protects the archive while a replay Tearoff did not record is loaded', async () => {
     const { runtime } = createRuntime();
     let readable = false;
     setupRaceControlBridge(runtime, undefined, {

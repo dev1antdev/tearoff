@@ -5,7 +5,7 @@ import logger from '../logger';
 export interface LapHistoryArchiveSource {
   /** SubSessionID of the event the sim is showing, '' when disconnected. */
   getCurrentSessionId: () => string;
-  /** False while a replay file is loaded that irDashies did not record. */
+  /** False while a replay file is loaded that Tearoff did not record. */
   canReadArchive: () => boolean;
   load: (
     sessionId: string,

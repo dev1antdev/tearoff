@@ -1,7 +1,7 @@
 # Raw iRacing Telemetry Record/Replay
 
 The `irsdk_replay` Windows tool records the complete live IRSDK shared-memory
-surface. Its shared-memory playback uses isolated irDashies test objects by
+surface. Its shared-memory playback uses isolated Tearoff test objects by
 default:
 
 - `Local\IRDashiesReplayMemMapFileName`
@@ -75,7 +75,7 @@ npm run irsdk:inspect -- --input telemetry-captures\race.irdt
 
 ### In-process application replay (macOS, Windows, and Linux)
 
-Run any tape directly through irDashies:
+Run any tape directly through Tearoff:
 
 ```bash
 npm run irsdk:replay:app -- --input test-data/telemetry/ai-race-10min.irdt
@@ -137,7 +137,7 @@ npm run irsdk:replay -- --input telemetry-captures\race.irdt --speed 2
 npm run irsdk:replay -- --input telemetry-captures\race.irdt --loop
 ```
 
-To run the complete irDashies application against isolated playback, start the
+To run the complete Tearoff application against isolated playback, start the
 publisher in one terminal, then launch the app with its explicit replay-mode
 environment flag in another:
 
@@ -147,7 +147,7 @@ $env:IRDASHIES_IRSDK_REPLAY = '1'
 npm start
 ```
 
-The flag only selects the isolated native addon for that irDashies process. It
+The flag only selects the isolated native addon for that Tearoff process. It
 does not redirect other SDK clients or modify the production mapping.
 
 For deterministic tests, step mode accepts `next` and `quit` on stdin:

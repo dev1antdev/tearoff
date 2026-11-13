@@ -9,7 +9,7 @@ const history: ReleaseNotesHistoryResult = {
   releases: ['2.1.0', '2.0.0', '1.9.0', '1.8.2', '1.8.1', '1.8.0'].map(
     (version, index) => ({
       version,
-      title: `irDashies ${version}`,
+      title: `Tearoff ${version}`,
       publishedAt: new Date(Date.UTC(2026, 9 - index, 18)).toISOString(),
     })
   ),
@@ -39,7 +39,7 @@ const withHistory = (result: ReleaseNotesHistoryResult | null) => () => {
                   releases: [
                     {
                       version: '1.7.0',
-                      title: 'irDashies 1.7.0',
+                      title: 'Tearoff 1.7.0',
                       publishedAt: null,
                     },
                   ],

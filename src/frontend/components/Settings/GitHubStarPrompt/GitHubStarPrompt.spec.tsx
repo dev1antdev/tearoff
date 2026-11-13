@@ -191,7 +191,7 @@ describe('GitHub star prompt', () => {
       const link = screen.getByRole('link', { name: 'Star on GitHub' });
       expect(link).toHaveAttribute(
         'href',
-        'https://github.com/tariknz/irdashies'
+        'https://github.com/dev1antdev/tearoff'
       );
       expect(link).toHaveAttribute('target', '_blank');
       const action =

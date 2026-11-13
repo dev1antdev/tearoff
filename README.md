@@ -6,7 +6,7 @@
 
 A personal sim racing overlay built with React and Electron, with iRacing support and beta support for Le Mans Ultimate.
 
-> Tearoff is an independent fork of [irDashies](https://github.com/tariknz/irdashies) by Tarik Alani, taken at v2.1.1 and developed separately since. Much of this README still describes the upstream feature set and calls the app irDashies. Compared with upstream, this fork has its own update feed, unsigned builds, no analytics, and no RaceOS driver-rating lookup.
+> Tearoff is an independent fork of [irDashies](https://github.com/tariknz/irdashies) by Tarik Alani, taken at v2.1.1 and developed separately since. Much of this README still describes the upstream feature set. Compared with upstream, this fork has its own update feed, unsigned builds, no analytics, and no RaceOS driver-rating lookup.
 
 ## Try it out
 
@@ -41,12 +41,12 @@ See the [latest release notes](https://github.com/dev1antdev/tearoff/releases/la
 
 iRacing is the primary supported simulator. Le Mans Ultimate support is in beta as of [v2.0.0](https://github.com/tariknz/irdashies/releases/tag/v2.0.0), with a limited set of supported widgets.
 
-Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > Simulator**. Auto detects the running simulator and follows simulator changes without restarting irDashies. If both simulators are active when detection runs, iRacing takes priority; select Le Mans Ultimate explicitly if needed. Unsupported widgets are hidden for the active simulator.
+Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > Simulator**. Auto detects the running simulator and follows simulator changes without restarting Tearoff. If both simulators are active when detection runs, iRacing takes priority; select Le Mans Ultimate explicitly if needed. Unsupported widgets are hidden for the active simulator.
 
 ### Le Mans Ultimate setup and limitations
 
 1. In LMU, enable **Settings > Gameplay > Enable Plugins**, then restart the simulator.
-2. Start irDashies and load into an LMU session to receive telemetry.
+2. Start Tearoff and load into an LMU session to receive telemetry.
 
 **Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, and Information Bar. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Fuel Calculator, both track maps, Radar, Gantry, Car Systems, Lap Timer, Tachometer, and Shift Light.
 
@@ -536,7 +536,7 @@ Helps you manage your pit stops with clear visual guidance. It assists with spee
 - Current lap: Show current lap time, highlights green for personal best and purple for session best.
 - Predicted lap: Shows an estimate of the lap time based on the current delta.
 - Best and last lap: Display the best and last lap times.
-- Personal best lap: Optionally show the best lap ever recorded by irDashies for the current car and track combo, persisted across sessions.
+- Personal best lap: Optionally show the best lap ever recorded by Tearoff for the current car and track combo, persisted across sessions.
 - Lap history: Show a history of your most recent lap times along with optional deltas.
 - Optionally hide pit laps from the lap history list and graph.
 - Fully configurable: Decide which laps your interested in and toggle them on and off individually.
@@ -684,8 +684,8 @@ A race control window with live standings, an automatic incident feed, and a per
 - Standings and incidents shown side by side with a draggable divider, plus a separate Lap Graph tab
 - Optional always-on-top mode, controlled from the tab bar or settings for windowed or borderless simulators
 - Dock Fuel Calculator, Track Map, or Flat Track Map panels beneath the incident feed, side by side or in tabs, with optional Gantry-only fuel layouts
-- Review recorded incidents and lap history while watching an iRacing replay; history follows the selected replay session and requires recordings made by irDashies on this PC
-- Final standings and lap graphs remain available after iRacing closes, including when switching tabs, until the next session loads or irDashies closes
+- Review recorded incidents and lap history while watching an iRacing replay; history follows the selected replay session and requires recordings made by Tearoff on this PC
+- Final standings and lap graphs remain available after iRacing closes, including when switching tabs, until the next session loads or Tearoff closes
 - Standings list
   - Grouped by car class: position, car number, driver name, tyre compound, iRating, pit/DNF status
   - Gap to the class leader, interval to the car ahead, best lap and last lap
@@ -791,7 +791,7 @@ TV-style overlays for iRacing streams, configured together in **Settings > Broad
 
 ## Installation (for development)
 
-To install irDashies for development, follow these steps:
+To install Tearoff for development, follow these steps:
 
 1. Clone the repository
 2. Navigate to the project directory
@@ -815,7 +815,7 @@ npm run storybook
 
 ## Usage (for development)
 
-To start using IRDashies, run the following command:
+To start using Tearoff, run the following command:
 
 ```bash
 npm start
@@ -837,7 +837,7 @@ $env:IRDASHIES_SIM = 'lmu'
 npm start
 ```
 
-Without an override, irDashies uses the saved simulator preference. In Auto mode,
+Without an override, Tearoff uses the saved simulator preference. In Auto mode,
 it detects the running simulator and follows changes without restarting, giving
 iRacing priority if both simulators are active when detection runs.
 

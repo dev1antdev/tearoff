@@ -78,7 +78,7 @@ export function setupKeybindingsBridge(
         );
         if (conflict !== undefined) {
           return {
-            error: `Shortcut already bound to "${conflict}" in irDashies. Choose another combination.`,
+            error: `Shortcut already bound to "${conflict}" in Tearoff. Choose another combination.`,
           };
         }
         if (accelerator) {

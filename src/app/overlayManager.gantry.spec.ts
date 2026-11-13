@@ -108,7 +108,7 @@ const pinned = (alwaysOnTop: unknown) =>
   dashboard(true, { window: { alwaysOnTop } });
 
 const gantryWindows = () =>
-  createdWindows.filter((w) => w.options.title === 'irDashies - Gantry');
+  createdWindows.filter((w) => w.options.title === 'Tearoff - Gantry');
 
 describe('OverlayManager Gantry window', () => {
   beforeEach(() => {

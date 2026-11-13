@@ -26,7 +26,7 @@ export const ReleaseNotesVersions = ({
     if (version)
       versions.set(version, {
         version,
-        title: `irDashies ${version}`,
+        title: `Tearoff ${version}`,
         publishedAt: null,
       });
   }

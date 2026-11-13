@@ -253,7 +253,7 @@ export const NavigationPrototype = ({
             <div className="min-w-0">
               <div className="flex flex-wrap items-baseline gap-x-3">
                 <span className="text-[24px] leading-7 font-semibold tracking-[-0.04em] text-white">
-                  ir<span className="text-red-600">Dashies</span>
+                  Tear<span className="text-red-600">off</span>
                 </span>
                 <h1 className="text-sm font-medium text-slate-400">
                   {contextual

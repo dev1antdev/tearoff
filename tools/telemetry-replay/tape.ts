@@ -115,7 +115,7 @@ export class TapeReader {
       const fileHeader = Buffer.allocUnsafe(FILE_HEADER_SIZE);
       await readExact(handle, fileHeader, 0);
       if (!fileHeader.subarray(0, 8).equals(Buffer.from('IRDTRCE\0'))) {
-        throw new Error('File is not an irDashies telemetry tape');
+        throw new Error('File is not an Tearoff telemetry tape');
       }
 
       const formatVersion = fileHeader.readUInt32LE(8);

@@ -365,7 +365,7 @@ describe('sessionProfileSwitcher', () => {
   /**
    * The lifecycle's callbacks carry transitions and are never replayed, and the
    * SDK is already publishing by the time main.ts gets here. Everything below
-   * describes starting irDashies while iRacing is mid-session — the ordinary
+   * describes starting Tearoff while iRacing is mid-session — the ordinary
    * case of alt-tabbing out to launch the overlay.
    */
   describe('starting up mid-session', () => {

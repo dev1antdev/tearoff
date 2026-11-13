@@ -35,7 +35,7 @@ export function setupStorageStatusBridge() {
     try {
       if (status.diskFull && Notification.isSupported()) {
         notification = new Notification({
-          title: 'irDashies: disk full',
+          title: 'Tearoff: disk full',
           body: 'Fuel history or reference laps cannot be saved. Free disk space to resume saving.',
         });
         notification.show();

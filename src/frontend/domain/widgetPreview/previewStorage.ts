@@ -58,7 +58,7 @@ export function createPreviewStorage() {
     pickAndParseIbtLap: async () => null,
     pickGarage61Csv: async () => null,
     fetchLapTraceFromGarage61: async () => {
-      throw new Error('Import reference laps in the irDashies app.');
+      throw new Error('Import reference laps in the Tearoff app.');
     },
     notifyReferenceUpdated: () => referenceCallbacks.forEach((cb) => cb()),
     onReferenceUpdated: (cb) => {

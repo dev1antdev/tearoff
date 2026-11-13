@@ -13,9 +13,9 @@ interface GantryReplayBannerProps {
 const MESSAGES: Record<GantryReplayBannerProvenance, string> = {
   archived: 'Replay — showing events recorded on this PC during the session.',
   localNotArchived:
-    "irDashies wasn't recording when this session ran, so there is no event log for this replay. Standings still follow the replay.",
+    "Tearoff wasn't recording when this session ran, so there is no event log for this replay. Standings still follow the replay.",
   foreign:
-    'This replay was recorded on another computer. Event history is only available for sessions irDashies recorded on this PC. Standings still follow the replay.',
+    'This replay was recorded on another computer. Event history is only available for sessions Tearoff recorded on this PC. Standings still follow the replay.',
 };
 
 export const GantryReplayBanner = memo(

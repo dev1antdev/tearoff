@@ -1402,7 +1402,7 @@ export function summaryMarkdown(summary: PerfSummary): string {
     ? 'CONCLUSIVE'
     : `INCONCLUSIVE — ${summary.evidence.inconclusiveReasons.join('; ')}`;
 
-  return `# irDashies performance run
+  return `# Tearoff performance run
 
 - Run: \`${summary.runId}\`
 - Scenario: \`${summary.scenario}\`
@@ -1420,16 +1420,16 @@ export function summaryMarkdown(summary: PerfSummary): string {
 | iRacing worst sampled FPS | ${format(summary.iracing.worstFps)} |
 | iRacing foreground CPU | ${format(summary.iracing.averageCpuForeground)}% |
 | iRacing GPU usage | ${format(summary.iracing.averageGpuUsage)}% |
-| irDashies app CPU | ${format(summary.app.averageCpuPercent)}% |
+| Tearoff app CPU | ${format(summary.app.averageCpuPercent)}% |
 | Average renderer / main / GPU CPU | ${format(summary.app.averageRendererCpuPercent)}% / ${format(summary.app.averageMainCpuPercent)}% / ${format(summary.app.averageGpuCpuPercent)}% |
-| irDashies peak memory | ${format(summary.app.peakMemoryMB)} MB |
+| Tearoff peak memory | ${format(summary.app.peakMemoryMB)} MB |
 | Average renderer / main / GPU memory | ${format(summary.app.averageRendererMemoryMB)} / ${format(summary.app.averageMainMemoryMB)} / ${format(summary.app.averageGpuMemoryMB)} MB |
-| irDashies peak private memory | ${format(summary.app.peakPrivateMemoryMB)} MB |
+| Tearoff peak private memory | ${format(summary.app.peakPrivateMemoryMB)} MB |
 | Average renderer / main / GPU private memory | ${format(summary.app.averageRendererPrivateMemoryMB)} / ${format(summary.app.averageMainPrivateMemoryMB)} / ${format(summary.app.averageGpuPrivateMemoryMB)} MB |
 | Peak renderer memory (${summary.app.rendererProcessCount} processes) | ${format(summary.app.peakRendererMemoryMB)} MB |
 | Peak main / GPU memory | ${format(summary.app.peakMainMemoryMB)} / ${format(summary.app.peakGpuMemoryMB)} MB |
-| irDashies memory slope | ${format(summary.app.memorySlopeMBPerMinute)} MB/min |
-| irDashies private-memory slope | ${format(summary.app.privateMemorySlopeMBPerMinute)} MB/min |
+| Tearoff memory slope | ${format(summary.app.memorySlopeMBPerMinute)} MB/min |
+| Tearoff private-memory slope | ${format(summary.app.privateMemorySlopeMBPerMinute)} MB/min |
 | Telemetry tick rate, average / minimum | ${format(summary.telemetry.averageTickRateHz)} / ${format(summary.telemetry.minimumTickRateHz)} Hz |
 | processTelemetry p99, mean / worst interval | ${format(summary.telemetry.processTelemetryP99MeanMs)} / ${format(summary.telemetry.processTelemetryP99WorstMs)} ms |
 | broadcast p99 mean | ${format(summary.telemetry.broadcastP99MeanMs)} ms |
@@ -1503,7 +1503,7 @@ export function comparisonMarkdown(comparison: PerfComparison): string {
     )
     .join('\n');
 
-  return `# irDashies performance comparison
+  return `# Tearoff performance comparison
 
 - Baseline: \`${baseline.runId}\` (${baseline.scenario})
 - Candidate: \`${candidate.runId}\` (${candidate.scenario})
@@ -1513,8 +1513,8 @@ export function comparisonMarkdown(comparison: PerfComparison): string {
 | --- | ---: |
 | iRacing average FPS | ${format(delta.averageFpsPercent)}% |
 | iRacing sampled FPS p1 mean | ${format(delta.onePercentLowFpsPercent)}% |
-| irDashies app CPU | ${format(delta.appCpuPercent)} percentage points |
-| irDashies peak memory | ${format(delta.peakMemoryMB)} MB |
+| Tearoff app CPU | ${format(delta.appCpuPercent)} percentage points |
+| Tearoff peak memory | ${format(delta.peakMemoryMB)} MB |
 | processTelemetry p99 mean | ${format(delta.processTelemetryP99Ms)} ms |
 | Main event-loop p99 mean | ${format(delta.eventLoopP99Ms)} ms |
 | Input trace frames / second | ${format(delta.inputTraceFrameRateHz)} Hz |

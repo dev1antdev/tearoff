@@ -156,7 +156,7 @@ const analytics = new Analytics();
 const perfRun = getPerfRunConfig();
 analytics.setupLogTransport(overlayManager.getVersion());
 // Before any bridge exists, so the first connect is heard even when the sim
-// was already running as irdashies started.
+// was already running as Tearoff started.
 onConnectedSimulatorChanged((simulator) =>
   analytics.setConnectedSimulator(simulator)
 );

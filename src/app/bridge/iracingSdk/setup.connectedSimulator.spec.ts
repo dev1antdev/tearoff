@@ -109,7 +109,7 @@ describe('onConnectedSimulatorChanged', () => {
     Object.defineProperty(process, 'platform', { value: realPlatform });
   });
 
-  it('reports a simulator that was already running as irdashies started', async () => {
+  it('reports a simulator that was already running as Tearoff started', async () => {
     bridges.running.iracing = true;
     const { iRacingSDKSetup, onConnectedSimulatorChanged } =
       await import('./setup');

@@ -8,7 +8,7 @@ export type ReplayMode = 'live' | 'spectating' | 'replayFile';
 /**
  * Where a loaded replay's event history can come from. Always `none` outside
  * `replayFile` mode.
- * - `archived`: irDashies recorded this event on this PC.
+ * - `archived`: Tearoff recorded this event on this PC.
  * - `localNotArchived`: this PC's user recorded it, but nothing was archived.
  * - `foreign`: the replay came from another computer.
  */

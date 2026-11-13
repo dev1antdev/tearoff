@@ -34,7 +34,7 @@ interface Probe {
  * Once a simulator is attached, a watchdog keeps the app following whichever
  * source is actually running: each sim's own bridge only knows how to wait for
  * that one sim to come back, so without this, closing one sim and opening
- * another would leave irdashies deaf until it was restarted. The watchdog
+ * another would leave Tearoff deaf until it was restarted. The watchdog
  * deliberately does *not* tear the attached bridge down to go looking — see
  * `startWatchdog`.
  */

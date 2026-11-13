@@ -298,7 +298,7 @@ describe('GitHub fetching and offline cache', () => {
 describe('release history', () => {
   const summary = (version: string) => ({
     version,
-    title: `irDashies ${version}`,
+    title: `Tearoff ${version}`,
     publishedAt: null,
   });
   it('fetches a page of public versions, excluding drafts and invalid tags', async () => {

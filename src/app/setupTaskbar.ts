@@ -31,7 +31,7 @@ class Taskbar {
     const icon = nativeImage.createFromPath(iconPath);
 
     const tray = new Tray(icon);
-    tray.setToolTip('irDashies');
+    tray.setToolTip('Tearoff');
 
     tray.on('click', () => {
       this.overlayManager.focusSettingsWindow();
