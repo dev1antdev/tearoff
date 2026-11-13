@@ -1,4 +1,5 @@
 import type {
+  FuelBudget,
   FuelLapData,
   FuelProjectionSnapshot,
   Session,
@@ -8,12 +9,26 @@ import type {
 import {
   FuelProjectionEngine,
   type FuelEngineCommand,
+  type FuelEngineFrame,
 } from '@irdashies/shared';
 import type { TelemetryProcessor } from './TelemetryProcessor';
 
 const MAX_LAP_HISTORY = 50;
 const CLASS_PACE_HISTORY = 5;
 const CLASS_PACE_OUTLIER_SECONDS = 2;
+
+/** A full virtual energy budget, in the percent it is counted in. */
+const VIRTUAL_ENERGY_CAPACITY = 100;
+/**
+ * Added to the car a lap history is kept under when the laps are counted in
+ * virtual energy, so they never share a history with laps counted in litres.
+ * Part of a storage key; shown nowhere.
+ */
+const VIRTUAL_ENERGY_KEY_SUFFIX = ' (virtual energy)';
+/** Tank laps kept for an energy car: enough for the average and its filter. */
+const MAX_TANK_LAP_HISTORY = 10;
+/** How many recent laps the tank's litres a lap is averaged over. */
+const TANK_AVERAGE_LAPS = 5;
 
 export interface FuelProjectionPersistence {
   lapCompleted(lap: FuelLapData): void;
@@ -60,6 +75,45 @@ const values = (frame: Telemetry, key: keyof Telemetry): readonly number[] => {
 const isGreenFlag = (flags: number): boolean =>
   (flags & (0x00004000 | 0x00008000 | 0x00010000)) === 0;
 
+/**
+ * The lap being driven, counted from one.
+ *
+ * iRacing's lap channels are laps started. Le Mans Ultimate's are laps
+ * completed, so its first lap is lap 0: the engine reads that as "no lap yet"
+ * and never records it, every lap number came out one short, and so did the
+ * race distance. One more than the laps completed is the lap being driven in
+ * both sims, so the greater of the two is used. Without a completed count the
+ * lap channel stands as it is.
+ */
+const lapStarted = (lap: number, completed: unknown): number =>
+  typeof completed === 'number' && Number.isFinite(completed)
+    ? Math.max(lap, completed + 1)
+    : lap;
+
+/**
+ * The player's virtual energy as a fraction, or undefined when their car runs
+ * on fuel -- every car outside Le Mans Ultimate, and its fuel-limited classes.
+ *
+ * From the per-car channels rather than the player's own LmuVirtualEnergy:
+ * those say which budget the figure is and remember a car once seen above
+ * zero, where a bare 0 is also what every fuel-limited car reads all race.
+ */
+const playerVirtualEnergy = (
+  frame: Telemetry,
+  playerCarIdx: number
+): number | undefined => {
+  if (playerCarIdx < 0) return undefined;
+  if (frame.LmuCarIdxEnergyIsVirtual?.value?.[playerCarIdx] !== true) {
+    return undefined;
+  }
+  const remaining = frame.LmuCarIdxEnergyRemaining?.value?.[
+    playerCarIdx
+  ] as unknown;
+  return typeof remaining === 'number' && remaining >= 0
+    ? Math.min(remaining, 1)
+    : undefined;
+};
+
 const validateLap = (
   fuelUsed: number,
   lapTime: number,
@@ -95,20 +149,72 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
   private session?: Session;
   private sourceReplay: boolean;
   private latest: FuelProjectionSnapshot;
+  /**
+   * What the engine is counting. Fuel until the player's car is seen running
+   * on virtual energy, and energy from then until the session is left or the
+   * car changes: a budget does not change under a car, and laps counted in
+   * one cannot be carried into the other.
+   */
+  private budget: FuelBudget = 'fuel';
+  /** The last virtual energy read, held through a frame with no reading. */
+  private lastEnergy = 0;
+  /**
+   * The player's entry, which is what says whether the car has changed:
+   * the model in iRacing, the livery file in Le Mans Ultimate.
+   */
+  private carPath: string | undefined;
+  /**
+   * The model Le Mans Ultimate names for that entry, kept once seen. The sim
+   * only names it while the car has a telemetry block, so it goes missing at
+   * the monitor; forgetting it there would move the lap history to another
+   * key every time the driver got out of the car.
+   */
+  private carModel: string | undefined;
+  /**
+   * The tank of an energy car, counted by an engine of its own so its laps
+   * are judged by the same rules as the energy's. Never published as laps,
+   * never stored: only its average reaches the snapshot.
+   */
+  private readonly tankEngine: FuelProjectionEngine;
+  private readonly tankLaps: FuelLapData[] = [];
+  private tankLevel = 0;
 
   constructor(options: FuelProjectionProcessorOptions = {}) {
     this.persistence = options.persistence ?? noPersistence;
     this.persistLaps = options.persistLaps ?? false;
     this.sourceReplay = options.sourceReplay ?? false;
-    this.engine = new FuelProjectionEngine(
-      { now: options.clock ?? (() => this.clockMilliseconds) },
-      { debug: () => undefined }
-    );
+    const clock = { now: options.clock ?? (() => this.clockMilliseconds) };
+    const logger = { debug: () => undefined };
+    this.engine = new FuelProjectionEngine(clock, logger);
+    this.tankEngine = new FuelProjectionEngine(clock, logger);
     this.latest = this.emptySnapshot();
   }
 
   init(session: Session): void {
     this.session = session;
+    const driverInfo = session.DriverInfo;
+    const player = driverInfo?.Drivers?.find(
+      (driver) => driver.CarIdx === driverInfo.DriverCarIdx
+    );
+    const carPath = player?.CarPath;
+    if (carPath !== undefined && carPath !== this.carPath) {
+      // A different car: its laps are not this one's, nor is its budget.
+      if (this.carPath !== undefined) this.reset();
+      this.carPath = carPath;
+      this.carModel = undefined;
+    }
+    if (player?.CarModel) this.carModel = player.CarModel;
+  }
+
+  /**
+   * The car the lap history is kept under.
+   *
+   * Le Mans Ultimate's CarPath is the livery file, so two entries of one car
+   * differ there; it names the model separately, and the model is the key.
+   * iRacing's CarPath is the model.
+   */
+  private get carKey(): string | undefined {
+    return this.carModel ?? this.carPath;
   }
 
   setSourceReplay(replay: boolean): void {
@@ -120,14 +226,31 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
     if (!this.aggregationEnabled) return;
     const sessionTime = value(frame, 'SessionTime');
     this.clockMilliseconds = Math.round(sessionTime * 1000);
-    const fuelLevel = value(frame, 'FuelLevel');
-    const lap = value(frame, 'Lap');
+    const driverInfo = this.session?.DriverInfo;
+    const energy = playerVirtualEnergy(frame, driverInfo?.DriverCarIdx ?? -1);
+    if (energy !== undefined) {
+      // The first sight of the car's energy. Whatever was counted until now
+      // was its tank, in litres, and none of it carries over.
+      if (this.budget === 'fuel') {
+        this.reset();
+        this.budget = 'virtualEnergy';
+      }
+      this.lastEnergy = energy;
+    }
+    const onEnergy = this.budget === 'virtualEnergy';
+    // Absent at the monitor and while spectating, where the sim writes no
+    // fuel. For an energy car the last reading is held, as its energy is.
+    const hasTankReading = typeof frame.FuelLevel?.value?.[0] === 'number';
+    if (hasTankReading || !onEnergy) this.tankLevel = value(frame, 'FuelLevel');
+    const fuelLevel = onEnergy
+      ? this.lastEnergy * VIRTUAL_ENERGY_CAPACITY
+      : this.tankLevel;
+    const lap = lapStarted(value(frame, 'Lap'), frame.LapCompleted?.value?.[0]);
     const lapDistPct = value(frame, 'LapDistPct');
     const sessionNum = value(frame, 'SessionNum');
     const sessionInfo = this.session?.SessionInfo?.Sessions?.find(
       (candidate) => candidate.SessionNum === sessionNum
     );
-    const driverInfo = this.session?.DriverInfo;
     const maxFuel = driverInfo?.DriverCarFuelMaxLtr;
     const maxFuelPct = driverInfo?.DriverCarMaxFuelPct;
     this.updateClassLapTimes(frame);
@@ -136,17 +259,18 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
       sessionInfo?.SessionType,
       sessionInfo?.SessionLaps
     );
+    const engineFrame: FuelEngineFrame = {
+      fuelLevel,
+      lap,
+      lapDistPct,
+      onPitRoad: booleanValue(frame, 'OnPitRoad'),
+      playerCarTowTime: value(frame, 'PlayerCarTowTime'),
+      sessionFlags: value(frame, 'SessionFlags'),
+      sessionNum,
+      sessionTime,
+    };
     const commands = this.engine.onFrame(
-      {
-        fuelLevel,
-        lap,
-        lapDistPct,
-        onPitRoad: booleanValue(frame, 'OnPitRoad'),
-        playerCarTowTime: value(frame, 'PlayerCarTowTime'),
-        sessionFlags: value(frame, 'SessionFlags'),
-        sessionNum,
-        sessionTime,
-      },
+      engineFrame,
       { getRecentLaps: (count) => this.laps.slice(0, count) },
       validateLap,
       isGreenFlag,
@@ -154,6 +278,7 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
     );
     this.lastCommands = commands;
     this.execute(commands);
+    if (onEnergy && hasTankReading) this.countTank(engineFrame);
 
     const engine = this.engine.snapshot();
     const currentLapUsage =
@@ -167,8 +292,17 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
       : 0;
     this.latest = {
       isReplay: this.sourceReplay,
+      // Left out for a car on fuel rather than written as 'fuel', so what a
+      // fuel car publishes is exactly what it published before there was a
+      // second budget.
+      ...(onEnergy
+        ? {
+            budget: this.budget,
+            tank: { level: this.tankLevel, perLap: this.tankPerLap() },
+          }
+        : {}),
       fuelLevel,
-      fuelLevelPct: value(frame, 'FuelLevelPct'),
+      fuelLevelPct: onEnergy ? this.lastEnergy : value(frame, 'FuelLevelPct'),
       currentLap: lap,
       lapDistPct,
       currentLapUsage,
@@ -199,11 +333,13 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
       trackId:
         this.session?.WeekendInfo?.TrackName ??
         this.session?.WeekendInfo?.TrackID,
-      carName: driverInfo?.Drivers?.find(
-        (driver) => driver.CarIdx === driverInfo.DriverCarIdx
-      )?.CarPath,
-      fuelTankCapacity:
-        maxFuel !== undefined && maxFuelPct !== undefined
+      carName:
+        this.carKey !== undefined && onEnergy
+          ? `${this.carKey}${VIRTUAL_ENERGY_KEY_SUFFIX}`
+          : this.carKey,
+      fuelTankCapacity: onEnergy
+        ? VIRTUAL_ENERGY_CAPACITY
+        : maxFuel !== undefined && maxFuelPct !== undefined
           ? maxFuel * maxFuelPct
           : maxFuel,
       completedLaps: this.laps,
@@ -223,6 +359,8 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
     }
     this.reset();
     this.session = undefined;
+    this.carPath = undefined;
+    this.carModel = undefined;
     this.aggregationEnabled = false;
   }
 
@@ -249,22 +387,67 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
     }
   }
 
+  /**
+   * The same frame through the tank's own engine, with litres where the
+   * energy was. Only the laps come back; nothing is stored.
+   */
+  private countTank(frame: FuelEngineFrame): void {
+    const commands = this.tankEngine.onFrame(
+      { ...frame, fuelLevel: this.tankLevel },
+      { getRecentLaps: (count) => this.tankLaps.slice(0, count) },
+      validateLap,
+      isGreenFlag,
+      { persistLaps: false }
+    );
+    for (const command of commands) {
+      if (command.type !== 'lapCompleted') continue;
+      this.tankLaps.unshift(command.lap);
+      if (this.tankLaps.length > MAX_TANK_LAP_HISTORY) this.tankLaps.pop();
+    }
+  }
+
+  /**
+   * Litres a lap over the tank's recent laps, or 0 before there is one.
+   * Laps through the pits are left out when there are others, as the
+   * renderer leaves them out of the energy's average.
+   */
+  private tankPerLap(): number {
+    const valid = this.tankLaps.filter((lap) => lap.isValidForCalc);
+    const full = valid.filter((lap) => !lap.isOutLap && !lap.isInLap);
+    const laps = (full.length > 0 ? full : valid).slice(0, TANK_AVERAGE_LAPS);
+    if (laps.length === 0) return 0;
+    return laps.reduce((sum, lap) => sum + lap.fuelUsed, 0) / laps.length;
+  }
+
   private reset(
     { preserveCompletedLaps }: { preserveCompletedLaps: boolean } = {
       preserveCompletedLaps: false,
     }
   ): void {
     this.engine.reset();
+    this.tankEngine.reset();
     this.lastCommands = [];
     this.classLapTimes.clear();
     this.lastLapTimesByCarIdx = [];
-    if (!preserveCompletedLaps) this.laps.length = 0;
+    if (!preserveCompletedLaps) {
+      this.laps.length = 0;
+      this.tankLaps.length = 0;
+      // The laps were what tied the engine to a budget. With them gone the
+      // next reading decides again, as it did the first time.
+      this.budget = 'fuel';
+      this.lastEnergy = 0;
+      this.tankLevel = 0;
+    }
     this.latest = this.emptySnapshot();
   }
 
   private emptySnapshot(): FuelProjectionSnapshot {
     return {
       isReplay: this.sourceReplay,
+      // Kept through a change of session, where the laps are kept too: a
+      // snapshot that said fuel for one tick would have the renderer drop
+      // the car's energy history and load its litres.
+      ...(this.budget === 'virtualEnergy' ? { budget: this.budget } : {}),
       fuelLevel: 0,
       fuelLevelPct: 0,
       currentLap: 0,
@@ -312,10 +495,15 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
     const driverCarIdx = this.session?.DriverInfo?.DriverCarIdx ?? 0;
     const cameraCarIdx = value(frame, 'CamCarIdx', -1);
     const playerCarIdx = cameraCarIdx >= 0 ? cameraCarIdx : driverCarIdx;
-    const carLaps = values(frame, 'CarIdxLap');
+    const lapsCompleted = frame.CarIdxLapCompleted?.value;
+    const carLaps = values(frame, 'CarIdxLap').map((carLap, carIdx) =>
+      lapStarted(carLap, lapsCompleted?.[carIdx])
+    );
     const positions = values(frame, 'CarIdxPosition');
     const lapDistances = values(frame, 'CarIdxLapDistPct');
-    const playerLap = carLaps[playerCarIdx] ?? value(frame, 'Lap');
+    const playerLap =
+      carLaps[playerCarIdx] ??
+      lapStarted(value(frame, 'Lap'), frame.LapCompleted?.value?.[0]);
     let leaderCarIdx = -1;
     for (let index = 0; index < positions.length; index++) {
       if (positions[index] === 1) {

@@ -41,6 +41,10 @@ export const createFuelStateProbe = (): ReplayProbe<FuelProbeState> => {
       'FuelLevel',
       'IsOnTrack',
       'Lap',
+      // The processor takes the lap being driven as the greater of Lap and
+      // one more than this. Fed here as the app feeds it, so the golden
+      // holds that reading to what iRacing's own lap count gives.
+      'LapCompleted',
       'LapDistPct',
       'OnPitRoad',
       'PlayerCarTowTime',

@@ -8,7 +8,7 @@ import {
 } from '@irdashies/storybook';
 import { useFuelStore } from './FuelStore';
 import { defaultFuelCalculatorSettings } from './defaults';
-import type { FuelLapData } from './types';
+import type { FuelCalculation, FuelLapData } from './types';
 import { demoFuelData } from './demoData';
 import type { LayoutNode } from '@irdashies/types';
 
@@ -128,7 +128,7 @@ export default {
       <OverlayFrame
         height={
           context.id.includes('strategy-with-history') ||
-          context.id.includes('strategy-with-pit-planning')
+          context.id.includes('pit-planning')
             ? 520
             : 260
         }
@@ -402,6 +402,134 @@ export const LowConfidence: Story = {
       confidence: 'low',
       lapsRange: [28, 36],
     },
+  },
+};
+
+/**
+ * A Le Mans Ultimate LMGT3 on virtual energy, with the figures the recorded
+ * Laguna Seca session gives: about 2.3 % a lap, and a tank that lasts about
+ * as long as the energy does.
+ */
+const energyFuelData: FuelCalculation = {
+  ...demoFuelData,
+  budget: 'virtualEnergy',
+  tank: { level: 41.5, laps: 17.9 },
+  fuelLevel: 38.9,
+  lastLapUsage: 2.33,
+  currentLapUsage: 1.2,
+  projectedLapUsage: 2.31,
+  avgLaps: 2.29,
+  avg10Laps: 2.29,
+  avgAllGreenLaps: 2.29,
+  minLapUsage: 2.25,
+  maxLapUsage: 2.33,
+  lapsWithFuel: 17,
+  lapsRemaining: 32,
+  totalLaps: 35,
+  currentLap: 3,
+  fuelToFinish: 73.3,
+  fuelToAdd: 34.4,
+  // As the live calculation has them: the window opens at the end of the
+  // lap being driven, so the level to fill to is for a stop made then.
+  pitWindowOpen: 4,
+  pitWindowClose: 16,
+  targetConsumption: 1.22,
+  fuelAtFinish: -34.4,
+  lapsPerStint: 43.7,
+  targetScenarios: [
+    { laps: 16, fuelPerLap: 2.43, isCurrentTarget: false },
+    { laps: 17, fuelPerLap: 2.29, isCurrentTarget: true },
+    { laps: 18, fuelPerLap: 2.16, isCurrentTarget: false },
+  ],
+  earliestPitLap: 4,
+  fuelTankCapacity: 100,
+};
+
+const energyProjection = {
+  ...previewProjection,
+  budget: 'virtualEnergy' as const,
+  tank: { level: 41.5, perLap: 2.32 },
+  fuelLevel: energyFuelData.fuelLevel,
+  fuelLevelPct: energyFuelData.fuelLevel / 100,
+  currentLap: energyFuelData.currentLap,
+  currentLapUsage: 1.2,
+  projectedLapUsage: 2.31,
+  lastLapUsage: 2.33,
+  fuelTankCapacity: 100,
+};
+
+const energyDecorators: Story['decorators'] = [
+  (Story) => (
+    <MockFuelDataProvider>
+      <Story />
+    </MockFuelDataProvider>
+  ),
+  ChannelSnapshotDecorator({ 'fuel.projection': energyProjection }),
+];
+
+/**
+ * Virtual energy in percent throughout, the level to set at the stop where a
+ * car on fuel has the amount to add, and the tank on a line of its own.
+ */
+export const VirtualEnergy: Story = {
+  decorators: energyDecorators,
+  args: { ...baselineArgs, previewData: energyFuelData },
+};
+
+/** The tank will be empty before the energy is: its line says so, in amber. */
+export const VirtualEnergyFuelEndsFirst: Story = {
+  decorators: energyDecorators,
+  args: {
+    ...baselineArgs,
+    previewData: { ...energyFuelData, tank: { level: 38.8, laps: 16.7 } },
+  },
+};
+
+/** Enough energy to reach the flag: nothing to set, so the column says OK. */
+export const VirtualEnergyNoStopNeeded: Story = {
+  decorators: energyDecorators,
+  args: {
+    ...baselineArgs,
+    previewData: {
+      ...energyFuelData,
+      lapsRemaining: 12,
+      totalLaps: 15,
+      fuelToFinish: 27.5,
+      fuelToAdd: 0,
+      canFinish: true,
+      fuelAtFinish: 11.4,
+      stopsRemaining: 0,
+    },
+  },
+};
+
+/** More than a full budget still to burn: fill to 100 %, and stop again. */
+export const VirtualEnergyNeedsTwoStops: Story = {
+  decorators: energyDecorators,
+  args: {
+    ...baselineArgs,
+    previewData: {
+      ...energyFuelData,
+      lapsRemaining: 70,
+      totalLaps: 73,
+      fuelToFinish: 160.3,
+      fuelToAdd: 61.1,
+      fuelAtFinish: -121.4,
+      stopsRemaining: 2,
+    },
+  },
+};
+
+/** The planning rows read as levels to fill to as well. */
+export const VirtualEnergyPitPlanning: Story = {
+  decorators: energyDecorators,
+  args: {
+    ...baselineArgs,
+    layoutTree: strategyWithPlanningLayout,
+    enableTargetPitLap: true,
+    targetPitLap: 15,
+    showFuelScenarios: true,
+    previewData: energyFuelData,
   },
 };
 

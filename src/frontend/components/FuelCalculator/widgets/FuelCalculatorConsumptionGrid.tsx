@@ -1,6 +1,10 @@
 import React from 'react';
 import { useFuelProjectionSnapshot } from '@irdashies/context';
-import { fuelDisplayValue } from '../fuelCalculations';
+import {
+  fuelDisplayValue,
+  refuelLevelPercent,
+  type FuelDisplayUnit,
+} from '../fuelCalculations';
 import type { FuelCalculation, FuelCalculatorSettings } from '../types';
 
 interface FuelCalculatorWidgetProps {
@@ -8,7 +12,7 @@ interface FuelCalculatorWidgetProps {
   liveFuelData?: FuelCalculation | null;
   liveFuelLevel?: number;
   displayData: FuelCalculation | null | undefined;
-  fuelUnits?: 'L' | 'gal';
+  fuelUnits?: FuelDisplayUnit;
   settings?: FuelCalculatorSettings;
   widgetId?: string;
   predictiveUsage?: number;
@@ -126,6 +130,7 @@ export const FuelCalculatorConsumptionGrid: React.FC<
       return {
         laps: NaN,
         refuel: 0,
+        levelAfterStop: 0,
         totalReq: 0,
         isDeficit: false,
         fitsInTank: true,
@@ -152,14 +157,19 @@ export const FuelCalculatorConsumptionGrid: React.FC<
     const isDeficit = balance < 0;
     const lapsUntilPit = Math.max(0, contextPitWindowOpen - contextCurrentLap);
     const fuelAtPit = Math.max(0, contextFuelLevel - lapsUntilPit * usage);
-    const fitsInTank =
-      tankCapacity <= 0 || fuelAtPit + refuelValue <= tankCapacity;
+    // What the car holds leaving a stop made when the pit window opens, at
+    // the end of this lap. The amount to add is the same whenever the stop
+    // is made; this level is not, and falls by a lap's worth for every lap
+    // the stop is put off. It is what a budget refilled to a level needs.
+    const levelAfterStop = fuelAtPit + refuelValue;
+    const fitsInTank = tankCapacity <= 0 || levelAfterStop <= tankCapacity;
 
     // If testing, hide Refuel and Finish (return 0/invalid)
     if (isTesting) {
       return {
         laps: laps,
         refuel: 0,
+        levelAfterStop: 0,
         totalReq: 0,
         isDeficit: false,
         fitsInTank: true,
@@ -171,6 +181,7 @@ export const FuelCalculatorConsumptionGrid: React.FC<
     return {
       laps: laps, // number
       refuel: refuelValue, // number (absolute value to show)
+      levelAfterStop,
       totalReq: totalReq, // number
       isDeficit: isDeficit, // boolean
       fitsInTank,
@@ -280,13 +291,22 @@ export const FuelCalculatorConsumptionGrid: React.FC<
     isValid ? num.toFixed(2) : '--';
   const fmtFuel = (liters: number, isValid = true) =>
     isValid ? fuelDisplayValue(liters, fuelUnits).toFixed(2) : '--';
+  // Virtual energy is not topped up by an amount: Le Mans Ultimate's pit
+  // menu takes the level the car should leave with. So where a car on fuel
+  // reads "+12.40", a car on energy reads the level to set, "62%".
+  const isEnergy = fuelUnits === '%';
   const formatFuelToAdd = (data: {
     refuel: number;
+    levelAfterStop: number;
     isValid: boolean;
     hideRefuel?: boolean;
   }) => {
     if (!data.isValid || data.hideRefuel) return '--';
-    return `+${fmtFuel(data.refuel)}`;
+    if (!isEnergy) return `+${fmtFuel(data.refuel)}`;
+    // Nothing to add: there is no level to set, and the level the car
+    // would arrive with is not an instruction.
+    if (data.refuel <= 0) return 'OK';
+    return `${refuelLevelPercent(data.levelAfterStop)}%`;
   };
 
   const getFuelToAddClass = (data: {
@@ -354,7 +374,11 @@ export const FuelCalculatorConsumptionGrid: React.FC<
             ? ` / ${displayData?.totalLaps.toFixed(0)}`
             : ''}
         </span>
-        <span>Fuel {fmtFuel(frozenFuelLevel)}</span>
+        <span>
+          {isEnergy
+            ? `Energy ${fmtFuel(frozenFuelLevel)}%`
+            : `Fuel ${fmtFuel(frozenFuelLevel)}`}
+        </span>
       </div>
       {/* Grid Header */}
       <div className="col-span-4 mt-0.5 grid grid-cols-subgrid bg-slate-900/30">
@@ -375,7 +399,7 @@ export const FuelCalculatorConsumptionGrid: React.FC<
           className={`font-bold text-slate-400 flex justify-center items-center leading-none ${headerPadding}`}
           style={{ fontSize: labelFontSize }}
         >
-          TO ADD
+          {isEnergy ? 'FILL TO' : 'TO ADD'}
         </div>
       </div>
 
@@ -636,13 +660,17 @@ export const FuelCalculatorConsumptionGrid: React.FC<
             className="font-semibold tracking-wide text-slate-500"
             style={{ fontSize: labelFontSize }}
           >
-            ADD
+            {isEnergy ? 'FILL TO' : 'ADD'}
           </span>
           <strong
             className={getFuelToAddClass(avgData)}
             style={{ fontSize: valueFontSize }}
           >
-            {hasStrategy ? `+${fmtFuel(avgData.refuel)} ${fuelUnits}` : '--'}
+            {!hasStrategy
+              ? '--'
+              : isEnergy
+                ? formatFuelToAdd(avgData)
+                : `+${fmtFuel(avgData.refuel)} ${fuelUnits}`}
           </strong>
         </div>
       </div>

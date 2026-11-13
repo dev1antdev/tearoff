@@ -1,10 +1,11 @@
 import React from 'react';
-import { GasPumpIcon } from '@phosphor-icons/react';
+import { GasPumpIcon, LightningIcon } from '@phosphor-icons/react';
 import type { FuelCalculatorSettings, FuelCalculation } from '../types';
+import type { FuelDisplayUnit } from '../fuelCalculations';
 
 interface FuelCalculatorWidgetProps {
   fuelData: FuelCalculation | null;
-  fuelUnits: 'L' | 'gal';
+  fuelUnits: FuelDisplayUnit;
   settings?: FuelCalculatorSettings;
   widgetId?: string;
   displayData?: FuelCalculation;
@@ -93,7 +94,16 @@ export const FuelCalculatorHeader: React.FC<FuelCalculatorWidgetProps> = ({
             className="flex items-center gap-1 text-slate-500 font-semibold tracking-wide uppercase"
             style={{ fontSize: labelFontSize }}
           >
-            <GasPumpIcon size={12} weight="fill" />
+            {/* The icon says which budget the whole widget is counting. */}
+            {fuelData.budget === 'virtualEnergy' ? (
+              <LightningIcon
+                size={12}
+                weight="fill"
+                aria-label="Virtual energy"
+              />
+            ) : (
+              <GasPumpIcon size={12} weight="fill" />
+            )}
             <span>To go</span>
           </div>
           <div

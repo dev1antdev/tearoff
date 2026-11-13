@@ -1,13 +1,14 @@
 import React from 'react';
 import { WarningCircleIcon } from '@phosphor-icons/react';
 import type { FuelCalculation, FuelCalculatorSettings } from '../types';
+import type { FuelDisplayUnit } from '../fuelCalculations';
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low' | 'very-low';
 
 export interface FuelCalculatorWidgetProps {
   fuelData: FuelCalculation | null;
   displayData?: FuelCalculation | null;
-  fuelUnits?: 'L' | 'gal';
+  fuelUnits?: FuelDisplayUnit;
   settings?: FuelCalculatorSettings;
   widgetId?: string;
   customStyles?: {

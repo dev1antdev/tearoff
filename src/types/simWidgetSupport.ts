@@ -43,6 +43,9 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   'cornername',
   'deltaspeed',
   'flag',
+  // Counts virtual energy in percent for a Hypercar, LMDh or LMGT3, which
+  // stop when that runs out, and litres for the fuel-limited classes.
+  'fuel',
   'garagecover',
   'infobar',
   'input',
@@ -99,7 +102,6 @@ export const LMU_DISABLED_WIDGETS: readonly string[] = [
   'carsystems',
   'fastercarsfrombehind',
   'flatmap',
-  'fuel',
   'gantry',
   'heartrate',
   'map',
@@ -140,7 +142,7 @@ export const DEFAULT_SIM_WIDGET_SUPPORT: SimWidgetSupportConfig = {
  * it did, which costs a user their hand edits once per change and is why the
  * number is bumped only for a real one.
  */
-export const SIM_WIDGET_SUPPORT_VERSION = 10;
+export const SIM_WIDGET_SUPPORT_VERSION = 11;
 
 /**
  * Whether a widget is unavailable under the running sim.

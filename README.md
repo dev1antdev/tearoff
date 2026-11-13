@@ -48,14 +48,14 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 1. In LMU, enable **Settings > Gameplay > Enable Plugins**, then restart the simulator.
 2. Start Tearoff and load into an LMU session to receive telemetry.
 
-**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Information Bar, Tyres, Minimap, and Lap Delta. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Fuel Calculator, both full-size track maps, Radar, Gantry, Car Systems, Lap Timer, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Information Bar, Tyres, Minimap, Lap Delta, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Car Systems, Lap Timer, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
 - Lap Trace does not yet check LMU lap validity, so laps invalidated by track limits may still become saved references. Imports support iRacing `.ibt` files and Garage 61 CSV laps, with no native LMU telemetry-file import.
 - Input and Lap Trace need your own car's telemetry, which can be unavailable while spectating or in the garage.
 - Lap positions are estimated between updates; cars without full telemetry may update in larger steps. Automatic units are metric, and Pitlane Helper currently uses a fixed 60 km/h pit limit.
-- Virtual energy: Hypercar, LMDh and LMGT3 cars run on virtual energy, LMP2 and LMP3 on fuel. The optional **VE** column in Standings and Relative shows what each car has left to run on, with a pump icon marking a figure that is fuel. The Fuel Level item shows your virtual energy ahead of the litres, and Pitlane Helper shows what the next stop is set to put in. Fuel Calculator does not work in LMU yet.
+- Virtual energy: Hypercar, LMDh and LMGT3 cars run on virtual energy, LMP2 and LMP3 on fuel. The optional **VE** column in Standings and Relative shows what each car has left to run on, with a pump icon marking a figure that is fuel. The Fuel Level item shows your virtual energy ahead of the litres, and Pitlane Helper shows what the next stop is set to put in. Fuel Calculator counts a car on virtual energy in percent of its energy and a fuel-limited car in litres; see [Fuel Calculator](#fuel-calculator).
 - LMU in-game replays do not yet have iRacing's replay-aware handling. LMU session recording and playback tools are development tools.
 
 ## Available overlays
@@ -426,6 +426,14 @@ Displays comprehensive fuel management information including current fuel level,
 - Earliest pit lap: Shows the earliest possible lap you can pit and still finish the race
 - Fuel-to-add mode: Toggle between showing total fuel needed or just what's needed at the next stop
 - Target consumption: Shows what fuel saving is required to reach specific lap targets (±1 from current estimate)
+
+**In Le Mans Ultimate**, a Hypercar, LMDh or LMGT3 stops when its virtual energy runs out, so for those cars the calculator counts virtual energy instead of fuel:
+
+- Every amount is percent of the energy budget, whichever fuel unit is chosen: the level, the use per lap, the averages, the history and the safety margin.
+- Where a car on fuel shows the amount to add, a car on energy shows **Fill to**: the level to set in the pit menu, which takes virtual energy as the level the car leaves with. It is rounded up to a whole percent, is for a stop made at the end of the lap you are on, and falls by one lap's energy for every lap you stay out. `OK` means the energy already reaches the flag; `100%` in red means one stop is not enough.
+- The fuel tank gets a line of its own under the energy bar, with the laps it lasts. The two are loaded to run out close together, and the car stops when either does, so the line turns amber and reads **Fuel ends first** when the tank will be empty before the energy.
+- Lap history is kept per track and car model, separately for energy and for litres.
+- LMP2 and LMP3 cars have no virtual energy and are counted in litres or gallons, as in iRacing.
 
 **All sections enabled**, with histogram history, pit planning, fuel-saving targets, and time until empty:
 

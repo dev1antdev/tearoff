@@ -1,11 +1,12 @@
 import React from 'react';
 import type { FuelCalculation, FuelCalculatorSettings } from '../types';
+import type { FuelDisplayUnit } from '../fuelCalculations';
 import { getFuelStatusColors } from './FuelCalculatorGauge';
 
 interface FuelCalculatorWidgetProps {
   fuelData: FuelCalculation | null;
   displayData: FuelCalculation;
-  fuelUnits?: 'L' | 'gal';
+  fuelUnits?: FuelDisplayUnit;
   settings?: FuelCalculatorSettings;
   widgetId?: string;
   customStyles?: {

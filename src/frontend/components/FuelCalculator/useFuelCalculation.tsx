@@ -18,6 +18,7 @@ import {
   getGreenFlagLaps,
   isFinalLap,
   isCheckeredFlag,
+  fuelDisplayUnit,
 } from './fuelCalculations';
 import logger from '@irdashies/utils/logger';
 
@@ -372,7 +373,31 @@ export function useFuelCalculation(
 
   // Calculate fuel metrics
   const baseCalculation = useMemo((): FuelCalculation | null => {
+    // What the amounts count, and the tank beside it for a car on virtual
+    // energy. Both are left off a car on fuel, whose result is then exactly
+    // what it was before there was a second budget.
+    const budget = projection?.budget;
+    const tankReading = projection?.tank;
+    const budgetFields: Pick<FuelCalculation, 'budget' | 'tank'> = {
+      ...(budget ? { budget } : {}),
+      ...(tankReading
+        ? {
+            tank: {
+              level: tankReading.level,
+              laps:
+                tankReading.perLap > 0
+                  ? tankReading.level / tankReading.perLap
+                  : null,
+            },
+          }
+        : {}),
+    };
+    // The unit the margin was typed in. Gallons need converting to the
+    // litres the sums are in; percent of energy is already what they are in.
+    const marginUnit = fuelDisplayUnit(budget, settings?.fuelUnits ?? 'L');
+
     const emptyCalculation: FuelCalculation = {
+      ...budgetFields,
       fuelLevel: fuelLevel ?? 0,
       lastLapUsage: 0,
       currentLapUsage:
@@ -768,9 +793,9 @@ export function useFuelCalculation(
 
     // Calculate fuel needed with dynamic safety margin
     const marginAmount =
-      settings?.fuelUnits === 'gal' ? safetyMargin * 3.78541 : safetyMargin;
+      marginUnit === 'gal' ? safetyMargin * 3.78541 : safetyMargin;
     const intrinsicMargin =
-      settings?.fuelUnits === 'gal'
+      marginUnit === 'gal'
         ? INTRINSIC_MARGIN_VALUE * 3.78541
         : INTRINSIC_MARGIN_VALUE;
 
@@ -970,6 +995,7 @@ export function useFuelCalculation(
     }
 
     const result: FuelCalculation = {
+      ...budgetFields,
       fuelLevel,
       lastLapUsage,
       currentLapUsage,

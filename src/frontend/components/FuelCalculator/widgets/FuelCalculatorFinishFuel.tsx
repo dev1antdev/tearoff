@@ -1,11 +1,11 @@
 import React from 'react';
-import { formatFuel } from '../fuelCalculations';
+import { formatFuel, type FuelDisplayUnit } from '../fuelCalculations';
 import type { FuelCalculation, FuelCalculatorSettings } from '../types';
 
 interface FuelCalculatorFinishFuelProps {
   fuelData: FuelCalculation | null;
   displayData: FuelCalculation;
-  fuelUnits?: 'L' | 'gal';
+  fuelUnits?: FuelDisplayUnit;
   settings?: FuelCalculatorSettings;
   widgetId?: string;
   customStyles?: {
@@ -51,7 +51,7 @@ export const FuelCalculatorFinishFuel: React.FC<
         className="font-semibold tracking-wide text-slate-400 uppercase"
         style={{ fontSize: labelFontSize }}
       >
-        Fuel at end
+        {fuelUnits === '%' ? 'Energy at end' : 'Fuel at end'}
       </span>
       <span
         className={`font-bold tabular-nums ${isShort ? 'text-red-400' : 'text-emerald-400'}`}

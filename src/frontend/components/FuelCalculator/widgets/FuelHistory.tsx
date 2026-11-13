@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import type { FuelCalculatorSettings, FuelCalculation } from '../types';
 import { MAX_LAP_HISTORY, useFuelStore } from '../FuelStore';
 import { useDashboard } from '@irdashies/context';
-import { formatFuel } from '../fuelCalculations';
+import { formatFuel, type FuelDisplayUnit } from '../fuelCalculations';
 import { demoFuelHistory } from '../demoData';
 import {
   ConsumptionGraphWidget,
@@ -12,7 +12,7 @@ import {
 interface FuelCalculatorWidgetProps {
   fuelData?: FuelCalculation | null;
   displayData?: FuelCalculation | null;
-  fuelUnits: 'L' | 'gal';
+  fuelUnits: FuelDisplayUnit;
   settings?: FuelCalculatorSettings;
   widgetId?: string;
   customStyles?: {
@@ -130,6 +130,8 @@ export const FuelHistory: React.FC<FuelCalculatorWidgetProps> = ({
     const rows = isDemoMode
       ? demoFuelHistory(tableLapCount, currentSessionNum)
       : tableLaps;
+    // Percent is only ever virtual energy, so the unit names the budget.
+    const budgetName = fuelUnits === '%' ? 'Energy' : 'Fuel';
 
     return (
       <div
@@ -140,11 +142,13 @@ export const FuelHistory: React.FC<FuelCalculatorWidgetProps> = ({
           className="mb-1 flex items-center justify-between text-xs font-bold uppercase text-slate-400"
           style={{ fontSize: labelFontSize }}
         >
-          <span>Fuel History</span>
+          <span>{budgetName} History</span>
           {isDemoMode && <span className="text-amber-400">Preview</span>}
         </div>
         <table className="w-full text-sm tabular-nums">
-          <caption className="sr-only">Fuel used per completed lap</caption>
+          <caption className="sr-only">
+            {budgetName} used per completed lap
+          </caption>
           <thead
             className="text-xs text-slate-400"
             style={{ fontSize: labelFontSize }}
@@ -154,7 +158,7 @@ export const FuelHistory: React.FC<FuelCalculatorWidgetProps> = ({
                 Lap
               </th>
               <th scope="col" className="py-1 text-right font-normal">
-                Fuel Used
+                {budgetName} Used
               </th>
             </tr>
           </thead>

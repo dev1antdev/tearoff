@@ -1,11 +1,11 @@
 import React from 'react';
-import { fuelDisplayValue } from '../fuelCalculations';
+import { fuelDisplayValue, type FuelDisplayUnit } from '../fuelCalculations';
 import type { FuelCalculation, FuelCalculatorSettings } from '../types';
 
 interface FuelCalculatorWidgetProps {
   fuelData: FuelCalculation | null;
   displayData: FuelCalculation;
-  fuelUnits?: 'L' | 'gal';
+  fuelUnits?: FuelDisplayUnit;
   settings?: FuelCalculatorSettings;
   widgetId?: string;
   customStyles?: {
@@ -22,11 +22,15 @@ export const FuelCalculatorEconomyPredict: React.FC<
 > = ({
   fuelData,
   displayData,
+  fuelUnits,
   settings,
   widgetId,
   customStyles,
   compactMode,
 }) => {
+  // The unit handed down, which is percent for a car on virtual energy
+  // whatever the fuel unit setting says.
+  const units = fuelUnits ?? settings?.fuelUnits ?? 'L';
   // Custom style handling for separate label/value sizes
   const widgetStyle =
     customStyles || (widgetId && settings?.widgetStyles?.[widgetId]) || {};
@@ -65,10 +69,9 @@ export const FuelCalculatorEconomyPredict: React.FC<
         const isCurrent = scenario.isCurrentTarget;
         const lapsRemaining = scenario.laps;
         const absoluteTargetLap = displayData.currentLap + lapsRemaining;
-        const fuelPerLap = fuelDisplayValue(
-          scenario.fuelPerLap,
-          settings?.fuelUnits || 'L'
-        ).toFixed(2);
+        const fuelPerLap = fuelDisplayValue(scenario.fuelPerLap, units).toFixed(
+          2
+        );
 
         const textColor = isCurrent ? 'text-slate-100' : 'text-slate-400';
         const valueColor = isCurrent
@@ -98,7 +101,7 @@ export const FuelCalculatorEconomyPredict: React.FC<
             >
               {fuelPerLap}
               <span className="ml-0.5 text-[0.7em] text-slate-500">
-                {settings?.fuelUnits || 'L'}/lap
+                {units}/lap
               </span>
             </span>
           </div>
