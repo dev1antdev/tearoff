@@ -609,12 +609,28 @@ Your current lap against your own best: how far up or down you are, whether you 
 - The delta to the reference lap at the point of the track you are at, green when ahead and red when behind, to two or three decimals
 - A trend bar that fills green while you are gaining on the reference and red while you are losing to it, with adjustable sensitivity
 - Predicted lap time: the reference lap plus the current delta
-- A choice of reference: your best clean lap of this session, or your all-time best clean lap on this track in this car, which is kept between sessions
+- A choice of reference: your best clean lap of this session, or your all-time reference on this track in this car, which comes from the [lap library](#lap-library) and is kept between sessions
 - Dashes rather than a guess: before the chosen reference exists, and on a lap that was not seen from its start (the out-lap, or after a return to the pits), nothing is shown in its place
-- The all-time best is your own lap only. A lap driven by a team-mate or the AI is not kept, nor is a lap the sim voided for track limits in Le Mans Ultimate or one with an incident in iRacing
+- The all-time reference is your quickest clean lap: one you drove yourself from line to line, without a pit visit, not voided by the sim for track limits and without an incident. In **Settings > Laps** you can pin a different lap as the reference, or delete a lap you do not want to count
 - Adjustable background opacity, session visibility and an option to show only when on track
 
 Laps are timed from the point where the lap distance wraps rather than from the sim's own lap clock, so the delta and the reference always share one start line. In Le Mans Ultimate that point is a couple of metres from the timing line, so a predicted lap can differ from the official time by a hundredth or two. There the lap that opens a race is not used as a reference either: the sim reports no lap position until the car first reaches the line, so that lap has no start to time it from.
+
+### Lap Library
+
+Every lap you complete is recorded, grouped by the session it was driven in, and listed in **Settings > Laps**. Works in iRacing and Le Mans Ultimate, and records whether or not any widget is on screen.
+
+**Features:**
+
+- Sessions listed most recent first, with the track, car, session type, simulator, number of laps and best lap
+- Each lap with its time, the gap to the session's best, and the fuel or virtual energy it used
+- Notes on why a lap is not counted as clean: a pit lap, voided by the sim, incident points, not driven by you, or timed without a full trace
+- The lap that Lap Delta uses as its all-time reference is marked with a star: your quickest clean lap for that track and car, or one you have pinned
+- Pin any lap that has a trace as the reference for its track and car, and unpin it to go back to the quickest clean lap
+- Delete a single lap or a whole session, after a confirmation
+- A lap is recorded once it has been driven from the line to the line. The stretch before the first crossing, such as leaving the pits or the start of a race in Le Mans Ultimate, is not a lap and is not listed
+
+The laps are kept in a database, `laps.db`, in the app's data folder. It holds up to 5000 laps; past that the oldest go first, and the reference lap of each track and car is never dropped. Each lap is stored with its time and speed against distance, a point every ten metres, which is what the delta is measured against.
 
 ### Delta Speed
 
