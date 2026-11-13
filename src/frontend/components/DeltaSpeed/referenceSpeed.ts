@@ -1,4 +1,3 @@
-import { getBucketIndex } from '@irdashies/context';
 import type { ReferenceLap } from '@irdashies/types';
 
 /**
@@ -42,51 +41,4 @@ export function hasCompleteSpeedTrace(lap: ReferenceLap): boolean {
 
   usableCache.set(lap, usable);
   return usable;
-}
-
-/**
- * Reference speed (km/h) at a point on the lap, linearly interpolated between
- * the two nearest recorded buckets.
- *
- * Linear rather than PCHIP: speed is not monotonic along a lap, so the
- * monotone-cubic tangents used for the time curve don't apply.
- *
- * @returns null when either bounding bucket has no usable data.
- */
-export function interpolateSpeedAtPoint(
-  lap: ReferenceLap,
-  targetPct: number
-): number | null {
-  const speeds = lap.speedsKph;
-  if (!speeds) return null;
-
-  const key0 = getBucketIndex(targetPct, lap.pointsCount);
-  // Explicit modular step rather than getBucketIndex(targetPct + interval):
-  // that helper *clamps* to pointsCount - 1, so in the final bucket it would
-  // collapse key1 onto key0 and hold the last recorded speed flat all the way
-  // to the line. The bucket after the last one is bucket 0.
-  const key1 = key0 + 1 >= lap.pointsCount ? 0 : key0 + 1;
-
-  const p0 = lap.pointPos[key0];
-  const p1 = lap.pointPos[key1];
-  const v0 = speeds[key0];
-  const v1 = speeds[key1];
-
-  if (p0 === undefined || p1 === undefined || p0 < 0 || p1 < 0) return null;
-  // 0 is the "never recorded" sentinel, not a literal 0 km/h.
-  if (v0 === undefined || v1 === undefined || v0 <= 0 || v1 <= 0) return null;
-
-  let h = p1 - p0;
-  if (h <= 0) {
-    // Wrapping through the start/finish line. Unlike the time curve there is no
-    // lap-time term to add here — speed is instantaneous, not cumulative.
-    h = 1 - p0 + p1;
-  }
-  if (h <= 0) return v0;
-
-  // Clamped because pointPos holds the precise position at bucket entry, which
-  // can sit slightly ahead of targetPct and push t marginally out of range.
-  const t = Math.min(Math.max((targetPct - p0) / h, 0), 1);
-
-  return v0 + (v1 - v0) * t;
 }

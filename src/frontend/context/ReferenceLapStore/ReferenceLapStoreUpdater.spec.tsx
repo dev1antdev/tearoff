@@ -63,6 +63,53 @@ describe('useReferenceLapStoreUpdater', () => {
     expect(useReferenceLapStore.getState().bestLaps.size).toBe(0);
   });
 
+  it('mirrors the player all-time lap, and its absence', () => {
+    let listener: ((snapshot: ReferenceLapsSnapshot) => void) | undefined;
+    const bridge = {
+      subscribe: vi.fn((_channel, callback) => {
+        listener = callback as (snapshot: ReferenceLapsSnapshot) => void;
+        return vi.fn();
+      }),
+    } as unknown as ChannelBridge;
+
+    const { unmount } = renderHook(() => useReferenceLapStoreUpdater(bridge));
+    const allTime = lap(59);
+    act(() => {
+      listener?.({
+        bestLaps: [],
+        persistedLaps: [],
+        playerAllTimeLap: allTime,
+        sessionNum: 1,
+        version: 1,
+      });
+    });
+    expect(useReferenceLapStore.getState().playerAllTimeLap).toBe(allTime);
+
+    // A snapshot from before the field existed carries none: that is no lap,
+    // not the last one held on to.
+    act(() => {
+      listener?.({
+        bestLaps: [],
+        persistedLaps: [],
+        sessionNum: 1,
+        version: 2,
+      });
+    });
+    expect(useReferenceLapStore.getState().playerAllTimeLap).toBeNull();
+
+    act(() => {
+      listener?.({
+        bestLaps: [],
+        persistedLaps: [],
+        playerAllTimeLap: allTime,
+        sessionNum: 1,
+        version: 3,
+      });
+    });
+    unmount();
+    expect(useReferenceLapStore.getState().playerAllTimeLap).toBeNull();
+  });
+
   it('does nothing when the channel bridge is unavailable', () => {
     expect(() =>
       renderHook(() => useReferenceLapStoreUpdater(undefined))

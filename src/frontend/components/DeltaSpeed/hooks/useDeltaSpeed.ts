@@ -5,11 +5,9 @@ import {
   useReferenceLapStore,
   useTrackStateSelector,
 } from '@irdashies/context';
+import { referenceSpeedKphAt } from '@irdashies/shared';
 import { speedFromMs } from '@irdashies/utils/units';
-import {
-  hasCompleteSpeedTrace,
-  interpolateSpeedAtPoint,
-} from '../referenceSpeed';
+import { hasCompleteSpeedTrace } from '../referenceSpeed';
 
 /**
  * Live speed delta in KM/H against the player's own session-best clean lap at
@@ -48,7 +46,7 @@ export const useDeltaSpeed = (): number | null => {
     if (!referenceLap || referenceLap.finishTime < 0) return null;
     if (!hasCompleteSpeedTrace(referenceLap)) return null;
 
-    const referenceKph = interpolateSpeedAtPoint(referenceLap, lapDistPct);
+    const referenceKph = referenceSpeedKphAt(referenceLap, lapDistPct);
     if (referenceKph === null) return null;
 
     return speedFromMs(speedMs, 'km/h') - referenceKph;

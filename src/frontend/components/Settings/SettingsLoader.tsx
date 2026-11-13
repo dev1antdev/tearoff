@@ -37,6 +37,7 @@ import { DeltaSpeedSettings } from './sections/DeltaSpeedSettings';
 import { CarSystemsSettings } from './sections/CarSystemsSettings';
 import { TyresSettings } from './sections/TyresSettings';
 import { LapDeltaSettings } from './sections/LapDeltaSettings';
+import { CornerDeltaSettings } from './sections/CornerDeltaSettings';
 import { MinimapSettings } from './sections/MinimapSettings';
 import { HeartRateSettings } from './sections/HeartRateSettings';
 import { CornerNameSettings } from './sections/CornerNameSettings';
@@ -80,6 +81,7 @@ export const WIDGET_SETTINGS: Record<
   carsystems: CarSystemsSettings,
   tyres: TyresSettings,
   lapdelta: LapDeltaSettings,
+  cornerdelta: CornerDeltaSettings,
   minimap: MinimapSettings,
   heartrate: HeartRateSettings,
   cornername: CornerNameSettings,

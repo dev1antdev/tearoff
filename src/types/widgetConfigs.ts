@@ -1117,6 +1117,34 @@ export interface LapDeltaConfig {
 }
 
 /**
+ * The corner just driven against the same corner on one of the player's own
+ * laps: time gained or lost through it, and the speed in and out.
+ */
+export interface CornerDeltaConfig {
+  background: { opacity: number };
+  /**
+   * Which lap a corner is measured against: the reference lap kept for this
+   * track and car across sessions, the best clean lap of this session, or
+   * the last time the corner was driven. Where the chosen one does not exist
+   * yet the deltas are dashes rather than borrowed from another.
+   */
+  reference: 'allTime' | 'sessionBest' | 'lastLap';
+  /** Corners by name ('Acque Minerali A') or by turn number ('T5A'). */
+  cornerLabel: 'name' | 'number';
+  /** Decimal places on the time delta. */
+  decimals: 2 | 3;
+  /** The speed at the corner's start, and how it compares. */
+  showEntrySpeed: boolean;
+  /** The speed at the corner's end, and how it compares. */
+  showExitSpeed: boolean;
+  speedUnit: 'auto' | 'km/h' | 'mph';
+  /** How many earlier corners are listed under the last one; 0 for none. */
+  historyCount: number;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
  * Close-range map centred on the car being watched.
  *
  * Distances are metres on the real track, so the same settings look the same
@@ -1623,6 +1651,7 @@ export interface WidgetConfigMap {
   tyres: TyresConfig;
   minimap: MinimapConfig;
   lapdelta: LapDeltaConfig;
+  cornerdelta: CornerDeltaConfig;
   heartrate: HeartRateConfig;
   cornername: CornerNameOverlayConfig;
   battle: BattleConfig;
@@ -1747,6 +1776,7 @@ export type CarSystemsWidgetSettings = BaseWidgetSettings<CarSystemsConfig>;
 export type TyresWidgetSettings = BaseWidgetSettings<TyresConfig>;
 export type MinimapWidgetSettings = BaseWidgetSettings<MinimapConfig>;
 export type LapDeltaWidgetSettings = BaseWidgetSettings<LapDeltaConfig>;
+export type CornerDeltaWidgetSettings = BaseWidgetSettings<CornerDeltaConfig>;
 export type HeartRateWidgetSettings = BaseWidgetSettings<HeartRateConfig>;
 export type CornerNameWidgetSettings =
   BaseWidgetSettings<CornerNameOverlayConfig>;

@@ -48,7 +48,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 1. In LMU, enable **Settings > Gameplay > Enable Plugins**, then restart the simulator.
 2. Start Tearoff and load into an LMU session to receive telemetry.
 
-**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Information Bar, Tyres, Minimap, Lap Delta, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Car Systems, Lap Timer, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Information Bar, Tyres, Minimap, Lap Delta, Corner Delta, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Car Systems, Lap Timer, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
@@ -615,6 +615,22 @@ Your current lap against your own best: how far up or down you are, whether you 
 - Adjustable background opacity, session visibility and an option to show only when on track
 
 Laps are timed from the point where the lap distance wraps rather than from the sim's own lap clock, so the delta and the reference always share one start line. In Le Mans Ultimate that point is a couple of metres from the timing line, so a predicted lap can differ from the official time by a hundredth or two. There the lap that opens a race is not used as a reference either: the sim reports no lap position until the car first reaches the line, so that lap has no start to time it from.
+
+### Corner Delta
+
+The corner you have just driven against the same corner on one of your own laps: the time you gained or lost through it, and how much faster or slower you went in and came out. Works in iRacing and Le Mans Ultimate.
+
+**Features:**
+
+- The name or turn number of the corner just completed, and the time through it against the reference, green when quicker and red when slower, to two or three decimals
+- Entry and exit speed: your speed where the corner starts and where it ends, each with the difference to the reference, in km/h or mph
+- A choice of what to compare with: your all-time reference on this track in this car (from the [lap library](#lap-library)), your best clean lap of this session, or the last time you drove the corner
+- A short list of the corners before the last one, so a sequence of esses or a chicane stays readable
+- Dashes rather than a guess: where the chosen reference does not exist yet, the speeds you drove are still shown and the differences are not replaced by another lap's
+- A corner counts when it was driven from its start to its end in one go. A corner left through the pit lane, interrupted by a tow or driven to a standstill is not reported, and a difference of more than ten seconds is left blank
+- Adjustable background opacity, session visibility and an option to show only when on track
+
+Corners come from the bundled track data, the same data the Corner Names overlay uses, so the widget says so on a track that has none. Both ends of a corner are placed between the two telemetry frames either side of them, so the figures do not depend on where a frame happened to fall. The list is cleared in the pit lane.
 
 ### Lap Library
 
