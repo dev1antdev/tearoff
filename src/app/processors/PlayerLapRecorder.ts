@@ -260,7 +260,13 @@ export class PlayerLapRecorder {
     }
     if (!flagAt(frame, 'IsOnTrack')) lap.own = false;
     if (lap.lapNumber === null && trackPct >= LAP_NUMBER_PCT) {
-      lap.lapNumber = numberAt(frame, 'Lap');
+      const counted = numberAt(frame, 'Lap');
+      // iRacing counts the lap being driven; Le Mans Ultimate counts the
+      // laps completed, 0 on the first. Stored the way a driver counts.
+      lap.lapNumber =
+        counted !== null && this.options.simulator === 'lmu'
+          ? counted + 1
+          : counted;
     }
 
     const key = bucketIndex(trackPct, this.pointsCount);

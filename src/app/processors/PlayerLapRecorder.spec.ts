@@ -597,6 +597,16 @@ describe('PlayerLapRecorder', () => {
     );
   });
 
+  it('counts laps from one under LMU, which counts the laps completed', () => {
+    const { recorder, recorded } = setup('lmu');
+    crossLine(recorder, 100, { lap: 0 });
+
+    driveLap(recorder, 100, 60, () => ({ lap: 0 }));
+    driveLap(recorder, 160, 60, () => ({ lap: 1 }));
+
+    expect(recorded.map(({ lap }) => lap.lapNumber)).toEqual([1, 2]);
+  });
+
   it('reads the lap number mid-lap, where the sim has settled on it', () => {
     const { recorder, recorded } = setup();
     // At the line the counter still shows the lap just finished.

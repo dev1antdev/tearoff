@@ -40,8 +40,11 @@ export const startLapLibrary = (): LapLibraryService => {
   let caller: LapLibraryCaller;
   try {
     const file = path.join(app.getPath('userData'), 'laps.db');
-    // Built as its own bundle beside main.js; see forge.config.mts.
-    const worker = new Worker(path.join(__dirname, 'lapLibraryWorker.js'), {
+    // Built as its own bundle beside the main one; see forge.config.mts. The
+    // main-process build emits CommonJS files as .cjs. Inside a packaged
+    // app this path is in app.asar, which a worker thread can be started
+    // from: checked against a packaged build under Electron 45.
+    const worker = new Worker(path.join(__dirname, 'lapLibraryWorker.cjs'), {
       workerData: { file },
     });
     client = createWorkerClient(worker);

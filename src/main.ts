@@ -56,6 +56,7 @@ import {
   startLapLibrary,
 } from './app/storage/lapLibrary';
 import { PlayerLapRecorder } from './app/processors/PlayerLapRecorder';
+import { setupLapLibraryBridge } from './app/bridge/lapLibraryBridge';
 import { flushLapTracesOnShutdown } from './app/storage/lapTraces';
 import { flushPitLaneDataOnShutdown } from './app/storage/pitLaneData';
 import {
@@ -248,6 +249,7 @@ let disposeRendererDataSubscriptions: (() => void) | undefined;
  */
 function setupLapLibraryRecording(replayContext: ReplayContextRuntime): void {
   const library = startLapLibrary();
+  const disposeBridge = setupLapLibraryBridge(library);
   const lifecycle = getSessionLifecycle();
   // A tape is somebody's old session played back for development: its laps
   // are not the player's.
@@ -314,6 +316,7 @@ function setupLapLibraryRecording(replayContext: ReplayContextRuntime): void {
     unsubscribeEnter();
     unsubscribeDisconnect();
     unsubscribeReplayContext();
+    disposeBridge();
     recorder = undefined;
   };
 }
