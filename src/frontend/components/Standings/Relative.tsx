@@ -305,6 +305,7 @@ export const Relative = () => {
           trackLimitsPoints={result.trackLimitsPoints}
           trackLimitsMax={trackLimitsMax}
           lmuVirtualEnergy={result.energyRemaining}
+          lmuEnergyIsVirtual={result.energyIsVirtual}
           carId={result.carId}
           lastPitLap={result.lastPitLap}
           lastLap={result.lastLap}

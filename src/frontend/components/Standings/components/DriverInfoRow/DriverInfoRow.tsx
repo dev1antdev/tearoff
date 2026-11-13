@@ -78,6 +78,8 @@ interface DriverRowInfoProps {
   trackLimitsMax?: number;
   /** LMU's virtual energy, or fuel for a car without it. 0..1. */
   lmuVirtualEnergy?: number;
+  /** Whether that figure is virtual energy (true) or fuel (false). */
+  lmuEnergyIsVirtual?: boolean;
   carId?: number;
   lapTimeDeltas?: number[];
   numLapDeltasToShow?: number;
@@ -252,6 +254,7 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
     trackLimitsPoints,
     trackLimitsMax,
     lmuVirtualEnergy,
+    lmuEnergyIsVirtual,
     carId,
     lapTimeDeltas,
     numLapDeltasToShow,
@@ -778,6 +781,7 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
           <VirtualEnergyCell
             key="lmuVirtualEnergy"
             remaining={lmuVirtualEnergy}
+            isVirtual={lmuEnergyIsVirtual}
             compactMode={compactMode}
           />
         ),
@@ -865,6 +869,7 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
     trackLimitsPoints,
     trackLimitsMax,
     lmuVirtualEnergy,
+    lmuEnergyIsVirtual,
     lapTimeDeltas,
     emptyLapDeltaPlaceholders,
     avgLapTime,

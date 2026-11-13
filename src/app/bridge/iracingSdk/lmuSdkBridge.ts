@@ -21,6 +21,10 @@ import {
 import { createRosterGate } from '../../lmu/rosterSettle';
 import { createLmuSessionIdentity } from '../../lmu/sessionIdentity';
 import { createLmuDataFreeze } from '../../lmu/dataFreeze';
+import {
+  createLmuEnergyState,
+  resetLmuEnergyState,
+} from '../../lmu/fuelEnergy';
 import { describeLmuGameState, type LmuGameState } from '../../lmu/gameState';
 import {
   createLmuNationalityWatch,
@@ -287,6 +291,11 @@ export async function publishLmuSDKEvents(
   // Per-car integrators, so opponents get a poll-rate lap position too rather
   // than the 5 Hz scoring steps everything downstream would differentiate.
   const opponentLapDistanceState = createLmuOpponentLapDistanceState();
+  // Which cars have been seen running on virtual energy, so one that has run
+  // dry reads 0 rather than its fuel. Reset with the session: slots are
+  // reused, and a car's class says nothing about the next car to hold its
+  // slot.
+  const energyState = createLmuEnergyState();
 
   const telemetryCallbacks = new Set<(value: Telemetry) => void>();
   const sessionCallbacks = new Set<(value: Session) => void>();
@@ -380,6 +389,7 @@ export async function publishLmuSDKEvents(
           lastSessionSignature = null;
           resetLmuLapDistanceState(lapDistanceState);
           resetLmuOpponentLapDistanceState(opponentLapDistanceState);
+          resetLmuEnergyState(energyState);
           rosterGate.reset();
           sessionIdentity.reset();
           dataFreeze.reset();
@@ -432,6 +442,7 @@ export async function publishLmuSDKEvents(
         nationalityWatch.reset();
         resetLmuLapDistanceState(lapDistanceState);
         resetLmuOpponentLapDistanceState(opponentLapDistanceState);
+        resetLmuEnergyState(energyState);
         lastSessionSignature = null;
         logger.info(
           `[lmuSdkBridge] Track ${activeTrackName}; map ${trackMap ? 'loaded' : 'not found; recording starts at the next finish-line crossing'}`
@@ -522,7 +533,11 @@ export async function publishLmuSDKEvents(
       // neither the epoch nor the server or length in the stamp, so an
       // online practice that ends with the clock and grid standing still
       // would never be rebuilt.
-      if (sessionChange) lastSessionSignature = null;
+      if (sessionChange) {
+        lastSessionSignature = null;
+        // A new session can put a different car in the same slot.
+        resetLmuEnergyState(energyState);
+      }
       if (sessionChange && sessionChange !== 'stamp') {
         // 'event' is the sim's own StartSession/EndSession callback. The other
         // two are inferences from the clock or the lap count, and worth
@@ -638,7 +653,8 @@ export async function publishLmuSDKEvents(
         sessionIdentity,
         frozen,
         penaltyChannels,
-        gameState
+        gameState,
+        energyState
       );
       lifecycle?._onTelemetry(telemetry);
       perfMetrics.markEnd('lifecycleTelemetry');

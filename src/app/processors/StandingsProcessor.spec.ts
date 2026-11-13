@@ -196,4 +196,24 @@ describe('StandingsProcessor', () => {
     processor.onLifecycle({ type: 'disconnect' });
     expect(processor.snapshot().carIdxFinishStatus).toEqual([]);
   });
+
+  it('carries which budget each LMU car runs on, and drops it on disconnect', () => {
+    const processor = new StandingsProcessor();
+    processor.init(session);
+    processor.onFrame(frame(10));
+    // Absent under iRacing, so the copy leaves it empty.
+    expect(processor.snapshot().carIdxEnergyIsVirtual).toEqual([]);
+
+    processor.onFrame(
+      frame(11, {
+        LmuCarIdxEnergyRemaining: { value: [0.42, 0.2] },
+        LmuCarIdxEnergyIsVirtual: { value: [true, false] },
+      })
+    );
+    expect(processor.snapshot().carIdxEnergyRemaining).toEqual([0.42, 0.2]);
+    expect(processor.snapshot().carIdxEnergyIsVirtual).toEqual([true, false]);
+
+    processor.onLifecycle({ type: 'disconnect' });
+    expect(processor.snapshot().carIdxEnergyIsVirtual).toEqual([]);
+  });
 });

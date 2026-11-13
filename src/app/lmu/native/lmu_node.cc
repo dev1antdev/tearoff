@@ -453,12 +453,12 @@ Napi::Value LmuSdkNode::Read(const Napi::CallbackInfo &info)
     out.Set("steeringShaftTorque", player->mSteeringShaftTorque);
     out.Set("fuel", player->mFuel);
     out.Set("fuelCapacity", player->mFuelCapacity);
-    // Hypercars and LMDh are energy-limited rather than fuel-limited: the
-    // regulated budget is virtual energy, and fuel is refilled as a
-    // consequence of it. So a car can hold litres and still have nothing
-    // left to spend. The capacity this is a fraction of comes from the
-    // REST API as maxVirtualEnergy; this is the part only shared memory
-    // has.
+    // Hypercars, LMDh and LMGT3 are energy-limited rather than
+    // fuel-limited: the regulated budget is virtual energy, and fuel is
+    // refilled as a consequence of it. So a car can hold litres and still
+    // have nothing left to spend. The capacity this is a fraction of comes
+    // from the REST API as maxVirtualEnergy; this is the part only shared
+    // memory has.
     out.Set("virtualEnergy", player->mVirtualEnergy);
     out.Set("stateOfCharge", player->mStateOfCharge);
     out.Set("regen", player->mRegen);

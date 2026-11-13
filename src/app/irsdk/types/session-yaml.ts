@@ -51,9 +51,9 @@ export interface LmuRestSession {
   timeScale?: number;
   privateQualifying?: boolean;
   /**
-   * The car's virtual-energy budget. Hypercars and LMDh are energy-limited
-   * rather than fuel-limited, so this is the denominator that matters; the
-   * numerator is mVirtualEnergy from shared memory.
+   * The car's virtual-energy budget. Hypercars, LMDh and LMGT3 are
+   * energy-limited rather than fuel-limited, so this is the denominator that
+   * matters; the numerator is mVirtualEnergy from shared memory.
    */
   maxVirtualEnergy?: number;
   /**

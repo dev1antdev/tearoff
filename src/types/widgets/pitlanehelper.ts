@@ -30,6 +30,7 @@ export default defineWidgetManifest({
     showPitExitInputs: false,
     pitExitInputs: { throttle: true, clutch: false },
     showInputsPhase: 'atPitbox',
+    showRefuelTarget: true,
     background: { opacity: 80 },
     sessionVisibility: {
       race: true,
@@ -107,6 +108,12 @@ export default defineWidgetManifest({
       type: 'boolean',
       label: 'Show Past Box',
       description: 'Show bar indicating distance past the pit box',
+    },
+    showRefuelTarget: {
+      type: 'boolean',
+      label: 'Refuel Target',
+      description:
+        'Show what the next stop will put in: fuel, or virtual energy for a car that runs on it (Le Mans Ultimate only)',
     },
     'background.opacity': {
       type: 'number',

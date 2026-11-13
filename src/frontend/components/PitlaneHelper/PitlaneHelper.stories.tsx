@@ -554,6 +554,45 @@ export const ExitingPitLane: Story = {
   },
 };
 
+// Le Mans Ultimate: the stop is set to fill virtual energy
+export const RefuelVirtualEnergy: Story = {
+  render: (args) => (
+    <div style={{ height: '440px', width: '150px' }}>
+      <PitlaneHelperBody {...args} />
+    </div>
+  ),
+  args: {
+    speed: mockSpeed({
+      speedKph: 58,
+      speedMph: 36,
+      deltaKph: -2,
+      deltaMph: -1.2,
+      limitKph: 60,
+      limitMph: 37,
+    }),
+    position: mockPosition({ distanceToPit: 60 }),
+    config: mockConfig(),
+    displayKph: true,
+    onPitRoad: true,
+    inBlendZone: false,
+    limiterWarning: mockLimiterWarning(),
+    shouldShowInputs: false,
+    showEarlyPitboxWarning: false,
+    traffic: mockTraffic({ totalCars: 3, carsAhead: 2, carsBehind: 1 }),
+    refuel: { amount: 85, isVirtualEnergy: true },
+  },
+};
+
+// Le Mans Ultimate: a fuel-limited car, so the stop is set in litres
+export const RefuelFuel: Story = {
+  ...RefuelVirtualEnergy,
+  args: {
+    ...RefuelVirtualEnergy.args,
+    traffic: mockTraffic(),
+    refuel: { amount: 42.5, isVirtualEnergy: false },
+  },
+};
+
 // Exiting pit lane (with inputs)
 export const ExitingWithInputs: Story = {
   render: (args) => (

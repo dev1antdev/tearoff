@@ -115,4 +115,66 @@ describe('SessionBarProcessor', () => {
       incidents: 0,
     });
   });
+
+  it('reports virtual energy only for a player car that runs on it', () => {
+    const processor = new SessionBarProcessor();
+    processor.init({
+      DriverInfo: {
+        DriverCarIdx: 1,
+        Drivers: [
+          { CarIdx: 0, CarID: 1, CarClassID: 1 },
+          { CarIdx: 1, CarID: 2, CarClassID: 2 },
+        ],
+      },
+      SessionInfo: {
+        Sessions: [{ SessionNum: 0, SessionName: 'Race', SessionType: 'Race' }],
+      },
+    } as unknown as Session);
+    const frame = (
+      remaining: number[],
+      isVirtual: boolean[],
+      sessionTime: number
+    ) =>
+      ({
+        SessionTime: { value: [sessionTime] },
+        SessionNum: { value: [0] },
+        FuelLevel: { value: [44.9] },
+        LmuCarIdxEnergyRemaining: { value: remaining },
+        LmuCarIdxEnergyIsVirtual: { value: isVirtual },
+      }) as unknown as Telemetry;
+
+    // The player's car, slot 1, runs on energy.
+    processor.onFrame(frame([0.8, 0.452], [false, true], 1));
+    expect(processor.snapshot()).toMatchObject({
+      fuelLevel: 44.9,
+      virtualEnergy: 0.452,
+    });
+
+    // Drained: 0 is a reading, and the one the item exists to show.
+    processor.onFrame(frame([0.8, 0], [false, true], 2));
+    expect(processor.snapshot().virtualEnergy).toBe(0);
+
+    // A fuel-limited car carries a fraction in the same channel. It is fuel,
+    // and must not be shown as energy.
+    processor.onFrame(frame([0.8, 0.37], [true, false], 3));
+    expect(processor.snapshot().virtualEnergy).toBeUndefined();
+    expect(processor.snapshot().fuelLevel).toBe(44.9);
+  });
+
+  it('reports no virtual energy under iRacing, and no fuel without a reading', () => {
+    const processor = new SessionBarProcessor();
+    processor.init({
+      DriverInfo: { DriverCarIdx: 0, Drivers: [{ CarIdx: 0, CarID: 1 }] },
+      SessionInfo: {
+        Sessions: [{ SessionNum: 0, SessionName: 'Race', SessionType: 'Race' }],
+      },
+    } as unknown as Session);
+    processor.onFrame({
+      SessionTime: { value: [1] },
+      SessionNum: { value: [0] },
+    } as unknown as Telemetry);
+
+    expect(processor.snapshot().virtualEnergy).toBeUndefined();
+    expect(processor.snapshot().fuelLevel).toBeUndefined();
+  });
 });

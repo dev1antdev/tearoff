@@ -7,6 +7,7 @@ import {
 import type { LmuRawTelemetry } from './native';
 import { mapLmuSectorTimes, mapLmuTelemetry } from './mapTelemetry';
 import { fixture } from './rawFixture';
+import { createLmuEnergyState } from './fuelEnergy';
 import { createLmuLapDistanceState } from './lapDistance';
 
 describe('mapLmuTelemetry', () => {
@@ -319,6 +320,51 @@ describe('mapLmuTelemetry', () => {
     expect(value[1]).toBeCloseTo(51 / 255, 6);
     // Car 2 reports neither, which is not an empty tank.
     expect(value[2]).toBe(-1);
+  });
+
+  it('says which budget each figure is', () => {
+    // The figure alone cannot: 0.2 is a fifth of a tank or a fifth of a
+    // stint's energy, and the column showing it is headed VE.
+    const t = mapLmuTelemetry(fixture());
+    expect(t.LmuCarIdxEnergyIsVirtual?.value).toEqual([true, false, false]);
+  });
+
+  it('keeps a drained energy car at zero rather than showing its fuel', () => {
+    // A fuel-limited car reports a virtual energy of 0 all race, so 0 alone
+    // cannot mean "out of energy". Having seen the car above 0 settles it --
+    // which needs a state that outlives the frame.
+    const state = createLmuEnergyState();
+    const map = (raw: ReturnType<typeof fixture>) =>
+      mapLmuTelemetry(
+        raw,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        state
+      );
+
+    map(fixture());
+    const drained = map({ ...fixture(), vehVirtualEnergy: [0, 0, 0] });
+
+    // Car 0 still has a full tank and no energy to spend it with.
+    expect(drained.LmuCarIdxEnergyRemaining?.value[0]).toBe(0);
+    expect(drained.LmuCarIdxEnergyIsVirtual?.value[0]).toBe(true);
+    // Car 1 never had energy, so nothing changes for it.
+    expect(drained.LmuCarIdxEnergyRemaining?.value[1]).toBeCloseTo(51 / 255, 6);
+    expect(drained.LmuCarIdxEnergyIsVirtual?.value[1]).toBe(false);
+  });
+
+  it('without a state, reads a car at zero energy as fuel-limited', () => {
+    const drained = mapLmuTelemetry({
+      ...fixture(),
+      vehVirtualEnergy: [0, 0, 0],
+    });
+    expect(drained.LmuCarIdxEnergyRemaining?.value[0]).toBe(1);
+    expect(drained.LmuCarIdxEnergyIsVirtual?.value[0]).toBe(false);
   });
 
   it('gives two tracks two session ids', () => {
@@ -713,6 +759,18 @@ describe('mapLmuTelemetry fuel', () => {
     const t = mapLmuTelemetry(fixture());
     expect(t.FuelLevel?.value[0]).toBe(42);
     expect(t.FuelLevelPct?.value[0]).toBeCloseTo(42 / 110);
+  });
+
+  it('publishes no fuel level when the player has no car', () => {
+    // At the monitor the sim writes no fuel. A 0 here was drawn as "0.0 L",
+    // an empty tank nobody has.
+    const raw = fixture();
+    raw.fuel = undefined;
+
+    const t = mapLmuTelemetry(raw);
+
+    expect(t.FuelLevel).toBeUndefined();
+    expect(t.FuelLevelPct?.value[0]).toBe(0);
   });
 
   it('reports zero rather than a wrong fraction when capacity is unknown', () => {

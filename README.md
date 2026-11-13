@@ -55,6 +55,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 - Lap Trace does not yet check LMU lap validity, so laps invalidated by track limits may still become saved references. Imports support iRacing `.ibt` files and Garage 61 CSV laps, with no native LMU telemetry-file import.
 - Input and Lap Trace need your own car's telemetry, which can be unavailable while spectating or in the garage.
 - Lap positions are estimated between updates; cars without full telemetry may update in larger steps. Automatic units are metric, and Pitlane Helper currently uses a fixed 60 km/h pit limit.
+- Virtual energy: Hypercar, LMDh and LMGT3 cars run on virtual energy, LMP2 and LMP3 on fuel. The optional **VE** column in Standings and Relative shows what each car has left to run on, with a pump icon marking a figure that is fuel. The Fuel Level item shows your virtual energy ahead of the litres, and Pitlane Helper shows what the next stop is set to put in. Fuel Calculator does not work in LMU yet.
 - LMU in-game replays do not yet have iRacing's replay-aware handling. LMU session recording and playback tools are development tools.
 
 ## Available overlays
@@ -551,6 +552,7 @@ Helps you manage your pit stops with clear visual guidance. It assists with spee
   - Three semantic rows (32x80px) for compact display
 - Pit Exit Inputs: Throttle/clutch display to optimize pit exits with phase-based visibility options.
 - Traffic Monitor: See how many cars are currently ahead or behind you in the pitlane.
+- Refuel Target (Le Mans Ultimate only): Shows what the next stop is set to put in, read from the pit menu: litres of fuel, or the virtual energy level the stop fills to for a car that runs on it.
 - Fully resizable with theme-matching background
 - Early Warning: Alerts you if your pitbox is located near the pit entry.
 - Pit limiter alerts: Flashing warnings if you enter the pits without your limiter active (auto-disabled for series with automatic limiters).

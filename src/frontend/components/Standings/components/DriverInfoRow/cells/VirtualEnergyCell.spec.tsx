@@ -33,10 +33,35 @@ describe('VirtualEnergyCell', () => {
   it('escalates as the budget runs down', () => {
     const tone = (remaining: number) =>
       cell({ remaining }).querySelector('span')?.className ?? '';
-    expect(tone(0.5)).toBe('');
+    expect(tone(0.5)).not.toMatch(/text-(amber|red)-/);
     expect(tone(0.3)).toContain('text-amber-300');
     expect(tone(0.2)).toContain('text-amber-300');
     expect(tone(0.1)).toContain('text-red-400');
     expect(tone(0)).toContain('text-red-400');
+  });
+
+  it('marks a fuel figure, so it is not read as energy', () => {
+    // The column is headed VE. A bare 20% under it on an LMP2 row would be
+    // taken for virtual energy, which that car does not have.
+    const fuel = cell({ remaining: 0.2, isVirtual: false });
+    expect(fuel.querySelector('[aria-label="Fuel"]')).not.toBeNull();
+    expect(fuel.textContent).toBe('20%');
+    expect(fuel.querySelector('span')?.title).toBe('Fuel remaining');
+  });
+
+  it('leaves an energy figure unmarked', () => {
+    const energy = cell({ remaining: 0.2, isVirtual: true });
+    expect(energy.querySelector('[aria-label="Fuel"]')).toBeNull();
+    expect(energy.querySelector('span')?.title).toBe(
+      'Virtual energy remaining'
+    );
+  });
+
+  it('leaves the figure unmarked when nothing says which it is', () => {
+    // An older snapshot carries no flag. Guessing fuel would put a pump on
+    // every Hypercar.
+    expect(
+      cell({ remaining: 0.2 }).querySelector('[aria-label="Fuel"]')
+    ).toBeNull();
   });
 });

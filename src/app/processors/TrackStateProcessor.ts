@@ -15,6 +15,16 @@ const numberValue = (frame: Telemetry, key: string, fallback = 0): number => {
   return typeof current === 'number' ? current : fallback;
 };
 
+const optionalNumberValue = (
+  frame: Telemetry,
+  key: string
+): number | undefined => {
+  const current = value(frame, key);
+  return typeof current === 'number' && Number.isFinite(current)
+    ? current
+    : undefined;
+};
+
 const booleanValue = (frame: Telemetry, key: string): boolean => {
   const current = value(frame, key);
   return current === true || current === 1;
@@ -189,6 +199,17 @@ export class TrackStateProcessor implements TelemetryProcessor<TrackStateSnapsho
       this.set('lastLapTime', numberValue(frame, 'LapLastLapTime')) || changed;
     changed =
       this.set('lapCompleted', numberValue(frame, 'LapCompleted')) || changed;
+    // Le Mans Ultimate only, and only once its pit menu has answered. The flag
+    // follows the amount: without one there is nothing for it to describe.
+    const refuelTarget = optionalNumberValue(frame, 'LmuRefuelTarget');
+    changed = this.set('refuelTarget', refuelTarget) || changed;
+    changed =
+      this.set(
+        'refuelTargetIsVirtualEnergy',
+        refuelTarget === undefined
+          ? undefined
+          : booleanValue(frame, 'LmuRefuelTargetIsVirtualEnergy')
+      ) || changed;
     if (changed) this.latest.version += 1;
   }
 
@@ -226,6 +247,8 @@ export class TrackStateProcessor implements TelemetryProcessor<TrackStateSnapsho
     this.latest.sessionNum = null;
     this.latest.lastLapTime = 0;
     this.latest.lapCompleted = 0;
+    this.latest.refuelTarget = undefined;
+    this.latest.refuelTargetIsVirtualEnergy = undefined;
     this.latest.version += 1;
   }
 

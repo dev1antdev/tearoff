@@ -33,6 +33,24 @@ const trackLimits = (
   return typeof value === 'number' && value >= 0 ? value : undefined;
 };
 
+/**
+ * The player's virtual energy, or undefined when their car runs on fuel.
+ *
+ * Read from the per-car channels rather than the player's own LmuVirtualEnergy
+ * because those say which budget the figure is: a fuel-limited car reports a
+ * virtual energy of 0, which is not an empty stint.
+ */
+const playerVirtualEnergy = (
+  remaining: readonly unknown[],
+  isVirtual: readonly unknown[],
+  playerCarIdx: number | null | undefined
+): number | undefined => {
+  if (typeof playerCarIdx !== 'number' || playerCarIdx < 0) return undefined;
+  if (isVirtual[playerCarIdx] !== true) return undefined;
+  const value = remaining[playerCarIdx];
+  return typeof value === 'number' && value >= 0 ? value : undefined;
+};
+
 export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapshot> {
   readonly channel = 'session-bar.snapshot';
   // Sample every source frame so the per-lap top speed remains accurate. The
@@ -138,6 +156,11 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
       windVelocity: n(frame, 'WindVel'),
       windYaw: n(frame, 'YawNorth'),
       fuelLevel: n(frame, 'FuelLevel'),
+      virtualEnergy: playerVirtualEnergy(
+        a(frame, 'LmuCarIdxEnergyRemaining'),
+        a(frame, 'LmuCarIdxEnergyIsVirtual'),
+        playerCarIdx
+      ),
       lastLapTime: n(frame, 'LapLastLapTime'),
       bestLapTime: n(frame, 'LapBestLapTime'),
       sessionBestLap: sessionBest,
@@ -205,6 +228,7 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
       windVelocity: undefined,
       windYaw: undefined,
       fuelLevel: undefined,
+      virtualEnergy: undefined,
       lastLapTime: undefined,
       bestLapTime: undefined,
       sessionBestLap: undefined,

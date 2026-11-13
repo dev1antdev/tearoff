@@ -97,6 +97,17 @@ export interface TrackStateSnapshot {
   lastLapTime?: number;
   /** Completed lap count (LapCompleted) — pairs with lastLapTime. */
   lapCompleted?: number;
+  /**
+   * What the next pit stop is set to put in, from Le Mans Ultimate's pit menu.
+   *
+   * Two units share the field: litres of fuel, or, when
+   * `refuelTargetIsVirtualEnergy` is true, the virtual energy level the stop
+   * fills to, in percent. A recorded LMGT3 sitting at 45 % with an untouched
+   * menu reads 45, so it is a level and not an amount to add. Undefined when
+   * the sim does not say, which under iRacing is always.
+   */
+  refuelTarget?: number;
+  refuelTargetIsVirtualEnergy?: boolean;
   version: number;
 }
 
@@ -417,7 +428,14 @@ export interface SessionBarSnapshot {
   windDirection?: number;
   windVelocity?: number;
   windYaw?: number;
+  /** Litres in the player's tank. Undefined when the player has no car. */
   fuelLevel?: number;
+  /**
+   * The player's virtual energy, 0..1, when their car runs on it (Le Mans
+   * Ultimate Hypercar, LMDh and LMGT3). Undefined for a fuel-limited car and
+   * under iRacing, so its presence is what says the stint ends on energy.
+   */
+  virtualEnergy?: number;
   lastLapTime?: number;
   bestLapTime?: number;
   sessionBestLap?: number;
@@ -572,6 +590,11 @@ export interface StandingsSnapshot {
    * fuel at all.
    */
   carIdxEnergyRemaining: number[];
+  /**
+   * Which budget carIdxEnergyRemaining holds for each car: true for virtual
+   * energy, false for fuel. Empty under iRacing.
+   */
+  carIdxEnergyIsVirtual: boolean[];
   /** Outstanding penalties per car. A count, not a kind. */
   carIdxPenalties: number[];
   /**

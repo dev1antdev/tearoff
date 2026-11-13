@@ -903,6 +903,8 @@ export interface PitlaneHelperConfig {
   showPitExitInputs?: boolean;
   pitExitInputs?: { throttle: boolean; clutch: boolean };
   showInputsPhase?: 'atPitbox' | 'afterPitbox' | 'always';
+  /** Show what the next stop will put in. Le Mans Ultimate only. */
+  showRefuelTarget?: boolean;
   sessionVisibility: SessionVisibilitySettings;
 }
 

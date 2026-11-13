@@ -141,6 +141,8 @@ export const PitlaneHelperSettings = () => {
                       </SettingsSection>
                     )}
 
+                    <SettingProp path="showRefuelTarget" />
+
                     <SettingProp path="background.opacity" />
                   </SettingsSection>
 

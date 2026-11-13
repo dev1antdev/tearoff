@@ -7,6 +7,7 @@
 export type { PitSpeedResult } from './hooks/usePitSpeed';
 
 import type { PitSpeedResult } from './hooks/usePitSpeed';
+import type { PitRefuelTargetResult } from './hooks/usePitRefuelTarget';
 
 export interface PitboxPositionResult {
   distanceToPit: number;
@@ -61,6 +62,7 @@ export interface PitlaneHelperDemoData {
   isVisible: boolean;
   limiterWarning: PitLimiterWarningResult;
   traffic: PitlaneTrafficResult;
+  refuel: PitRefuelTargetResult;
   surface: number;
 }
 
@@ -101,6 +103,7 @@ export const getDemoPitlaneData = (): PitlaneHelperDemoData => {
       carsBehind: 1,
       totalCars: 3,
     },
+    refuel: { amount: 85, isVirtualEnergy: true },
     surface: 2, // On pit road
   };
 };
