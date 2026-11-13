@@ -443,7 +443,7 @@ const withReleaseNotesBadge = () => {
         : ['1.6.0', '1.5.0']
       ).map((version, index) => ({
         version,
-        title: `irDashies ${version}`,
+        title: `Tearoff ${version}`,
         publishedAt: new Date(Date.UTC(2026, 9 - index, 18)).toISOString(),
       })),
       hasMore: page === 1,

@@ -106,7 +106,7 @@ export const ReleaseNotesPanel = ({
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="text-lg font-semibold">
-            {release?.title || `irDashies ${version}`}
+            {release?.title || `Tearoff ${version}`}
           </h3>
           {release?.publishedAt && (
             <p className="mt-1 text-sm text-slate-400">

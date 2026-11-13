@@ -25,7 +25,7 @@ export default meta;
 
 type Story = StoryObj<typeof GantryReplayBanner>;
 
-/** Case A: irDashies recorded this event on this PC. */
+/** Case A: Tearoff recorded this event on this PC. */
 export const Archived: Story = {
   args: { provenance: 'archived' },
 };

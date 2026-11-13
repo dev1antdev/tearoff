@@ -110,7 +110,7 @@ describe('Analytics.setupLogTransport', () => {
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
     vi.mocked(getAnalyticsOptOut).mockReturnValue(false);
     vi.mocked(readData).mockReturnValue('test-installation');
-    userDataPath.value = path.join(os.homedir(), 'Library', 'irDashies');
+    userDataPath.value = path.join(os.homedir(), 'Library', 'Tearoff');
     provider = makeProvider();
     analytics = new Analytics(provider);
     analytics.setupLogTransport('2.0.0+test');

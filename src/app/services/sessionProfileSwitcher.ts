@@ -153,7 +153,7 @@ export const createSessionProfileSwitcher = (
 
   // Seeded after subscribing, because the lifecycle reports transitions and
   // never replays them. The SDK starts publishing at iRacingSDKSetup and
-  // startup awaits other work before constructing this, so launching irDashies
+  // startup awaits other work before constructing this, so launching Tearoff
   // while already sat in a session means the session type resolved before there
   // was anything here to hear it. Without this the mapped profile stays
   // unapplied until some later transition — and in an event whose sessions all

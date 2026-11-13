@@ -156,7 +156,7 @@ describe('simulator usage store', () => {
   });
 
   it('ranks what was noted while the file loaded after everything it held', async () => {
-    // The sim already running as irdashies started: its bridge reports it
+    // The sim already running as Tearoff started: its bridge reports it
     // before anything has read the file.
     await writeStored({
       iracing: { first: 1, last: 4, ms: 5000 },

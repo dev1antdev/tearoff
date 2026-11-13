@@ -1,5 +1,6 @@
 import { StarIcon } from '@phosphor-icons/react';
 import { useRunningState } from '@irdashies/context';
+import { GITHUB_REPOSITORY_URL } from '@irdashies/types';
 import { useGitHubStarPrompt } from './useGitHubStarPrompt';
 
 interface GitHubStarNoticeProps {
@@ -8,7 +9,7 @@ interface GitHubStarNoticeProps {
 
 export const GitHubStarNotice = ({ onDismiss }: GitHubStarNoticeProps) => (
   <aside
-    aria-label="Support irDashies"
+    aria-label="Support Tearoff"
     className="fixed top-24 right-4 z-40 flex w-[min(22.5rem,calc(100vw-2rem))] flex-col gap-2 rounded-lg border border-white/10 bg-slate-950/90 px-3.5 py-2.5 text-sm text-slate-100 shadow-xl shadow-black/25 backdrop-blur-2xl backdrop-saturate-110 [-webkit-app-region:no-drag] sm:right-8"
   >
     <div className="flex min-w-0 flex-col gap-0.5" role="status">
@@ -18,7 +19,7 @@ export const GitHubStarNotice = ({ onDismiss }: GitHubStarNoticeProps) => (
           size={16}
           className="shrink-0 text-amber-400"
         />
-        <h2 className="font-medium">Enjoying irDashies?</h2>
+        <h2 className="font-medium">Enjoying Tearoff?</h2>
       </div>
       <p className="text-slate-400">Help more people discover it.</p>
     </div>
@@ -31,7 +32,7 @@ export const GitHubStarNotice = ({ onDismiss }: GitHubStarNoticeProps) => (
         Dismiss
       </button>
       <a
-        href="https://github.com/tariknz/irdashies"
+        href={GITHUB_REPOSITORY_URL}
         target="_blank"
         rel="noopener noreferrer"
         onClick={onDismiss}

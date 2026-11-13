@@ -3,7 +3,7 @@
  *
  * Ending a practice session does not close the sim, unmap the block or change
  * anything in it -- it simply stops being written. The last snapshot stays
- * readable with `mInRealtime` true and a valid player slot, so irdashies kept
+ * readable with `mInRealtime` true and a valid player slot, so Tearoff kept
  * reading it and every widget gated on being in the car stayed on screen
  * indefinitely.
  *

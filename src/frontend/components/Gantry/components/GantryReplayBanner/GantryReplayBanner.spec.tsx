@@ -25,7 +25,7 @@ const replay = (
 describe('GantryReplayBanner', () => {
   it.each([
     ['archived', 'showing events recorded on this PC'],
-    ['localNotArchived', "irDashies wasn't recording"],
+    ['localNotArchived', "Tearoff wasn't recording"],
     ['foreign', 'recorded on another computer'],
   ] as const)('shows the %s message', (provenance, text) => {
     render(<GantryReplayBanner provenance={provenance} onDismiss={vi.fn()} />);

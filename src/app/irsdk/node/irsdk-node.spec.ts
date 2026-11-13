@@ -248,7 +248,7 @@ DriverInfo:
     expect(result?.DriverInfo?.Drivers[0]?.AbbrevName).toBe(null);
   });
 
-  it('should handle the anonymous driver name from irdashies.log', () => {
+  it('should handle the anonymous driver name from the app log', () => {
     const malformedYaml = `
 DriverInfo:
   Drivers:

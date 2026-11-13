@@ -457,7 +457,7 @@ export const GeneralSettings = ({ previewMode }: GeneralSettingsProps = {}) => {
             <p
               className={`overlay-window overlay-theme-${settings.fontSize ?? 'sm'} overlay-theme-font-face-${settings.fontType ?? 'lato'} overlay-theme-font-weight-${resolvedFontWeight} text-base break-words text-slate-200`}
             >
-              irDashies overlay text 0123456789
+              Tearoff overlay text 0123456789
             </p>
           </figure>
 
@@ -758,8 +758,8 @@ export const GeneralSettings = ({ previewMode }: GeneralSettingsProps = {}) => {
                     Start on system startup
                   </h4>
                   <p className="text-sm text-slate-400">
-                    If enabled, irDashies will start automatically on system
-                    start up.
+                    If enabled, Tearoff will start automatically on system start
+                    up.
                   </p>
                 </div>
                 <ToggleSwitch

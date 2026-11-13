@@ -306,7 +306,7 @@ bool TapeReader::open(
           fileHeader_.magic,
           kMagic.data(),
           kMagic.size()) != 0) {
-    error = "File is not an irDashies telemetry tape";
+    error = "File is not an Tearoff telemetry tape";
     return false;
   }
   if (fileHeader_.formatVersion != kTapeFormatVersion ||

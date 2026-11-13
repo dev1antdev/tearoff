@@ -152,7 +152,7 @@ describe('Release notes menu and unread badge', () => {
       name: /^v2.0.0/,
     });
     fireEvent.click(older);
-    await screen.findByRole('heading', { name: 'irDashies 2.0.0' });
+    await screen.findByRole('heading', { name: 'Tearoff 2.0.0' });
     expect(older).toHaveAttribute('aria-current', 'true');
     expect(
       within(versions).getByRole('button', { name: 'v2.1.0 Installed' })
@@ -193,7 +193,7 @@ describe('Release notes menu and unread badge', () => {
     );
     await screen.findByText('Could not load older versions.');
     expect(
-      screen.getByRole('heading', { name: 'irDashies 2.1.0' })
+      screen.getByRole('heading', { name: 'Tearoff 2.1.0' })
     ).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry version list' }));
     await screen.findByRole('button', { name: /^v1.9.0/ });
@@ -213,7 +213,7 @@ describe('Release notes menu and unread badge', () => {
     );
     await screen.findByText('Could not load older versions.');
     expect(
-      screen.getByRole('heading', { name: 'irDashies 2.1.0' })
+      screen.getByRole('heading', { name: 'Tearoff 2.1.0' })
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'v2.1.0 Installed' })
@@ -304,7 +304,7 @@ describe('Release notes menu and unread badge', () => {
     fireEvent.click(
       await screen.findByRole('button', { name: 'v2.2.0 Downloaded update' })
     );
-    await screen.findByRole('heading', { name: 'irDashies 2.2.0' });
+    await screen.findByRole('heading', { name: 'Tearoff 2.2.0' });
     expect(bridge.dismiss).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'v2.1.0 Installed' }));
     await screen.findByText('Loading release notes…');

@@ -5,15 +5,15 @@ import { pathToFileURL } from 'node:url';
 describe('analytics log path redaction', () => {
   it('redacts userData before home, including URL-encoded paths and regexp characters', () => {
     const scrub = createLogPathScrubber(
-      '/Users/Alice (work)/irDashies',
+      '/Users/Alice (work)/Tearoff',
       '/Users/Alice (work)'
     );
     expect(
       scrub(
-        'load /Users/Alice (work)/irDashies/sdk.node at /Users/Alice (work)/src/file.ts'
+        'load /Users/Alice (work)/Tearoff/sdk.node at /Users/Alice (work)/src/file.ts'
       )
     ).toBe('load <userData>/sdk.node at <home>/src/file.ts');
-    expect(scrub('file:///Users/Alice%20(work)/irDashies/main.js')).toBe(
+    expect(scrub('file:///Users/Alice%20(work)/Tearoff/main.js')).toBe(
       'file://<userData>/main.js'
     );
   });
@@ -46,7 +46,7 @@ describe('analytics log path redaction', () => {
   ] as const)(
     'redacts reserved characters in real file URLs: %s',
     (home, windows) => {
-      const userData = `${home}/irDashies [beta]`;
+      const userData = `${home}/Tearoff [beta]`;
       const scrub = createLogPathScrubber(userData, home);
       const userDataUrl = pathToFileURL(`${userData}/sdk.node`, {
         windows,
@@ -57,7 +57,7 @@ describe('analytics log path redaction', () => {
       expect(result).toContain('<home>/src/main.js');
       expect(result).not.toContain('Alice');
       expect(result).not.toContain('server');
-      expect(result).not.toContain('irDashies');
+      expect(result).not.toContain('Tearoff');
     }
   );
 });

@@ -16,7 +16,7 @@ export const useCarTachometerData = (gear = 0) => {
   )?.CarPath;
 
   // Extract game ID from session (this would need to be added to session data)
-  // For now, default to 'iracing' since that's what IRDashies primarily supports
+  // For now, default to 'iracing' since that's what Tearoff primarily supports
   const gameId = 'iracing'; // TODO: Get from session data when available
 
   // Memoized load function

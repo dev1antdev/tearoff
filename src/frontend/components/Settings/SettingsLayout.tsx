@@ -120,7 +120,7 @@ export const SettingsLayout = () => {
           <div className="flex min-w-0 items-center gap-3">
             <img src={logo} alt="" className="h-7 w-7 shrink-0" />
             <span className="hidden shrink-0 text-lg font-semibold tracking-[-0.04em] text-white md:inline">
-              ir<span className="text-red-600">Dashies</span>
+              Tear<span className="text-red-600">off</span>
             </span>
             <HeaderProfilePicker
               onManage={() => {

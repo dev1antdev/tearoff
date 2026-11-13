@@ -53,7 +53,7 @@ export const GantryTabBar = memo(
           <div className="flex min-w-0 items-center gap-3">
             <img src={logo} alt="" className="h-7 w-7 shrink-0" />
             <span className="shrink-0 text-lg font-semibold tracking-[-0.04em] text-white">
-              ir<span className="text-red-600">Dashies</span>
+              Tear<span className="text-red-600">off</span>
             </span>
             <span aria-hidden="true" className="h-5 w-px bg-slate-700" />
             <h1 className="text-sm font-normal text-slate-300">Gantry</h1>

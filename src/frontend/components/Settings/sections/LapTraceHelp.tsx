@@ -38,7 +38,7 @@ const Topic = ({ title, children }: { title: string; children: ReactNode }) => (
 /**
  * The two import paths explained in the panel that offers them.
  *
- * Both are things the driver has to do outside irDashies before the buttons on
+ * Both are things the driver has to do outside Tearoff before the buttons on
  * the Trace tab do anything, and neither is discoverable from the buttons
  * themselves — which is exactly the gap this tab fills. Static content only:
  * anything here that depends on settings belongs on the tab that owns it.
@@ -175,10 +175,10 @@ export const LapTraceHelp = () => (
       <Topic title="Corner names come from bundled track data">
         <Note>
           The Last Corner panel and corner names come from the Lovely Sim Racing
-          dataset bundled with irDashies, not from iRacing, and it does not
-          cover every layout. Where a layout is missing, the Last Corner panel
-          does not appear at all. There is no warning, because there is nothing
-          to show.
+          dataset bundled with Tearoff, not from iRacing, and it does not cover
+          every layout. Where a layout is missing, the Last Corner panel does
+          not appear at all. There is no warning, because there is nothing to
+          show.
         </Note>
         <Note>
           Coverage is per layout, not per circuit, so a circuit can have data

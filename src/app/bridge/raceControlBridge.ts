@@ -225,7 +225,7 @@ export const setupRaceControlBridge = (
   ipcMain.handle('raceControl:getIncidents', () => {
     const sessionId = runtime.getCurrentSessionId();
     if (!sessionId) return { sessionId: '', incidents: [] };
-    // A replay irDashies did not record (or a SubSessionID 0 test replay)
+    // A replay Tearoff did not record (or a SubSessionID 0 test replay)
     // must not show another event's log.
     if (!archive.canReadArchive()) return { sessionId, incidents: [] };
     return loadIncidents(sessionId).then((incidents) => ({

@@ -104,7 +104,7 @@ export function updateKeybinding(
   const conflict = findKeybindingConflict(bindings, actionId, accelerator);
   if (conflict !== undefined) {
     throw new KeybindingConflictError(
-      `Shortcut already bound to "${conflict}" in irDashies. Choose another combination.`
+      `Shortcut already bound to "${conflict}" in Tearoff. Choose another combination.`
     );
   }
 

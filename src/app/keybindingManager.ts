@@ -208,7 +208,7 @@ export class KeybindingManager {
       const owner = findKeybindingConflict(owners, id, entry.accelerator);
       if (owner !== undefined) {
         errors[id] =
-          `Shortcut already bound to "${owner}" in irDashies. Choose another combination.`;
+          `Shortcut already bound to "${owner}" in Tearoff. Choose another combination.`;
         continue;
       }
       owners[id] = entry;

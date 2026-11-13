@@ -76,7 +76,7 @@ describe('lapHistory:getArchived', () => {
     expect(load).not.toHaveBeenCalled();
   });
 
-  it('returns nothing for a replay irDashies did not record', async () => {
+  it('returns nothing for a replay Tearoff did not record', async () => {
     const { load, getArchived } = setup({ readable: false });
 
     await expect(getArchived(0)).resolves.toBeNull();

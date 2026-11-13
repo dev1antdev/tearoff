@@ -1,5 +1,5 @@
 /**
- * The simulators irDashies knows how to name, and the user's choice between
+ * The simulators Tearoff knows how to name, and the user's choice between
  * them.
  *
  * Knowing about a simulator is not the same as being able to read it: which

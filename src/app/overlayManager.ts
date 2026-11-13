@@ -342,8 +342,8 @@ export class OverlayManager {
       width: expectedBounds.width,
       height: expectedBounds.height,
       title: widget
-        ? `irDashies - ${widget.id}`
-        : `irDashies - ${display.id}${isPrimary ? ' (Primary)' : ''})`,
+        ? `Tearoff - ${widget.id}`
+        : `Tearoff - ${display.id}${isPrimary ? ' (Primary)' : ''})`,
       transparent: true,
       frame: false,
       skipTaskbar: this.skipTaskbar,
@@ -1252,7 +1252,7 @@ export class OverlayManager {
     if (trayNotificationShown) return;
 
     new Notification({
-      title: 'irDashies',
+      title: 'Tearoff',
       body: 'Settings window is still accessible via the system tray icon',
     }).show();
     writeData('trayNotificationShown', true);
@@ -1332,7 +1332,7 @@ export class OverlayManager {
     }
 
     const browserWindow = new BrowserWindow({
-      title: 'irDashies - Gantry',
+      title: 'Tearoff - Gantry',
       frame: true,
       width: 1400,
       height: 800,
@@ -1517,7 +1517,7 @@ export class OverlayManager {
     // Load saved window bounds
     const savedBounds = loadWindowBounds();
     const defaultOptions: BrowserWindowConstructorOptions = {
-      title: `irDashies - Settings`,
+      title: `Tearoff - Settings`,
       frame: true,
       backgroundColor: '#141a21',
       // The renderer draws the header and drag region on every platform.

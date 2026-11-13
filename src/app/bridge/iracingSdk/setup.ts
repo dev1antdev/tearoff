@@ -129,7 +129,7 @@ export function onActiveSimulatorChanged(
  * connection ends -- the sim stops, or the bridge is replaced. Demo mode and
  * tapes never count. A simulator already connected when this is called is
  * reported at once, so a late subscriber still hears about a sim that was up
- * before irdashies.
+ * before Tearoff.
  */
 export function onConnectedSimulatorChanged(
   callback: (simulator: ActiveSimulator | undefined) => void
