@@ -1,21 +1,18 @@
-# irDashies - Real-time Racing Overlays
+# Tearoff - Real-time Racing Overlays
 
 <div align="center" style="padding-bottom: 20px;">
   <img src="./docs/assets/icons/logo.svg" alt="Logo" width="200" height="200">
-
-**[www.irdashies.com](https://www.irdashies.com)**
-
 </div>
 
-An open-source platform for building real-time racing overlays and utilities using React and Electron, with iRacing support and beta support for Le Mans Ultimate. Designed to be approachable for web developers — no iRacing SDK, C++, or simulator installation required to get started.
+A personal sim racing overlay built with React and Electron, with iRacing support and beta support for Le Mans Ultimate.
 
-For bug reports, feature requests, or to get involved, join our [Discord](https://discord.gg/YMAqduF2Ft).
+> Tearoff is an independent fork of [irDashies](https://github.com/tariknz/irdashies) by Tarik Alani, taken at v2.1.1 and developed separately since. Much of this README still describes the upstream feature set and calls the app irDashies. Compared with upstream, this fork has its own update feed, unsigned builds, no analytics, and no RaceOS driver-rating lookup.
 
 ## Try it out
 
-You can try it out by downloading the latest release from the [releases page](https://github.com/tariknz/irdashies/releases).
+Download the latest `Setup.exe` from the [releases page](https://github.com/dev1antdev/tearoff/releases).
 
-Install the Windows .exe and run it. The application will automatically update when a new version is available. For overlays to appear over the simulator, use windowed or borderless mode.
+Install the Windows .exe and run it. The build is not code signed, so Windows SmartScreen warns on the first install. The application will automatically update from this repository's releases when a new version is available. For overlays to appear over the simulator, use windowed or borderless mode.
 
 ## Table of Contents
 
@@ -31,16 +28,14 @@ Install the Windows .exe and run it. The application will automatically update w
 - [Testing](#testing)
 - [Linting](#linting)
 - [Developing on Mac](#developing-on-mac)
-- [Sponsors](#sponsors)
 - [Acknowledgments](#acknowledgments)
-- [Contributing](#contributing)
 - [License](#license)
 
 ## Introduction
 
 This project is built with React and Electron and retrieves live telemetry from iRacing and Le Mans Ultimate to power configurable overlays and race utilities.
 
-See the [latest release notes](https://github.com/tariknz/irdashies/releases/latest) for the latest updates.
+See the [latest release notes](https://github.com/dev1antdev/tearoff/releases/latest) for the latest updates.
 
 ## Supported simulators
 
@@ -630,9 +625,7 @@ Settings are split into **Display**, **Twitch** and **YouTube** tabs. Chat from 
 
 <img src="./docs/assets/twitchchat.png" alt="Twitch Chat with sample messages" width="374">
 
-
 ### Heart Rate
-
 
 Displays your live heart rate from [HypeRate](https://www.hyperate.io/) by embedding its overlay — no API key or account required, just your session id.
 
@@ -836,8 +829,8 @@ Look for the application in your app tray.
 
 For normal use, choose the simulator in **Settings > General > Simulator**. See [Supported simulators](#supported-simulators) for LMU setup and beta limitations.
 
-To override the saved simulator setting, use `irdashies.exe --sim=lmu` or
-`irdashies.exe --sim=iracing`. For development, set `IRDASHIES_SIM` instead:
+To override the saved simulator setting, use `tearoff.exe --sim=lmu` or
+`tearoff.exe --sim=iracing`. For development, set `IRDASHIES_SIM` instead:
 
 ```powershell
 $env:IRDASHIES_SIM = 'lmu'
@@ -930,31 +923,12 @@ npm run lint
 
 As you may know, the iRacing SDK is only available on Windows. To develop on Mac OS, there is a mock SDK that is loaded which generates some dummy data for you to work with. This is useful for developing the UI components and widgets.
 
-## Sponsors
-
-<table>
-  <tr>
-    <td>
-      <img src="https://signpath.org/assets/favicon-50x50.png" alt="SignPath" width="50" height="50">
-    </td>
-    <td>
-      Free code signing on Windows provided by <a href="https://signpath.io/">SignPath.io</a>, certificate by <a href="https://signpath.org/">SignPath Foundation</a>.
-    </td>
-  </tr>
-</table>
-
 ## Acknowledgments
 
-This project makes use of data and resources from the following projects:
+This project is a fork of **[irDashies](https://github.com/tariknz/irdashies)** by Tarik Alani and its contributors, and makes use of data and resources from the following projects:
 
 - **[lovely-car-data](https://github.com/Lovely-Sim-Racing/lovely-car-data)** - Comprehensive car telemetry data including RPM thresholds, LED configurations, and shift point information for various racing games.
 - **[lovely-track-data](https://github.com/Lovely-Sim-Racing/lovely-track-data)** - Per-track corner names, sectors, pit-lane markers, and named straights for various racing games.
-
-## Contributing
-
-We welcome contributions to the IRDashies project! If you have any ideas, suggestions, or bug reports, please open an issue or submit a pull request.
-
-Join our discord here: https://discord.gg/YMAqduF2Ft
 
 ## License
 

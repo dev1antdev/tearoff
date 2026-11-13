@@ -10,6 +10,7 @@ import {
 } from './ReleaseNotesMedia';
 import { ArrowSquareOutIcon, ArrowClockwiseIcon } from '@phosphor-icons/react';
 import type { ReleaseNotesResult } from '@irdashies/types';
+import { GITHUB_REPOSITORY_URL } from '@irdashies/types';
 
 const releaseNotesComponents: Components = {
   a: ({ children, href, node }) => {
@@ -116,7 +117,7 @@ export const ReleaseNotesPanel = ({
         <a
           href={
             release?.url ??
-            `https://github.com/tariknz/irdashies/releases/tag/v${encodeURIComponent(version)}`
+            `${GITHUB_REPOSITORY_URL}/releases/tag/v${encodeURIComponent(version)}`
           }
           target="_blank"
           rel="noopener noreferrer"
@@ -158,10 +159,7 @@ export const ReleaseNotesPanel = ({
               rehypePlugins={[rehypeRaw, [rehypeSanitize, releaseNotesSchema]]}
               urlTransform={(url) => {
                 try {
-                  const resolved = new URL(
-                    url,
-                    'https://github.com/tariknz/irdashies/'
-                  );
+                  const resolved = new URL(url, `${GITHUB_REPOSITORY_URL}/`);
                   return ['https:', 'http:'].includes(resolved.protocol)
                     ? resolved.href
                     : '';

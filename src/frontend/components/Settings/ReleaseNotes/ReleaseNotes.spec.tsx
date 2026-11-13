@@ -68,7 +68,7 @@ afterEach(() => {
 
 describe('safe release notes rendering', () => {
   it('shortens bare pull request URLs while preserving their destination and named links', () => {
-    const url = 'https://github.com/tariknz/irdashies/pull/1234';
+    const url = 'https://github.com/dev1antdev/tearoff/pull/1234';
     render(
       <ReleaseNotesPanel
         version="2.1.0"
@@ -101,7 +101,7 @@ describe('safe release notes rendering', () => {
           ...ready,
           release: {
             ...release,
-            body: '## Changes\n\n- **Better** overlays\n\n<script>window.alert(1)</script>\n\n[Unsafe](javascript:alert%281%29)\n\n[Safe](https://github.com/tariknz/irdashies)\n\n![Tracking](https://example.com/image.png)',
+            body: '## Changes\n\n- **Better** overlays\n\n<script>window.alert(1)</script>\n\n[Unsafe](javascript:alert%281%29)\n\n[Safe](https://github.com/dev1antdev/tearoff)\n\n![Tracking](https://example.com/image.png)',
           },
         }}
       />
@@ -380,7 +380,7 @@ describe('release note images and videos', () => {
 
   it('renders a linked screenshot without nesting external links', () => {
     const { container } = bodyPanel(
-      `[![Screenshot](${image})](https://github.com/tariknz/irdashies)`
+      `[![Screenshot](${image})](https://github.com/dev1antdev/tearoff)`
     );
     expect(screen.getByRole('img', { name: 'Screenshot' })).toBeInTheDocument();
     expect(container.querySelector('a a')).toBeNull();

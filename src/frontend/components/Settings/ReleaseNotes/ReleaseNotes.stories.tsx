@@ -71,10 +71,10 @@ export const PullRequestLinks: Story = {
         ...releaseNotesFixture(),
         body: `## Fixes
 
-- Fixed overlays in https://github.com/tariknz/irdashies/pull/1234
-- Improved settings in https://github.com/tariknz/irdashies/pull/1235
+- Fixed overlays in https://github.com/dev1antdev/tearoff/pull/1234
+- Improved settings in https://github.com/dev1antdev/tearoff/pull/1235
 
-Read the [implementation details](https://github.com/tariknz/irdashies/pull/1234).
+Read the [implementation details](https://github.com/dev1antdev/tearoff/pull/1234).
 `,
       },
     },
@@ -87,7 +87,7 @@ export const UnsafeMarkdown: Story = {
       cached: false,
       release: {
         ...releaseNotesFixture(),
-        body: '## Safe rendering\n\n<script>alert("unsafe")</script>\n\n[Unsafe link](javascript:alert%281%29)\n\n![Remote image](https://example.com/tracking.png)\n\n[Safe link](https://github.com/tariknz/irdashies)',
+        body: '## Safe rendering\n\n<script>alert("unsafe")</script>\n\n[Unsafe link](javascript:alert%281%29)\n\n![Remote image](https://example.com/tracking.png)\n\n[Safe link](https://github.com/dev1antdev/tearoff)',
       },
     },
   },
@@ -147,7 +147,7 @@ https://github.com/user-attachments/assets/d7b95d7b-16d3-4a33-a32f-eeeee1104862
 
 ## Repository screenshot
 
-![Team standings](https://raw.githubusercontent.com/tariknz/irdashies/06d1a0dc/docs/screenshots/pr-754/after-team.png)
+![Team standings](https://raw.githubusercontent.com/dev1antdev/tearoff/06d1a0dc/docs/screenshots/pr-754/after-team.png)
 `,
       },
     },

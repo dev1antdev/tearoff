@@ -199,8 +199,8 @@ describe('GitHub fetching and offline cache', () => {
       release: { version: '2.1.0' },
     });
     expect(fetcher.mock.calls.map(([url]) => url)).toEqual([
-      'https://api.github.com/repos/tariknz/irdashies/releases/tags/v2.1.0',
-      'https://api.github.com/repos/tariknz/irdashies/releases/tags/2.1.0',
+      'https://api.github.com/repos/dev1antdev/tearoff/releases/tags/v2.1.0',
+      'https://api.github.com/repos/dev1antdev/tearoff/releases/tags/2.1.0',
     ]);
   });
   it.each([{ draft: true }, { tag_name: 'v2.2.0' }])(
@@ -324,7 +324,7 @@ describe('release history', () => {
       cached: false,
     });
     expect(fetcher.mock.calls[0][0]).toBe(
-      'https://api.github.com/repos/tariknz/irdashies/releases?per_page=30&page=2'
+      'https://api.github.com/repos/dev1antdev/tearoff/releases?per_page=30&page=2'
     );
   });
   it('continues past full pages even when some tags are unsupported', async () => {

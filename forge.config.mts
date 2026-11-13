@@ -66,10 +66,13 @@ const config: ForgeConfig = {
       name: '@electron-forge/publisher-github',
       config: {
         repository: {
-          owner: 'tariknz',
-          name: 'irdashies',
+          owner: 'dev1antdev',
+          name: 'tearoff',
         },
-        prerelease: true,
+        // The auto-updater (update.electronjs.org) only serves published,
+        // non-prerelease releases, so neither flag may be true.
+        prerelease: false,
+        draft: false,
       },
     },
   ],

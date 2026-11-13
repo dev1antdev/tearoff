@@ -86,7 +86,7 @@ describe('release notes persistence', () => {
     expect(
       sanitizeRelease({
         ...releaseNotesFixture(),
-        url: 'https://github.com/tariknz/irdashies/releases/tag/v9.9.9',
+        url: 'https://github.com/dev1antdev/tearoff/releases/tag/v9.9.9',
       })
     ).toBeNull();
     expect(

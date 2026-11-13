@@ -37,6 +37,7 @@ export * from './simWidgetSupport';
 export * from './displayFallback';
 export * from './lapHistoryBridge';
 export * from './widgets';
+export * from './repository';
 export * from './releaseNotes';
 export * from './releaseNotesFixture';
 export * from './tapeReplay';

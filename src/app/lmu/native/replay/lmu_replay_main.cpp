@@ -986,8 +986,9 @@ bool loadNamePool(
  * (path, body) pairs, so ratings ride along in the existing structure rather
  * than needing a record kind and a format bump of their own.
  *
- * Must match REPLAY_RATINGS_PATH in src/app/lmu/raceos/tapeRatings.ts;
- * rest/recorderParity.spec.ts fails when they disagree.
+ * Nothing in the app reads this record any more: the rating service client
+ * that did was removed from this fork. `anonymise` still writes it when it is
+ * handed a ratings cache file, which the app no longer produces.
  */
 constexpr const char* kReplayRatingsPath = "/irdashies/replay/driver-ratings";
 
@@ -1036,8 +1037,8 @@ class SteamIdPool {
  *
  * Enough JSON to find one object inside a file this program otherwise only
  * ever rewrites as text. A parser would be the wrong trade for it: the one
- * shape read here is written by the app itself, a few lines away in
- * storage/driverRatings.ts.
+ * shape read here is the rating cache the app used to write
+ * (`lmu-driver-ratings.json`, from the rating feature removed in this fork).
  */
 std::size_t jsonObjectEnd(const std::string& text, std::size_t at) {
   if (at >= text.size() || text[at] != '{') return std::string::npos;

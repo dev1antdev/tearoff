@@ -25,5 +25,5 @@
     },
     "types": ["node", "vite/client", "w3c-web-hid"]
   },
-  "include": ["src", "site/src", "tools", "vitest.setup.ts"]
+  "include": ["src", "tools", "vitest.setup.ts"]
 }

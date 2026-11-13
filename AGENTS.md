@@ -1,11 +1,24 @@
-# irDashies - Development Guide
+# Tearoff - Development Guide
 
 ## Project Overview
 
-**irDashies** is an Electron-based iRacing overlay/dashboard app using React, TypeScript, Zustand, and Tailwind CSS.
+**Tearoff** is an Electron-based sim racing overlay/dashboard app (iRacing, plus Le Mans Ultimate in beta) using React, TypeScript, Zustand, and Tailwind CSS.
 
-- **Repo**: https://github.com/tariknz/irdashies (fork)
+- **Repo**: https://github.com/dev1antdev/tearoff
 - **Branch**: `main` | **License**: MIT
+- **Origin**: an independent fork of [irDashies](https://github.com/tariknz/irdashies), taken at v2.1.1. It is developed on its own and is not kept mergeable with upstream, so prefer the cleanest change over the smallest diff.
+
+### What "irdashies" still means here
+
+Only the app identity was renamed (`name`/`productName` in `package.json`, the update feed, the release publisher). Code identifiers keep the old name on purpose: the `@irdashies/*` path aliases, the `IRDASHIES_*` environment variables, and user-visible strings such as window titles. Do not rename them as a side effect of other work.
+
+### Releases and auto-update
+
+- A release is built and published by CI when `version` in `package.json` changes on `main` (`.github/workflows/ci.yml`, job `release`).
+- The installed app updates itself from this repository's GitHub releases. Three places name the repository and must agree: `repository.url` in `package.json` (auto-updater), `publishers` in `forge.config.mts` (release upload), and `GITHUB_REPOSITORY` in `src/types/repository.ts` (release notes).
+- `src/main.ts` only enables auto-update when `app.getName()` is `tearoff`; keep it in step with `package.json`.
+- Releases must stay published and non-prerelease (`draft: false`, `prerelease: false`) or the updater will not see them. Builds are not code signed.
+- Analytics is off: `POSTHOG_KEY` is never set at build time, so `src/app/analytics.ts` never creates a client.
 
 ---
 

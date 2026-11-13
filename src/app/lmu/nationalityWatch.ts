@@ -70,8 +70,8 @@ export const createLmuNationalityWatch = (): LmuNationalityWatch => {
         .filter(
           (driver) =>
             driver.name.length > 0 &&
-            // The same test the rating lookup uses: an AI entry has no
-            // nationality to wait for. See gridUsernames in lmuSdkBridge.ts.
+            // An AI entry has no nationality to wait for. The player is
+            // never one, whatever `control` says: see aiControl.ts.
             !isLmuAiEntry({
               control: driver.control,
               isPlayer: driver.isPlayer || driver.id === ownSlot,

@@ -162,7 +162,7 @@ describe('Release notes menu and unread badge', () => {
       screen.getByRole('link', { name: 'View on GitHub' })
     ).toHaveAttribute(
       'href',
-      'https://github.com/tariknz/irdashies/releases/tag/v2.0.0'
+      'https://github.com/dev1antdev/tearoff/releases/tag/v2.0.0'
     );
     expect(bridge.dismiss).not.toHaveBeenCalled();
     expect(
