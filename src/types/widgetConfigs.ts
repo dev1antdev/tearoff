@@ -1041,6 +1041,48 @@ export interface CarSystemsConfig {
   showOnlyWhenOnTrack: boolean;
 }
 
+/**
+ * Tyre and brake readout for the player's car.
+ *
+ * Temperatures are held in Celsius and pressures in kPa throughout, the units
+ * the sim publishes; the two unit settings only change what is drawn.
+ */
+export interface TyresConfig {
+  background: { opacity: number };
+  /**
+   * Which temperature fills the tyre: the tread surface the road touches, the
+   * rubber just under it, or the carcass. The surface swings with every
+   * corner; the carcass says how the tyre is doing over a stint.
+   */
+  temperatureSource: 'surface' | 'innerLayer' | 'carcass';
+  temperatureUnit: 'celsius' | 'fahrenheit';
+  pressureUnit: 'psi' | 'kpa' | 'bar';
+  /** The tyre's working window, Celsius: green inside it. */
+  tyreWindow: {
+    /** Centre the window on the working temperature the sim states. */
+    followCompound: boolean;
+    /** Half-width of that automatic window. */
+    range: number;
+    /** Used when not following the compound, or when the sim states none. */
+    min: number;
+    max: number;
+  };
+  /** The brakes' working window, Celsius. */
+  brakeWindow: { min: number; max: number };
+  /** Hot pressure to aim for, kPa: green within the tolerance. */
+  pressureTarget: {
+    enabled: boolean;
+    front: number;
+    rear: number;
+    tolerance: number;
+  };
+  showBrakes: boolean;
+  showWear: boolean;
+  showCompound: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
 export interface DeltaSpeedConfig {
   background: { opacity: number };
   /**
@@ -1517,6 +1559,7 @@ export interface WidgetConfigMap {
   sectordelta: SectorDeltaConfig;
   deltaspeed: DeltaSpeedConfig;
   carsystems: CarSystemsConfig;
+  tyres: TyresConfig;
   heartrate: HeartRateConfig;
   cornername: CornerNameOverlayConfig;
   battle: BattleConfig;
@@ -1638,6 +1681,7 @@ export type SlowCarAheadWidgetSettings = BaseWidgetSettings<SlowCarAheadConfig>;
 export type SectorDeltaWidgetSettings = BaseWidgetSettings<SectorDeltaConfig>;
 export type DeltaSpeedWidgetSettings = BaseWidgetSettings<DeltaSpeedConfig>;
 export type CarSystemsWidgetSettings = BaseWidgetSettings<CarSystemsConfig>;
+export type TyresWidgetSettings = BaseWidgetSettings<TyresConfig>;
 export type HeartRateWidgetSettings = BaseWidgetSettings<HeartRateConfig>;
 export type CornerNameWidgetSettings =
   BaseWidgetSettings<CornerNameOverlayConfig>;

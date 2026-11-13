@@ -57,6 +57,7 @@ const SNAPSHOT_CHANNELS = [
   'session-bar.snapshot',
   'standings.snapshot',
   'track-state.snapshot',
+  'tyre-state.snapshot',
   'lap-trace.sample',
 ] as const satisfies readonly SnapshotChannelName[];
 

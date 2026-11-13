@@ -34,6 +34,7 @@ import { SlowCarAheadSettings } from './sections/SlowCarAheadSettings';
 import { SectorDeltaSettings } from './sections/SectorDeltaSettings';
 import { DeltaSpeedSettings } from './sections/DeltaSpeedSettings';
 import { CarSystemsSettings } from './sections/CarSystemsSettings';
+import { TyresSettings } from './sections/TyresSettings';
 import { HeartRateSettings } from './sections/HeartRateSettings';
 import { CornerNameSettings } from './sections/CornerNameSettings';
 import { LapTraceSettings } from './sections/LapTraceSettings';
@@ -74,6 +75,7 @@ export const WIDGET_SETTINGS: Record<
   sectordelta: SectorDeltaSettings,
   deltaspeed: DeltaSpeedSettings,
   carsystems: CarSystemsSettings,
+  tyres: TyresSettings,
   heartrate: HeartRateSettings,
   cornername: CornerNameSettings,
   laptrace: LapTraceSettings,

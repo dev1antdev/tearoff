@@ -15,6 +15,12 @@ import { lmuTrackWetness } from './trackWetness';
 import { lmuCarCompound, lmuCompoundChannel } from './tireCompound';
 import { lmuTrackLimitsChannel, lmuTrackLimitsMax } from './trackLimits';
 import { lmuEnergyChannel } from './fuelEnergy';
+import {
+  TYRE_ZONE_COUNT,
+  lmuTyreOptimalTemperatures,
+  lmuTyreZoneTemperatures,
+  lmuWheelTemperatures,
+} from './tyreState';
 import { lmuSessionUniqueId, type LmuSessionIdentity } from './sessionIdentity';
 import {
   estimateLmuLapDistPct,
@@ -686,10 +692,36 @@ export function mapLmuTelemetry(
     t.LongAccel = num(raw.localAccel[2]);
   }
 
+  // The player's tyres and brakes in full, for the tyre widget. Absent rather
+  // than zero when the sim has not written the wheels, so a consumer can tell
+  // "no car" from a cold tyre.
+  const surfaceZones = lmuTyreZoneTemperatures(raw.tyreSurfaceTemperatureRaw);
+  if (surfaceZones) t.LmuTyreSurfaceTemp = { value: surfaceZones };
+  const innerLayerZones = lmuTyreZoneTemperatures(
+    raw.tyreInnerLayerTemperatureRaw
+  );
+  if (innerLayerZones) t.LmuTyreInnerLayerTemp = { value: innerLayerZones };
+  const carcass = lmuWheelTemperatures(raw.tyreCarcassTemperatureRaw);
+  if (carcass) t.LmuTyreCarcassTemp = { value: carcass };
+  const optimal = lmuTyreOptimalTemperatures(raw.tyreOptimalTemperatureRaw);
+  if (optimal) t.LmuTyreOptimalTemp = { value: optimal };
+  const brakes = lmuWheelTemperatures(raw.brakeTemperatureRaw);
+  if (brakes) t.LmuBrakeTemp = { value: brakes };
+
   const corners = ['LF', 'RF', 'LR', 'RR'] as const;
   corners.forEach((corner, index) => {
     const temperature = raw.tyreTemperature?.[index];
-    if (temperature !== undefined) {
+    if (surfaceZones) {
+      // iRacing's L, M and R are across the car, so the outer-to-inner order
+      // is turned back round on the right-hand wheels.
+      const base = index * TYRE_ZONE_COUNT;
+      const isLeftWheel = index % 2 === 0;
+      t[`${corner}tempCL`] = num(surfaceZones[isLeftWheel ? base : base + 2]);
+      t[`${corner}tempCM`] = num(surfaceZones[base + 1]);
+      t[`${corner}tempCR`] = num(surfaceZones[isLeftWheel ? base + 2 : base]);
+    } else if (temperature !== undefined) {
+      // An addon built before the zones were exported: one average for all
+      // three is the most it can say.
       t[`${corner}tempCL`] = num(temperature);
       t[`${corner}tempCM`] = num(temperature);
       t[`${corner}tempCR`] = num(temperature);

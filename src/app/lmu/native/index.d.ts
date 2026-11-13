@@ -208,6 +208,22 @@ export interface LmuRawTelemetry {
   tyreWear?: Float64Array;
   brakePressure?: Float64Array;
   suspensionDeflection?: Float64Array;
+  /**
+   * Per-wheel detail for the player's car, exactly as the sim publishes it.
+   * Wheels are LF, RF, LR, RR. Units, measured from a recorded session rather
+   * than taken from the rFactor 2 header comments, which get the brake wrong:
+   *
+   * - surface, inner layer, carcass and brake temperatures are Kelvin;
+   * - the optimal temperature is already Celsius.
+   *
+   * The three-zone arrays hold `wheel * 3 + zone`, and the zones are left,
+   * centre and right as the car sees them, not inner and outer.
+   */
+  tyreSurfaceTemperatureRaw?: Float64Array;
+  tyreInnerLayerTemperatureRaw?: Float64Array;
+  tyreCarcassTemperatureRaw?: Float64Array;
+  tyreOptimalTemperatureRaw?: Float64Array;
+  brakeTemperatureRaw?: Float64Array;
   // Per-vehicle arrays, indexed by CarIdx (vehicle slot id)
   vehIds: Int32Array;
   vehIsPlayer: Uint8Array;

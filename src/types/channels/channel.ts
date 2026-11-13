@@ -33,6 +33,7 @@ export interface ChannelPayloads {
   'session-bar.snapshot': SessionBarSnapshot;
   'standings.snapshot': StandingsSnapshot;
   'track-state.snapshot': TrackStateSnapshot;
+  'tyre-state.snapshot': TyreStateSnapshot;
   'lap-trace.sample': LapTraceSampleSnapshot;
   'session.lifecycle': SessionLifecycleEvent;
   'raceControl.incidents': Incident;
@@ -307,6 +308,43 @@ export interface CarSystemsSnapshot {
   adjustments: readonly CarSystemAdjustment[];
   /** False before any in-car frame has been seen, when the set is unknown. */
   discovered: boolean;
+  sessionNum: number | null;
+  version: number;
+}
+
+/** One wheel of the player's car, as the tyre widget draws it. */
+export interface TyreWheelState {
+  /** Tread surface, Celsius: outer shoulder, middle, inner shoulder. */
+  surfaceTempC: readonly number[] | null;
+  /** Innermost rubber layer, Celsius, in the same order. */
+  innerLayerTempC: readonly number[] | null;
+  carcassTempC: number | null;
+  /** The compound's working temperature, Celsius, as the sim states it. */
+  optimalTempC: number | null;
+  /** Live pressure. */
+  pressureKpa: number | null;
+  /** Tread left: 1 for a new tyre, falling toward 0. */
+  treadRemaining: number | null;
+  brakeTempC: number | null;
+  /** Index into the session's DriverTires; -1 when the sim reports none. */
+  compound: number;
+}
+
+/**
+ * The player's tyres and brakes.
+ *
+ * Le Mans Ultimate only: iRacing publishes tyre temperatures as they were when
+ * the car last stopped in the pits, not while it is moving, so there is no
+ * live reading to carry.
+ */
+export interface TyreStateSnapshot {
+  /**
+   * False until the player's wheels have been read, and again whenever the sim
+   * stops publishing them (out of the car, at the monitor, spectating).
+   */
+  available: boolean;
+  /** LF, RF, LR, RR. */
+  wheels: readonly TyreWheelState[];
   sessionNum: number | null;
   version: number;
 }
@@ -760,6 +798,12 @@ export const channelRegistry = {
     kind: 'snapshot',
     defaultRateHz: 25,
     maxRateHz: 25,
+  },
+  // Rubber and brake discs change temperature over seconds, not frames.
+  'tyre-state.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 5,
+    maxRateHz: 10,
   },
   'lap-trace.sample': {
     kind: 'snapshot',

@@ -91,6 +91,21 @@ export function fixture(): LmuRawTelemetry {
     tyreWear: new Float64Array([0.9, 0.8, 0.7, 0.6]),
     brakePressure: new Float64Array([0.4, 0.5, 0.3, 0.35]),
     suspensionDeflection: new Float64Array([0.04, 0.05, 0.06, 0.07]),
+    // Kelvin, left/centre/right per wheel, as the sim publishes them. Each
+    // wheel averages to the tyreTemperature above.
+    tyreSurfaceTemperatureRaw: new Float64Array([
+      343.15, 353.15, 363.15, 344.15, 354.15, 364.15, 345.15, 355.15, 365.15,
+      346.15, 356.15, 366.15,
+    ]),
+    tyreInnerLayerTemperatureRaw: new Float64Array([
+      348.15, 358.15, 368.15, 349.15, 359.15, 369.15, 350.15, 360.15, 370.15,
+      351.15, 361.15, 371.15,
+    ]),
+    tyreCarcassTemperatureRaw: new Float64Array([
+      351.15, 352.15, 353.15, 354.15,
+    ]),
+    tyreOptimalTemperatureRaw: new Float64Array([92, 92, 92, 92]),
+    brakeTemperatureRaw: new Float64Array([673.15, 683.15, 573.15, 583.15]),
     vehIds: [0, 1, 1],
     vehIsPlayer: [0, 1, 0],
     vehPlaces: [2, 1, 3],

@@ -138,6 +138,20 @@ export type Telemetry = {
   LmuVirtualEnergy?: TelemetryVar<number[]>;
   LmuStateOfCharge?: TelemetryVar<number[]>;
   LmuRegen?: TelemetryVar<number[]>;
+  /**
+   * The player's tyres and brakes, Celsius. Wheels are LF, RF, LR, RR.
+   *
+   * The two zone arrays hold `wheel * 3 + zone` with the zones ordered outer
+   * shoulder, middle, inner shoulder -- already swapped for the side of the
+   * car, which the sim's own left/centre/right is not. Present only while the
+   * player has a car; see app/lmu/tyreState.ts for the units.
+   */
+  LmuTyreSurfaceTemp?: TelemetryVar<number[]>;
+  LmuTyreInnerLayerTemp?: TelemetryVar<number[]>;
+  LmuTyreCarcassTemp?: TelemetryVar<number[]>;
+  /** The compound's working temperature, as the sim states it. */
+  LmuTyreOptimalTemp?: TelemetryVar<number[]>;
+  LmuBrakeTemp?: TelemetryVar<number[]>;
 };
 /**
  * What SessionLapsRemain and SessionLapsTotal carry when the session has no

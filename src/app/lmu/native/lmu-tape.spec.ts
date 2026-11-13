@@ -155,6 +155,16 @@ describeIfBuilt('lmu_replay tape', () => {
     expect(latest?.gear).toBe(4);
     expect(latest?.fuelCapacity).toBe(110);
     expect(latest?.numVehicles).toBe(2);
+    // The per-wheel detail rides the same frame: three zones for each of four
+    // wheels, then one value per wheel. The fixture never writes the wheels,
+    // so only the shape can be checked here; what the values mean is pinned
+    // in tyreState.spec.ts against a recorded session.
+    const lengthOf = (key: string) => (latest?.[key] as Float64Array)?.length;
+    expect(lengthOf('tyreSurfaceTemperatureRaw')).toBe(12);
+    expect(lengthOf('tyreInnerLayerTemperatureRaw')).toBe(12);
+    expect(lengthOf('tyreCarcassTemperatureRaw')).toBe(4);
+    expect(lengthOf('tyreOptimalTemperatureRaw')).toBe(4);
+    expect(lengthOf('brakeTemperatureRaw')).toBe(4);
   });
 
   it('advances the recorded clock as it plays', () => {

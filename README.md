@@ -48,7 +48,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 1. In LMU, enable **Settings > Gameplay > Enable Plugins**, then restart the simulator.
 2. Start Tearoff and load into an LMU session to receive telemetry.
 
-**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, and Information Bar. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Fuel Calculator, both track maps, Radar, Gantry, Car Systems, Lap Timer, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Information Bar, and Tyres. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Fuel Calculator, both track maps, Radar, Gantry, Car Systems, Lap Timer, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
@@ -147,6 +147,20 @@ Displays your car's in-car adjustments in one compact widget.
 - Configurable columns, with independent options to hide unsupported or switched-off systems
 
 <img src="./docs/assets/carsystems.png" alt="Car Systems showing brake bias, ABS, and traction control" width="444">
+
+### Tyres
+
+Shows the state of your tyres and brakes, one axle per block. Le Mans Ultimate only: iRacing does not publish tyre temperatures while the car is moving.
+
+**Features:**
+
+- Tyre temperature across the tread, drawn as a gradient from the outer shoulder to the inner one, with the average as the headline number
+- Choice of which temperature to show: tread surface, the rubber layer under it, or the carcass
+- Working window that follows the temperature the sim states for the fitted compound, or one you set yourself: blue when cold, green in the window, yellow to red when overheating
+- Live tyre pressures in psi, kPa or bar, optionally coloured against a target hot pressure per axle
+- Brake temperature per axle, coloured against its own working window
+- Optional tread remaining per tyre and the compound fitted to each axle
+- Adjustable background opacity, session visibility and an option to show only when on track
 
 ### Standings
 
