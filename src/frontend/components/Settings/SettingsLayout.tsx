@@ -19,6 +19,7 @@ import { simulatorDisplayName } from '@irdashies/types';
 import { SettingsLoader } from './SettingsLoader';
 import { SettingsMenu } from './SettingsMenu';
 import { HeaderProfilePicker } from './components/HeaderProfilePicker';
+import { OverlaySwitchButton } from './components/OverlaySwitchButton';
 import { generalItems, bottomItems } from './menuItems';
 import { ReleaseNotesStatusProvider } from './ReleaseNotes/ReleaseNotesStatusContext';
 import { ReleaseNotesAnnouncement } from './ReleaseNotes/ReleaseNotesAnnouncement';
@@ -48,6 +49,7 @@ export const SettingsLayout = () => {
   }, [pathname]);
   const navigate = useNavigate();
   const [editModeAccelerator, setEditModeAccelerator] = useState('F6');
+  const [hideAccelerator, setHideAccelerator] = useState('');
   const activeSimulator = useActiveSimulator();
   const { running } = useRunningState();
   // The name says which sim is feeding the overlays, so it has no business
@@ -59,6 +61,7 @@ export const SettingsLayout = () => {
   useEffect(() => {
     window.keybindingsBridge?.getKeybindings().then((bindings) => {
       setEditModeAccelerator(bindings['toggle-edit-mode'].accelerator);
+      setHideAccelerator(bindings['toggle-hide-ui']?.accelerator ?? '');
     });
   }, [pathname]);
 
@@ -140,6 +143,7 @@ export const SettingsLayout = () => {
             )}
           </div>
           <div className="flex shrink-0 items-center justify-self-end gap-2 [-webkit-app-region:no-drag]">
+            <OverlaySwitchButton accelerator={hideAccelerator} />
             <button
               type="button"
               onClick={toggleDemoMode}

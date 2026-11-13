@@ -123,7 +123,9 @@ describe('keybindingsBridge keybindings:update', () => {
     mockCheckAccelerator.mockReset();
     mockGetKeybindings.mockReturnValue(sampleBindings());
 
-    const manager = new KeybindingManager({} as never);
+    const manager = new KeybindingManager({} as never, {
+      toggleUserHidden: () => undefined,
+    });
     setupKeybindingsBridge(manager);
   });
 

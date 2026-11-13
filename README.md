@@ -839,7 +839,8 @@ TV-style overlays for iRacing streams, configured together in **Settings > Broad
 - Ease of Use
   - Configurable key bindings: Rebind shortcuts for global overlay visibility, edit layout, telemetry, layout-profile cycling, and individual widget visibility. Supports keyboard chords, controller buttons, and controller-button combos.
   - Per-widget visibility shortcuts: Show or hide individual widgets without affecting the rest of the dashboard.
-  - Global toggle (Alt+H by default): Quickly hide or show all your overlays with a single keyboard shortcut.
+  - Overlay on/off: Turn every overlay off and back on, while the sim is running or not, without changing which widgets are enabled. The same switch is the **Overlay** button in the settings window header, **Show Overlay** in the tray menu and the Hide / Show UI shortcut (Alt+H by default), and each follows the others. It applies to this run of the app: the overlay is on again after a restart.
+  - Hidden while paused: The overlay goes off the screen while the game is paused and comes back when you resume, within about a second. On by default; turn it off under **Settings > General > Hide Overlay While the Game Is Paused**. Le Mans Ultimate only: iRacing does not report a pause.
   - Reset widget position: Reset any widget's position to the top-left corner if it gets lost off-screen.
   - Close to tray: Closing the window minimizes to the system tray instead of quitting (configurable).
   - Always on top: Keep your overlays visible even when clicking on other windows.

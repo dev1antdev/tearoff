@@ -20,7 +20,14 @@ import {
   listDashboards,
   setCurrentProfile,
 } from './app/storage/dashboards';
-import { getSessionProfileMap } from './app/storage/appSettings';
+import {
+  getHideOverlayWhenPaused,
+  getSessionProfileMap,
+  setHideOverlayWhenPaused,
+} from './app/storage/appSettings';
+import { createOverlayVisibility } from './app/overlayVisibility';
+import { watchGamePause } from './app/overlayPauseWatch';
+import { setupOverlayVisibilityBridge } from './app/bridge/overlayVisibilityBridge';
 import { createSessionProfileSwitcher } from './app/services/sessionProfileSwitcher';
 import type { SessionProfileSwitcher } from './app/services/sessionProfileSwitcher';
 import { setupTaskbar, KeybindingManager } from './app';
@@ -182,6 +189,15 @@ overlayManager.setupAutoStart();
 
 // Hoisted so the quit handler can tear down the WebHID host window cleanly.
 let keybindingManager: KeybindingManager | undefined;
+// Whether the overlay is drawn at all. One state for the shortcut, the tray,
+// the settings window and the pause watch, so none of them can disagree with
+// what is on screen. Created here because the storage it reads is ready and
+// the windows that follow it are not yet.
+const overlayVisibility = createOverlayVisibility({
+  hideWhenPaused: getHideOverlayWhenPaused(),
+  logError: (message, error) => log.error(message, error),
+});
+let disposeOverlayVisibility: (() => void) | undefined;
 const channelBus = new ChannelBus({
   deliveryEnabled: !perfRun.enabled || perfRun.channelDelivery === 'on',
 });
@@ -723,14 +739,29 @@ void app.whenReady().then(async () => {
     });
   }
 
-  keybindingManager = new KeybindingManager(overlayManager);
+  keybindingManager = new KeybindingManager(overlayManager, overlayVisibility);
   keybindingManager.registerAll();
   // Start the WebHID host window that reads game controllers for gamepad bindings.
   if (!perfRun.enabled) {
     keybindingManager.startGamepad();
   }
 
-  setupTaskbar(overlayManager, keybindingManager);
+  setupTaskbar(overlayManager, keybindingManager, overlayVisibility);
+  const disposeVisibilityBridge = setupOverlayVisibilityBridge(
+    overlayVisibility,
+    setHideOverlayWhenPaused
+  );
+  // A paused game takes the overlay off the screen, where the sim says it is
+  // paused. Follows the telemetry bridge across a change of simulator.
+  const stopPauseWatch = watchGamePause({
+    getBridge: getCurrentBridge,
+    onBridgeChanged,
+    onPaused: (paused) => overlayVisibility.setGamePaused(paused),
+  });
+  disposeOverlayVisibility = () => {
+    stopPauseWatch();
+    disposeVisibilityBridge();
+  };
   await publishDashboardUpdates(
     overlayManager,
     analytics,
@@ -796,6 +827,7 @@ const handleBeforeQuit = createBeforeQuitHandler({
     incidentRuntime?.dispose();
     disposeLapHistoryRuntime?.();
     disposeLapLibraryRecording?.();
+    disposeOverlayVisibility?.();
     disposeStreamChat?.();
     disposeReplayContextRuntime?.();
     disposeGarage61SearchSession?.();

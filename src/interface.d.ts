@@ -20,6 +20,8 @@ declare global {
     storageStatusBridge?: import('./types/storageStatus').StorageStatusBridge;
     /** Absent outside the Electron preload, e.g. the browser server. */
     lapLibraryBridge?: import('./types/lapLibrary').LapLibraryBridge;
+    /** Absent outside the Electron preload, e.g. the browser server. */
+    overlayVisibilityBridge?: import('./types/overlayVisibility').OverlayVisibilityBridge;
     channelBridge: ChannelBridge;
     irsdkBridge: IrSdkBridge;
     telemetryInspectorBridge: TelemetryInspectorBridge;

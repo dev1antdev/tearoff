@@ -6,6 +6,7 @@ import type {
   PitLaneTrackData,
 } from '@irdashies/types';
 import { defineBridge } from './bridge/defineBridge';
+import { subscribeOverlayVisibility } from './bridge/overlayVisibilityRendererBridge';
 
 export function exposeInMainWorld() {
   const logBridge: LogBridge = {
@@ -16,12 +17,12 @@ export function exposeInMainWorld() {
   contextBridge.exposeInMainWorld('logBridge', logBridge);
 
   contextBridge.exposeInMainWorld('globalKey', {
-    onToggle: (cb: (hide: boolean) => void) => {
-      const listener = (_: Electron.IpcRendererEvent, hide: boolean) =>
-        cb(hide);
-      ipcRenderer.on('global-toggle-hide', listener);
-      return () => ipcRenderer.removeListener('global-toggle-hide', listener);
-    },
+    // Whether the overlay is drawn at all: off by the shortcut, the tray or
+    // the settings window, or while the game is paused. The window is told
+    // the state as it subscribes, so one opened or reloaded while the overlay
+    // is off stays off instead of drawing until the next change.
+    onToggle: (cb: (hide: boolean) => void) =>
+      subscribeOverlayVisibility((state) => cb(state.hidden)),
     onWidgetToggle: (cb: (widgetId: string, hide: boolean) => void) => {
       let active = true;
       const seen = new Set<string>();
