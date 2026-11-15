@@ -75,6 +75,8 @@ const show = (
   vi.mocked(useDrivingState).mockReturnValue({
     isDriving,
     isWatching: false,
+    isWatchingOwnCar: false,
+    isWatchingOtherCar: false,
   });
   vi.mocked(useSessionVisibility).mockReturnValue(sessionVisible);
   return render(<BrakePerformance />);

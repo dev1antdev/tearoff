@@ -3,10 +3,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  LEDGER_LAP_FROM_START,
   LEDGER_LAP_IN_LAP,
   LEDGER_LAP_OUT_LAP,
   LEDGER_LAP_SERVICED,
+  SessionState,
 } from '@irdashies/types';
+import { BASELINE_EXCLUDED_FLAGS } from '../../shared/lapValidity';
 import { ChannelBus } from '../bridge/channelBus';
 import { createSessionLifecycle } from '../sessionLifecycle';
 import { dispatch } from '../storage/lapLibrary/dispatch';
@@ -250,6 +253,76 @@ describe('the ledger in the lap library', () => {
     expect(stints.map((stint) => [stint.ordinal, stint.closedBy])).toEqual([
       [1, 'garage'],
     ]);
+    expect(errors).toEqual([]);
+  });
+
+  it('keeps the lap from the start of a race for what it cost, and never as a pace to measure by', async () => {
+    const { runtime, sim } = start('run-a');
+    sim.sessionNum = 1;
+    sim.sessionState = SessionState.ParadeLaps;
+    sim.progress = 0.0004;
+    sim.heldAtLine = true;
+    sim.emit();
+    sim.drive(20);
+    sim.sessionState = SessionState.Racing;
+    sim.heldAtLine = false;
+    sim.driveLaps(3.2);
+    await stored();
+
+    const [session] = await service.listSessions();
+    const laps = await service.listLaps(session.id);
+    expect(laps).toHaveLength(3);
+    const [fromStart, second, third] = laps;
+
+    // Let go a few metres past the line and timed from there, it is the
+    // quickest lap of the race: exactly the lap that must not be a best.
+    expect(fromStart.lapTime).toBeLessThan(second.lapTime);
+    expect(fromStart.lapTime).toBeLessThan(third.lapTime);
+    // It is kept, the user's own, with what it cost.
+    expect(fromStart).toMatchObject({ own: true, pit: false, voided: false });
+    expect(fromStart.ledger?.flags).toBe(LEDGER_LAP_FROM_START);
+    expect(fromStart.fuelUsed).toBeCloseTo(2.4, 1);
+    expect(fromStart.ledger?.treadUsed[0]).toBeCloseTo(0.005, 3);
+
+    // Not the all-time reference: that is a lap driven from line to line.
+    expect(fromStart).toMatchObject({
+      complete: false,
+      eligible: false,
+      isReference: false,
+    });
+    expect(laps.filter((lap) => lap.isReference)).toHaveLength(1);
+    service.referenceLap('lmu', 18, 'Ferrari 296 LMGT3 Evo', 100);
+    await stored();
+    const reference = service.referenceLap(
+      'lmu',
+      18,
+      'Ferrari 296 LMGT3 Evo',
+      100
+    );
+    expect(reference?.finishTime).toBeCloseTo(60, 3);
+    expect(reference?.finishTime).toBeGreaterThan(fromStart.lapTime);
+    // Not by hand either.
+    expect(await service.pinReference(fromStart.id)).toBe(false);
+    // Not the best lap of the session in the list, nor of the stint.
+    expect(session.bestLapTime).toBeCloseTo(60, 3);
+    expect(session.bestLapTime).toBeGreaterThan(fromStart.lapTime);
+    const stint = runtime.stintSnapshot().stint;
+    expect(stint).toMatchObject({ laps: 3, cleanLaps: 2 });
+    expect(stint?.bestLap).toBeGreaterThan(fromStart.lapTime);
+    // Not in the per-lap rates of the stint under way...
+    expect(runtime.stintSnapshot().rates).toMatchObject({ source: 'stint' });
+    expect(runtime.stintSnapshot().rates.lapTime).toBeCloseTo(60, 3);
+    // ...nor among the laps the next session's rates start from.
+    const baseline = await service.recentLedgerLaps(
+      'lmu',
+      18,
+      'Ferrari 296 LMGT3 Evo',
+      10,
+      BASELINE_EXCLUDED_FLAGS
+    );
+    expect(baseline.map((lap) => lap.id).sort()).toEqual(
+      [second.id, third.id].sort()
+    );
     expect(errors).toEqual([]);
   });
 

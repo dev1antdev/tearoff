@@ -11,12 +11,13 @@ import type {
   StintInput,
   StoredReferenceLap,
 } from '../../../types/lapLibrary';
-import type {
-  LedgerPass,
-  LedgerStint,
-  LedgerStop,
-  StintClosedBy,
-  StintOpenedBy,
+import {
+  LEDGER_LAP_FROM_START,
+  type LedgerPass,
+  type LedgerStint,
+  type LedgerStop,
+  type StintClosedBy,
+  type StintOpenedBy,
 } from '../../../types/ledger';
 import { stintPace } from '../../../shared/stintPace';
 import { MIGRATIONS, type Migration } from './schema';
@@ -202,14 +203,24 @@ const floatsOf = (blob: unknown): Float32Array | null => {
   );
 };
 
-/** A lap is fit to be a reference only if nothing about it is in doubt. */
+/**
+ * A lap is fit to be a reference only if nothing about it is in doubt.
+ *
+ * The lap that began on the grid, not at a crossing, never is. At a rolling
+ * start it is seconds longer than a lap when timed from the green flag and
+ * shorter when timed from the grid, and it was once taken for the best of a
+ * session. The recorder hands it over without a curve, which is refused
+ * here already; its ledger names it as well, and that is refused by name,
+ * so that the rule does not rest on the curve being left out.
+ */
 export const isEligibleLap = (lap: LapInput): boolean =>
   lap.complete &&
   lap.curve !== null &&
   !lap.pit &&
   !lap.voided &&
   lap.own &&
-  (lap.incidents === null || lap.incidents === 0);
+  (lap.incidents === null || lap.incidents === 0) &&
+  ((lap.ledger?.flags ?? 0) & LEDGER_LAP_FROM_START) === 0;
 
 /**
  * The two pace figures of a stint that have no column, because they follow

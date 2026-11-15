@@ -94,6 +94,8 @@ describe('Chassis', () => {
     vi.mocked(useDrivingState).mockReturnValue({
       isDriving: true,
       isWatching: false,
+      isWatchingOwnCar: false,
+      isWatchingOtherCar: false,
     });
     vi.mocked(useSessionVisibility).mockReturnValue(true);
   });
@@ -271,6 +273,8 @@ describe('Chassis', () => {
       vi.mocked(useDrivingState).mockReturnValue({
         isDriving: false,
         isWatching: false,
+        isWatchingOwnCar: false,
+        isWatchingOtherCar: false,
       });
 
       expect(draw().innerHTML).toBe('');
@@ -280,6 +284,8 @@ describe('Chassis', () => {
       vi.mocked(useDrivingState).mockReturnValue({
         isDriving: false,
         isWatching: true,
+        isWatchingOwnCar: false,
+        isWatchingOtherCar: true,
       });
 
       expect(draw().innerHTML).toBe('');
@@ -289,6 +295,8 @@ describe('Chassis', () => {
       vi.mocked(useDrivingState).mockReturnValue({
         isDriving: false,
         isWatching: false,
+        isWatchingOwnCar: false,
+        isWatchingOtherCar: false,
       });
 
       const container = draw(outOfTheCar, { showOnlyWhenOnTrack: false });
@@ -306,6 +314,8 @@ describe('Chassis', () => {
       vi.mocked(useDrivingState).mockReturnValue({
         isDriving: false,
         isWatching: false,
+        isWatchingOwnCar: false,
+        isWatchingOtherCar: false,
       });
       draw();
       expect(useWheelDynamicsSnapshot).toHaveBeenLastCalledWith(false);
@@ -313,6 +323,8 @@ describe('Chassis', () => {
       vi.mocked(useDrivingState).mockReturnValue({
         isDriving: true,
         isWatching: false,
+        isWatchingOwnCar: false,
+        isWatchingOtherCar: false,
       });
       draw();
       expect(useWheelDynamicsSnapshot).toHaveBeenLastCalledWith(true);

@@ -22,6 +22,7 @@ import { ChannelBus } from '../bridge/channelBus';
 import type { LmuRawTelemetry } from '../lmu/native';
 import { LMU_REST_TASKS } from '../lmu/rest/tasks';
 import { createSessionLifecycle } from '../sessionLifecycle';
+import { isEligibleLap } from '../storage/lapLibrary/LapLibraryDatabase';
 import { PlayerLedgerRuntime } from './playerLedgerRuntime';
 
 /**
@@ -367,6 +368,12 @@ describe.skipIf(!lmuTapeAvailable())(
         own: true,
       });
       expect(first.lap.ledger?.flags).toBe(LEDGER_LAP_FROM_START);
+      // So the library never takes it for a reference: only the lap driven
+      // from line to line is fit to be one.
+      expect(race.storedLaps.map(({ lap }) => isEligibleLap(lap))).toEqual([
+        false,
+        true,
+      ]);
       expect(second.lap).toMatchObject({
         complete: true,
         pit: false,

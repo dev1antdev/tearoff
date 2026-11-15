@@ -13,6 +13,7 @@ import { LapLogProcessor } from '../processors/LapLogProcessor';
 import { PlayerLapRecorder } from '../processors/PlayerLapRecorder';
 import { ReferenceLapProcessor } from '../processors/ReferenceLapProcessor';
 import { TrackStateProcessor } from '../processors/TrackStateProcessor';
+import { isEligibleLap } from '../storage/lapLibrary/LapLibraryDatabase';
 
 /**
  * The team car's own numbers through a team-mate's stint, STAGED on a
@@ -51,6 +52,12 @@ const STATE_LAG_SECONDS = 1.2;
 /** A lap of the recording's track is about 90 s; its second lap, 86.66 s. */
 const SECOND_LAP_SECONDS = 86.66;
 const FIRST_LAP_SECONDS = 97.82;
+/**
+ * The first lap as the lap library times it: from the frame the sim lets
+ * the car go at the line, three seconds into the recording, to the first
+ * crossing. The sim's own figure above runs from the green flag.
+ */
+const FROM_START_LAP_SECONDS = 89.83;
 
 interface Staging {
   /** Seconds into the recording between which the user has no vehicle. */
@@ -99,9 +106,18 @@ const playStint = async ({
     processor.onLifecycle({ type: 'enter', replay: false });
   }
   const libraryLaps: LapInput[] = [];
+  /** For each of them, whether it began as the sim let the car go at the line. */
+  const libraryFromStart: boolean[] = [];
   const recorder = new PlayerLapRecorder(
     { record: (_session, lap) => libraryLaps.push(lap) },
-    { simulator: 'lmu', now: () => 0, bootId: 'tape' }
+    {
+      simulator: 'lmu',
+      now: () => 0,
+      bootId: 'tape',
+      hooks: {
+        onLapClosed: (closed) => libraryFromStart.push(closed.fromStart),
+      },
+    }
   );
   recorder.onEnter();
 
@@ -318,6 +334,7 @@ const playStint = async ({
     lapsCounted,
     lapsSaved,
     libraryLaps,
+    libraryFromStart,
     fuel: fuel.snapshot(),
     lapLog: lapLog.snapshot(),
     lapDelta: lapDelta.snapshot(),
@@ -447,15 +464,30 @@ describe.skipIf(!lmuTapeAvailable())(
         expect(stint.sessionBests.length).toBeGreaterThan(5);
         expect(stint.lapDelta.sessionBest.lapTime).toBeNull();
 
-        // The lap library has the one lap that began and ended at a
-        // crossing, whole, and not as the user's own: it can never be a
-        // reference.
-        expect(stint.libraryLaps).toHaveLength(1);
+        // The lap library has both laps the car completed, and neither as
+        // the user's own, so neither can ever be a reference.
+        expect(stint.libraryLaps).toHaveLength(2);
+        expect(stint.libraryFromStart).toEqual([true, false]);
+        // The first is the lap from the rolling start: it began with the
+        // user at the wheel, as the sim let the car go at the line, and the
+        // team-mate finished it. Kept for what it cost, without a curve.
         expect(stint.libraryLaps[0]).toMatchObject({
+          own: false,
+          complete: false,
+          curve: null,
+        });
+        expect(stint.libraryLaps[0].lapTime).toBeCloseTo(
+          FROM_START_LAP_SECONDS,
+          0
+        );
+        // The second began and ended at a crossing, whole, and was the
+        // team-mate's from the line.
+        expect(stint.libraryLaps[1]).toMatchObject({
           own: false,
           complete: true,
         });
-        expect(stint.libraryLaps[0].lapTime).toBeCloseTo(SECOND_LAP_SECONDS, 0);
+        expect(stint.libraryLaps[1].lapTime).toBeCloseTo(SECOND_LAP_SECONDS, 0);
+        expect(stint.libraryLaps.map(isEligibleLap)).toEqual([false, false]);
       }, 90_000);
     });
 
@@ -514,9 +546,24 @@ describe.skipIf(!lmuTapeAvailable())(
         SECOND_LAP_SECONDS,
         0
       );
-      expect(stint.libraryLaps).toHaveLength(1);
-      expect(stint.libraryLaps[0]).toMatchObject({ own: true, complete: true });
-      expect(stint.libraryLaps[0].lapTime).toBeCloseTo(SECOND_LAP_SECONDS, 0);
+      // The library has both laps. The one from the rolling start is not
+      // the user's own, the team-mate having had the car for forty seconds
+      // of it, and has no curve. The one after it is the user's from the
+      // line, whole: the only one of the two fit to be a reference.
+      expect(stint.libraryLaps).toHaveLength(2);
+      expect(stint.libraryFromStart).toEqual([true, false]);
+      expect(stint.libraryLaps[0]).toMatchObject({
+        own: false,
+        complete: false,
+        curve: null,
+      });
+      expect(stint.libraryLaps[0].lapTime).toBeCloseTo(
+        FROM_START_LAP_SECONDS,
+        0
+      );
+      expect(stint.libraryLaps[1]).toMatchObject({ own: true, complete: true });
+      expect(stint.libraryLaps[1].lapTime).toBeCloseTo(SECOND_LAP_SECONDS, 0);
+      expect(stint.libraryLaps.map(isEligibleLap)).toEqual([false, true]);
     }, 90_000);
   }
 );

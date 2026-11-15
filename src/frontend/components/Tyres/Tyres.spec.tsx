@@ -121,6 +121,8 @@ describe('Tyres', () => {
     vi.mocked(useDrivingState).mockReturnValue({
       isDriving: true,
       isWatching: false,
+      isWatchingOwnCar: false,
+      isWatchingOtherCar: false,
     });
     vi.mocked(useSessionVisibility).mockReturnValue(true);
   });
@@ -411,6 +413,8 @@ describe('Tyres', () => {
       vi.mocked(useDrivingState).mockReturnValue({
         isDriving: false,
         isWatching: true,
+        isWatchingOwnCar: false,
+        isWatchingOtherCar: true,
       });
 
       const container = draw({
