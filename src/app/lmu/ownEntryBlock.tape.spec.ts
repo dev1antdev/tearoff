@@ -7,13 +7,17 @@ import {
   lmuTapeAvailable,
   playLmuTape,
 } from '../../testing/lmuTape';
+import { BrakingProcessor } from '../processors/BrakingProcessor';
+import { DamageProcessor } from '../processors/DamageProcessor';
 import { DriverControlsProcessor } from '../processors/DriverControlsProcessor';
 import { FuelProjectionProcessor } from '../processors/FuelProjectionProcessor';
+import { GForceProcessor } from '../processors/GForceProcessor';
 import { LapLogProcessor } from '../processors/LapLogProcessor';
 import { LapTraceSampleProcessor } from '../processors/LapTraceSampleProcessor';
 import { PlayerLapRecorder } from '../processors/PlayerLapRecorder';
 import { TrackStateProcessor } from '../processors/TrackStateProcessor';
 import { TyreStateProcessor } from '../processors/TyreStateProcessor';
+import { WheelDynamicsProcessor } from '../processors/WheelDynamicsProcessor';
 
 /**
  * The user's own car with somebody else driving it, read from the telemetry
@@ -115,7 +119,23 @@ const playOwnCar = async (control?: number) => {
   const controls = new DriverControlsProcessor();
   const tyres = new TyreStateProcessor();
   const lapTrace = new LapTraceSampleProcessor();
-  const processors = [fuel, trackState, lapLog, controls, tyres, lapTrace];
+  // The channels about the user's own driving and the car they are in.
+  const braking = new BrakingProcessor();
+  const gForce = new GForceProcessor();
+  const wheels = new WheelDynamicsProcessor();
+  const damage = new DamageProcessor();
+  const processors = [
+    fuel,
+    trackState,
+    lapLog,
+    controls,
+    tyres,
+    lapTrace,
+    braking,
+    gForce,
+    wheels,
+    damage,
+  ];
   for (const processor of processors) {
     processor.onLifecycle({ type: 'enter', replay: false });
   }
@@ -157,6 +177,12 @@ const playOwnCar = async (control?: number) => {
     tyreReadings: 0,
     noBrakeReading: 0,
     traceAtWheel: 0,
+    /** Frames on which the car was braking hard at speed. */
+    hardBraking: 0,
+    /** Frames on which the recording held a ride height for the car. */
+    wheelsInRecording: 0,
+    /** Frames on which each own-driving channel said it had a reading. */
+    ownDriving: { braking: 0, gForce: 0, wheels: 0, damage: 0 },
   };
   let session: Session | null = null;
 
@@ -207,6 +233,10 @@ const playOwnCar = async (control?: number) => {
       if (tyres.snapshot().wheels.some((wheel) => wheel.surfaceTempC)) {
         seen.tyreReadings += 1;
       }
+      if (braking.snapshot().available) seen.ownDriving.braking += 1;
+      if (gForce.snapshot().available) seen.ownDriving.gForce += 1;
+      if (wheels.snapshot().available) seen.ownDriving.wheels += 1;
+      if (damage.snapshot().available) seen.ownDriving.damage += 1;
       if (scalar(telemetry, 'LmuOwnEntryTelemetry') !== true) return;
 
       // Built from the block of the car in slot 1, which `raw` still holds
@@ -238,6 +268,10 @@ const playOwnCar = async (control?: number) => {
       seen.gears.add(gear);
       widen(seen.revs, revs);
       widen(seen.throttle, throttle);
+      if ((raw.filteredBrake ?? 0) > 0.5 && (raw.speed ?? 0) > 30) {
+        seen.hardBraking += 1;
+      }
+      if (raw.wheelRideHeight?.[0]) seen.wheelsInRecording += 1;
       const brakes = raw.brakeTemperatureRaw ?? [];
       for (let wheel = 0; wheel < 4; wheel += 1) {
         const celsius = numberAt(telemetry, 'LmuBrakeTemp', wheel);
@@ -306,6 +340,8 @@ const playOwnCar = async (control?: number) => {
     fuel: fuel.snapshot(),
     lapLog: lapLog.snapshot(),
     tyres: tyres.snapshot(),
+    braking: braking.snapshot(),
+    gForce: gForce.snapshot(),
   };
 };
 
@@ -391,6 +427,28 @@ describe.skipIf(!lmuTapeAvailable())(
         expect(lap.fuelUsed).toBeLessThan(4);
       }
       expect(car.lapsSaved).toEqual([]);
+
+      // The channels about the user's own driving take none of it. The car
+      // brakes hard into every corner, with its pedal on the frame, and no
+      // braking zone is measured nor a best set from it; no g-force is
+      // read. The recording holds the car's ride heights, and the wheel and
+      // damage channels have nothing: the block is not taken for the car
+      // the user is in.
+      expect(seen.hardBraking).toBeGreaterThan(500);
+      expect(seen.wheelsInRecording).toBe(seen.blockFrames);
+      expect(seen.ownDriving).toEqual({
+        braking: 0,
+        gForce: 0,
+        wheels: 0,
+        damage: 0,
+      });
+      expect(car.braking).toMatchObject({
+        live: null,
+        last: null,
+        zoneCount: 0,
+        sessionBestG: 0,
+      });
+      expect(car.gForce.available).toBe(false);
 
       // Watched from the first frame to the last: never at the wheel, no
       // personal best, no lap of the user's own, and a lap trace that is

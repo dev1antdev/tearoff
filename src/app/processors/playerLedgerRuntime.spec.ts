@@ -194,6 +194,45 @@ describe('PlayerLedgerRuntime', () => {
       expect(rowsOf(harness)[2].wetness).toBe(3);
     });
 
+    it('keeps the laps a team-mate drives as the car’s and not the user’s, with its levels read', () => {
+      // Through a team-mate's stint the frame goes on carrying the car's
+      // fuel, energy and tread, read from its telemetry block. The laps are
+      // rows like any other, measured the same, and marked as not driven by
+      // the user: no rate, pace or best is taken from them.
+      const harness = createLedgerHarness();
+      const { sim, runtime } = harness;
+      sim.isOnTrack = false;
+      sim.emit();
+      sim.driveLaps(2.6);
+
+      const rows = rowsOf(harness);
+      expect(rows.map((row) => row.flags)).toEqual([
+        LEDGER_LAP_NOT_OWN,
+        LEDGER_LAP_NOT_OWN,
+      ]);
+      expect(rows.map((row) => isCleanLap(row.flags))).toEqual([false, false]);
+      // What the car used is still what the lap cost.
+      expect(rows[1].fuelUsed).toBeCloseTo(2.4, 3);
+      expect(rows[1].treadUsed[0]).toBeCloseTo(0.005, 6);
+
+      expect(runtime.stintSnapshot().stint?.own).toBe(false);
+      expect(runtime.stintSnapshot().rates).toEqual({
+        fuel: null,
+        energy: null,
+        lapTime: null,
+        source: null,
+      });
+      expect(runtime.stintSnapshot().budgetLapsLeft).toBeNull();
+      expect(runtime.referenceWearCurves()).toBeNull();
+
+      // The user takes the car back: their own laps are the first to count.
+      sim.isOnTrack = true;
+      sim.driveLaps(2);
+      const after = rowsOf(harness);
+      expect(after.slice(-1)[0].flags).toBe(0);
+      expect(runtime.stintSnapshot().rates.fuel).toBeCloseTo(2.4, 3);
+    });
+
     it('starts the first lap of a race when the car is let go from the line', () => {
       const harness = createLedgerHarness();
       const { sim, runtime, stored } = harness;

@@ -552,6 +552,82 @@ describe('Tyres', () => {
     });
   });
 
+  /**
+   * The pressure offsets, the deflection and the load are worked out from
+   * the wheels of the car the user is in. For a team car the sim writes no
+   * pressure, and the wheel channel has no reading: each row keeps its place
+   * with a placeholder, and nothing reads as zero.
+   */
+  describe('the optional rows with a team-mate driving', () => {
+    const watched = { ...everyRow, showOnlyWhenOnTrack: true };
+    /** The wheel channel as it is for a car the user is not in. */
+    const noWheelReadings = dynamics({
+      available: false,
+      loadShare: null,
+      loadSource: null,
+      loadTotalN: null,
+      tyreDeflectionMm: null,
+    });
+    const drawWatched = () => {
+      watchingOwnCar();
+      return draw({
+        config: watched,
+        tyreState: teamMateDriving(),
+        wheelDynamics: noWheelReadings,
+      });
+    };
+    const dashes = ['--', '--', '--', '--'];
+
+    it('draws a placeholder for each pressure offset', () => {
+      expect(texts(drawWatched(), 'tyre-pressure-deviation')).toEqual(dashes);
+    });
+
+    it('draws a placeholder for each deflection, and none in red', () => {
+      const container = drawWatched();
+
+      expect(texts(container, 'tyre-deflection')).toEqual(dashes);
+      expect(container.querySelector('.text-red-400')).toBeNull();
+    });
+
+    it('keeps each load bar in its place, empty, with a placeholder for its share', () => {
+      const container = drawWatched();
+
+      expect(texts(container, 'tyre-load')).toEqual(dashes);
+      expect(
+        all(container, 'tyre-load-fill').map((fill) => fill.style.width)
+      ).toEqual(['0%', '0%', '0%', '0%']);
+      // An empty bar, not the red one of a wheel carrying nothing.
+      expect(container.querySelector('.bg-red-500')).toBeNull();
+    });
+
+    it('goes on showing the brakes and the tread beside them', () => {
+      drawWatched();
+
+      expect(screen.getByText('490')).toBeInTheDocument();
+      expect(screen.getByText('405')).toBeInTheDocument();
+      expect(screen.getAllByText('94%')).toHaveLength(4);
+      // Pressure, offset, temperature, deflection and load on four wheels.
+      expect(placeholders()).toBe(20);
+      expect(screen.queryByText('0%')).toBeNull();
+      expect(screen.queryByText('0 mm')).toBeNull();
+    });
+
+    it('draws none of the wheel channel with the camera on another car', () => {
+      // Shown always, and the wheel channel with readings in it: they are
+      // the own car's, like the brakes, and not those of the car on screen.
+      watchingRival();
+      const container = draw({
+        config: everyRow,
+        tyreState: teamMateDriving(),
+        wheelDynamics: dynamics(),
+      });
+
+      expect(texts(container, 'tyre-load')).toEqual(dashes);
+      expect(texts(container, 'tyre-deflection')).toEqual(dashes);
+      expect(screen.queryByText('490')).toBeNull();
+    });
+  });
+
   describe('set to show always', () => {
     const always = { showWear: true };
 
