@@ -18,6 +18,7 @@ import {
   augmentStandingsWithIRating,
   augmentStandingsWithPositionChange,
   groupStandingsByClass,
+  lastLapInvalidFor,
   type LastTimeState,
 } from './createStandings';
 import { GlobalFlags, SessionState } from '@irdashies/types';
@@ -57,6 +58,7 @@ export const useDriverPositions = () => {
   const carIdxClassPosition = snapshot?.carIdxClassPosition ?? EMPTY_NUMBERS;
   const carIdxBestLap = snapshot?.carIdxBestLapTime ?? EMPTY_NUMBERS;
   const carIdxLastLapTime = snapshot?.carIdxLastLapTime ?? EMPTY_NUMBERS;
+  const carIdxLastLapInvalid = snapshot?.carIdxLastLapInvalid ?? EMPTY_BOOLEANS;
   const carIdxF2Time = snapshot?.carIdxF2Time ?? EMPTY_NUMBERS;
   const carIdxLapNum = snapshot?.carIdxLap ?? EMPTY_NUMBERS;
   const carIdxTrackSurface = snapshot?.carIdxTrackSurface ?? EMPTY_NUMBERS;
@@ -76,6 +78,7 @@ export const useDriverPositions = () => {
         bestLap: carIdxBestLap[carIdx],
         lastLap: lastLap[carIdx] ?? -1,
         lastLapTime: carIdxLastLapTime[carIdx] ?? -1,
+        lastLapInvalid: lastLapInvalidFor(carIdxLastLapInvalid, carIdx),
         lapNum: carIdxLapNum[carIdx],
         lapDstPct: carIdxLapDstPct[carIdx] ?? 0,
         lastPitLap: lastPitLap[carIdx] ?? undefined,
@@ -88,6 +91,7 @@ export const useDriverPositions = () => {
     carIdxClassPosition,
     carIdxBestLap,
     carIdxLastLapTime,
+    carIdxLastLapInvalid,
     lastLap,
     carIdxF2Time,
     carIdxLapNum,
@@ -372,6 +376,7 @@ export const useDriverStandings = () => {
               driverPos.bestLap,
               hasFastestTime
             ),
+            lastLapInvalid: driverPos.lastLapInvalid,
             onPitRoad: carState?.onPitRoad ?? false,
             onTrack: carState?.onTrack ?? false,
             tireCompound: carState?.tireCompound ?? 0,

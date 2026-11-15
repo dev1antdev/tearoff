@@ -8,6 +8,7 @@ import {
   lapFlags,
   simulatorLabel,
   trackLabel,
+  unavailableNotice,
 } from './lapLibraryDisplay';
 
 const lap = (overrides: Partial<LapLibraryLap> = {}): LapLibraryLap => ({
@@ -28,6 +29,7 @@ const lap = (overrides: Partial<LapLibraryLap> = {}): LapLibraryLap => ({
   trackTemp: null,
   isReference: false,
   isPinned: false,
+  ledger: null,
   ...overrides,
 });
 
@@ -155,6 +157,23 @@ describe('formatConsumption', () => {
 
   it('shows nothing without a reading', () => {
     expect(formatConsumption(lap())).toBe('');
+  });
+});
+
+describe('unavailableNotice', () => {
+  it('tells a library from a newer version apart, and what to do', () => {
+    const notice = unavailableNotice('newer');
+
+    expect(notice.title).toContain('newer version of Tearoff');
+    expect(notice.body).toContain('Update Tearoff');
+  });
+
+  it('says in every case that the laps on disk were left alone', () => {
+    expect(unavailableNotice('newer').body).toMatch(/exactly as it is/);
+    expect(unavailableNotice('upgrade').body).toMatch(/unchanged/);
+    expect(unavailableNotice('unreadable').body).toMatch(/left as they are/);
+    // No reason given is worded as the general case, not as nothing.
+    expect(unavailableNotice(null)).toEqual(unavailableNotice('unreadable'));
   });
 });
 

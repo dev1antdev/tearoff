@@ -52,3 +52,31 @@ export const IncidentsAndFuel: Story = {
 export const Empty: Story = {
   render: () => <LapLibrarySettings bridge={createMockLapLibrary([], [])} />,
 };
+
+/**
+ * The library's file was written by a newer version of the app, as after
+ * going back to an older build: nothing is listed, and the page says the
+ * laps are still there.
+ */
+export const FromNewerVersion: Story = {
+  render: () => (
+    <LapLibrarySettings
+      bridge={createMockLapLibrary([], [], {
+        available: false,
+        reason: 'newer',
+      })}
+    />
+  ),
+};
+
+/** The file could not be brought up to this version's schema. */
+export const UpgradeFailed: Story = {
+  render: () => (
+    <LapLibrarySettings
+      bridge={createMockLapLibrary([], [], {
+        available: false,
+        reason: 'upgrade',
+      })}
+    />
+  ),
+};

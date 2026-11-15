@@ -2,6 +2,7 @@ import type {
   LapLibraryBridge,
   LapLibraryLap,
   LapLibrarySession,
+  LapLibraryStatus,
 } from '@irdashies/types';
 
 /**
@@ -34,6 +35,7 @@ const lap = (
     trackTemp: 30,
     isReference: false,
     isPinned: false,
+    ledger: null,
     ...overrides,
   };
   return {
@@ -112,7 +114,8 @@ export const SAMPLE_LAPS: LapLibraryLap[] = [
 
 export const createMockLapLibrary = (
   initialSessions: readonly LapLibrarySession[] = SAMPLE_SESSIONS,
-  initialLaps: readonly LapLibraryLap[] = SAMPLE_LAPS
+  initialLaps: readonly LapLibraryLap[] = SAMPLE_LAPS,
+  status: LapLibraryStatus = { available: true, reason: null }
 ): LapLibraryBridge => {
   let sessions = [...initialSessions];
   let laps = [...initialLaps];
@@ -223,6 +226,7 @@ export const createMockLapLibrary = (
     },
     getStats: () =>
       Promise.resolve({ sessions: sessions.length, laps: laps.length }),
+    getStatus: () => Promise.resolve(status),
     onChanged: (callback) => {
       listeners.add(callback);
       return () => {

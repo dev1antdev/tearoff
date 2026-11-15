@@ -8,11 +8,18 @@
  * Enabled via PERF_METRICS=1 environment variable.
  */
 
+import os from 'node:os';
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks';
-import { app, BrowserWindow } from 'electron';
+import { BrowserWindow } from 'electron';
 import type { NumericSampleStats, Telemetry } from '@irdashies/types';
 import type { ChannelBusMetricsSnapshot } from './bridge/channelBridge';
 import { FixedSampleBuffer } from '../shared/performanceSamples';
+import {
+  cpuSecondsByProcess,
+  cpuSecondsSince,
+  readAppProcesses,
+  type AppProcessReading,
+} from './services/systemLoadSampler';
 import logger from './logger';
 
 export interface SectionStats {
@@ -162,10 +169,20 @@ export class TelemetryPerfMetrics {
   private _enabled: boolean;
   private previousChannelPublications: Readonly<Record<string, number>> = {};
   private previousChannelDeliveries: Readonly<Record<string, number>> = {};
+  /**
+   * Each process's cumulative CPU seconds at the last report. Electron's own
+   * percentage is measured since the previous call to getAppMetrics by
+   * anyone, and the system load sampler calls it once a second while the
+   * System Performance widget is up; a difference of cumulative seconds is
+   * this report's interval whoever else is reading.
+   */
+  private processCpuSeconds = new Map<string, number>();
 
   constructor(
     enabled?: boolean,
-    private readonly channelMetricsSource?: ChannelMetricsSource
+    private readonly channelMetricsSource?: ChannelMetricsSource,
+    private readonly readProcesses: () => readonly AppProcessReading[] = readAppProcesses,
+    private readonly coreCount: () => number = () => os.cpus().length
   ) {
     this._enabled = enabled ?? process.env.PERF_METRICS === '1';
   }
@@ -185,6 +202,7 @@ export class TelemetryPerfMetrics {
     this.lastReportTime = performance.now();
     this.lastTickTime = 0;
     this.lastCpuUsage = process.cpuUsage();
+    this.processCpuSeconds = cpuSecondsByProcess(this.readProcesses());
     this.eventLoopDelay.enable();
     const channelMetrics = this.channelMetricsSource?.metricsSnapshot();
     this.previousChannelPublications =
@@ -245,7 +263,7 @@ export class TelemetryPerfMetrics {
     }
 
     const { processes, totalCpu, totalMemory, totalPrivateMemory } =
-      this.getProcessMetrics();
+      this.getProcessMetrics(intervalSeconds);
     const elapsedMs = now - this.lastReportTime;
     const nanosecondsToMilliseconds = (value: number): number =>
       Number.isFinite(value) ? value / 1_000_000 : 0;
@@ -378,19 +396,28 @@ export class TelemetryPerfMetrics {
     this.iracingGpuUsage.add(percentage(telemetry.GpuUsage?.value?.[0]));
   }
 
-  private getProcessMetrics(): {
+  /**
+   * Per-process CPU and memory over the report interval, read through the
+   * system load sampler's reader so that one module calls getAppMetrics.
+   * CPU is a share of the whole machine, as Electron's own figure is: CPU
+   * seconds used, over the interval times the logical core count.
+   */
+  private getProcessMetrics(intervalSeconds: number): {
     processes: ProcessMetrics[];
     totalCpu: number;
     totalMemory: number;
     totalPrivateMemory?: number;
   } {
     try {
-      const metrics = app.getAppMetrics();
+      const metrics = this.readProcesses();
+      const cpuSeconds = cpuSecondsSince(this.processCpuSeconds, metrics);
+      this.processCpuSeconds = cpuSecondsByProcess(metrics);
+      const availableSeconds = intervalSeconds * this.coreCount();
       const processes: ProcessMetrics[] = [];
       let totalCpu = 0;
       let totalMemory = 0;
       const totalPrivateMemory = sumCompletePrivateMemoryMB(
-        metrics.map((metric) => metric.memory.privateBytes)
+        metrics.map((metric) => metric.privateKb)
       );
 
       const pidToWindowName = new Map<number, string>();
@@ -416,12 +443,14 @@ export class TelemetryPerfMetrics {
       }
 
       for (const metric of metrics) {
-        const cpuPercent = metric.cpu.percentCPUUsage;
-        const memoryMB = metric.memory.workingSetSize / 1024;
+        // A process first seen in this report is measured from here on.
+        const cpuPercent =
+          availableSeconds > 0
+            ? ((cpuSeconds.get(metric.pid) ?? 0) / availableSeconds) * 100
+            : 0;
+        const memoryMB = metric.workingSetKb / 1024;
         const privateMemoryMB =
-          metric.memory.privateBytes === undefined
-            ? undefined
-            : metric.memory.privateBytes / 1024;
+          metric.privateKb === undefined ? undefined : metric.privateKb / 1024;
 
         totalCpu += cpuPercent;
         totalMemory += memoryMB;

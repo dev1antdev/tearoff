@@ -86,6 +86,57 @@ describe('DriverInfoRow hiddenColumns', () => {
   });
 });
 
+describe('DriverInfoRow last lap that did not count', () => {
+  const lastCell = (extra: Partial<Record<string, unknown>>) =>
+    renderRow({
+      lastTime: 97.412,
+      lastTimeState: 'session-fastest',
+      ...extra,
+    }).container.querySelector('td[data-column="lastTime"]') as HTMLElement;
+
+  const config = (lastTime: Record<string, unknown>) => ({
+    ...baseProps.config,
+    lastTime: { enabled: true, timeFormat: 'full', ...lastTime },
+  });
+
+  it('marks the lap and takes its best colour away', () => {
+    const cell = lastCell({ lastLapInvalid: true, config: config({}) });
+
+    expect(cell.textContent).toBe('1:37.412');
+    expect(cell.dataset.invalid).toBe('true');
+    expect(cell.querySelector('svg')).not.toBeNull();
+    expect(cell.className).not.toContain('text-purple-400');
+  });
+
+  it('leaves a lap that counted as it was', () => {
+    const cell = lastCell({ lastLapInvalid: false, config: config({}) });
+
+    expect(cell.dataset.invalid).toBeUndefined();
+    expect(cell.querySelector('svg')).toBeNull();
+    expect(cell.className).toContain('text-purple-400');
+  });
+
+  it('marks nothing where the sim says nothing about the lap', () => {
+    // iRacing: no flag at all for other cars' laps.
+    const cell = lastCell({ config: config({}) });
+
+    expect(cell.dataset.invalid).toBeUndefined();
+    expect(cell.querySelector('svg')).toBeNull();
+  });
+
+  it('draws the lap plain with the mark switched off', () => {
+    const cell = lastCell({
+      lastLapInvalid: true,
+      config: config({ markInvalid: false }),
+    });
+
+    expect(cell.textContent).toBe('1:37.412');
+    expect(cell.dataset.invalid).toBeUndefined();
+    expect(cell.querySelector('svg')).toBeNull();
+    expect(cell.className).toContain('text-purple-400');
+  });
+});
+
 describe('DriverInfoRow badge contents', () => {
   it('still shows the AI badge for a rated sim with no rating', () => {
     // Hiding is a per-sim decision; within a rating sim the existing

@@ -1,6 +1,12 @@
 export * from './useBrakeBias';
-export * from './useCarClassStats';
 export * from './useDriverIncidents';
+// The class helpers live in the domain, where every widget that names a
+// class reads them; re-exported so this folder's imports stay in one place.
+export {
+  useCarClassStats,
+  type CarClassStats,
+} from '@irdashies/domain/standings/useCarClassStats';
+export { useClassFields } from '@irdashies/domain/standings/classFields';
 export {
   useDriverStandings,
   calculateLapDeltas,

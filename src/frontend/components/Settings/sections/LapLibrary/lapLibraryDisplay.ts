@@ -1,4 +1,8 @@
-import type { LapLibraryLap, LapLibrarySession } from '@irdashies/types';
+import type {
+  LapLibraryLap,
+  LapLibrarySession,
+  LapLibraryUnavailableReason,
+} from '@irdashies/types';
 import { formatTime } from '@irdashies/utils/time';
 
 /**
@@ -105,6 +109,38 @@ export const formatConsumption = (lap: LapLibraryLap): string => {
     return `${(lap.energyUsed * 100).toFixed(1)}% VE`;
   if (lap.fuelUsed !== null) return `${lap.fuelUsed.toFixed(2)} L`;
   return '';
+};
+
+export interface LapLibraryNotice {
+  title: string;
+  body: string;
+}
+
+/**
+ * What the page says in place of the laps when the library is not in use.
+ * In every case the laps on disk have been left alone, and the page says so:
+ * an empty list on its own would read as the laps being gone.
+ */
+export const unavailableNotice = (
+  reason: LapLibraryUnavailableReason | null
+): LapLibraryNotice => {
+  switch (reason) {
+    case 'newer':
+      return {
+        title: 'These laps were recorded by a newer version of Tearoff',
+        body: 'This version cannot read them, so it has left the lap library exactly as it is and is not recording laps. Update Tearoff to see your laps and record again.',
+      };
+    case 'upgrade':
+      return {
+        title: 'The lap library could not be updated for this version',
+        body: 'Your laps are still on disk, unchanged, but they are not listed and no laps are being recorded. The log file says what went wrong.',
+      };
+    default:
+      return {
+        title: 'The lap library could not be opened',
+        body: 'Laps are not listed and no laps are being recorded. Any laps on disk have been left as they are. The log file says what went wrong.',
+      };
+  }
 };
 
 /** "1 lap", "12 laps". */

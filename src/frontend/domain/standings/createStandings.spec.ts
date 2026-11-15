@@ -622,6 +622,53 @@ describe('createStandings', () => {
       );
       expect(result[0][1][1].gap?.value).toBeUndefined();
     });
+
+    const raceGap = (
+      leader: readonly [lap: number, pct: number],
+      driver: readonly [lap: number, pct: number],
+      delta: number
+    ) =>
+      augmentStandingsWithGap(
+        [
+          [
+            '1',
+            [
+              makeStanding(0, 0, true, 'Race'),
+              makeStanding(1, delta, true, 'Race'),
+            ],
+          ],
+        ],
+        [leader[0], driver[0]],
+        [leader[1], driver[1]],
+        [false, false],
+        [0, 0],
+        false,
+        'Race'
+      )[0][1][1].gap;
+
+    it('race: a car ahead of its class leader on the road shows its time, not a lap', () => {
+      // The order has not caught up with a pass, or a formation lap: leader
+      // at 5.10, the car listed behind it at 5.30. This used to read "1L".
+      expect(raceGap([5, 0.1], [5, 0.3], 1.2)).toEqual({ value: 1.2, laps: 0 });
+    });
+
+    it('race: counts the whole laps a car is behind its class leader', () => {
+      // 3.2 laps back.
+      expect(raceGap([8, 0.5], [5, 0.3], 270)).toEqual({
+        value: 270,
+        laps: -3,
+      });
+    });
+
+    it.each([
+      ['0.9 laps', [5, 0.5], [4, 0.6]],
+      ['exactly one lap', [5, 0.5], [4, 0.5]],
+    ] as const)('race: %s behind is still a time', (_name, leader, driver) => {
+      expect(raceGap(leader, driver, 80)).toEqual({
+        value: 80,
+        laps: 0,
+      });
+    });
   });
 
   describe('augmentStandingsWithInterval', () => {
@@ -717,6 +764,46 @@ describe('createStandings', () => {
         expect(result[0][1][1].interval).toEqual({
           value: undefined,
           laps: -laps,
+        });
+      }
+    );
+
+    describe.each([
+      // name, laps and lap fractions of the car ahead and the car behind
+      ['2.3 laps', [7, 5], [0.6, 0.3], { value: undefined, laps: -2 }],
+      ['0.9 laps', [5, 4], [0.5, 0.6], 80],
+      ['exactly one lap', [5, 4], [0.5, 0.5], 80],
+    ] as const)(
+      'race: a car %s behind the one ahead',
+      (_name, laps, pct, inLaps) => {
+        const grouped = (): [string, Standings[]][] => [
+          [
+            '1',
+            [
+              makeStanding(0, undefined, true, 'Race'),
+              makeStanding(1, 80, true, 'Race'),
+            ],
+          ],
+        ];
+
+        it('follows the lap rule in laps mode', () => {
+          const result = augmentStandingsWithInterval(
+            grouped(),
+            [...laps],
+            [...pct],
+            true
+          );
+          expect(result[0][1][1].interval).toEqual(inLaps);
+        });
+
+        it('is a time in time mode', () => {
+          const result = augmentStandingsWithInterval(
+            grouped(),
+            [...laps],
+            [...pct],
+            false
+          );
+          expect(result[0][1][1].interval).toBe(80);
         });
       }
     );

@@ -6,11 +6,13 @@ import {
   PushPinSlashIcon,
   StarIcon,
   TrashIcon,
+  WarningCircleIcon,
 } from '@phosphor-icons/react';
 import type {
   LapLibraryBridge,
   LapLibraryLap,
   LapLibrarySession,
+  LapLibraryUnavailableReason,
 } from '@irdashies/types';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import {
@@ -22,6 +24,7 @@ import {
   lapFlags,
   simulatorLabel,
   trackLabel,
+  unavailableNotice,
   type LapFlagTone,
 } from './lapLibraryDisplay';
 import { useLapLibrary } from './useLapLibrary';
@@ -230,6 +233,27 @@ const SessionCard = memo(
 );
 SessionCard.displayName = 'SessionCard';
 
+/** Shown in place of the laps when the library's file is not in use. */
+const UnavailableNotice = ({
+  reason,
+}: {
+  reason: LapLibraryUnavailableReason | null;
+}) => {
+  const notice = unavailableNotice(reason);
+  return (
+    <div
+      role="alert"
+      className="flex items-start gap-3 rounded-md border border-amber-500/50 bg-amber-950/60 p-3 text-amber-100"
+    >
+      <WarningCircleIcon size={22} className="shrink-0" />
+      <div>
+        <p className="font-semibold">{notice.title}</p>
+        <p className="text-sm">{notice.body}</p>
+      </div>
+    </div>
+  );
+};
+
 type PendingDelete =
   | { kind: 'lap'; id: number; title: string; message: string }
   | { kind: 'session'; id: number; title: string; message: string };
@@ -336,6 +360,8 @@ export const LapLibrarySettings = ({
           <p className="px-1 text-slate-400">
             The lap library is not available in this window.
           </p>
+        ) : library.status && !library.status.available ? (
+          <UnavailableNotice reason={library.status.reason} />
         ) : library.loading ? (
           <p className="px-1 text-slate-400">Loading...</p>
         ) : library.sessions.length === 0 ? (

@@ -269,6 +269,38 @@ describe('LapLibrarySettings', () => {
     expect(screen.queryByText(/sessions ·/)).toBeNull();
   });
 
+  it('says why, and that the laps are safe, when the library is from a newer version', async () => {
+    const bridge = createMockLapLibrary(undefined, undefined, {
+      available: false,
+      reason: 'newer',
+    });
+    const listSessions = vi.spyOn(bridge, 'listSessions');
+    renderPage(bridge);
+
+    const notice = await screen.findByRole('alert');
+    expect(notice.textContent).toContain('newer version of Tearoff');
+    expect(notice.textContent).toContain(
+      'left the lap library exactly as it is'
+    );
+    // Not the empty-library message: the laps are there, just not readable.
+    expect(screen.queryByText(/No laps recorded yet/)).toBeNull();
+    // And nothing is asked of a library that would refuse it.
+    expect(listSessions).not.toHaveBeenCalled();
+  });
+
+  it('says so when the library could not be upgraded or opened', async () => {
+    renderPage(
+      createMockLapLibrary(undefined, undefined, {
+        available: false,
+        reason: 'upgrade',
+      })
+    );
+
+    expect((await screen.findByRole('alert')).textContent).toContain(
+      'could not be updated for this version'
+    );
+  });
+
   it('says so where the app has no lap library', () => {
     render(<LapLibrarySettings />);
 

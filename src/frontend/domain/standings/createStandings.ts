@@ -18,6 +18,7 @@ import {
   calculateReferenceGap,
   getStats,
 } from './relativeGapHelpers';
+import { lapsApart } from './lapRule';
 
 export type LastTimeState = 'session-fastest' | 'personal-best' | undefined;
 
@@ -57,6 +58,12 @@ export interface Standings {
   hasFastestTime: boolean;
   lastTime: number;
   lastTimeState?: LastTimeState;
+  /**
+   * The sim gave this car's last lap no time, and `lastTime` is the lap as
+   * measured from its start: it did not count. Undefined where the sim says
+   * nothing about other cars' laps (iRacing), which is not the same as false.
+   */
+  lastLapInvalid?: boolean;
   onPitRoad: boolean;
   tireCompound: number;
   /**
@@ -166,6 +173,16 @@ const energyFor = (
   return typeof value === 'number' && value >= 0 ? value : undefined;
 };
 
+/**
+ * Whether one car's last lap went untimed, or undefined where the sim does
+ * not say: an empty array is "no statement", not "every lap counted".
+ */
+export const lastLapInvalidFor = (
+  flags: readonly boolean[] | undefined,
+  carIdx: number
+): boolean | undefined =>
+  flags && flags.length > 0 ? flags[carIdx] === true : undefined;
+
 const calculateDelta = (
   carIdx: number,
   carFastestTime: number,
@@ -251,6 +268,8 @@ export const createDriverStandings = (
     carIdxPenaltySecondsValue?: number[];
     /** Each car's finish status, as LMU_FINISH_STATUS. Empty under iRacing. */
     carIdxFinishStatusValue?: number[];
+    /** Whether each car's last lap went untimed. Empty under iRacing. */
+    carIdxLastLapInvalidValue?: boolean[];
     /** Seconds the player's next stop spends serving penalties. */
     penaltySeconds?: number;
     isOnTrack?: boolean;
@@ -376,6 +395,10 @@ export const createDriverStandings = (
           result.FastestTime,
           isClassFastest
         ),
+        lastLapInvalid: lastLapInvalidFor(
+          telemetry?.carIdxLastLapInvalidValue,
+          result.CarIdx
+        ),
         onPitRoad: telemetry?.carIdxOnPitRoadValue?.[result.CarIdx] ?? false,
         onTrack:
           (telemetry?.carIdxTrackSurfaceValue?.[result.CarIdx] ??
@@ -498,6 +521,10 @@ export const createDriverStandings = (
         hasFastestTime: false,
         lastTime: -1,
         lastTimeState: undefined as LastTimeState,
+        lastLapInvalid: lastLapInvalidFor(
+          telemetry?.carIdxLastLapInvalidValue,
+          driver.CarIdx
+        ),
         onPitRoad: telemetry?.carIdxOnPitRoadValue?.[driver.CarIdx] ?? false,
         onTrack:
           (telemetry?.carIdxTrackSurfaceValue?.[driver.CarIdx] ??
@@ -806,12 +833,15 @@ export const augmentStandingsWithGap = (
 
         const gap = {
           value: gapValue ? Math.abs(gapValue) : undefined,
-          // NOTE: iRacing shows laps behind as a negative number
-          laps: -Math.floor(
-            classLeaderLapNumber +
-              classLeaderTrackPctForLaps -
-              (driverLapNumber + carIdxLapDistPct[driverStanding.carIdx])
-          ),
+          // NOTE: iRacing shows laps behind as a negative number. The shared
+          // lap rule keeps a car on its time until more than a lap separates
+          // it from the leader, and while it is ahead of the leader on the
+          // road (the order has not caught up, or a formation lap).
+          laps:
+            -lapsApart(
+              classLeaderLapNumber + classLeaderTrackPctForLaps,
+              driverLapNumber + carIdxLapDistPct[driverStanding.carIdx]
+            ) || 0,
         };
 
         return { ...driverStanding, gap };
@@ -891,9 +921,13 @@ export const augmentStandingsWithPlayerGap = (
         return { ...driver, gap };
 
       const progressDifference = playerProgress - driverProgress;
-      // Truncation keeps both cars on the same lap until a full lap separates
-      // them, including when just one car has crossed start/finish.
-      gap.laps = Math.trunc(progressDifference) || 0;
+      // The shared lap rule, applied to whichever car is ahead and signed
+      // afterwards: both cars stay on the same lap until more than a full lap
+      // separates them, including when just one has crossed start/finish.
+      gap.laps =
+        (progressDifference < 0
+          ? -lapsApart(driverProgress, playerProgress)
+          : lapsApart(playerProgress, driverProgress)) || 0;
       const ahead = progressDifference < 0 ? driver : player;
       const behind = progressDifference < 0 ? player : driver;
       const refLap = refLapStore.getReferenceLap(
@@ -936,7 +970,8 @@ export const augmentStandingsWithPlayerGap = (
 
 /**
  * Interval shows the gap to the preceding car in the same class.
- * When enabled, whole lap differences use the signed class-leader gap convention.
+ * With `showLapDifferences`, a car more than a lap behind the one ahead shows
+ * the whole laps instead of a time, signed as the class-leader gap is ("-2L").
  * The class leader has no interval.
  */
 export const augmentStandingsWithInterval = (
@@ -965,10 +1000,9 @@ export const augmentStandingsWithInterval = (
           aheadPct !== undefined &&
           aheadPct >= 0 &&
           driverPct >= 0
-            ? Math.floor(
-                (carIdxLap[driverAhead.carIdx] || 1) +
-                  aheadPct -
-                  ((carIdxLap[driverStanding.carIdx] || 1) + driverPct)
+            ? lapsApart(
+                (carIdxLap[driverAhead.carIdx] || 1) + aheadPct,
+                (carIdxLap[driverStanding.carIdx] || 1) + driverPct
               )
             : 0;
 

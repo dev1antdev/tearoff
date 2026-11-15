@@ -130,6 +130,7 @@ describe('LapLibraryDatabase recording', () => {
         trackTemp: 30,
         isReference: true,
         isPinned: false,
+        ledger: null,
       },
     ]);
   });

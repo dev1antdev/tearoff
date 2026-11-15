@@ -29,7 +29,7 @@ import { FastestTimeCell } from './cells/FastestTimeCell';
 import { IratingChangeCell } from './cells/IratingChangeCell';
 import { LapTimeDeltasCell } from './cells/LapTimeDeltasCell';
 import { PositionChangeCell } from './cells/PositionChangeCell';
-import { LastTimeCell } from './cells/LastTimeCell';
+import { LastTimeCell } from '../../../shared/LastTimeCell/LastTimeCell';
 import { PitStatusCell } from './cells/PitStatusCell';
 import { PushToPassCell } from './cells/PushToPassCell';
 import { PositionCell } from './cells/PositionCell';
@@ -55,6 +55,8 @@ interface DriverRowInfoProps {
   lastTime?: number;
   fastestTime?: number;
   lastTimeState?: LastTimeState;
+  /** The sim gave the last lap no time: it did not count. LMU only. */
+  lastLapInvalid?: boolean;
   onPitRoad?: boolean;
   onTrack?: boolean;
   radioActive?: boolean;
@@ -173,6 +175,7 @@ const getDisplayProps = (props: DriverRowInfoProps) => {
     gap: dummyData.gap,
     interval: dummyData.interval,
     lastTimeState: dummyData.lastTimeState,
+    lastLapInvalid: false,
     lastPitLap: dummyData.lastPitLap,
     lastLap: dummyData.lastLap,
     prevCarTrackSurface: dummyData.prevCarTrackSurface,
@@ -238,6 +241,7 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
     lastTime,
     fastestTime,
     lastTimeState,
+    lastLapInvalid,
     onPitRoad,
     onTrack,
     radioActive,
@@ -679,6 +683,9 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
             key="lastTime"
             lastTimeString={lastTimeString}
             lastTimeState={lastTimeState}
+            invalid={
+              !!lastLapInvalid && (config?.lastTime?.markInvalid ?? true)
+            }
             compactMode={compactMode}
           />
         ),
@@ -861,6 +868,7 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
     hasFastestTime,
     lastTimeString,
     lastTimeState,
+    lastLapInvalid,
     tireCompound,
     wheelCompounds,
     penaltyKind,

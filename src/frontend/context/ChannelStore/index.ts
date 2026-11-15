@@ -20,6 +20,7 @@ export * from './useCarSystemsSnapshot';
 export * from './useLapTraceSampleSnapshot';
 export * from './useTrackStateSnapshot';
 export * from './useTyreStateSnapshot';
+export * from './useSystemPerformanceSnapshot';
 export * from './useFlagStateSnapshot';
 export * from './useLapDeltaSnapshot';
 export * from './useMinimapSnapshot';

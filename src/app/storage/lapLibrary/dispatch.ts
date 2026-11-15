@@ -3,10 +3,25 @@ import type {
   LapLibraryLap,
   LapLibrarySession,
   LapLibraryStats,
+  LapLibraryStatus,
+  LapLibraryStint,
   LapSessionInput,
+  StintInput,
   StoredReferenceLap,
 } from '../../../types/lapLibrary';
-import type { LapLibraryDatabase } from './LapLibraryDatabase';
+import type { LapLibraryDatabase, RecordedLap } from './LapLibraryDatabase';
+
+/** How the library's file opened, as the main process is told it. */
+export interface LapLibraryOpenReport extends LapLibraryStatus {
+  /** What went wrong, for the log. Null while the library is available. */
+  message: string | null;
+  /** The schema the file is at; null when it could not be opened. */
+  schemaVersion: number | null;
+  /** The schema an older file was found at and upgraded from. */
+  upgradedFrom: number | null;
+  /** The name of the copy kept of that older file, beside it. */
+  backupName: string | null;
+}
 
 /**
  * Everything that can be asked of the lap library's database from another
@@ -14,12 +29,20 @@ import type { LapLibraryDatabase } from './LapLibraryDatabase';
  * call cannot be spelled one way on one side and another on the other.
  */
 export interface LapLibraryMethods {
-  recordLap(
-    session: LapSessionInput,
-    lap: LapInput
-  ): { sessionId: number; lapId: number; eligible: boolean };
+  /** Answered even when the file could not be opened: it says why. */
+  status(): LapLibraryOpenReport;
+  recordLap(session: LapSessionInput, lap: LapInput): RecordedLap;
+  upsertStint(session: LapSessionInput, stint: StintInput): number | null;
   listSessions(limit?: number, offset?: number): LapLibrarySession[];
   listLaps(sessionId: number): LapLibraryLap[];
+  listStints(sessionId: number): LapLibraryStint[];
+  recentLedgerLaps(
+    simulator: string,
+    trackId: number,
+    carKey: string,
+    limit: number,
+    withoutFlags?: number
+  ): LapLibraryLap[];
   deleteLap(lapId: number): boolean;
   deleteSession(sessionId: number): boolean;
   pinReference(lapId: number): boolean;
@@ -57,8 +80,17 @@ export const dispatch = (
   args: readonly unknown[]
 ): unknown => {
   switch (method as LapLibraryMethod) {
+    case 'status':
+      return {
+        available: true,
+        reason: null,
+        message: null,
+        ...db.opened,
+      } satisfies LapLibraryOpenReport;
     case 'recordLap':
       return db.recordLap(args[0] as LapSessionInput, args[1] as LapInput);
+    case 'upsertStint':
+      return db.upsertStint(args[0] as LapSessionInput, args[1] as StintInput);
     case 'listSessions':
       return db.listSessions(
         args[0] as number | undefined,
@@ -66,6 +98,16 @@ export const dispatch = (
       );
     case 'listLaps':
       return db.listLaps(args[0] as number);
+    case 'listStints':
+      return db.listStints(args[0] as number);
+    case 'recentLedgerLaps':
+      return db.recentLedgerLaps(
+        args[0] as string,
+        args[1] as number,
+        args[2] as string,
+        args[3] as number,
+        args[4] as number | undefined
+      );
     case 'deleteLap':
       return db.deleteLap(args[0] as number);
     case 'deleteSession':

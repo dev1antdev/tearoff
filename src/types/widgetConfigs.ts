@@ -157,6 +157,17 @@ export type RelativeBadgeFormat =
 // Widget config types
 // ===========================
 
+/** The last-lap column of the standings, the relative and the battle rows. */
+export interface LastTimeColumnConfig {
+  enabled: boolean;
+  timeFormat: TimeFormat;
+  /**
+   * Mark a last lap the sim did not time. On unless switched off; optional
+   * so configs written before it need no change.
+   */
+  markInvalid?: boolean;
+}
+
 export interface StandingsConfig {
   customClassOrdering: boolean;
   iratingChange: { enabled: boolean; estimateInPractice?: boolean };
@@ -187,7 +198,7 @@ export interface StandingsConfig {
     decimalPlaces?: number;
     displayMode?: 'time' | 'laps';
   };
-  lastTime: { enabled: boolean; timeFormat: TimeFormat };
+  lastTime: LastTimeColumnConfig;
   fastestTime: { enabled: boolean; timeFormat: TimeFormat };
   background: { opacity: number };
   foreground?: { opacity: number };
@@ -246,7 +257,7 @@ export interface RelativeConfig {
   foreground?: { opacity: number };
   countryFlags: { enabled: boolean };
   carNumber: { enabled: boolean };
-  lastTime: { enabled: boolean; timeFormat: TimeFormat };
+  lastTime: LastTimeColumnConfig;
   fastestTime: { enabled: boolean; timeFormat: TimeFormat };
   compound: { enabled: boolean };
   carManufacturer: { enabled: boolean; hideIfSingleMake?: boolean };
@@ -1173,6 +1184,33 @@ export interface TyresConfig {
 }
 
 /**
+ * What the machine, Tearoff and the sim are costing: CPU, memory and, where
+ * the sim publishes it, frame rate.
+ */
+export interface SystemPerformanceConfig {
+  background: { opacity: number };
+  /** The whole machine's CPU and memory. */
+  system: { enabled: boolean };
+  /** Tearoff's own CPU and memory, all of its processes together. */
+  app: { enabled: boolean };
+  /**
+   * The sim's frame rate and its own CPU and GPU meters. Drawn only where
+   * the sim publishes them, which Le Mans Ultimate does not.
+   */
+  sim: { enabled: boolean };
+  /** One row per group, or everything on a single strip. */
+  layout: 'rows' | 'inline';
+  warn: {
+    /** A CPU or GPU figure is amber from here and red from 95. */
+    cpuPercent: number;
+    /** The frame rate is amber below this and red below half of it. */
+    fps: number;
+  };
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
  * The player's lap against one of their own reference laps.
  *
  * Times are seconds throughout, as the channel carries them.
@@ -1367,10 +1405,31 @@ export interface BattleConfig {
   carNumber: { enabled: boolean };
   driverName: { enabled: boolean };
   stint: { enabled: boolean };
-  lastTime: { enabled: boolean; timeFormat: TimeFormat };
+  lastTime: LastTimeColumnConfig;
   speed: { enabled: boolean; unit: 'mph' | 'km/h' | 'auto' };
   gap: { enabled: boolean; decimalPlaces: number };
   displayOrder: string[];
+  sessionVisibility: SessionVisibilitySettings;
+}
+
+/** The field at a glance: one chip per class, cars running of cars entered. */
+export interface ClassFieldsConfig {
+  background: { opacity: number };
+  /** Chips in a row or in a column. */
+  orientation: 'horizontal' | 'vertical';
+  /** Chips shown, 2 to 20; the focus car's class is always among them. */
+  maxClasses: number;
+  /** By the overall place of each class's leader, or fastest class first. */
+  order: 'leaderPosition' | 'classSpeed';
+  /** "12/14" rather than "12". */
+  showTotal: boolean;
+  /** The number of cars out of the running, after the count. */
+  showInactive: boolean;
+  /** The number of the class's cars in the pit lane. */
+  showInPitLane: boolean;
+  /** Emphasise the focus car's class. */
+  highlightOwnClass: boolean;
+  showOnlyWhenOnTrack: boolean;
   sessionVisibility: SessionVisibilitySettings;
 }
 
@@ -1827,6 +1886,7 @@ export interface WidgetConfigMap {
   deltaspeed: DeltaSpeedConfig;
   carsystems: CarSystemsConfig;
   tyres: TyresConfig;
+  systemperformance: SystemPerformanceConfig;
   minimap: MinimapConfig;
   lapdelta: LapDeltaConfig;
   cornerdelta: CornerDeltaConfig;
@@ -1834,6 +1894,7 @@ export interface WidgetConfigMap {
   heartrate: HeartRateConfig;
   cornername: CornerNameOverlayConfig;
   battle: BattleConfig;
+  classfields: ClassFieldsConfig;
   laptrace: LapTraceConfig;
   gantry: GantryConfig;
   broadcast: BroadcastConfig;
@@ -1941,6 +2002,7 @@ export type FlagWidgetSettings = BaseWidgetSettings<FlagConfig> & {
   id: 'flag';
 };
 export type FlagPanelWidgetSettings = BaseWidgetSettings<FlagPanelConfig>;
+export type ClassFieldsWidgetSettings = BaseWidgetSettings<ClassFieldsConfig>;
 export type GarageCoverWidgetSettings = BaseWidgetSettings<GarageCoverConfig>;
 export type TelemetryInspectorWidgetSettings =
   BaseWidgetSettings<TelemetryInspectorConfig>;
@@ -1957,6 +2019,8 @@ export type SectorDeltaWidgetSettings = BaseWidgetSettings<SectorDeltaConfig>;
 export type DeltaSpeedWidgetSettings = BaseWidgetSettings<DeltaSpeedConfig>;
 export type CarSystemsWidgetSettings = BaseWidgetSettings<CarSystemsConfig>;
 export type TyresWidgetSettings = BaseWidgetSettings<TyresConfig>;
+export type SystemPerformanceWidgetSettings =
+  BaseWidgetSettings<SystemPerformanceConfig>;
 export type MinimapWidgetSettings = BaseWidgetSettings<MinimapConfig>;
 export type LapDeltaWidgetSettings = BaseWidgetSettings<LapDeltaConfig>;
 export type CornerDeltaWidgetSettings = BaseWidgetSettings<CornerDeltaConfig>;

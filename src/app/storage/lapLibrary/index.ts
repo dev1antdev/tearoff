@@ -5,16 +5,10 @@ import logger from '../../logger';
 import type { LapLibraryCaller } from './dispatch';
 import {
   createLapLibraryService,
+  LAP_LIBRARY_MAX_LAPS,
   type LapLibraryService,
 } from './lapLibraryService';
 import { createWorkerClient, type WorkerClient } from './workerClient';
-
-/**
- * The most laps the library keeps. A lap is a few kilobytes at a short
- * circuit and about thirty at the Nordschleife, so this is tens of megabytes
- * at the outside. The reference lap of each track and car is never dropped.
- */
-const MAX_LAPS = 5000;
 
 let service: LapLibraryService | null = null;
 let client: WorkerClient | null = null;
@@ -31,9 +25,11 @@ const unavailable = (reason: unknown): LapLibraryCaller => ({
  * Starts the lap library: the database on its worker thread, and the service
  * in front of it. Safe to call more than once.
  *
- * It does not throw. If the thread cannot be started the app runs on without
- * a library: laps are not recorded, the settings page lists nothing, and the
- * log says why.
+ * It does not throw. If the thread cannot be started, or the file cannot be
+ * opened -- it is from a newer build, or could not be upgraded or read --
+ * the app runs on without a library: laps are not recorded, the settings
+ * page says why instead of listing anything, and so does the log. The file
+ * is left as it was found.
  */
 export const startLapLibrary = (): LapLibraryService => {
   if (service) return service;
@@ -54,8 +50,9 @@ export const startLapLibrary = (): LapLibraryService => {
     caller = unavailable(error);
   }
   service = createLapLibraryService(caller, {
-    maxLaps: MAX_LAPS,
+    maxLaps: LAP_LIBRARY_MAX_LAPS,
     logError: (message, error) => logger.error(message, error),
+    logInfo: (message) => logger.info(message),
   });
   return service;
 };

@@ -44,6 +44,9 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // three traction dials, brake migration and the map, under names the sim
   // fixes for every car. It has a list of rows of its own in the settings.
   'carsystems',
+  // The cars entered and still running in each class, from LMU's scoring:
+  // class, place, garage stall and finish status for every car.
+  'classfields',
   // Timed from the car's lap fraction and speed, which LMU publishes, over
   // the corners of the bundled track data: the same data Corner Names uses.
   'cornerdelta',
@@ -77,6 +80,10 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // limit. LMU publishes no shift point of its own.
   'shiftlight',
   'standings',
+  // The machine's and Tearoff's own CPU and memory, which come from the
+  // operating system. LMU publishes no frame rate and no CPU or GPU meters,
+  // so the widget leaves its Sim row out here.
+  'systemperformance',
   // Not a sim-specific widget: it reports whatever channels the running sim
   // publishes, which is how LMU's own mapping gets checked. It is also the
   // one widget absent from the settings menu, so there would be no toggle to

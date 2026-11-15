@@ -2,6 +2,7 @@ import type { Session, Telemetry } from '@irdashies/types';
 import { ChannelBus, type RendererTarget } from './channelBus';
 import { generateMockData } from './iracingSdk/mock-data/generateMockData';
 import { createDefaultProcessorHost } from '../processors/processorRegistry';
+import { getSystemLoadSampler } from '../services/systemLoadSampler';
 import type { ProcessorMetrics } from '../processors/ProcessorHost';
 
 /** Each settings renderer owns a disposable demo pipeline with its own bus. */
@@ -16,6 +17,8 @@ export function createWidgetPreviewRuntime(
     metrics,
     logError,
     referenceLapPersistence: { load: () => null, save: () => undefined },
+    // The preview's sim is a recording; the machine it runs on is not.
+    systemLoad: getSystemLoadSampler(),
   });
   const source = generateMockData();
   let session: Session | undefined;

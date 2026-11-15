@@ -17,6 +17,7 @@ import {
 } from '@irdashies/context';
 import { formatTime } from '@irdashies/utils/time';
 import { getTailwindStyle } from '@irdashies/utils/colors';
+import { LastTimeCell } from '../shared/LastTimeCell/LastTimeCell';
 import { useBattleSettings } from './hooks/useBattleSettings';
 import {
   useHighlightColor,
@@ -202,22 +203,23 @@ const BattleRow = memo(
           </td>
         );
       } else if (key === 'lastTime' && settings?.lastTime?.enabled) {
-        // Match LastTimeCell: session-fastest purple, personal-best green.
-        const lastTimeColor =
-          entry?.lastTimeState === 'session-fastest'
-            ? 'text-purple-400'
-            : entry?.lastTimeState === 'personal-best'
-              ? 'text-green-400'
-              : '';
+        // The cell the standings and the relative draw: session-fastest
+        // purple, personal-best green, a lap that did not count dimmed and
+        // marked.
+        const hasLastTime = !!entry?.lastTime && entry.lastTime > 0;
         cols.push(
-          <td
+          <LastTimeCell
             key="last"
-            className={`w-auto px-2 whitespace-nowrap ${lastTimeColor}`}
-          >
-            {entry?.lastTime && entry.lastTime > 0
-              ? formatTime(entry.lastTime, lastTimeFormat)
-              : '—'}
-          </td>
+            lastTimeString={
+              hasLastTime ? formatTime(entry?.lastTime, lastTimeFormat) : '—'
+            }
+            lastTimeState={entry?.lastTimeState}
+            invalid={
+              hasLastTime &&
+              !!entry?.lastLapInvalid &&
+              (settings.lastTime.markInvalid ?? true)
+            }
+          />
         );
       } else if (key === 'speed' && settings?.speed?.enabled) {
         const displaySpeed =

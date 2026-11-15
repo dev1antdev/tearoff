@@ -1,8 +1,28 @@
+import type { LedgerLap, LedgerStint } from './ledger';
+
 /**
  * The lap library: every lap the player completes, grouped by the session it
  * was driven in. Shared by the main process, which records and stores it, and
  * the settings page that lists it.
  */
+
+/** Why the library cannot be used, when it cannot. */
+export type LapLibraryUnavailableReason =
+  /** The file was written by a newer build. It is left exactly as it is. */
+  | 'newer'
+  /** The file could not be brought up to this build's schema. Nothing in it changed. */
+  | 'upgrade'
+  /** The file could not be opened or read at all. */
+  | 'unreadable';
+
+/**
+ * Whether the library is in use. While it is not, nothing is recorded and
+ * nothing is listed; the laps already on disk are not touched.
+ */
+export interface LapLibraryStatus {
+  available: boolean;
+  reason: LapLibraryUnavailableReason | null;
+}
 
 /** One session as the library lists it. */
 export interface LapLibrarySession {
@@ -65,6 +85,55 @@ export interface LapLibraryLap {
   isReference: boolean;
   /** Chosen as that reference by hand rather than by being the quickest. */
   isPinned: boolean;
+  /**
+   * What the lap cost, from the player's ledger. Null for a lap recorded
+   * without one: every lap from before the ledger existed.
+   */
+  ledger: LapLedgerFields | null;
+}
+
+/**
+ * The ledger's facts about a lap, less what the lap's own row already holds
+ * (its number, time, incidents, fuel and energy used, and temperatures).
+ */
+export interface LapLedgerFields extends Omit<
+  LedgerLap,
+  | 'id'
+  | 'stintId'
+  | 'lapNumber'
+  | 'lapTime'
+  | 'incidents'
+  | 'fuelUsed'
+  | 'energyUsed'
+  | 'airTemp'
+  | 'trackTemp'
+> {
+  /**
+   * The stint the lap was driven in, as `LedgerStint.id`. Null when the
+   * library holds no such stint.
+   */
+  stintId: string | null;
+}
+
+/** A stint on its way into the library. */
+export interface StintInput {
+  /** The record as it stands: open with its present values, or closed. */
+  stint: LedgerStint;
+  /** When it opened by the wall clock, Unix milliseconds. */
+  startedAt: number;
+  /** When it closed; null while it is open. */
+  endedAt: number | null;
+}
+
+/** A stint as the library lists it: the record, and where it is kept. */
+export interface LapLibraryStint extends LedgerStint {
+  /** The stint's row. Never handed out twice. */
+  rowId: number;
+  /** The session it was driven in: its simulator, track and car are that row's. */
+  sessionId: number;
+  /** Unix milliseconds. */
+  startedAt: number;
+  endedAt: number | null;
 }
 
 export interface LapLibraryStats {
@@ -112,6 +181,23 @@ export interface LapInput {
   trackTemp: number | null;
   /** The curve: only present on a complete lap. */
   curve: LapCurve | null;
+  /**
+   * The ledger's facts about the lap, stored beside it. Left out by a
+   * recorder that keeps no ledger. A ledger the library cannot store never
+   * costs the lap: the lap is kept without it.
+   */
+  ledger?: LapLedgerInput | null;
+}
+
+/** The ledger's facts about a lap on their way into the library. */
+export interface LapLedgerInput extends Omit<LapLedgerFields, 'stintId'> {
+  /**
+   * The stint that was open when the lap closed, as it stood then. It is
+   * stored with the lap, or brought up to date if the library already has
+   * it, so a stint is on disk from its first lap and never further behind
+   * than its last one. Null for a lap driven outside any stint.
+   */
+  stint: StintInput | null;
 }
 
 /** Time and speed against distance, a point every ten metres. */
@@ -152,6 +238,8 @@ export interface LapLibraryBridge {
   /** Hands the reference for that lap's track and car back to the quickest lap. */
   unpinReference: (lapId: number) => Promise<boolean>;
   getStats: () => Promise<LapLibraryStats>;
+  /** Whether the library is in use, and why not when it is not. */
+  getStatus: () => Promise<LapLibraryStatus>;
   /** Fires when a lap is recorded or anything is deleted or pinned. */
   onChanged: (callback: () => void) => () => void;
 }

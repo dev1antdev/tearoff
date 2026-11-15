@@ -13,6 +13,7 @@ import type { SessionLifecycle } from '../../sessionLifecycle';
 import type { ChannelBus } from '../channelBridge';
 import { createDefaultProcessorHost } from '../../processors/processorRegistry';
 import { sessionSecondsFrameClock } from '../../processors/ProcessorHost';
+import { getSystemLoadSampler } from '../../services/systemLoadSampler';
 import { mapLmuSession } from '../../lmu/mapSession';
 import {
   lmuRosterSignature,
@@ -279,6 +280,7 @@ export async function publishLmuSDKEvents(
               }
             : undefined,
           flagTuning: flagTuningStorage?.getFlagTuning,
+          systemLoad: getSystemLoadSampler(),
         })
       : undefined;
 

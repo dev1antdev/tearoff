@@ -48,7 +48,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 1. In LMU, enable **Settings > Gameplay > Enable Plugins**, then restart the simulator.
 2. Start Tearoff and load into an LMU session to receive telemetry.
 
-**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, Tyres, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
@@ -207,10 +207,13 @@ Displays standings information for the current session.
 - Timing information: gap, interval, best lap time, last lap time (multiple time format options)
   - Configurable decimal precision (1, 2, or 3) for gap and interval
   - Gap and interval display in practice and qualifying sessions
+  - Lapped cars in laps: a car more than a lap behind reads "-2L" instead of a time, while cars on the same lap read in seconds. The gap always works this way; the interval does when **Interval Display** is **Laps When Lapped**, the default for a new dashboard (**Time** keeps "3:35")
+  - A last lap the sim gave no time is dimmed and marked with a warning sign: a lap voided for track limits or a cut, or an out-lap (Le Mans Ultimate only; can be switched off)
 - Optional column headers
 - Class headers:
   - Estimated race lap counts, or scheduled totals in fixed-lap races
   - Compact Strength of Field values and optional manufacturer counts
+  - Cars still running of the cars entered ("12/14") once a car of the class is out
 - Class ordering: Use iRacing's class order or sort by each class leader's overall position
 - Optional Push-to-Pass column, showing a driver's active state and remaining time in supported series
 - Configurable radio icon duration, so recent transmissions remain visible without flickering
@@ -271,6 +274,7 @@ Displays drive relative delta information for the current session.
 - Styling customizations: toggle minimal license badges, minimal status badges, position background color, and car number background/border independently
 - Relative delta timing display with configurable precision
 - Timing information: best lap time, last lap time (multiple time format options: full, mixed, minutes, seconds-full, seconds-mixed, seconds)
+  - A last lap the sim gave no time is dimmed and marked with a warning sign (Le Mans Ultimate only; can be switched off)
 - Optional Push-to-Pass column, showing a driver's active state and remaining time in supported series
 - Configurable radio icon duration, so recent transmissions remain visible without flickering
 - Lap time delta column (configurable number of laps: 1-5)
@@ -299,6 +303,22 @@ Displays drive relative delta information for the current session.
 - Session visibility settings (Race, Lone Qualify, Open Qualify, Practice, Offline Testing)
 
 <img src="./docs/assets/relative.png" alt="Relative" width="642">
+
+### Class Fields
+
+The field at a glance: one chip per class with the cars still running and the cars entered, for a multi-class race where the full Standings table is not on screen. Works in iRacing and Le Mans Ultimate.
+
+**Features:**
+
+- Each class as the Standings draw it, its name on the class colour, followed by the cars still running of the cars entered: "12/14"
+- A car is out once it is parked in its garage, has retired or been disqualified, or has left the session. A car stopped at its pit box is still running, and so is a car that has finished: the end of the race is not counted as cars going out
+- Classes ordered by the overall place of each class's leader, so the strip reads as a legend of the race, or fastest class first as the Standings list them
+- Your own class outlined; while you watch a car during a team-mate's stint, the class of the car you are watching
+- Optional count of the cars out, and of the class's cars in the pit lane
+- A row or a column, and a limit on the classes shown that always keeps your own
+- Adjustable background opacity, session visibility and an option to show only when on track
+
+iRacing has no garage flag: a car that is not in the world counts as out, which covers both a driver who has left and one sitting in the garage, so most of a practice field reads as out. Le Mans Ultimate states the garage stall and the finish status for every car.
 
 ### Track Map
 
@@ -502,7 +522,7 @@ Displays a compact three-row view of the cars immediately ahead of and behind yo
 - Live gap, previous-lap gap, and gap-change display
 - Optional position, car number, driver name, stint length, last lap time, and speed columns
 - Reorderable columns and configurable gap precision, lap-time format, and speed units
-- Last-lap highlights for personal-best and session-fastest laps
+- Last-lap highlights for personal-best and session-fastest laps, and a mark on a last lap the sim gave no time (Le Mans Ultimate only)
 - Adjustable background opacity and on-track/session visibility controls
 
 <img src="./docs/assets/battle.png" alt="Battle showing gaps to the cars ahead and behind in class" width="642">
@@ -796,6 +816,28 @@ A standalone widget that displays session and timing information independently f
 - Session visibility settings (Race, Lone Qualify, Open Qualify, Practice, Offline Testing)
 
 <img src="./docs/assets/informationbar.png" alt="Information Bar with fuel, lap times, speed, and class position" width="850">
+
+### System Performance
+
+Shows what the machine, Tearoff and the sim are costing, in a small widget for a corner of the screen.
+
+**Features:**
+
+- System: CPU load of the whole machine, across all logical cores, and the memory in use
+- Tearoff: its own CPU load, as a share of the whole machine, and its memory, with all of its windows and processes counted together
+- Sim (iRacing only): the frame rate and iRacing's own CPU and GPU meters
+- The System and Tearoff CPU figures are averaged over about ten seconds, so they read as a level rather than a flicker
+- Figures are white until they cross a threshold: a CPU or GPU figure turns amber from a load you set (85% by default) and red from 95%, and the frame rate turns amber below a rate you set (60 fps by default) and red below half of it. Memory is never coloured
+- One row per group, or everything on a single strip; each group can be switched off
+- Adjustable background opacity, session visibility and an option to show only when on track. It is off by default, since the widget describes the machine rather than the car
+- Read once a second, and only while the widget is on screen
+
+**What it cannot show:**
+
+- Under Le Mans Ultimate there is no Sim row. LMU publishes no frame rate and no CPU or GPU load, and Tearoff cannot read another program's usage, so there the widget shows the machine and Tearoff only
+- The GPU load of the machine, GPU temperature and video memory are not measured under either sim. The GPU figure in the Sim row is iRacing's own meter
+- iRacing's CPU and GPU figures are how much of each frame its own threads use, not the load on the whole machine, so they are not the numbers Task Manager shows for the sim
+- The System CPU figure is the share of time the cores were busy, which is Windows' "% Processor Time". Task Manager's headline CPU figure also weighs in how far above its base clock speed the processor is running, so it can read higher than the widget on a processor that boosts
 
 ### Telemetry Inspector
 

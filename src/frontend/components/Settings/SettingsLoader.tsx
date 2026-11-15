@@ -38,6 +38,7 @@ import { SectorDeltaSettings } from './sections/SectorDeltaSettings';
 import { DeltaSpeedSettings } from './sections/DeltaSpeedSettings';
 import { CarSystemsSettings } from './sections/CarSystemsSettings';
 import { TyresSettings } from './sections/TyresSettings';
+import { SystemPerformanceSettings } from './sections/SystemPerformanceSettings';
 import { LapDeltaSettings } from './sections/LapDeltaSettings';
 import { CornerDeltaSettings } from './sections/CornerDeltaSettings';
 import { TimingSettings } from './sections/TimingSettings';
@@ -46,6 +47,7 @@ import { HeartRateSettings } from './sections/HeartRateSettings';
 import { CornerNameSettings } from './sections/CornerNameSettings';
 import { LapTraceSettings } from './sections/LapTraceSettings';
 import { BattleSettings } from './sections/BattleSettings';
+import { ClassFieldsSettings } from './sections/ClassFieldsSettings';
 import { BroadcastSettingsPage } from './sections/BroadcastGroupSettings';
 import { GantrySettings } from './sections/GantrySettings';
 import { SettingsPreviewContext } from '@irdashies/domain/widgetPreview/settingsPreviewContext';
@@ -87,6 +89,7 @@ export const WIDGET_SETTINGS: Record<
   deltaspeed: DeltaSpeedSettings,
   carsystems: CarSystemsSettings,
   tyres: TyresSettings,
+  systemperformance: SystemPerformanceSettings,
   lapdelta: LapDeltaSettings,
   cornerdelta: CornerDeltaSettings,
   timing: TimingSettings,
@@ -95,6 +98,7 @@ export const WIDGET_SETTINGS: Record<
   cornername: CornerNameSettings,
   laptrace: LapTraceSettings,
   battle: BattleSettings,
+  classfields: ClassFieldsSettings,
   // The broadcast widgets share one page, with a tab per widget.
   broadcast: BroadcastSettingsPage,
   broadcastticker: BroadcastSettingsPage,

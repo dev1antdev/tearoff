@@ -4,6 +4,7 @@ import { TelemetryPerfMetrics } from '../../../perfMetrics';
 import type { SessionLifecycle } from '../../../sessionLifecycle';
 import type { ChannelBus } from '../../channelBus';
 import { createDefaultProcessorHost } from '../../../processors/processorRegistry';
+import { getSystemLoadSampler } from '../../../services/systemLoadSampler';
 import logger from '../../../logger';
 import { TELEMETRY_INSPECTOR_RATE_HZ } from '@irdashies/types';
 
@@ -27,6 +28,8 @@ export async function publishIRacingSDKEvents(
           load: () => null,
           save: () => undefined,
         },
+        // The demo is of the sim; the machine it runs on is the real one.
+        systemLoad: getSystemLoadSampler(),
       })
     : undefined;
 

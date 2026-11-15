@@ -300,6 +300,9 @@ export const Relative = () => {
           lastTimeState={
             settings?.lastTime?.enabled ? result.lastTimeState : undefined
           }
+          lastLapInvalid={
+            settings?.lastTime?.enabled ? result.lastLapInvalid : undefined
+          }
           tireCompound={
             settings?.compound?.enabled ? result.tireCompound : undefined
           }

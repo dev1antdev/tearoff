@@ -16,6 +16,7 @@ import logger from '../../logger';
 import type { SessionLifecycle } from '../../sessionLifecycle';
 import type { ChannelBus } from '../channelBridge';
 import { createDefaultProcessorHost } from '../../processors/processorRegistry';
+import { getSystemLoadSampler } from '../../services/systemLoadSampler';
 import { getActiveRacePlan } from '../../services/racePlanSource';
 
 // Keys consumed by the renderer. Anything outside this set is dropped before
@@ -244,6 +245,7 @@ export async function publishIRacingSDKEvents(
             radarTuning: radarTuningStorage?.getRadarTuning,
             radarPoleSides: radarPoleSideStorage?.radarPoleSideOverrides,
             flagTuning: flagTuningStorage?.getFlagTuning,
+            systemLoad: getSystemLoadSampler(),
             racePlan: racePlanHistory && {
               getPlan: getActiveRacePlan,
               persistence: {

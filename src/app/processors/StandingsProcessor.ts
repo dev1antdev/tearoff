@@ -204,6 +204,19 @@ export class StandingsProcessor implements TelemetryProcessor<StandingsSnapshot>
       'LmuCarIdxFinishStatus',
       this.latest.carIdxFinishStatus
     );
+    // LMU only: the sim gave the car's last lap no time, so the last lap time
+    // beside it is the one measured from its start. iRacing publishes no
+    // validity for other cars' laps, so nothing is copied there and the array
+    // stays empty: no car is marked.
+    copyBooleanArray(
+      frame,
+      'LmuCarIdxLastLapInvalid',
+      this.latest.carIdxLastLapInvalid
+    );
+    // LMU only: the garage stall, which the track surface cannot tell from a
+    // stop at the box. For the count of cars still running in each class.
+    // iRacing has no such flag; a car in the garage is not in the world.
+    copyBooleanArray(frame, 'LmuCarIdxInGarage', this.latest.carIdxInGarage);
     this.latest.penaltySeconds =
       numberValue(frame, 'LmuPenaltySeconds') ?? undefined;
     copyBooleanArray(frame, 'CarIdxP2P_Status', this.latest.carIdxP2PStatus);
@@ -307,6 +320,8 @@ export class StandingsProcessor implements TelemetryProcessor<StandingsSnapshot>
     this.latest.carIdxPenaltyKind.length = 0;
     this.latest.carIdxPenaltySeconds.length = 0;
     this.latest.carIdxFinishStatus.length = 0;
+    this.latest.carIdxLastLapInvalid.length = 0;
+    this.latest.carIdxInGarage.length = 0;
     this.latest.penaltySeconds = undefined;
     this.latest.trackLimitsPointsMax = 0;
     this.latest.carIdxP2PStatus.length = 0;
@@ -344,6 +359,8 @@ export class StandingsProcessor implements TelemetryProcessor<StandingsSnapshot>
       carIdxPenaltyKind: [],
       carIdxPenaltySeconds: [],
       carIdxFinishStatus: [],
+      carIdxLastLapInvalid: [],
+      carIdxInGarage: [],
       penaltySeconds: undefined,
       trackLimitsPointsMax: 0,
       carIdxP2PStatus: [],

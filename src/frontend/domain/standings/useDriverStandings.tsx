@@ -64,6 +64,10 @@ export const useDriverStandings = (
     gap: { enabled: gapEnabled, reference: gapReference } = { enabled: false },
     interval: {
       enabled: intervalEnabled,
+      // The Standings widget always states a mode: its manifest defaults to
+      // 'laps' and fills a dashboard that has none. 'time' here is for the
+      // other callers (Gantry, Broadcast), which pass configs of their own
+      // and have never shown laps.
       displayMode: intervalDisplayMode = 'time',
     } = { enabled: false },
     lapTimeDeltas: { enabled: lapTimeDeltasEnabled, numLaps: numLapDeltas } = {
@@ -126,6 +130,8 @@ export const useDriverStandings = (
     standingsSnapshot?.carIdxPenaltySeconds ?? EMPTY_NUMBERS;
   const carIdxFinishStatus =
     standingsSnapshot?.carIdxFinishStatus ?? EMPTY_NUMBERS;
+  const carIdxLastLapInvalid =
+    standingsSnapshot?.carIdxLastLapInvalid ?? EMPTY_BOOLEANS;
   const penaltySeconds = standingsSnapshot?.penaltySeconds;
   const isOfficial = useSessionIsOfficial();
   const eventType = useWeekendInfoEventType();
@@ -171,6 +177,7 @@ export const useDriverStandings = (
             carIdxPenaltyKindValue: carIdxPenaltyKind,
             carIdxPenaltySecondsValue: carIdxPenaltySeconds,
             carIdxFinishStatusValue: carIdxFinishStatus,
+            carIdxLastLapInvalidValue: carIdxLastLapInvalid,
             penaltySeconds,
             carIdxSessionFlags: carIdxSessionFlags,
           },
@@ -315,6 +322,7 @@ export const useDriverStandings = (
       carIdxPenaltyKind,
       carIdxPenaltySeconds,
       carIdxFinishStatus,
+      carIdxLastLapInvalid,
       penaltySeconds,
       ownCarIdx,
       positions,

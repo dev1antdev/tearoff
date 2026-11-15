@@ -36,3 +36,27 @@ describe('signed player gap cells', () => {
     expect(screen.getByRole('cell').textContent).toBe('12.3');
   });
 });
+
+describe('interval and class-leader gap cells', () => {
+  it.each([
+    // A car two laps behind the one ahead, in laps mode and in time mode.
+    [{ value: undefined, laps: -2 }, '-2L'],
+    [168.9, '2:48'],
+    // Laps win over the time carried beside them.
+    [{ value: 243.8, laps: -1 }, '-1L'],
+    // On the same lap: seconds.
+    [{ value: 33.94, laps: 0 }, '33.9'],
+    [6.36, '6.4'],
+  ])('prints %j as %s', (delta, text) => {
+    render(
+      <table>
+        <tbody>
+          <tr>
+            <DeltaCell delta={delta} decimalPlaces={1} />
+          </tr>
+        </tbody>
+      </table>
+    );
+    expect(screen.getByRole('cell').textContent).toBe(text);
+  });
+});

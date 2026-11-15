@@ -44,6 +44,7 @@ vi.mock('./hooks', () => {
   });
   return {
     useCarClassStats: () => ({ c1: { shortName: 'LMGT3' } }),
+    useClassFields: () => [],
     useDriverStandings: () => [
       [
         'c1',

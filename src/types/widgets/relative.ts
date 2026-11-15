@@ -75,6 +75,7 @@ export default defineWidgetManifest({
     lastTime: {
       enabled: false,
       timeFormat: 'full',
+      markInvalid: true,
     },
     compound: {
       enabled: false,
@@ -483,6 +484,12 @@ export default defineWidgetManifest({
       type: 'enum',
       label: 'Decimal Places',
       options: numberOptions(1, 3),
+    },
+    'lastTime.markInvalid': {
+      type: 'boolean',
+      label: 'Mark Laps That Did Not Count',
+      description:
+        'Dims a last lap the sim gave no time and marks it with a warning sign: a lap voided for track limits or a cut, or an out-lap. Le Mans Ultimate only.',
     },
   },
 });

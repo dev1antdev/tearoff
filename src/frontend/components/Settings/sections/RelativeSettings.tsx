@@ -274,6 +274,10 @@ const DisplaySettingsList = ({
                   </select>
                 </div>
               )}
+            {setting.configKey === 'lastTime' &&
+              settings.config.lastTime.enabled && (
+                <SettingProp path="lastTime.markInvalid" variant="compact" />
+              )}
             {setting.hasSubSetting &&
               setting.configKey === 'pitStatus' &&
               settings.config.pitStatus.enabled && (

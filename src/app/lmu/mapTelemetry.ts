@@ -14,6 +14,11 @@ import { lapTimeOrAbsent } from './sentinels';
 import { lmuTrackWetness } from './trackWetness';
 import { lmuCarCompound, lmuCompoundChannel } from './tireCompound';
 import { writeLmuDials } from './carDials';
+import { writeLmuCarMotion } from './carMotion';
+import { writeLmuCarPitState } from './carPitState';
+import { writeLmuDamage } from './damage';
+import { writeLmuHybrid } from './hybrid';
+import { writeLmuWheelDynamics } from './wheelDynamics';
 import { lmuTrackLimitsChannel, lmuTrackLimitsMax } from './trackLimits';
 import { lmuEnergyChannels, type LmuEnergyState } from './fuelEnergy';
 import {
@@ -502,6 +507,10 @@ export function mapLmuTelemetry(
   t.SessionTimeTotal = num(
     greenAt !== null ? Math.max(0, raw.endET - greenAt) : raw.endET
   );
+  // The end itself, on the clock SessionTime runs on, for a reader that
+  // counts down to it without the green flag in between. No session ends at
+  // 0, so that is one the sim has given no end.
+  if (raw.endET > 0) t.LmuSessionEndTime = num(raw.endET);
   // Only a race can be lap-limited; practice and qualifying are always timed,
   // and an endurance race usually is too. In those, mMaxLaps is not a lap
   // count -- rF2 signals "no limit" with a value far beyond any real race, so
@@ -718,6 +727,9 @@ export function mapLmuTelemetry(
   t.LmuCarIdxPenalties = numArr(raw.vehNumPenalties);
   // The sim's own per-car finish status, which names the flag outright.
   t.LmuCarIdxFinishStatus = numArr(raw.vehFinishStatus);
+  // Where each car is with its stop, how many it has made, and whether it is
+  // in its garage; see carPitState.ts.
+  writeLmuCarPitState(t, raw);
   // One figure per car: virtual energy where the car runs on it, fuel
   // otherwise. Which budget applies is a property of the car, not the session,
   // so the choice is made per car here rather than once for the grid, and the
@@ -829,6 +841,8 @@ export function mapLmuTelemetry(
     t.LmuStateOfCharge = num(raw.stateOfCharge);
   }
   if (raw.regen !== undefined) t.LmuRegen = num(raw.regen);
+  // The battery, the motor and lift-and-coast; see hybrid.ts.
+  writeLmuHybrid(t, raw);
 
   // LMU reports steering as a fraction of the wheel's travel either side of
   // centre; iRacing uses radians, positive to the left.
@@ -903,7 +917,6 @@ export function mapLmuTelemetry(
   t.LmuSectorIdx = num(sectorIdx(raw.vehSector?.[playerIdx]));
   t.Speed = num(raw.speed);
   t.Yaw = num(0);
-  t.YawNorth = num(0);
   t.Pitch = num(0);
   t.Roll = num(0);
   // Lock to lock, in radians, which is what iRacing's key holds: its MX-5
@@ -911,10 +924,9 @@ export function mapLmuTelemetry(
   // used to carry half the range, the most the wheel turns either way, which
   // nothing read.
   t.SteeringWheelAngleMax = num((steeringRangeDeg * Math.PI) / 180);
-  if (raw.localAccel) {
-    t.LatAccel = num(raw.localAccel[0]);
-    t.LongAccel = num(raw.localAccel[2]);
-  }
+  // Position, heading, velocity and acceleration, in iRacing's axes and
+  // signs; see carMotion.ts.
+  writeLmuCarMotion(t, raw, playerIdx);
 
   // The player's tyres and brakes in full, for the tyre widget. Absent rather
   // than zero when the sim has not written the wheels, so a consumer can tell
@@ -931,6 +943,10 @@ export function mapLmuTelemetry(
   if (optimal) t.LmuTyreOptimalTemp = { value: optimal };
   const brakes = lmuWheelTemperatures(raw.brakeTemperatureRaw);
   if (brakes) t.LmuBrakeTemp = { value: brakes };
+  // The wheels and suspension, and what has been knocked or come off, under
+  // the same rule; see wheelDynamics.ts and damage.ts.
+  writeLmuWheelDynamics(t, raw);
+  writeLmuDamage(t, raw);
 
   const corners = ['LF', 'RF', 'LR', 'RR'] as const;
   corners.forEach((corner, index) => {

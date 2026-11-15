@@ -80,6 +80,40 @@ describe('TelemetryInspector', () => {
     expect(screen.queryByText('m/s')).not.toBeInTheDocument();
   });
 
+  it('prints a per-wheel channel as four values in the unit it carries', () => {
+    // Ride height goes out in millimetres, LF RF LR RR.
+    stores.telemetry = { LmuWheelRideHeight: { value: [54, 50, 63, 59] } };
+    mount([{ source: 'telemetry', path: 'LmuWheelRideHeight' }]);
+
+    expect(screen.getByText('[54, 50, 63, 59]')).toBeInTheDocument();
+    expect(screen.getByText('mm')).toBeInTheDocument();
+  });
+
+  it.each([
+    ['LmuWheelCamber', [-2.01], '°'],
+    ['LmuSuspensionForce', [3600], 'N'],
+    ['LmuWheelRotation', [-153], 'rad/s'],
+    ['LmuTyreStaticRadius', [0.34], 'm'],
+    ['LmuLastImpactTime', [240.72], 's'],
+    ['VelocityX', [51.23], 'm/s'],
+    ['LongAccel', [-18.1], 'm/s²'],
+    ['YawNorth', [2.363], 'rad'],
+    ['LmuLiftAndCoast', [0.4], 'fraction'],
+  ])('labels %s with its unit', (path, value, unit) => {
+    stores.telemetry = { [path]: { value } };
+    mount([{ source: 'telemetry', path }]);
+
+    expect(screen.getByText(unit)).toBeInTheDocument();
+  });
+
+  it('prints the hybrid motor’s readings bare, their units being unconfirmed', () => {
+    stores.telemetry = { LmuMotorTemp: { value: [68.4] } };
+    mount([{ source: 'telemetry', path: 'LmuMotorTemp' }]);
+
+    expect(screen.getByText('68.4000')).toBeInTheDocument();
+    expect(screen.queryByText('°C')).not.toBeInTheDocument();
+  });
+
   it('reports a missing path rather than rendering nothing', () => {
     stores.telemetry = {};
     mount([{ source: 'telemetry', path: 'Nope', label: 'Nope' }]);

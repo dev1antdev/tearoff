@@ -10,6 +10,11 @@ export interface DriverClassHeaderProps {
   className: string | undefined;
   classColor: number | undefined;
   totalDrivers: number | undefined;
+  /**
+   * Cars of the class still running. Shown as "12/14" once it is below the
+   * total; a full field, or no count at all, shows the total alone.
+   */
+  activeDrivers?: number;
   sof: number | undefined;
   estimatedLaps?: ClassLapEstimate;
   highlightColor?: number;
@@ -26,6 +31,7 @@ export const DriverClassHeader = ({
   className,
   classColor,
   totalDrivers,
+  activeDrivers,
   sof,
   estimatedLaps,
   highlightColor,
@@ -152,7 +158,13 @@ export const DriverClassHeader = ({
           ''
         )}{' '}
         <UsersIcon className={sof ? 'ml-3' : ''} />
-        <span>{totalDrivers}</span>
+        <span data-testid="class-driver-count" className="tabular-nums">
+          {activeDrivers !== undefined &&
+          totalDrivers !== undefined &&
+          activeDrivers < totalDrivers
+            ? `${activeDrivers}/${totalDrivers}`
+            : totalDrivers}
+        </span>
         {(() => {
           const stats = classHeaderStyle?.manufacturerStats;
           if (!stats?.enabled) return null;

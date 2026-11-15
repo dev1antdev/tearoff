@@ -88,7 +88,9 @@ export function fixture(): LmuRawTelemetry {
     frontTireCompoundName: 'Dry',
     vehicleName: 'Ferrari 296 GT3',
     speed: 51.234,
-    localVel: [50, 0, 11],
+    // The sim's car axes: to the left, up, to the rear. Going forwards at
+    // the speed above, drifting a little to the left.
+    localVel: [0.6, 0.1, -51.23],
     localAccel: [9.80665, 0, -19.6133],
     pos: [0, 0, 0],
     tyreTemperature: new Float64Array([80, 81, 82, 83]),

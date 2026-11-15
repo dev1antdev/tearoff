@@ -35,6 +35,12 @@ export type Telemetry = {
   LmuStartLight?: TelemetryVar<number[]>;
   LmuNumRedLights?: TelemetryVar<number[]>;
   /**
+   * When the session ends, seconds on the clock SessionTime runs on.
+   * SessionTimeTotal is a length, and a race's is counted from its green
+   * flag; this is the end itself. Absent when the sim gives none.
+   */
+  LmuSessionEndTime?: TelemetryVar<number[]>;
+  /**
    * mLapInvalidated — the sim has voided the lap in progress. A bare flag:
    * LMU gives no reason with it, so nothing downstream should infer one.
    * Stands in for PlayerCarMyIncidentCount, which LMU does not publish.
@@ -99,6 +105,20 @@ export type Telemetry = {
    * LMU_FINISH_STATUS. From scoring, so it is there for every car.
    */
   LmuCarIdxFinishStatus?: TelemetryVar<number[]>;
+  /**
+   * Each car's `mPitState`: 0 none, 1 stop requested, 2 entering, 3 stopped,
+   * 4 exiting. -1 for a slot with no car in it. From scoring, so it is there
+   * for every car.
+   */
+  LmuCarIdxPitState?: TelemetryVar<number[]>;
+  /** Pit stops each car has made. -1 for a slot with no car in it. */
+  LmuCarIdxPitStops?: TelemetryVar<number[]>;
+  /**
+   * Whether each car is in its garage stall. CarIdxTrackSurface reads "in pit
+   * stall" for the garage and for a stop at the pit box alike; this tells
+   * the two apart.
+   */
+  LmuCarIdxInGarage?: TelemetryVar<boolean[]>;
   /**
    * Seconds a time penalty will add to each car's race time. 0 for a clean
    * car and for the two kinds that are served on track rather than paid in
@@ -240,6 +260,30 @@ export type Telemetry = {
   LmuStateOfCharge?: TelemetryVar<number[]>;
   LmuRegen?: TelemetryVar<number[]>;
   /**
+   * The hybrid motor's state: 0 not available, 1 inactive, 2 deploying,
+   * 3 regenerating. 0 is a car with no hybrid system, which is every car
+   * recorded so far; the other states are TinyPedal's reading.
+   */
+  LmuMotorState?: TelemetryVar<number[]>;
+  /**
+   * The hybrid battery's charge, 0..1. Absent on a car with no hybrid
+   * system (LmuMotorState 0), as the four motor readings below are.
+   */
+  LmuBatteryCharge?: TelemetryVar<number[]>;
+  /**
+   * The hybrid motor: torque in Nm, speed in rev/min, and the temperature
+   * of the motor and of its coolant in Celsius. All four units are
+   * unconfirmed -- no recording holds a car with a hybrid, and the
+   * temperatures may turn out to be Kelvin, as the tyres' and brakes' are.
+   * Published as the sim states them.
+   */
+  LmuMotorTorque?: TelemetryVar<number[]>;
+  LmuMotorRPM?: TelemetryVar<number[]>;
+  LmuMotorTemp?: TelemetryVar<number[]>;
+  LmuMotorCoolantTemp?: TelemetryVar<number[]>;
+  /** Lift-and-coast progress, 0..1. 0 throughout the one recording. */
+  LmuLiftAndCoast?: TelemetryVar<number[]>;
+  /**
    * Whether traction control is cutting power on this frame. iRacing has no
    * such flag; the brake's counterpart is BrakeABSactive, under both sims.
    */
@@ -281,6 +325,83 @@ export type Telemetry = {
   /** The compound's working temperature, as the sim states it. */
   LmuTyreOptimalTemp?: TelemetryVar<number[]>;
   LmuBrakeTemp?: TelemetryVar<number[]>;
+  /**
+   * The player's wheels and suspension, one value per wheel: LF, RF, LR, RR.
+   * Present only while the player has a car, and each only when the sim
+   * publishes that reading; see app/lmu/wheelDynamics.ts.
+   *
+   * Ride height, suspension travel and tyre deflection are millimetres. Ride
+   * height can dip below 0; a tyre deflection of 0 is a wheel off the ground.
+   */
+  LmuWheelRideHeight?: TelemetryVar<number[]>;
+  LmuSuspensionPosition?: TelemetryVar<number[]>;
+  LmuTyreDeflection?: TelemetryVar<number[]>;
+  /** Pushrod load, N. Negative on a drooping wheel. */
+  LmuSuspensionForce?: TelemetryVar<number[]>;
+  /**
+   * Tyre load, N. Absent while the sim leaves it at zero, which it does for
+   * every car recorded so far: suspension force is what there is.
+   */
+  LmuTyreLoad?: TelemetryVar<number[]>;
+  /**
+   * Camber and toe, degrees, with the sim's signs. Camber is negative with
+   * the top of the wheel leaning in, on both sides. Toe is positive for a
+   * wheel pointing to the right, so toe-in is positive on a left wheel and
+   * negative on a right one; the fronts include the steering angle.
+   */
+  LmuWheelCamber?: TelemetryVar<number[]>;
+  LmuWheelToe?: TelemetryVar<number[]>;
+  /** Wheel rotation, rad/s. Negative rolling forwards. */
+  LmuWheelRotation?: TelemetryVar<number[]>;
+  /** Static, undeflected tyre radius, metres. */
+  LmuTyreStaticRadius?: TelemetryVar<number[]>;
+  /**
+   * What each wheel is on, as the sim numbers it: 0 road, 5 kerb, and 4 on
+   * the run-off, dirt and gravel alike, as recorded. By the rFactor 2 header
+   * 1 is wet road, 2 grass, 3 dirt, 4 gravel and 6 special.
+   */
+  LmuWheelSurfaceType?: TelemetryVar<number[]>;
+  /**
+   * Third-spring deflection, millimetres: front, then rear. On a car with
+   * no third spring it reads the mean of that axle's suspension travel.
+   */
+  LmuThirdSpringDeflection?: TelemetryVar<number[]>;
+  /**
+   * The last impact the player's car took: when, in seconds on the clock
+   * SessionTime runs on, and how hard, unitless (40 for a brush, 3,017 for
+   * the one that dented the recorded car). Both 0 until the first impact
+   * and held until the next, so a new impact is a change of the time.
+   */
+  LmuLastImpactTime?: TelemetryVar<number[]>;
+  LmuLastImpactMagnitude?: TelemetryVar<number[]>;
+  /**
+   * Where that impact landed, [x, y, z] in the sim's car axes: +x to the
+   * car's left, +y up, +z to the rear, so the nose is negative z. Metres by
+   * the rFactor 2 header.
+   */
+  LmuLastImpactPos?: TelemetryVar<number[]>;
+  /**
+   * The dent level of each of the eight parts of the body: 0 none, 1 some,
+   * 2 more. In the sim's order; a hit on the nose raises the first.
+   */
+  LmuDentSeverity?: TelemetryVar<number[]>;
+  /** Whether a part of the body other than a wheel has come off. */
+  LmuBodyDetached?: TelemetryVar<boolean[]>;
+  /** Whether the sim is showing its overheating warning. */
+  LmuOverheating?: TelemetryVar<boolean[]>;
+  /** Per wheel, LF RF LR RR: whether the tyre is flat. */
+  LmuTyreFlat?: TelemetryVar<boolean[]>;
+  /** Per wheel, LF RF LR RR: whether the wheel has come off. */
+  LmuWheelDetached?: TelemetryVar<boolean[]>;
+  /**
+   * Where the player's car is: [x, y, z] in metres on the world's axes, Y
+   * up, so [1] is its elevation. Beside it, under iRacing's own names and in
+   * iRacing's axes, the frame carries YawNorth (radians clockwise from world
+   * +Z), VelocityX / VelocityY / VelocityZ (m/s forwards, to the left, up)
+   * and LatAccel / LongAccel (m/s2, positive to the left and forwards). All
+   * absent while the player has no car; see app/lmu/carMotion.ts.
+   */
+  LmuPlayerWorldPos?: TelemetryVar<number[]>;
 };
 /**
  * What SessionLapsRemain and SessionLapsTotal carry when the session has no
