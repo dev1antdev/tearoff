@@ -79,8 +79,25 @@ const teamMateDriving: FuelProjectionSnapshot = {
 };
 
 /**
- * A team-mate in a car the sim writes no budget for: one counted in litres,
- * or one on energy with no telemetry block. The figures are the last read.
+ * A car counted in litres with the AI driving it for the user: the sim goes
+ * on writing its tank in the car's telemetry block, which is read for it.
+ */
+const aiDrivingOnFuel: FuelProjectionSnapshot = {
+  ...atTheWheel,
+  budget: 'fuel',
+  tank: undefined,
+  fuelLevel: 54.2,
+  fuelLevelPct: 0.7227,
+  fuelTankCapacity: 75,
+  carName: 'Oreca 07',
+  isOnTrack: false,
+  watched: true,
+};
+
+/**
+ * A team-mate in a car the sim writes no budget for: one counted in litres
+ * that a person is driving on another machine, or one on energy with no
+ * telemetry block. The figures are the last read.
  */
 const teamMateUnread: FuelProjectionSnapshot = {
   ...atTheWheel,
@@ -95,6 +112,14 @@ const energyData: FuelCalculation = {
   fuelTankCapacity: 100,
 };
 
+const litresData: FuelCalculation = {
+  ...demoFuelData,
+  budget: 'fuel',
+  tank: undefined,
+  fuelLevel: 54.2,
+  fuelTankCapacity: 75,
+};
+
 const layout: LayoutNode = {
   id: 'spec',
   type: 'box',
@@ -105,7 +130,8 @@ const layout: LayoutNode = {
 const show = (
   projection: FuelProjectionSnapshot,
   state: ReturnType<typeof useDrivingState>,
-  showOnlyWhenOnTrack = true
+  showOnlyWhenOnTrack = true,
+  fuelData: FuelCalculation = energyData
 ) => {
   const bridge: ChannelBridge = {
     subscribe: <K extends ChannelName>(
@@ -125,7 +151,7 @@ const show = (
       {...defaultFuelCalculatorSettings}
       showOnlyWhenOnTrack={showOnlyWhenOnTrack}
       layoutTree={layout}
-      fuelData={energyData}
+      fuelData={fuelData}
     />
   ).container;
 };
@@ -154,6 +180,13 @@ describe('Fuel Calculator on and off the track', () => {
     expect(container.firstChild).not.toBeNull();
     // The team car's energy, in percent.
     expect(container.textContent).toContain('40.4');
+  });
+
+  it('is shown in litres while the AI drives the car, where the sim writes its tank', () => {
+    const container = show(aiDrivingOnFuel, watchingOwnCar, true, litresData);
+
+    expect(container.firstChild).not.toBeNull();
+    expect(container.textContent).toContain('54.2');
   });
 
   it('stays hidden while the camera is on another car', () => {

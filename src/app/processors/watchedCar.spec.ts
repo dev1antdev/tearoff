@@ -7,6 +7,7 @@ import {
   isAwayFromWheel,
   isWatchingAnotherCar,
   isWatchingOwnCar,
+  isWatchingOwnCarTelemetry,
 } from './watchedCar';
 
 const frame = (values: Record<string, unknown>): Telemetry =>
@@ -105,6 +106,73 @@ describe('which car the user is watching', () => {
       );
 
       expect(isWatchingOwnCar(t)).toBe(true);
+    });
+  });
+});
+
+describe('whether the own car’s pedals and revs are being read while it is watched', () => {
+  const stint = { LmuWatching: true, CamCarIdx: 7, PlayerCarIdx: 7 };
+
+  it('is so while the own entry is watched and the sim fills in its block', () => {
+    expect(
+      isWatchingOwnCarTelemetry(frame({ ...stint, LmuOwnEntryTelemetry: true }))
+    ).toBe(true);
+  });
+
+  it('is not so where the sim sends no block for the car', () => {
+    // Watched all the same: the lap and the lap times are still there.
+    expect(isWatchingOwnCarTelemetry(frame(stint))).toBe(false);
+    expect(isWatchingOwnCar(frame(stint))).toBe(true);
+  });
+
+  it('is not so with the camera on another car, whose pedals they are not', () => {
+    expect(
+      isWatchingOwnCarTelemetry(
+        frame({ ...stint, CamCarIdx: 3, LmuOwnEntryTelemetry: true })
+      )
+    ).toBe(false);
+  });
+
+  it('is not so while the user is not watching', () => {
+    expect(
+      isWatchingOwnCarTelemetry(
+        frame({ ...stint, LmuWatching: false, LmuOwnEntryTelemetry: true })
+      )
+    ).toBe(false);
+  });
+
+  describe('on the frames the Le Mans Ultimate mapper writes', () => {
+    /** The fixture's player is in slot 1, read by slot for a team-mate. */
+    const map = (blockSlot: number, focus?: number) =>
+      mapLmuTelemetry(
+        {
+          ...fixture(),
+          playerHasVehicle: false,
+          playerVehicleIdx: -1,
+          blockSlot,
+          vehControl: [1, 2, 1],
+        },
+        undefined,
+        undefined,
+        focus === undefined ? undefined : { focusCarIdx: { value: [focus] } },
+        undefined,
+        undefined,
+        undefined,
+        'monitor',
+        undefined,
+        undefined,
+        undefined,
+        1
+      );
+
+    it('is so with the own entry’s block read', () => {
+      expect(isWatchingOwnCarTelemetry(map(1))).toBe(true);
+    });
+
+    it('is not so with no block, nor with the camera on a rival', () => {
+      expect(isWatchingOwnCarTelemetry(map(-1))).toBe(false);
+      expect(isWatchingOwnCar(map(-1))).toBe(true);
+      expect(isWatchingOwnCarTelemetry(map(1, 0))).toBe(false);
     });
   });
 });

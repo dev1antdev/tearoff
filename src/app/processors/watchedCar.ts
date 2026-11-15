@@ -16,6 +16,11 @@ import type { Telemetry } from '@irdashies/types';
  * With the camera on a rival they are still true of the team car, and shown
  * then they would put the team car's delta over a picture of another car.
  *
+ * The pedals, the gear, the revs and the brakes are in the same case, with
+ * one more condition: they exist only in a car's telemetry block, and are
+ * there for the own entry only where the sim has filled that block in
+ * (`LmuOwnEntryTelemetry`).
+ *
  * iRacing frames carry no `LmuWatching`, so under iRacing both of these are
  * false for now.
  */
@@ -34,6 +39,16 @@ export const isWatchingOwnCar = (frame: Telemetry): boolean => {
     typeof own === 'number' && own >= 0 && scalar(frame, 'CamCarIdx') === own
   );
 };
+
+/**
+ * Whether the user is watching their own entry and the keys that exist only
+ * in its telemetry block are being read for it: the pedals, the steering,
+ * the gear, the revs, the brake temperatures. False while watching the own
+ * entry where the sim sends no block for it, so that a widget made of those
+ * keys stays hidden rather than showing a car at rest that is not.
+ */
+export const isWatchingOwnCarTelemetry = (frame: Telemetry): boolean =>
+  isWatchingOwnCar(frame) && scalar(frame, 'LmuOwnEntryTelemetry') === true;
 
 /**
  * Whether the user is watching a car that is not their own entry: the camera

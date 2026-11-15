@@ -164,7 +164,7 @@ export default defineWidgetManifest({
       type: 'boolean',
       label: 'Show only when on track',
       description:
-        'Hidden in the garage and in the menus. Shown while you drive, and while you watch your own car with a team-mate driving it, if it runs on virtual energy.',
+        'Hidden in the garage and in the menus. Shown while you drive, and while you watch your own car with somebody else driving it, where the sim sends what the car has left: its virtual energy, or its fuel in litres when the AI is driving.',
     },
     showFuelStatusBorder: {
       type: 'boolean',

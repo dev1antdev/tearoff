@@ -5,7 +5,7 @@ import type {
   TrackStateSnapshot,
 } from '@irdashies/types';
 import type { TelemetryProcessor } from './TelemetryProcessor';
-import { isWatchingOwnCar } from './watchedCar';
+import { isWatchingOwnCar, isWatchingOwnCarTelemetry } from './watchedCar';
 
 const value = (frame: Telemetry, key: string): unknown =>
   (frame as unknown as Record<string, { value?: unknown[] } | undefined>)[key]
@@ -163,6 +163,12 @@ export class TrackStateProcessor implements TelemetryProcessor<TrackStateSnapsho
     changed =
       this.set('watching', booleanValue(frame, 'LmuWatching')) || changed;
     changed = this.set('watchingOwnCar', isWatchingOwnCar(frame)) || changed;
+    // Present only while it holds; see the snapshot's type.
+    changed =
+      this.set(
+        'watchingOwnCarTelemetry',
+        isWatchingOwnCarTelemetry(frame) || undefined
+      ) || changed;
     changed =
       this.set(
         'playerCarInPitStall',
@@ -243,6 +249,7 @@ export class TrackStateProcessor implements TelemetryProcessor<TrackStateSnapsho
     this.latest.outOfCar = false;
     this.latest.watching = false;
     this.latest.watchingOwnCar = false;
+    this.latest.watchingOwnCarTelemetry = undefined;
     this.latest.playerCarInPitStall = false;
     this.latest.playerTrackSurface = 0;
     this.latest.onPitRoad = false;

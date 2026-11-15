@@ -29,6 +29,9 @@ private:
     int GetClassId(const char *className) const;
     const LMUVehicleTelemetry *GetPlayerTelemetry() const;
     const LMUVehicleTelemetry *GetVehicleTelemetryById(int id) const;
+    const LMUVehicleTelemetry *GetBlockTelemetry(
+        const Napi::CallbackInfo &info,
+        const LMUVehicleTelemetry *player) const;
     bool CaptureSnapshot();
     bool IsLive() const;
     int VehicleCount() const;

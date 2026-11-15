@@ -1,10 +1,11 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   useDashboard,
   useDrivingState,
   useSessionVisibility,
   useTyreStateSnapshot,
+  useWatchingOwnCarTelemetry,
   useWheelDynamicsSnapshot,
 } from '@irdashies/context';
 import type {
@@ -23,6 +24,7 @@ vi.mock('@irdashies/context', () => ({
   useDriverTires: vi.fn(),
   useSessionVisibility: vi.fn(),
   useTyreStateSnapshot: vi.fn(),
+  useWatchingOwnCarTelemetry: vi.fn(),
   useWheelDynamicsSnapshot: vi.fn(),
 }));
 
@@ -80,6 +82,64 @@ const outOfTheCar: TyreStateSnapshot = {
   version: 1,
 };
 
+/**
+ * A wheel as the sim writes it for a car somebody else is driving: the
+ * brake, the tread where the car is simulated on this machine, and no tyre
+ * temperature or pressure.
+ */
+const watchedWheel = (
+  brakeTempC: number,
+  treadRemaining: number | null
+): TyreWheelState =>
+  wheel({
+    surfaceTempC: null,
+    innerLayerTempC: null,
+    carcassTempC: null,
+    optimalTempC: null,
+    pressureKpa: null,
+    pressureDeviationKpa: null,
+    treadRemaining,
+    brakeTempC,
+  });
+
+/** The user's own car with a team-mate driving it: brakes at 490 and 405. */
+const teamMateDriving = (tread: number | null = 0.94): TyreStateSnapshot =>
+  tyres([
+    watchedWheel(480, tread),
+    watchedWheel(500, tread),
+    watchedWheel(410, tread),
+    watchedWheel(400, tread),
+  ]);
+
+/** Where the user is, as useDrivingState says it; nowhere unless told. */
+const where = (
+  state: Partial<ReturnType<typeof useDrivingState>> = {},
+  watchingOwnCarTelemetry = false
+) => {
+  vi.mocked(useDrivingState).mockReturnValue({
+    isDriving: false,
+    isWatching: false,
+    isWatchingOwnCar: false,
+    isWatchingOtherCar: false,
+    ...state,
+  });
+  vi.mocked(useWatchingOwnCarTelemetry).mockReturnValue(
+    watchingOwnCarTelemetry
+  );
+};
+
+/** Watching the own car with the sim writing its brakes and pedals. */
+const watchingOwnCar = () =>
+  where({ isWatching: true, isWatchingOwnCar: true }, true);
+/** Watching the own car where the sim sends no telemetry block for it. */
+const watchingOwnCarUnread = () =>
+  where({ isWatching: true, isWatchingOwnCar: true });
+/** The camera on a car that is not the user's own. */
+const watchingRival = () =>
+  where({ isWatching: true, isWatchingOtherCar: true });
+
+const placeholders = () => screen.queryAllByText('--').length;
+
 const everyRow: Partial<TyresConfig> = {
   showWear: true,
   showLoad: true,
@@ -124,6 +184,7 @@ describe('Tyres', () => {
       isWatchingOwnCar: false,
       isWatchingOtherCar: false,
     });
+    vi.mocked(useWatchingOwnCarTelemetry).mockReturnValue(false);
     vi.mocked(useSessionVisibility).mockReturnValue(true);
   });
 
@@ -410,20 +471,112 @@ describe('Tyres', () => {
     });
 
     it('does not while the widget is hidden', () => {
-      vi.mocked(useDrivingState).mockReturnValue({
-        isDriving: false,
-        isWatching: true,
-        isWatchingOwnCar: false,
-        isWatchingOtherCar: true,
-      });
+      watchingRival();
 
       const container = draw({
         config: { ...everyRow, showOnlyWhenOnTrack: true },
       });
 
-      // Hidden while the user only watches a car: the tyres are their own.
+      // Hidden with the camera on another car: the tyres are the own car's.
       expect(container.innerHTML).toBe('');
       expect(useWheelDynamicsSnapshot).toHaveBeenLastCalledWith(false);
+    });
+  });
+
+  /**
+   * The sim goes on writing the brake temperatures of a car the user is not
+   * in, and its tread where the car is simulated on this machine; it writes
+   * tyre temperatures and pressures only for the car the user is in. Those
+   * two keep their placeholders: a tyre at 0 degrees and 0 psi would be a
+   * reading, and it is not one.
+   */
+  describe('set to show only when on track', () => {
+    const onTrackOnly = { showWear: true, showOnlyWhenOnTrack: true };
+
+    it('is hidden out of the car with nothing to watch', () => {
+      where();
+
+      expect(draw({ config: onTrackOnly })).toBeEmptyDOMElement();
+    });
+
+    it('shows every reading at the wheel', () => {
+      draw({ config: onTrackOnly });
+
+      expect(placeholders()).toBe(0);
+      // The surface across each tyre, the pressure in psi and the tread.
+      expect(screen.getAllByText('92°')).toHaveLength(4);
+      expect(screen.getByText('24.8')).toBeInTheDocument();
+      expect(screen.getAllByText('96%')).toHaveLength(4);
+      // One figure an axle: the mean of its two discs.
+      expect(screen.getAllByText('480')).toHaveLength(2);
+    });
+
+    it('shows the brakes and the tread with a team-mate driving, and placeholders for the rest', () => {
+      watchingOwnCar();
+      draw({ config: onTrackOnly, tyreState: teamMateDriving() });
+
+      expect(screen.getByText('490')).toBeInTheDocument();
+      expect(screen.getByText('405')).toBeInTheDocument();
+      expect(screen.getAllByText('94%')).toHaveLength(4);
+      // Four temperatures and four pressures the sim does not write: a
+      // placeholder each, with no degree sign after it, and no zero.
+      expect(placeholders()).toBe(8);
+      expect(screen.queryByText('--°')).toBeNull();
+      expect(screen.queryByText('0°')).toBeNull();
+      expect(screen.queryByText('0.0')).toBeNull();
+    });
+
+    it('shows a placeholder for the tread of a car a person is driving elsewhere', () => {
+      watchingOwnCar();
+      draw({ config: onTrackOnly, tyreState: teamMateDriving(null) });
+
+      expect(screen.getByText('490')).toBeInTheDocument();
+      expect(placeholders()).toBe(12);
+      expect(screen.queryByText('0%')).toBeNull();
+    });
+
+    it('is hidden while the sim sends no block for the car being watched', () => {
+      watchingOwnCarUnread();
+
+      expect(
+        draw({ config: onTrackOnly, tyreState: outOfTheCar })
+      ).toBeEmptyDOMElement();
+    });
+
+    it('is hidden with the camera on another car', () => {
+      watchingRival();
+
+      expect(
+        draw({ config: onTrackOnly, tyreState: teamMateDriving() })
+      ).toBeEmptyDOMElement();
+    });
+  });
+
+  describe('set to show always', () => {
+    const always = { showWear: true };
+
+    it('keeps its shape with placeholders out of the car', () => {
+      where();
+      draw({ config: always, tyreState: outOfTheCar });
+
+      // Four pressures, four temperatures, four treads and two brakes.
+      expect(placeholders()).toBe(14);
+    });
+
+    it('draws no reading with the camera on another car: they are the own car’s', () => {
+      watchingRival();
+      draw({ config: always, tyreState: teamMateDriving() });
+
+      expect(placeholders()).toBe(14);
+      expect(screen.queryByText('490')).toBeNull();
+    });
+
+    it('draws the own car’s brakes again once the camera is back on it', () => {
+      watchingOwnCar();
+      draw({ config: always, tyreState: teamMateDriving() });
+
+      expect(screen.getByText('490')).toBeInTheDocument();
+      expect(placeholders()).toBe(8);
     });
   });
 });

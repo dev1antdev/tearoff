@@ -7,12 +7,15 @@ import {
   lmuTapeAvailable,
   playLmuTape,
 } from '../../testing/lmuTape';
+import { DriverControlsProcessor } from '../processors/DriverControlsProcessor';
 import { FuelProjectionProcessor } from '../processors/FuelProjectionProcessor';
 import { LapDeltaProcessor } from '../processors/LapDeltaProcessor';
 import { LapLogProcessor } from '../processors/LapLogProcessor';
+import { LapTraceSampleProcessor } from '../processors/LapTraceSampleProcessor';
 import { PlayerLapRecorder } from '../processors/PlayerLapRecorder';
 import { ReferenceLapProcessor } from '../processors/ReferenceLapProcessor';
 import { TrackStateProcessor } from '../processors/TrackStateProcessor';
+import { TyreStateProcessor } from '../processors/TyreStateProcessor';
 import { isEligibleLap } from '../storage/lapLibrary/LapLibraryDatabase';
 
 /**
@@ -37,6 +40,23 @@ import { isEligibleLap } from '../storage/lapLibrary/LapLibraryDatabase';
  * and an energy -- is exactly what this cannot show: here the block is the
  * one the player's own car had.
  *
+ * The same goes for the part of the car that exists only in that block. The
+ * replay asks the addon for the own entry's block by its slot, as the bridge
+ * does once the sim names no player vehicle, and the pedals, the steering,
+ * the gear, the revs and the brake temperatures go on flowing from it. They
+ * are checked against the recording frame by frame. But the block is still
+ * the one the player's own car had: it holds tyre temperatures, pressures
+ * and dials, which the sim writes for no car but the player's. That they are
+ * absent from the frame here is the mapper's rule at work, not the sim's
+ * silence; ownEntryBlock.tape.spec.ts shows the same through the block of a
+ * car the AI really drives, where they are zeros. And the recording is an
+ * offline race against the AI. What the block of a car holds while a person
+ * drives it on another machine -- whether the sim fills in the pedals and
+ * the revs at all, and what it gives for fuel and wear -- is not known. The
+ * stint is staged with scoring saying so (control 2), and the app then takes
+ * neither fuel nor wear from the block; one case stages the AI at the wheel
+ * (control 1) instead, where it takes both.
+ *
  * The recording crosses the line twice, 93 and 180 seconds in, so it holds
  * one lap that begins and ends at a crossing, and the lap before it from
  * the rolling start. Two stagings share it. In the first the user is out
@@ -58,6 +78,35 @@ const FIRST_LAP_SECONDS = 97.82;
  * crossing. The sim's own figure above runs from the green flag.
  */
 const FROM_START_LAP_SECONDS = 89.83;
+/** scoring's mControl: the AI on this machine, a person on another. */
+const CONTROL_AI = 1;
+const CONTROL_REMOTE = 2;
+/** Keys the sim gives a reading for only in the block of the player's car. */
+const PLAYER_ONLY_KEYS = [
+  'LmuTyreSurfaceTemp',
+  'LmuTyreInnerLayerTemp',
+  'LmuTyreCarcassTemp',
+  'LmuTyreOptimalTemp',
+  'LFtempCL',
+  'LFtempCM',
+  'LFtempCR',
+  'RRtempCM',
+  'LFcoldPressure',
+  'RRcoldPressure',
+  'LFbrakeLinePress',
+  'LFshockDefl',
+  'WaterTemp',
+  'OilTemp',
+  'dcABS',
+  'dcTractionControl',
+  'LmuDialMax',
+  'dcBrakeBias',
+  'BrakeABSactive',
+  'LmuTcActive',
+  'LmuWheelRideHeight',
+  'LmuDentSeverity',
+] as const;
+const WEAR_KEYS = ['LFwearM', 'RFwearM', 'LRwearM', 'RRwearM'] as const;
 
 interface Staging {
   /** Seconds into the recording between which the user has no vehicle. */
@@ -68,6 +117,12 @@ interface Staging {
   rivalUntil?: number;
   /** Scoring drops its player flag with the vehicle, as it may. */
   clearPlayerFlags?: boolean;
+  /**
+   * Who scoring says is driving the car through the stint: a person on
+   * another machine unless told otherwise. On the recording it is the
+   * player, which no stint is.
+   */
+  control?: number;
 }
 
 const scalar = (frame: unknown, key: string): unknown =>
@@ -78,12 +133,16 @@ const numberAt = (frame: unknown, key: string, index: number): number =>
     index
   ] ?? Number.NaN;
 
+const has = (frame: unknown, key: string): boolean =>
+  (frame as Record<string, unknown>)[key] !== undefined;
+
 const playStint = async ({
   outFrom,
   outUntil,
   rivalFrom = Number.POSITIVE_INFINITY,
   rivalUntil = Number.NEGATIVE_INFINITY,
   clearPlayerFlags = false,
+  control = CONTROL_REMOTE,
 }: Staging) => {
   const lapsCounted: FuelLapData[] = [];
   const lapsSaved: FuelLapData[] = [];
@@ -101,7 +160,19 @@ const playStint = async ({
     save: () => undefined,
   });
   const lapDelta = new LapDeltaProcessor(references);
-  const processors = [fuel, trackState, lapLog, references, lapDelta];
+  const controls = new DriverControlsProcessor();
+  const tyres = new TyreStateProcessor();
+  const lapTrace = new LapTraceSampleProcessor();
+  const processors = [
+    fuel,
+    trackState,
+    lapLog,
+    references,
+    lapDelta,
+    controls,
+    tyres,
+    lapTrace,
+  ];
   for (const processor of processors) {
     processor.onLifecycle({ type: 'enter', replay: false });
   }
@@ -156,6 +227,42 @@ const playStint = async ({
     watchingOwnCarOnRival: 0,
     onRival: 0,
   };
+  /**
+   * The part of the car that exists only in its telemetry block, over the
+   * frames with no player vehicle.
+   */
+  const block = {
+    /** Frames built from the own entry's block, read by its slot. */
+    frames: 0,
+    /** Frames built from no block: the one the user left the car on. */
+    missing: 0,
+    /** Frames on which a pedal, the gear or the revs were not the recording's. */
+    controlsDisagreed: 0,
+    steeringDisagreed: 0,
+    brakesDisagreed: 0,
+    gears: new Set<number>(),
+    revs: { min: Number.POSITIVE_INFINITY, max: Number.NEGATIVE_INFINITY },
+    throttle: { min: Number.POSITIVE_INFINITY, max: Number.NEGATIVE_INFINITY },
+    /** Frames on which the sim had written the player's car its tyres. */
+    tyresInRecording: 0,
+    /** Frames carrying each key the sim writes for the player's car alone. */
+    playerOnlyKeys: {} as Record<string, number>,
+    withFuel: 0,
+    fuelDisagreed: 0,
+    withWear: 0,
+    wearDisagreed: 0,
+    /** Frames on which the tyre widget's snapshot had a tyre reading. */
+    tyreReadings: 0,
+    /** Frames on which it had no brake temperature. */
+    noBrakeReading: 0,
+    /** Frames on which the pedals' snapshot was not the frame's. */
+    controlsSnapshotOff: 0,
+    /** Lap trace samples that said the user was at the wheel. */
+    traceAtWheel: 0,
+    /** Frames on which the track state said the block is live, by camera. */
+    liveOnOwnCar: 0,
+    liveOnRival: 0,
+  };
   /** The largest step back in the lap fraction that was not the line. */
   let largestStepBack = 0;
   let lapWentBack = 0;
@@ -185,13 +292,20 @@ const playStint = async ({
   await playLmuTape({
     tapePath: LMU_CURATED_TAPE_PATH,
     speed: 40,
-    transformRaw: (raw) => {
+    transformRaw: (raw, blockSlot) => {
       startET ??= raw.currentET;
       if (!isOut(raw)) {
         if (raw.playerHasVehicle) playerSlot = raw.playerVehicleIdx;
         return raw;
       }
-      const staged = lmuRawWithoutPlayerVehicle(raw);
+      // The block the read asked for by slot stays, as it would with a
+      // team-mate in the car, and scoring names somebody else as driving.
+      const staged = {
+        ...lmuRawWithoutPlayerVehicle(raw, blockSlot),
+        vehControl: Uint8Array.from(raw.vehControl ?? [], (was, slot) =>
+          slot === playerSlot ? control : was
+        ),
+      };
       if (!clearPlayerFlags) return staged;
       const cleared = {
         ...staged,
@@ -315,8 +429,97 @@ const playStint = async ({
       if (onRival(raw)) {
         out.onRival += 1;
         if (state.watchingOwnCar) out.watchingOwnCarOnRival += 1;
-      } else if (state.watchingOwnCar) {
-        out.watchingOwnCar += 1;
+        if (state.watchingOwnCarTelemetry) block.liveOnRival += 1;
+      } else {
+        if (state.watchingOwnCar) out.watchingOwnCar += 1;
+        if (state.watchingOwnCarTelemetry) block.liveOnOwnCar += 1;
+      }
+
+      // The lap trace's sample never says the user is driving.
+      if (lapTrace.snapshot().isOnTrack) block.traceAtWheel += 1;
+      if (tyres.snapshot().wheels.some((wheel) => wheel.surfaceTempC)) {
+        block.tyreReadings += 1;
+      }
+      if (scalar(telemetry, 'LmuOwnEntryTelemetry') !== true) {
+        block.missing += 1;
+        return;
+      }
+      // From here the frame was built from the own entry's block, and
+      // `raw` still holds that block as the recording has it.
+      block.frames += 1;
+      // Nothing of it that the sim writes for the player's car alone.
+      for (const key of PLAYER_ONLY_KEYS) {
+        if (has(telemetry, key)) {
+          block.playerOnlyKeys[key] = (block.playerOnlyKeys[key] ?? 0) + 1;
+        }
+      }
+      const gear = scalar(telemetry, 'Gear') as number;
+      const revs = scalar(telemetry, 'RPM') as number;
+      const throttle = scalar(telemetry, 'Throttle') as number;
+      if (
+        throttle !== raw.filteredThrottle ||
+        scalar(telemetry, 'ThrottleRaw') !== raw.unfilteredThrottle ||
+        scalar(telemetry, 'Brake') !== raw.filteredBrake ||
+        scalar(telemetry, 'BrakeRaw') !== raw.unfilteredBrake ||
+        gear !== raw.gear ||
+        revs !== raw.engineRPM ||
+        scalar(telemetry, 'ShiftGrindRPM') !== raw.engineMaxRPM
+      ) {
+        block.controlsDisagreed += 1;
+      }
+      // A fraction of the lock either way, on the wheel's 719 degrees.
+      const steering =
+        -(raw.filteredSteering ?? Number.NaN) *
+        (((raw.visualSteeringWheelRange ?? Number.NaN) * Math.PI) / 360);
+      if (
+        Math.abs(
+          (scalar(telemetry, 'SteeringWheelAngle') as number) - steering
+        ) > 1e-9
+      ) {
+        block.steeringDisagreed += 1;
+      }
+      block.gears.add(gear);
+      block.revs.min = Math.min(block.revs.min, revs);
+      block.revs.max = Math.max(block.revs.max, revs);
+      block.throttle.min = Math.min(block.throttle.min, throttle);
+      block.throttle.max = Math.max(block.throttle.max, throttle);
+      // Kelvin in the recording, Celsius in the frame.
+      const brakes = raw.brakeTemperatureRaw ?? [];
+      for (let wheel = 0; wheel < 4; wheel += 1) {
+        const celsius = numberAt(telemetry, 'LmuBrakeTemp', wheel);
+        if (!(Math.abs(celsius - (brakes[wheel] - 273.15)) < 1e-9)) {
+          block.brakesDisagreed += 1;
+        }
+      }
+      if ((raw.tyreSurfaceTemperatureRaw?.[0] ?? 0) > 273) {
+        block.tyresInRecording += 1;
+      }
+      if (has(telemetry, 'FuelLevel')) {
+        block.withFuel += 1;
+        if (scalar(telemetry, 'FuelLevel') !== raw.fuel) {
+          block.fuelDisagreed += 1;
+        }
+      }
+      if (WEAR_KEYS.some((key) => has(telemetry, key))) {
+        block.withWear += 1;
+        if (
+          WEAR_KEYS.some(
+            (key, wheel) => scalar(telemetry, key) !== raw.tyreWear?.[wheel]
+          )
+        ) {
+          block.wearDisagreed += 1;
+        }
+      }
+      if (tyres.snapshot().wheels.some((wheel) => wheel.brakeTempC === null)) {
+        block.noBrakeReading += 1;
+      }
+      const pedals = controls.snapshot();
+      if (
+        pedals.throttle !== throttle ||
+        pedals.gear !== gear ||
+        pedals.rpm !== revs
+      ) {
+        block.controlsSnapshotOff += 1;
       }
     },
   });
@@ -325,6 +528,8 @@ const playStint = async ({
     playerSlot,
     rivalSlot,
     out,
+    block,
+    tyres: tyres.snapshot(),
     largestStepBack,
     lapWentBack,
     changes,
@@ -488,8 +693,101 @@ describe.skipIf(!lmuTapeAvailable())(
         });
         expect(stint.libraryLaps[1].lapTime).toBeCloseTo(SECOND_LAP_SECONDS, 0);
         expect(stint.libraryLaps.map(isEligibleLap)).toEqual([false, false]);
+
+        // The pedals, the gear and the revs go on flowing, from the own
+        // entry's block read by its slot: on every frame but the one the
+        // user left the car on, which the replay cannot read again as the
+        // bridge does.
+        const { block } = stint;
+        expect(block.missing).toBeLessThanOrEqual(1);
+        expect(block.frames).toBe(out.frames - block.missing);
+        // They are the recording's own, frame by frame: both pedals as
+        // pressed and as the car received them, the gear, the revs, the
+        // rev limit, the steering and the brake temperatures.
+        expect(block.controlsDisagreed).toBe(0);
+        expect(block.steeringDisagreed).toBe(0);
+        expect(block.brakesDisagreed).toBe(0);
+        expect(block.controlsSnapshotOff).toBe(0);
+        // And they are a car being driven round a lap, not a held reading.
+        expect(block.gears.size).toBeGreaterThanOrEqual(4);
+        expect(block.revs.max - block.revs.min).toBeGreaterThan(3_000);
+        expect(block.throttle).toEqual({ min: 0, max: 1 });
+
+        // The tyre temperatures and pressures, the engine temperatures and
+        // the dials are absent from every frame built from the block, not
+        // zero. Here the recording does hold them: it is the mapper that
+        // takes nothing the sim writes for the player's car alone. And the
+        // tyre widget has no tyre reading on any frame of the stint.
+        expect(block.tyresInRecording).toBe(block.frames);
+        expect(block.playerOnlyKeys).toEqual({});
+        expect(block.tyreReadings).toBe(0);
+        // The brakes are there for the tyre widget, and no tyre reading.
+        expect(block.noBrakeReading).toBe(0);
+        expect(stint.tyres.available).toBe(true);
+        for (const wheel of stint.tyres.wheels) {
+          expect(wheel.surfaceTempC).toBeNull();
+          expect(wheel.pressureKpa).toBeNull();
+          expect(wheel.brakeTempC).toBeGreaterThan(100);
+          expect(wheel.compound).toBeGreaterThanOrEqual(0);
+        }
+
+        // With a person driving on another machine, neither the fuel nor
+        // the wear is taken from the block: what the sim sends for them
+        // online is not known.
+        expect(block.withFuel).toBe(0);
+        expect(block.withWear).toBe(0);
+        expect(stint.tyres.wheels.map((wheel) => wheel.treadRemaining)).toEqual(
+          [null, null, null, null]
+        );
+
+        // The widgets made of these are told they are live while the
+        // camera is on the team car, and not while it is on the rival.
+        expect(block.liveOnRival).toBe(0);
+        expect(block.liveOnOwnCar).toBe(block.frames - out.onRival);
+        // Nothing of it is the user's driving: the lap trace is never told
+        // the user is at the wheel, so it records none of these laps.
+        expect(block.traceAtWheel).toBe(0);
       }, 90_000);
     });
+
+    it('takes the fuel and the wear from the block as well while the AI drives the car', async () => {
+      // The car handed to the AI: simulated on this machine, so the sim is
+      // known to write both.
+      const stint = await playStint({
+        outFrom: 60,
+        outUntil: Number.POSITIVE_INFINITY,
+        control: CONTROL_AI,
+      });
+      const { out, block } = stint;
+
+      expect(block.frames).toBeGreaterThan(4_000);
+      expect(block.frames).toBe(out.frames - block.missing);
+      expect(block.controlsDisagreed).toBe(0);
+      // Litres and tread, the recording's own on every frame.
+      expect(block.withFuel).toBe(block.frames);
+      expect(block.fuelDisagreed).toBe(0);
+      expect(block.withWear).toBe(block.frames);
+      expect(block.wearDisagreed).toBe(0);
+      for (const wheel of stint.tyres.wheels) {
+        expect(wheel.treadRemaining).toBeGreaterThan(0.9);
+        expect(wheel.treadRemaining).toBeLessThan(1);
+      }
+      // The tank of a car counted in virtual energy is read beside it.
+      expect(stint.fuel.budget).toBe('virtualEnergy');
+      expect(stint.fuel.tank?.level).toBeGreaterThan(35);
+      expect(stint.fuel.tank?.level).toBeLessThan(45);
+      // Still nothing the sim writes for the player's car alone.
+      expect(block.playerOnlyKeys).toEqual({});
+      expect(block.tyreReadings).toBe(0);
+
+      // And still none of it the user's own.
+      expect(out.atWheel).toBe(0);
+      expect(block.traceAtWheel).toBe(0);
+      expect(stint.lapsCounted.every((lap) => lap.wasWatched)).toBe(true);
+      expect(stint.lapsSaved).toEqual([]);
+      expect(stint.lapLog.ownBestLapTime).toBe(0);
+      expect(stint.libraryLaps.every((lap) => !lap.own)).toBe(true);
+    }, 90_000);
 
     it('records the user’s own lap again from its next line crossing', async () => {
       // Out twenty seconds in and back at sixty, half a minute before the
@@ -533,6 +831,17 @@ describe.skipIf(!lmuTapeAvailable())(
       expect(crossings[0].bestLapTime).toBeCloseTo(FIRST_LAP_SECONDS, 1);
       expect(crossings[0].ownBestLapTime).toBe(0);
       expect(stint.lapLog.ownBestLapTime).toBeCloseTo(SECOND_LAP_SECONDS, 1);
+
+      // The forty seconds out were read from the own entry's block, and the
+      // frames either side of them from the player's own: the pedals never
+      // stopped being the recording's.
+      expect(stint.block.frames).toBeGreaterThan(1_000);
+      expect(stint.block.missing).toBeLessThanOrEqual(1);
+      expect(stint.block.controlsDisagreed).toBe(0);
+      expect(stint.block.traceAtWheel).toBe(0);
+      // Back at the wheel the tyres read again.
+      expect(stint.tyres.wheels[0].surfaceTempC).not.toBeNull();
+      expect(stint.tyres.wheels[0].pressureKpa).toBeGreaterThan(150);
 
       // And for the lap delta's session best, and the lap library.
       const sessionBest = stint.sessionBests.find(

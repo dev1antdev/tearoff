@@ -31,6 +31,7 @@ import { lmuCarNumber, lmuCarNumberRaw, lmuTeamName } from './entryName';
 import { lmuDriverTires } from './tireCompound';
 import { lmuSessionUniqueId, type LmuSessionIdentity } from './sessionIdentity';
 import { lmuShiftPointRpm } from './shiftPoints';
+import { lmuPublishedBlock } from './ownEntryBlock';
 
 type Raw = import('./native').LmuRawSession;
 
@@ -374,7 +375,7 @@ function mergeRating(
 }
 
 export function mapLmuSession(
-  raw: Raw,
+  snapshot: Raw,
   trackMap?: LmuTrackMap | null,
   /**
    * Session values from LMU's local REST API. Omitted, the LmuRest key is
@@ -409,6 +410,11 @@ export function mapLmuSession(
    */
   ownEntrySlot?: number
 ): Session {
+  // The rev limit, the gear count and the tank size below come from one
+  // car's telemetry block. With a team-mate driving that is the own entry's,
+  // read in place of a player vehicle the sim does not name; a block of any
+  // other car is not read from at all. See ownEntryBlock.ts.
+  const raw = lmuPublishedBlock(snapshot, ownEntrySlot ?? -1);
   const trackLengthM = raw.lapDist;
   const playerDriver =
     ownEntrySlot === undefined

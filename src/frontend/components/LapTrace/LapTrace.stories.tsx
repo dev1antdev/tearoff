@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Meta, StoryObj } from '@storybook/react-vite';
 import {
+  ChannelSnapshotDecorator,
   LiveChannelBridgeDecorator,
   TelemetryDecorator,
+  trackStateStorySnapshot,
 } from '@irdashies/storybook';
 import {
   lapTraceTreeFromLegacy,
@@ -627,6 +629,34 @@ export const InvalidLapSimInvalidated: Story = {
         { lapDistPct: 0, sessionTime: 0 },
         { lapDistPct: 0.005, sessionTime: 1, simLapInvalidated: true },
       ]),
+      {}
+    ),
+  ],
+};
+
+/**
+ * A team-mate driving the user's own car before the user has a reference
+ * lap, with the widget set to show only when on track. Their lap is drawn
+ * once there is a reference to draw it against, and is never recorded as
+ * one: the widget says so rather than calling it an out-lap.
+ */
+export const TeamMateDrivingNoReference: Story = {
+  args: { showOnlyWhenOnTrack: true },
+  decorators: [
+    ChannelSnapshotDecorator({
+      'track-state.snapshot': {
+        ...trackStateStorySnapshot,
+        isOnTrack: false,
+        outOfCar: true,
+        watching: true,
+        watchingOwnCar: true,
+        watchingOwnCarTelemetry: true,
+      },
+    }),
+  ],
+  loaders: [
+    async () => (
+      await seedInvalidLap([{ lapDistPct: 0, isOnTrack: false }]),
       {}
     ),
   ],

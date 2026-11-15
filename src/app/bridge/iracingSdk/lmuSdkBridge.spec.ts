@@ -29,6 +29,11 @@ const sdkState = vi.hoisted(() => ({
     control?: number;
     isPlayer?: boolean;
   }[],
+  /**
+   * Every shared-memory read, in order: the slot it asked the block of, and
+   * whether the sim named a player vehicle when it was made.
+   */
+  reads: [] as { blockSlot: unknown; playerHasVehicle: boolean }[],
 }));
 
 /** Shared so a spec can read the arguments the session mapper was given. */
@@ -64,10 +69,21 @@ const lapDistanceSpies = vi.hoisted(() => ({
   reset: vi.fn(),
 }));
 
-const rawFrame = () => {
+const rawFrame = (blockSlot?: unknown) => {
   if (sdkState.readThrows) throw new Error('shared memory read failed');
+  sdkState.reads.push({
+    blockSlot,
+    playerHasVehicle: sdkState.playerHasVehicle,
+  });
   return {
     running: sdkState.running,
+    // As the addon answers: the slot asked for, or the player's own.
+    blockSlot:
+      typeof blockSlot === 'number'
+        ? blockSlot
+        : sdkState.playerHasVehicle
+          ? sdkState.playerVehicleIdx
+          : -1,
     gameVersion: 1,
     trackName: 'Test Track',
     session: 1,
@@ -97,8 +113,8 @@ vi.mock('../../lmu/native', () => ({
     stop = vi.fn(() => true);
     isRunning = vi.fn(() => sdkState.running);
     read = vi.fn(rawFrame);
-    readSession = vi.fn(() => ({
-      ...rawFrame(),
+    readSession = vi.fn((blockSlot?: unknown) => ({
+      ...rawFrame(blockSlot),
       classes: [],
       drivers: sdkState.drivers,
     }));
@@ -800,6 +816,126 @@ describe('publishLmuSDKEvents and the user’s own entry', () => {
     expect(mapSessionSpy.mock.calls.length).toBe(builds);
 
     bridge.stop();
+  });
+});
+
+/**
+ * With a team-mate driving, the pedals, the revs and the brakes of the team
+ * car are read from its telemetry block, which the addon gives when asked
+ * for the car's slot. The bridge asks for the own entry's and no other, and
+ * only while the sim names no player vehicle.
+ */
+describe('publishLmuSDKEvents and the own entry’s telemetry block', () => {
+  /** The slots asked for, in order, from read number `from` on. */
+  const asked = (from = 0) =>
+    sdkState.reads.slice(from).map((read) => read.blockSlot);
+  const settle = () => new Promise((resolve) => setTimeout(resolve, 150));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sdkState.running = true;
+    sdkState.readThrows = false;
+    sdkState.playerHasVehicle = true;
+    sdkState.playerVehicleIdx = 0;
+    sdkState.reads = [];
+    sdkState.drivers = [
+      { id: 0, name: 'The User', vehicleName: 'Team X #77:LMGT3' },
+      { id: 1, name: 'A Rival', vehicleName: 'Team Y #12:LMGT3' },
+    ];
+  });
+
+  afterEach(() => {
+    sdkState.playerHasVehicle = true;
+    sdkState.playerVehicleIdx = 0;
+    sdkState.drivers = [];
+    sdkState.reads = [];
+    restState.data.cells = {};
+  });
+
+  it('asks for no block while the player has a vehicle', async () => {
+    const { publishLmuSDKEvents } = await import('./lmuSdkBridge');
+    const bridge = await publishLmuSDKEvents(createOverlayManager());
+    await vi.waitFor(() => expect(mapSessionSpy).toHaveBeenCalled());
+    await settle();
+    bridge.stop();
+
+    expect(sdkState.reads.length).toBeGreaterThan(5);
+    expect(asked().every((slot) => slot === undefined)).toBe(true);
+  });
+
+  it('asks for the own entry’s block through a team-mate’s stint, and never the camera’s car', async () => {
+    const { publishLmuSDKEvents } = await import('./lmuSdkBridge');
+    const bridge = await publishLmuSDKEvents(createOverlayManager());
+    await vi.waitFor(() => expect(mapSessionSpy).toHaveBeenCalled());
+
+    // The team-mate takes over, and the user puts the camera on a rival.
+    restState.data.cells = { focusCarIdx: { value: [1] } };
+    const leftAt = sdkState.reads.length;
+    sdkState.playerHasVehicle = false;
+    sdkState.playerVehicleIdx = -1;
+    await settle();
+    const backAt = sdkState.reads.length;
+    sdkState.playerHasVehicle = true;
+    sdkState.playerVehicleIdx = 0;
+    await settle();
+    bridge.stop();
+
+    const out = sdkState.reads.slice(leftAt, backAt);
+    const firstOut = out.findIndex((read) => !read.playerHasVehicle);
+    const stint = out.slice(firstOut).map((read) => read.blockSlot);
+    expect(stint.length).toBeGreaterThan(5);
+    // The frame the user left the car on was asked for as the frame before
+    // it had been, and read again for the own entry's block. From then on
+    // every read asks for slot 0: the team car, not the rival in slot 1.
+    expect(stint.slice(0, 2)).toEqual([undefined, 0]);
+    expect(stint.slice(2).every((slot) => slot === 0)).toBe(true);
+
+    const back = sdkState.reads.slice(backAt);
+    const firstBack = back.findIndex((read) => read.playerHasVehicle);
+    const after = back.slice(firstBack).map((read) => read.blockSlot);
+    expect(after.length).toBeGreaterThan(5);
+    // And the other way round on the frame the user is back in the car on.
+    expect(after.slice(0, 2)).toEqual([0, undefined]);
+    expect(after.slice(2).every((slot) => slot === undefined)).toBe(true);
+  });
+
+  it('asks for none while no own entry is known', async () => {
+    // Joined as a spectator: no player vehicle from the start, and nothing
+    // on the grid to say which car is the user's.
+    sdkState.playerHasVehicle = false;
+    sdkState.playerVehicleIdx = -1;
+    sdkState.drivers = [{ id: 1, name: 'A Rival', vehicleName: 'Team Y #12' }];
+    restState.data.cells = { focusCarIdx: { value: [1] } };
+    const { publishLmuSDKEvents } = await import('./lmuSdkBridge');
+    const bridge = await publishLmuSDKEvents(createOverlayManager());
+    await vi.waitFor(() => expect(mapSessionSpy).toHaveBeenCalled());
+    await settle();
+    bridge.stop();
+
+    expect(sdkState.reads.length).toBeGreaterThan(5);
+    expect(asked().every((slot) => slot === undefined)).toBe(true);
+  });
+
+  it('says in the log, once, what the block holds', async () => {
+    const { publishLmuSDKEvents } = await import('./lmuSdkBridge');
+    const bridge = await publishLmuSDKEvents(createOverlayManager());
+    await vi.waitFor(() => expect(mapSessionSpy).toHaveBeenCalled());
+    const blockLines = () =>
+      vi
+        .mocked(logger.info)
+        .mock.calls.map(([line]) => String(line))
+        .filter((line) => line.includes('Own entry telemetry block'));
+    expect(blockLines()).toEqual([]);
+
+    sdkState.playerHasVehicle = false;
+    sdkState.playerVehicleIdx = -1;
+    await settle();
+    bridge.stop();
+
+    expect(blockLines()).toHaveLength(1);
+    expect(blockLines()[0]).toContain(
+      '[lmuSdkBridge] Own entry telemetry block: slot 0; control not stated'
+    );
   });
 });
 

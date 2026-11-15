@@ -60,6 +60,11 @@ import {
   resetLmuOwnEntryState,
   type LmuWatchedSource,
 } from '../../lmu/ownEntry';
+import {
+  describeLmuOwnEntryBlock,
+  lmuBlockSlotToRead,
+  lmuOwnEntryBlockStatus,
+} from '../../lmu/ownEntryBlock';
 import { lmuRelativePositionsAvailable } from '../../lmu/proximity';
 import {
   createLmuLapDistanceState,
@@ -172,6 +177,15 @@ const FROZEN_POLL_INTERVAL = 250;
  * written.
  */
 const WATCHED_CAR_LOG_INTERVAL_MS = 2_000;
+
+/**
+ * How long after the own entry's telemetry block is first read it is
+ * described in the log once more. The first line is written as the user
+ * leaves the car, which is standing in its pit box with nobody on the
+ * pedals; by now it is out on the circuit, and the line says whether the
+ * sim fills in what a team-mate is doing with it.
+ */
+const OWN_ENTRY_BLOCK_SAMPLE_MS = 60_000;
 
 const perfRunConfig = getPerfRunConfig();
 const perfTelemetryDeliveryEnabled =
@@ -381,6 +395,18 @@ export async function publishLmuSDKEvents(
   let lastWatchedSource: LmuWatchedSource | null = null;
   let lastWatchedFocus: number | undefined;
   let lastWatchedLog = Number.NEGATIVE_INFINITY;
+  /**
+   * Whether the last snapshot named a player vehicle. While it does not, and
+   * an own entry is known, the read asks for that entry's telemetry block,
+   * so the pedals, the revs and the brakes of the team car go on being read
+   * with a team-mate driving it. See ownEntryBlock.ts.
+   */
+  let playerHadVehicle = true;
+  /** What the own entry's block was last logged as, so a change is a line. */
+  let lastBlockStatus = -1;
+  let lastBlockLog = Number.NEGATIVE_INFINITY;
+  /** When the block is described once more, or never. */
+  let blockSampleDueAt = Number.POSITIVE_INFINITY;
 
   const telemetryCallbacks = new Set<(value: Telemetry) => void>();
   const sessionCallbacks = new Set<(value: Session) => void>();
@@ -437,8 +463,28 @@ export async function publishLmuSDKEvents(
         shouldPollSession ? 'sdkSessionRead' : 'sdkTelemetryRead'
       );
       const readStartedAt = performance.now();
-      const rawSession = shouldPollSession ? sdk.readSession() : null;
-      const raw = rawSession ?? sdk.read();
+      // The own entry's block, and only while the sim names no player
+      // vehicle: never the car the camera is on. Asked for by what the last
+      // snapshot said, and read again on the one frame where this snapshot
+      // says otherwise -- the frame the user leaves the car on, and the one
+      // they are back in it on -- so that every frame is built from the
+      // block that goes with it.
+      const ownEntrySlotAtRead = lmuOwnEntrySlot(ownEntryState);
+      let blockSlot = lmuBlockSlotToRead(playerHadVehicle, ownEntrySlotAtRead);
+      let rawSession = shouldPollSession ? sdk.readSession(blockSlot) : null;
+      let raw = rawSession ?? sdk.read(blockSlot);
+      if (raw.running) {
+        const blockSlotWanted = lmuBlockSlotToRead(
+          raw.playerHasVehicle,
+          ownEntrySlotAtRead
+        );
+        if (blockSlotWanted !== blockSlot) {
+          blockSlot = blockSlotWanted;
+          rawSession = shouldPollSession ? sdk.readSession(blockSlot) : null;
+          raw = rawSession ?? sdk.read(blockSlot);
+        }
+        if (raw.running) playerHadVehicle = raw.playerHasVehicle;
+      }
       const readMs = performance.now() - readStartedAt;
       perfMetrics.markEnd(
         shouldPollSession ? 'sdkSessionRead' : 'sdkTelemetryRead'
@@ -482,6 +528,8 @@ export async function publishLmuSDKEvents(
           lastOwnEntryLine = null;
           lastWatchedSlot = null;
           lastWatchedSource = null;
+          lastBlockStatus = -1;
+          blockSampleDueAt = Number.POSITIVE_INFINITY;
           rosterGate.reset();
           sessionIdentity.reset();
           dataFreeze.reset();
@@ -812,6 +860,34 @@ export async function publishLmuSDKEvents(
         lastWatchedLog = tickTime;
         logger.info(
           `[lmuSdkBridge] ${describeLmuWatchedCar(watchedSlot, watchedSource, restFocus)}`
+        );
+      }
+
+      // What the own entry's telemetry block holds while somebody else
+      // drives the car, for the log: whether the sim sent one, and what is
+      // in it. A line when that changes, and one more a minute on, with the
+      // car out on the circuit. What a team-mate's car carries online is
+      // not known, and these lines are what will say.
+      const blockStatus = lmuOwnEntryBlockStatus(raw, blockSlot);
+      if (
+        blockStatus !== lastBlockStatus &&
+        tickTime - lastBlockLog >= WATCHED_CAR_LOG_INTERVAL_MS
+      ) {
+        lastBlockStatus = blockStatus;
+        lastBlockLog = tickTime;
+        blockSampleDueAt =
+          blockSlot === undefined
+            ? Number.POSITIVE_INFINITY
+            : tickTime + OWN_ENTRY_BLOCK_SAMPLE_MS;
+        if (blockSlot !== undefined) {
+          logger.info(
+            `[lmuSdkBridge] ${describeLmuOwnEntryBlock(raw, blockSlot)}`
+          );
+        }
+      } else if (blockSlot !== undefined && tickTime >= blockSampleDueAt) {
+        blockSampleDueAt = Number.POSITIVE_INFINITY;
+        logger.info(
+          `[lmuSdkBridge] ${describeLmuOwnEntryBlock(raw, blockSlot)}`
         );
       }
 

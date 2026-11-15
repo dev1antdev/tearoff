@@ -151,6 +151,15 @@ session rather than a race, or a class put two laps behind the leader
 on altered data. It runs without the REST answers, so the channels they feed
 are absent, as they are in a session where the API is not answering.
 
+A team-mate's stint is staged the same way: `lmuRawWithoutPlayerVehicle`
+takes the player's vehicle out of a snapshot, and the car that was the
+player's goes on lapping in its slot. The replay then asks the addon for the
+own entry's telemetry block by its slot, as the bridge does, and hands
+`transformRaw` that slot as its second argument; passed on to
+`lmuRawWithoutPlayerVehicle`, the block stays in the snapshot
+(`src/app/lmu/teamMateStint.tape.spec.ts`). `sdk.read(slot)` reads any car's
+block directly (`src/app/lmu/native/lmu-tape-block.spec.ts`).
+
 Guard a tape spec with `describe.skipIf(!lmuTapeAvailable())`: the addon is
 Windows only and CI does not fetch the tape.
 

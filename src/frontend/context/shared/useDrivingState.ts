@@ -51,8 +51,10 @@ const selectIsWatchingOtherCar = (snapshot: TrackStateSnapshot): boolean =>
  *
  * A widget that has something true to show for any watched car hides on
  * `!(isDriving || isWatching)`. One about the user's own car hides on
- * `!(isDriving || isWatchingOwnCar)`. One that describes the user's own
- * driving -- the pedals, the driver's aids -- hides on `!isDriving` alone.
+ * `!(isDriving || isWatchingOwnCar)`. One made of the car's pedals, revs or
+ * brakes hides on `!(isDriving || useWatchingOwnCarTelemetry())`, below.
+ * One that helps the user drive -- the driver's aids -- hides on
+ * `!isDriving` alone.
  */
 export const useDrivingState = () => {
   const isDriving = useTrackStateSelector(selectIsDriving) ?? false;
@@ -69,4 +71,28 @@ export const useDrivingState = () => {
     isWatchingOwnCar: watchingOwnCar && showWhileWatching,
     isWatchingOtherCar,
   };
+};
+
+/**
+ * Whether the user is watching their own entry with the sim writing its
+ * pedals, steering, gear, revs and brake temperatures: the part of a car
+ * that exists only in its telemetry block.
+ *
+ * The widgets made of those -- the inputs, the shift light, the tyres and
+ * brakes, the lap trace -- show during a team-mate's stint only while this
+ * holds. Watching the own entry is not enough for them: the sim may send no
+ * block for a car somebody else is driving, and they would then show a car
+ * at rest, in neutral, that is doing 200 km/h on the picture. Never true
+ * with the camera on another car, whose pedals these are not. Subject to
+ * the General setting that keeps widgets up while watching, like
+ * `isWatchingOwnCar`.
+ *
+ * A hook of its own rather than a fifth field of `useDrivingState`, which
+ * every widget reads and few need this from.
+ */
+export const useWatchingOwnCarTelemetry = (): boolean => {
+  const watchingOwnCarTelemetry =
+    useTrackStateSelector(trackStateSelectors.watchingOwnCarTelemetry) ?? false;
+  const showWhileWatching = useShowWhileWatching();
+  return watchingOwnCarTelemetry && showWhileWatching;
 };
