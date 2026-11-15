@@ -13,6 +13,13 @@ vi.mock('@irdashies/utils/logger', () => ({
   default: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
 
+// The sim, which decides whether the player's own lap may stand in for a
+// class reference. Le Mans Ultimate unless a test says otherwise.
+const sim = vi.hoisted(() => ({ active: 'lmu' as 'lmu' | 'iracing' | null }));
+vi.mock('./useActiveSimulator', () => ({
+  useActiveSimulator: () => sim.active,
+}));
+
 const PLAYER_CAR_IDX = 0;
 const PLAYER_CLASS_ID = 1;
 const POINTS = 400;
@@ -42,6 +49,7 @@ const sectorsAt = (...starts: number[]) =>
   starts.map((SectorStartPct, SectorNum) => ({ SectorNum, SectorStartPct }));
 
 beforeEach(() => {
+  sim.active = 'lmu';
   useReferenceLapStore.getState().completeSession();
   useSectorTimingStore.getState().reset();
   useSectorTimingStore.setState({ sectors: sectorsAt(0, 0.4, 0.8) });
@@ -93,6 +101,27 @@ describe('the sector ghost', () => {
     expect(result.current.refSectorTimes[0]).toBeCloseTo(40, 3);
     expect(result.current.refSectorTimes[1]).toBeCloseTo(40, 3);
     expect(result.current.refSectorTimes[2]).toBeCloseTo(20, 3);
+  });
+
+  it('leaves iRacing to its session bests until its class lap arrives', () => {
+    // An iRacing class with no stored lap yet gets one during the session.
+    // A ghost that was the player's own lap until then would become another
+    // car's mid-run, so there the all-time lap does not stand in.
+    sim.active = 'iracing';
+    useReferenceLapStore.setState({ playerAllTimeLap: steadyLap(100) });
+
+    expect(renderHook(() => useGhostReferenceLap()).result.current).toBeNull();
+    const { result } = renderHook(() => useReferenceLapSectorTimes());
+    expect(result.current.hasReferenceLap).toBe(false);
+
+    const classBest = steadyLap(90);
+    act(() => {
+      useReferenceLapStore.setState({
+        persistedLaps: new Map([[PLAYER_CLASS_ID, classBest]]),
+      });
+    });
+    expect(result.current.hasReferenceLap).toBe(true);
+    expect(result.current.refSectorTimes[0]).toBeCloseTo(36, 3);
   });
 
   it('is no lap at all with neither, whatever laps the session holds', () => {

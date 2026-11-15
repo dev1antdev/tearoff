@@ -41,6 +41,29 @@ describe('FuelStore stored laps', () => {
     );
   });
 
+  it('keeps one of a lap that was stored twice', () => {
+    // The calculator saves its laps again when it is mounted afresh while
+    // they are still live. Twice in storage, a lap weighed twice in every
+    // average.
+    const stored = [
+      lap(2, 1, 190_000),
+      lap(1, 1, 100_000),
+      lap(2, 1, 190_000),
+      lap(1, 1, 100_000),
+      lap(1, 0, 100_000),
+    ];
+
+    useFuelStore.getState().setLapHistory(stored);
+
+    // The last is another session's lap of the same number and clock: a
+    // different lap, and kept.
+    expect(useFuelStore.getState().storedLaps).toEqual([
+      { ...lap(2, 1, 190_000), isHistorical: true },
+      { ...lap(1, 1, 100_000), isHistorical: true },
+      { ...lap(1, 0, 100_000), isHistorical: true },
+    ]);
+  });
+
   it('is not changed by the laps of the session under way', () => {
     useFuelStore.getState().setLapHistory([lap(1, 0, 100_000)]);
 

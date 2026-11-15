@@ -130,8 +130,7 @@ const occupiedArr = (
 
 /**
  * The lap a car is on, counted the way iRacing counts `Lap` and
- * `CarIdxLap`: 1 on the first lap, and 0 for a car that has not reached
- * the line yet.
+ * `CarIdxLap`: 1 on the first lap.
  *
  * LMU's own counters are laps completed, 0 all the way round the first
  * lap, and published as they stood they put every reader a lap out: the
@@ -139,13 +138,14 @@ const occupiedArr = (
  * timed race would run came out one short, and a car on its first lap
  * and one on its second counted as on the same lap.
  *
- * A car before the line is the one case where nothing has been started.
- * LMU holds its lap fraction at exactly 0 until it crosses.
+ * A car that has not reached the line yet is on lap one as well, not on
+ * none. LMU holds its lap fraction at exactly 0 until it crosses, and lap
+ * plus fraction is how the standings and the relative measure who is
+ * ahead: counted as lap 0, a car a few metres short of the line at a
+ * rolling start was a whole lap behind the car that had just crossed it.
  */
-const lapStarted = (completed: number, lapDistPct: number): number => {
-  if (completed < 0) return -1;
-  return completed > 0 || lapDistPct > 0 ? completed + 1 : 0;
-};
+const lapStarted = (completed: number): number =>
+  completed < 0 ? -1 : completed + 1;
 
 const lapDistPctArr = (v: ArrayLike<number> | undefined) => ({
   value: v
@@ -552,10 +552,7 @@ export function mapLmuTelemetry(
   const carIdxLapsStarted = t.CarIdxLap.value as number[];
   const carIdxLapsCompleted = t.CarIdxLapCompleted.value as number[];
   for (let carIdx = 0; carIdx < carIdxLapsStarted.length; carIdx += 1) {
-    carIdxLapsStarted[carIdx] = lapStarted(
-      carIdxLapsCompleted[carIdx],
-      carIdxLapDistPct[carIdx] ?? 0
-    );
+    carIdxLapsStarted[carIdx] = lapStarted(carIdxLapsCompleted[carIdx]);
   }
   t.CarIdxTrackSurface = {
     value: Array.from(raw.vehInPits, (_, carIdx) => trackLocation(raw, carIdx)),
@@ -729,7 +726,7 @@ export function mapLmuTelemetry(
   // does -- then saw the line twice. Moved in the same frame as the position.
   const lapsCompleted = playerCompletedLaps ?? raw.vehTotalLaps[playerIdx] ?? 0;
   // The lap being driven, as iRacing's Lap is; see lapStarted.
-  t.Lap = num(playerIdx >= 0 ? lapStarted(lapsCompleted, lapDistPct) : 0);
+  t.Lap = num(playerIdx >= 0 ? lapStarted(lapsCompleted) : 0);
   t.LapCompleted = num(lapsCompleted);
   t.LapDistPct = num(lapDistPct);
   t.LapBestLapTime = lapTime(raw.vehBestLapTime[playerIdx]);

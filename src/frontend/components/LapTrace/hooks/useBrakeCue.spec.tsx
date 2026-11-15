@@ -5,7 +5,7 @@ import {
   type ChannelBridge,
   type TrackStateSnapshot,
 } from '@irdashies/types';
-import { useLapTraceStore } from '@irdashies/context';
+import { OverlayHiddenContext, useLapTraceStore } from '@irdashies/context';
 import { hydrateLapTrace } from '@irdashies/domain/lapTrace/hydrateLapTrace';
 import { makeSyntheticLapTrace } from '../fixtures/syntheticLap';
 import { BrakeCue } from '../components/BrakeCue';
@@ -65,6 +65,22 @@ const renderCue = () =>
     />
   );
 
+/** The cue inside an overlay that is shown or hidden, with its tones on. */
+const cueInOverlay = (hidden: boolean) => (
+  <OverlayHiddenContext.Provider value={hidden}>
+    <BrakeCue
+      cuePointsM={CUE_POINTS_M}
+      showBars
+      barSide="right"
+      lastBar="top"
+      playAudio
+      volume={0.6}
+      audioCueLeadSec={0}
+      colors={DEFAULT_LAP_TRACE_COLORS}
+    />
+  </OverlayHiddenContext.Provider>
+);
+
 const nextFrames = (count: number) =>
   new Promise<void>((resolve) => {
     const step = (left: number) =>
@@ -100,6 +116,25 @@ describe('useBrakeCue', () => {
     await nextFrames(2);
     act(() => moveTo(900));
 
+    await waitFor(() => expect(strip.style.visibility).toBe('visible'));
+  });
+
+  it('takes its bars down when the overlay is hidden, with no new snapshot', async () => {
+    // The widget stays mounted in a hidden overlay, and the strip sets its
+    // own visibility, which the overlay's does not reach. A pause hides the
+    // overlay and stops the snapshots, so the strip has to go by itself.
+    const moveTo = trackStateBridge();
+    const view = render(cueInOverlay(false));
+    const strip = view.getByTestId('brake-cue-bars');
+    act(() => moveTo(880));
+    await nextFrames(2);
+    act(() => moveTo(900));
+    await waitFor(() => expect(strip.style.visibility).toBe('visible'));
+
+    view.rerender(cueInOverlay(true));
+    await waitFor(() => expect(strip.style.visibility).toBe('hidden'));
+
+    view.rerender(cueInOverlay(false));
     await waitFor(() => expect(strip.style.visibility).toBe('visible'));
   });
 

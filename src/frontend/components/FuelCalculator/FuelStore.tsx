@@ -272,8 +272,24 @@ export const useFuelStore = create<FuelStore>()((set, get) => ({
     set({ trackId, carName });
   },
 
-  setLapHistory: (laps) => {
+  setLapHistory: (stored) => {
     set(() => {
+      // The same lap can be in storage more than once: it is saved again
+      // when the calculator is mounted afresh while its laps are still
+      // live. Counted twice, it weighs twice in every average.
+      const seen = new Set<string>();
+      const laps = stored.filter((lap) => {
+        const key = [
+          lap.sessionNum,
+          lap.lapNumber,
+          lap.timestamp,
+          lap.fuelUsed,
+          lap.lapTime,
+        ].join('|');
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
       const newHistory = new Map();
       let oldestLapNumber = Infinity;
 

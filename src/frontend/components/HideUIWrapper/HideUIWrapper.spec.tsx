@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, render, screen } from '@testing-library/react';
 import { useEffect } from 'react';
+import { useOverlayHidden } from '@irdashies/context';
 import { HideUIWrapper } from './HideUIWrapper';
 
 /** Stands in for a widget: mounting it is subscribing to its channels. */
@@ -72,6 +73,29 @@ describe('HideUIWrapper', () => {
     expect(hidden.parentElement?.className).toBe('');
     expect(onMount).toHaveBeenCalledTimes(1);
     expect(onUnmount).not.toHaveBeenCalled();
+  });
+
+  it('tells what is inside it that the overlay is hidden', () => {
+    // For what does not stop by being unpainted: a sound, or an element
+    // that sets its own visibility over the wrapper's.
+    install();
+    const Listener = () => (
+      <div data-testid="listener">
+        {useOverlayHidden() ? 'hidden' : 'shown'}
+      </div>
+    );
+    render(
+      <HideUIWrapper>
+        <Listener />
+      </HideUIWrapper>
+    );
+    expect(screen.getByTestId('listener').textContent).toBe('shown');
+
+    act(() => toggle?.(true));
+    expect(screen.getByTestId('listener').textContent).toBe('hidden');
+
+    act(() => toggle?.(false));
+    expect(screen.getByTestId('listener').textContent).toBe('shown');
   });
 
   it('stops listening when it goes away', () => {

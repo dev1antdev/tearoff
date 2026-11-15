@@ -33,6 +33,11 @@ vi.mock('@irdashies/context', async (importOriginal) => ({
     selector(trackState),
 }));
 
+// Le Mans Ultimate, where the player's all-time lap is the ghost.
+vi.mock('../../context/shared/useActiveSimulator', () => ({
+  useActiveSimulator: () => 'lmu',
+}));
+
 const PLAYER_CAR_IDX = 0;
 const PLAYER_CLASS_ID = 1;
 const POINTS = 400;

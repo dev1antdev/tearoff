@@ -743,19 +743,24 @@ describe('mapLmuTelemetry absent-value sentinels', () => {
     expect((t.CarIdxBestLapTime?.value as number[])[0]).toBe(-1);
   });
 
-  it('counts no lap for a car that has not reached the line', () => {
-    // On the grid or rolling up to the start LMU holds the lap fraction at
-    // exactly 0. That car is on no lap yet, as iRacing has it.
+  it('keeps a car short of the line level with one just over it', () => {
+    // A rolling start: LMU holds the lap fraction at exactly 0 until a car
+    // reaches the line. Lap plus fraction is how the standings and the
+    // relative tell who is ahead, so that car is on lap one too -- counted
+    // as on no lap, it was a whole lap behind the car in front of it.
     const raw = fixture();
     raw.vehTotalLaps = [0, 0, 0] as unknown as typeof raw.vehTotalLaps;
     raw.vehLapDistPct = new Float64Array([0, 0, 0.004]);
 
     const t = mapLmuTelemetry(raw);
 
-    expect(t.CarIdxLap?.value).toEqual([0, 0, 1]);
+    expect(t.CarIdxLap?.value).toEqual([1, 1, 1]);
     expect(t.CarIdxLapCompleted?.value).toEqual([0, 0, 0]);
+    const laps = t.CarIdxLap?.value as number[];
+    const pcts = t.CarIdxLapDistPct?.value as number[];
+    expect(laps[2] + pcts[2] - (laps[0] + pcts[0])).toBeCloseTo(0.004, 9);
     // The player is the car in slot 1.
-    expect(t.Lap?.value[0]).toBe(0);
+    expect(t.Lap?.value[0]).toBe(1);
     expect(t.LapCompleted?.value[0]).toBe(0);
   });
 

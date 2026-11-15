@@ -4,14 +4,20 @@ import { useSessionStore } from '../SessionStore/SessionStore';
 import { useReferenceLapStore } from '../ReferenceLapStore/ReferenceLapStore';
 import { useSectorTimingStore } from '../SectorTimingStore/SectorTimingStore';
 import { interpolateAtPoint } from '@irdashies/utils/referenceLapInterpolation';
+import { useActiveSimulator } from './useActiveSimulator';
 
 /**
  * The lap the sector ghost is, or null when there is none.
  *
  * The class reference where the session has one for the player's class, as
  * an iRacing session does. Le Mans Ultimate has no class references, and
- * there -- as wherever the class has no lap -- the ghost is the player's own
- * all-time lap on this track in this car, from the lap library.
+ * there the ghost is the player's own all-time lap on this track in this
+ * car, from the lap library.
+ *
+ * Only there. An iRacing session whose class has no stored lap yet keeps to
+ * the session's own bests, as it always has: its class lap arrives during
+ * the session, and a ghost that was the player's lap until then would turn
+ * into another car's mid-run.
  *
  * With neither, the sectors are compared against the session's own bests.
  */
@@ -24,10 +30,11 @@ export const useGhostReferenceLap = (): ReferenceLap | null => {
 
   // A selector for the lap itself, so this re-runs when the lap object
   // changes: once the stored laps have loaded, or the library has a new one.
+  const ownLapStandsIn = useActiveSimulator() === 'lmu';
   return useReferenceLapStore(
     (s) =>
       (playerClassId != null ? s.persistedLaps.get(playerClassId) : null) ??
-      s.playerAllTimeLap
+      (ownLapStandsIn ? s.playerAllTimeLap : null)
   );
 };
 

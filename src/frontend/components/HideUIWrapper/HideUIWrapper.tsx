@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { OverlayHiddenContext } from '@irdashies/context';
 
 declare global {
   interface Window {
@@ -29,6 +30,10 @@ interface HideUIWrapperProps {
  * `invisible` rather than `hidden`, as the profile switch does and for its
  * reason: the subtree is not painted and keeps its layout, so nothing is
  * measured again on the way back.
+ *
+ * Not everything a widget does is painting, and a child can set its own
+ * visibility over this one. What has to stop while the overlay is hidden
+ * reads the context this provides: the brake cue's tones and its bars.
  */
 export const HideUIWrapper = ({ children }: HideUIWrapperProps) => {
   const [hideUI, setHideUI] = useState(false);
@@ -40,5 +45,9 @@ export const HideUIWrapper = ({ children }: HideUIWrapperProps) => {
     return () => unsub();
   }, []);
 
-  return <div className={hideUI ? 'invisible' : ''}>{children}</div>;
+  return (
+    <OverlayHiddenContext.Provider value={hideUI}>
+      <div className={hideUI ? 'invisible' : ''}>{children}</div>
+    </OverlayHiddenContext.Provider>
+  );
 };

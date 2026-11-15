@@ -206,7 +206,11 @@ export class SessionTimingProcessor implements TelemetryProcessor<SessionTimingS
     ) {
       const averageLapTime = this.averageLapTime(leaderCarIdx);
       if (averageLapTime > 0) {
-        this.greenFlagTimestamp = sessionTime - leaderLap * averageLapTime;
+        // The leader has just started this lap, so the race is the laps
+        // before it old. Counted with this lap as well, a race joined after
+        // its start was a lap further along than it was.
+        this.greenFlagTimestamp =
+          sessionTime - (leaderLap - 1) * averageLapTime;
         this.lateJoin = false;
       }
     }

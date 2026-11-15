@@ -82,6 +82,19 @@ describe('SessionTimingProcessor', () => {
     expect(processor.snapshot().totalRaceLaps).toBe(3);
   });
 
+  it('works out the green flag of a race joined after its start', () => {
+    // Seen first with the race already on, the leader on lap three at a
+    // minute a lap. When the leader starts lap four the race is three laps
+    // old, not four: counted with the lap just begun, the green flag was
+    // put a lap too early and the race clock ran a lap ahead.
+    const processor = new SessionTimingProcessor(() => [60, 61]);
+    processor.init(session);
+    processor.onFrame(frame({ SessionTime: 500, CarIdxLap: [3, 3] }));
+    expect(processor.snapshot().greenFlagTimestamp).toBe(0);
+    processor.onFrame(frame({ SessionTime: 520, CarIdxLap: [4, 3] }));
+    expect(processor.snapshot().greenFlagTimestamp).toBe(520 - 3 * 60);
+  });
+
   it('resets on session changes and ignores replay scrubbing', () => {
     const processor = new SessionTimingProcessor();
     processor.init(session);
