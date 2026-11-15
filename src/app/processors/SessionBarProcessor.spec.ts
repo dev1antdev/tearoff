@@ -317,4 +317,142 @@ describe('SessionBarProcessor', () => {
     expect(processor.snapshot().virtualEnergy).toBeUndefined();
     expect(processor.snapshot().fuelLevel).toBeUndefined();
   });
+
+  describe('the in-game clock', () => {
+    const clockFrame = (
+      sessionTime: number,
+      timeOfDay: number | undefined,
+      extra: Record<string, unknown> = {}
+    ): Telemetry =>
+      ({
+        SessionTime: { value: [sessionTime] },
+        SessionNum: { value: [0] },
+        ...(timeOfDay === undefined
+          ? {}
+          : { SessionTimeOfDay: { value: [timeOfDay] } }),
+        ...extra,
+      }) as unknown as Telemetry;
+
+    /** Every 0.2 s from `from` to `to`, with the day running at `scale`. */
+    const drive = (
+      processor: SessionBarProcessor,
+      from: number,
+      to: number,
+      scale: number,
+      startOfDay = 54_600
+    ) => {
+      const steps = Math.round((to - from) / 0.2);
+      for (let step = 0; step <= steps; step += 1) {
+        const time = from + step * 0.2;
+        processor.onFrame(
+          clockFrame(time, (startOfDay + time * scale) % 86_400)
+        );
+      }
+    };
+
+    it('measures the time scale once five seconds have passed', () => {
+      const processor = new SessionBarProcessor();
+      processor.init({} as Session);
+
+      drive(processor, 0, 5, 2);
+      expect(processor.snapshot().timeScale).toBeUndefined();
+      expect(processor.snapshot().sessionTimeOfDay).toBe(54_610);
+
+      drive(processor, 5.2, 12, 2);
+      expect(processor.snapshot().timeScale).toBe(2);
+    });
+
+    it('reads a day at the pace of the session clock as 1 and a still one as 0', () => {
+      const real = new SessionBarProcessor();
+      real.init({} as Session);
+      drive(real, 100, 106, 1);
+      expect(real.snapshot().timeScale).toBe(1);
+
+      const still = new SessionBarProcessor();
+      still.init({} as Session);
+      drive(still, 100, 106, 0);
+      expect(still.snapshot().timeScale).toBe(0);
+    });
+
+    it('keeps the scale across midnight', () => {
+      const processor = new SessionBarProcessor();
+      processor.init({} as Session);
+      // Starts 10 s before midnight.
+      drive(processor, 0, 30, 1, 86_390);
+      expect(processor.snapshot().timeScale).toBe(1);
+      expect(processor.snapshot().sessionTimeOfDay).toBeCloseTo(20, 6);
+    });
+
+    it('shows what iRacing states until the scale has been measured', () => {
+      const processor = new SessionBarProcessor();
+      processor.init({
+        WeekendInfo: { WeekendOptions: { EarthRotationSpeedupFactor: 4 } },
+      } as unknown as Session);
+
+      processor.onFrame(clockFrame(0, 30_000));
+      expect(processor.snapshot().timeScale).toBe(4);
+
+      // The measurement wins once there is one.
+      drive(processor, 0.2, 6, 2, 30_000);
+      expect(processor.snapshot().timeScale).toBe(2);
+    });
+
+    it('states nothing under Le Mans Ultimate before measuring', () => {
+      const processor = new SessionBarProcessor();
+      // The LMU mapper leaves the factor at 0, and the REST race setting is
+      // deliberately not a stand-in.
+      processor.init({
+        WeekendInfo: { WeekendOptions: { EarthRotationSpeedupFactor: 0 } },
+        LmuRest: { timeScale: 2 },
+      } as unknown as Session);
+
+      processor.onFrame(clockFrame(0, 30_000));
+      expect(processor.snapshot().timeScale).toBeUndefined();
+    });
+
+    it('leaves the scale alone without a time of day', () => {
+      const processor = new SessionBarProcessor();
+      processor.init({} as Session);
+      for (let time = 0; time <= 8; time += 0.2) {
+        processor.onFrame(clockFrame(time, undefined));
+      }
+      expect(processor.snapshot().timeScale).toBeUndefined();
+      expect(processor.snapshot().sessionTimeOfDay).toBeUndefined();
+    });
+
+    it('starts measuring again in a new session and after a disconnect', () => {
+      const processor = new SessionBarProcessor();
+      processor.init({} as Session);
+      drive(processor, 0, 6, 2);
+      expect(processor.snapshot().timeScale).toBe(2);
+
+      processor.onFrame({
+        ...clockFrame(0, 30_000),
+        SessionNum: { value: [1] },
+      } as unknown as Telemetry);
+      expect(processor.snapshot().timeScale).toBeUndefined();
+
+      drive(processor, 0, 6, 2);
+      processor.onLifecycle({ type: 'disconnect' });
+      expect(processor.snapshot().timeScale).toBeUndefined();
+    });
+
+    it('says whether the sun is up where the sim publishes its altitude', () => {
+      const processor = new SessionBarProcessor();
+      processor.init({} as Session);
+
+      processor.onFrame(clockFrame(0, 30_000));
+      expect(processor.snapshot().isDaylight).toBeUndefined();
+
+      processor.onFrame(
+        clockFrame(1, 30_001, { SolarAltitude: { value: [0.4] } })
+      );
+      expect(processor.snapshot().isDaylight).toBe(true);
+
+      processor.onFrame(
+        clockFrame(2, 30_002, { SolarAltitude: { value: [-0.1] } })
+      );
+      expect(processor.snapshot().isDaylight).toBe(false);
+    });
+  });
 });

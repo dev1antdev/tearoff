@@ -5,6 +5,7 @@ import type { WidgetId } from '@irdashies/types';
 import { StandingsSettings } from './sections/StandingsSettings';
 import { RelativeSettings } from './sections/RelativeSettings';
 import { WeatherSettings } from './sections/WeatherSettings';
+import { WeatherForecastSettings } from './sections/WeatherForecastSettings';
 import { WindSettings } from './sections/WindSettings';
 import { TrackMapSettings } from './sections/TrackMapSettings';
 import { FlatTrackMapSettings } from './sections/FlatTrackMapSettings';
@@ -40,6 +41,8 @@ import { CarSystemsSettings } from './sections/CarSystemsSettings';
 import { TyresSettings } from './sections/TyresSettings';
 import { ChassisSettings } from './sections/ChassisSettings';
 import { DamageSettings } from './sections/DamageSettings';
+import { LiftCoastSettings } from './sections/LiftCoastSettings';
+import { HybridSettings } from './sections/HybridSettings';
 import { SystemPerformanceSettings } from './sections/SystemPerformanceSettings';
 import { FrictionCircleSettings } from './sections/FrictionCircleSettings';
 import { BrakePerformanceSettings } from './sections/BrakePerformanceSettings';
@@ -70,6 +73,7 @@ export const WIDGET_SETTINGS: Record<
   standings: StandingsSettings,
   relative: RelativeSettings,
   weather: WeatherSettings,
+  weatherforecast: WeatherForecastSettings,
   wind: WindSettings,
   fuel: FuelSettings,
   map: TrackMapSettings,
@@ -95,6 +99,8 @@ export const WIDGET_SETTINGS: Record<
   tyres: TyresSettings,
   chassis: ChassisSettings,
   damage: DamageSettings,
+  liftcoast: LiftCoastSettings,
+  hybrid: HybridSettings,
   systemperformance: SystemPerformanceSettings,
   frictioncircle: FrictionCircleSettings,
   brakeperformance: BrakePerformanceSettings,

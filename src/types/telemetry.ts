@@ -267,7 +267,9 @@ export type Telemetry = {
   LmuMotorState?: TelemetryVar<number[]>;
   /**
    * The hybrid battery's charge, 0..1. Absent on a car with no hybrid
-   * system (LmuMotorState 0), as the four motor readings below are.
+   * system: one whose motor state is 0 and whose charge reads 0. A charge
+   * above 0 is published whatever the motor state says. The four motor
+   * readings below are absent whenever the motor state is 0.
    */
   LmuBatteryCharge?: TelemetryVar<number[]>;
   /**

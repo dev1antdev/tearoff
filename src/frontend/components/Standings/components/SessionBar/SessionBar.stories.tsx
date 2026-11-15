@@ -13,6 +13,14 @@ export default {
   component: SessionBar,
   title: 'widgets/Standings/components/SessionBar',
   decorators: [
+    // Innermost, so that it renders inside the channel decorator below: the
+    // updater subscribes through the bridge that decorator installs.
+    (Story: ComponentType) => (
+      <>
+        <SessionTimingStoreUpdater enabled={true} />
+        <Story />
+      </>
+    ),
     TelemetryDecorator(),
     ChannelSnapshotDecorator({
       'session-bar.snapshot': {
@@ -65,12 +73,6 @@ export default {
         version: 1,
       },
     }),
-    (Story: ComponentType) => (
-      <>
-        <SessionTimingStoreUpdater enabled={true} />
-        <Story />
-      </>
-    ),
   ],
 } as Meta;
 

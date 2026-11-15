@@ -4,6 +4,10 @@ import { ToggleSwitch } from './ToggleSwitch';
 import { ReorderControls } from './ReorderControls';
 import { useSortableList } from '../../SortableList';
 import { SESSION_BAR_ITEM_LABELS } from '../sessionBarConstants';
+import type {
+  TrackClockFormat,
+  TrackClockTimeScaleDisplay,
+} from '@irdashies/types';
 
 const getItemId = (item: { id: string }) => item.id;
 
@@ -16,6 +20,10 @@ export interface SessionBarItemConfig {
   speedPosition?: 'left' | 'right';
   hideIfSingleMake?: boolean;
   hideIfSingleDriver?: boolean;
+  /** The in-game clock: how it is written. */
+  format?: TrackClockFormat;
+  /** The in-game clock: when the day's speed is shown beside it. */
+  timeScale?: TrackClockTimeScaleDisplay;
 }
 
 interface SessionBarItemsListProps {
@@ -189,6 +197,51 @@ export const SessionBarItemsList = ({
                     <option value="Remaining">Remaining</option>
                   </select>
                 </label>
+              </div>
+            )}
+
+            {item.id === 'sessionClockTime' && itemConfig.enabled && (
+              <div className="mt-2 grid max-w-xl grid-cols-2 gap-3 pl-8 sm:grid-cols-3">
+                <label className="flex min-w-0 flex-col gap-1 text-xs text-slate-400">
+                  <span>Format</span>
+                  <select
+                    aria-label={`${SESSION_BAR_ITEM_LABELS[item.id]} format`}
+                    value={itemConfig.format ?? 'locale'}
+                    onChange={(e) =>
+                      updateItemConfig(item.id, {
+                        format: e.target.value as TrackClockFormat,
+                      })
+                    }
+                    className="settings-field w-full"
+                  >
+                    <option value="locale">System</option>
+                    <option value="24h">15:12</option>
+                    <option value="12h">3:12 PM</option>
+                  </select>
+                </label>
+                <label className="flex min-w-0 flex-col gap-1 text-xs text-slate-400">
+                  <span>Time scale</span>
+                  <select
+                    aria-label={`${SESSION_BAR_ITEM_LABELS[item.id]} time scale`}
+                    value={itemConfig.timeScale ?? 'whenScaled'}
+                    onChange={(e) =>
+                      updateItemConfig(item.id, {
+                        timeScale: e.target.value as TrackClockTimeScaleDisplay,
+                      })
+                    }
+                    className="settings-field w-full"
+                  >
+                    <option value="whenScaled">When not real time</option>
+                    <option value="always">Always</option>
+                    <option value="never">Never</option>
+                  </select>
+                </label>
+                <p className="col-span-full text-xs text-slate-500">
+                  The time scale is how fast the in-game day runs: x2 is twice
+                  real time, x0 a time of day that stands still. It is measured
+                  from the sim&apos;s two clocks, so it appears a few seconds
+                  into a session.
+                </p>
               </div>
             )}
 

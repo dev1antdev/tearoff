@@ -369,6 +369,8 @@ describe.skipIf(!curated)('REST on the curated tape', () => {
 
     expect(session.timeScale).toBe(1);
     expect(session.privateQualifying).toBe(true);
+    // A fifteen-minute race.
+    expect(session.raceTime).toBe(900);
     expect(race.map((node) => node.skyType)).toEqual([0, 1, 1, 1, 2]);
     expect(race.map((node) => node.temperature)).toEqual([18, 17, 16, 16, 16]);
     expect(race.map((node) => node.rainChance)).toEqual([0, 0, 0, 0, 0]);

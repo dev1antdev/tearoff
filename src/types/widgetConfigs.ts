@@ -38,6 +38,15 @@ export type NameFormat =
 
 export type TemperatureUnit = 'Metric' | 'Imperial';
 
+/** How the session bar writes the in-game clock. */
+export type TrackClockFormat = 'locale' | '24h' | '12h';
+
+/**
+ * When the session bar shows the in-game day's speed beside the clock: only
+ * when it is not real time, always, or never.
+ */
+export type TrackClockTimeScaleDisplay = 'whenScaled' | 'always' | 'never';
+
 // ===========================
 // Shared widget config sub-types
 // ===========================
@@ -68,7 +77,14 @@ export interface SessionBarConfig {
   incidentCount: { enabled: boolean };
   brakeBias: { enabled: boolean };
   localTime: { enabled: boolean };
-  sessionClockTime: { enabled: boolean };
+  /** The in-game clock. Both options are optional: unset is the default. */
+  sessionClockTime: {
+    enabled: boolean;
+    /** 'locale' follows the system's own clock format. */
+    format?: TrackClockFormat;
+    /** When to show how fast the in-game day runs, as "x2". */
+    timeScale?: TrackClockTimeScaleDisplay;
+  };
   trackWetness: { enabled: boolean };
   precipitation?: { enabled: boolean };
   humidity?: { enabled: boolean };
@@ -331,6 +347,38 @@ export interface WeatherConfig {
 export interface WindConfig {
   background: { opacity: number };
   units: 'auto' | 'Metric' | 'Imperial';
+  showOnlyWhenOnTrack: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+}
+
+/**
+ * The weather now and the points of Le Mans Ultimate's forecast still to
+ * come, as a row of columns.
+ */
+export interface WeatherForecastConfig {
+  background: { opacity: number };
+  /** Forecast columns after "Now", 1 to 4. */
+  nodes: number;
+  /** The live weather as the first column. */
+  showNow: boolean;
+  /** Right to left. */
+  reverse: boolean;
+  /**
+   * What heads a forecast column: the minutes until it starts, or the
+   * in-game clock time it starts at. Both are estimates, and drawn as such.
+   */
+  timeLabel: 'countdown' | 'clock';
+  /** Temperature and wind speed units; 'auto' follows the sim. */
+  units: 'auto' | 'Metric' | 'Imperial';
+  temperature: { enabled: boolean };
+  rainChance: { enabled: boolean; showValue: boolean };
+  humidity: { enabled: boolean };
+  /** The forecast's wind, which LMU does not apply on track. */
+  wind: { enabled: boolean };
+  /** Arrows in the "Now" column for a temperature or rain on the move. */
+  trend: { enabled: boolean };
+  /** Leave out a column the forecast has no point for. */
+  hideEmptyColumns: boolean;
   showOnlyWhenOnTrack: boolean;
   sessionVisibility: SessionVisibilitySettings;
 }
@@ -1246,6 +1294,42 @@ export interface ChassisConfig {
 }
 
 /**
+ * A strip of lights that fills with the sim's own lift-and-coast signal, and
+ * that traction control and ABS take over while they work.
+ */
+export interface LiftCoastConfig {
+  background: { opacity: number };
+  /** Lights in the strip, 3 to 20. */
+  ledCount: number;
+  /** Which way the strip fills. */
+  direction: 'right' | 'left' | 'up' | 'down';
+  /** A second strip on the opposite side, filling the other way. */
+  mirrored: boolean;
+  /** Above this share of the signal the lit lights change colour. */
+  criticalFraction: number;
+  /** The progressive stage itself. */
+  showLiftAndCoast: boolean;
+  /** Traction control takes the whole strip while it cuts. */
+  showTc: boolean;
+  /** ABS takes the whole strip while it works. */
+  showAbs: boolean;
+  /**
+   * A locked and a spinning wheel take the strip. Both need the wheels' slip
+   * ratio, which nothing publishes yet, so they do nothing until it does.
+   */
+  showWheelLock: boolean;
+  showWheelSlip: boolean;
+  /** Slip ratio magnitude that counts as a lock. */
+  lockThreshold: number;
+  /** Slip ratio that counts as wheelspin. */
+  slipThreshold: number;
+  /** Draw nothing while no light is lit. */
+  hideWhenDark: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
  * A diagram of the player's car: where the body is dented, what has come off
  * or gone flat, where it was last hit, and what a repair costs at the next
  * stop. Le Mans Ultimate only.
@@ -1282,6 +1366,49 @@ export interface DamageConfig {
   repair: { enabled: boolean };
   /** Draw nothing while the car is sound and no repair is set. */
   hideWhenUndamaged: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
+ * The hybrid battery and motor of the player's car.
+ *
+ * Charge is held in percent, temperatures in Celsius and power in kilowatts
+ * throughout; the two unit settings only change what is drawn.
+ */
+export interface HybridConfig {
+  background: { opacity: number };
+  /** At or below this charge, percent, the battery is drawn as low. */
+  lowChargePct: number;
+  /** At or above this charge, percent, the battery is drawn as full. */
+  highChargePct: number;
+  /** Pulse the charge ten times on entering a band, then hold the colour. */
+  warningFlash: boolean;
+  /** Decimals of the charge and of the per-lap figures, 0 to 2. */
+  decimals: number;
+  /** Charge used and recovered on this lap. */
+  showLapUse: boolean;
+  /** Seconds after the line that last lap's totals stay up. */
+  freezeSeconds: number;
+  /** The estimated net change over the whole lap. */
+  showNetEstimate: boolean;
+  /** Seconds the motor has deployed on this lap. */
+  showDeployTimer: boolean;
+  /** The motor row, and which of its cells are drawn. */
+  showMotor: boolean;
+  motor: {
+    showTemps: boolean;
+    showRpm: boolean;
+    showTorque: boolean;
+    showPower: boolean;
+    showRegen: boolean;
+  };
+  /** Overheat thresholds, Celsius. */
+  motorTempWarnC: number;
+  coolantTempWarnC: number;
+  temperatureUnit: 'celsius' | 'fahrenheit';
+  /** Unit of the motor's power and of the regeneration reading. */
+  powerUnit: 'kW' | 'hp' | 'ps';
   sessionVisibility: SessionVisibilitySettings;
   showOnlyWhenOnTrack: boolean;
 }
@@ -2016,6 +2143,7 @@ export interface WidgetConfigMap {
   standings: StandingsConfig;
   relative: RelativeConfig;
   weather: WeatherConfig;
+  weatherforecast: WeatherForecastConfig;
   wind: WindConfig;
   map: TrackMapConfig;
   flatmap: FlatTrackMapConfig;
@@ -2042,6 +2170,8 @@ export interface WidgetConfigMap {
   tyres: TyresConfig;
   chassis: ChassisConfig;
   damage: DamageConfig;
+  liftcoast: LiftCoastConfig;
+  hybrid: HybridConfig;
   systemperformance: SystemPerformanceConfig;
   frictioncircle: FrictionCircleConfig;
   brakeperformance: BrakePerformanceConfig;
@@ -2143,6 +2273,8 @@ export interface ShiftPointSettings {
 export type StandingsWidgetSettings = BaseWidgetSettings<StandingsConfig>;
 export type RelativeWidgetSettings = BaseWidgetSettings<RelativeConfig>;
 export type WeatherWidgetSettings = BaseWidgetSettings<WeatherConfig>;
+export type WeatherForecastWidgetSettings =
+  BaseWidgetSettings<WeatherForecastConfig>;
 export type WindWidgetSettings = BaseWidgetSettings<WindConfig>;
 export type TrackMapWidgetSettings = BaseWidgetSettings<TrackMapConfig>;
 export type FlatTrackMapWidgetSettings = BaseWidgetSettings<FlatTrackMapConfig>;
@@ -2179,6 +2311,8 @@ export type CarSystemsWidgetSettings = BaseWidgetSettings<CarSystemsConfig>;
 export type TyresWidgetSettings = BaseWidgetSettings<TyresConfig>;
 export type ChassisWidgetSettings = BaseWidgetSettings<ChassisConfig>;
 export type DamageWidgetSettings = BaseWidgetSettings<DamageConfig>;
+export type LiftCoastWidgetSettings = BaseWidgetSettings<LiftCoastConfig>;
+export type HybridWidgetSettings = BaseWidgetSettings<HybridConfig>;
 export type SystemPerformanceWidgetSettings =
   BaseWidgetSettings<SystemPerformanceConfig>;
 export type FrictionCircleWidgetSettings =

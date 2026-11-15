@@ -9869,7 +9869,7 @@
       "name": "session-bar-state",
       "schemaVersion": 1,
       "frameCount": 36000,
-      "rollingHash": "94afe9f8bbb68e178260a8da7e3c36d361b210deb77496a0c4147a4e095fe598",
+      "rollingHash": "9848cd2ed5bd5e44d93d5eb4d88ae09768cbc4ffa73a634a5523646fcf148434",
       "checkpoints": {
         "firstFrame": {
           "displayUnits": 1,
@@ -9923,6 +9923,7 @@
           "bestLapTime": 129.2841033935547,
           "sessionBestLap": 119.54869842529297,
           "sessionTimeOfDay": 53490,
+          "timeScale": 1,
           "playerCarIdx": 0,
           "playerCarId": 132,
           "playerClassified": true,

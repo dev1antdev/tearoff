@@ -93,6 +93,10 @@ export class DriverControlsProcessor implements TelemetryProcessor<DriverControl
     // under it this stays absent rather than false.
     changed =
       this.set('tcActive', booleanValue(frame, 'LmuTcActive')) || changed;
+    // Also LMU's own, and already quantised: the sim writes it as a byte.
+    changed =
+      this.set('liftAndCoast', numberValue(frame, 'LmuLiftAndCoast')) ||
+      changed;
     changed =
       this.set('steeringRangeDeg', this.steeringRangeDeg(frame)) || changed;
     changed =
@@ -129,6 +133,7 @@ export class DriverControlsProcessor implements TelemetryProcessor<DriverControl
     this.latest.steeringWheelAngle = undefined;
     this.latest.brakeAbsActive = undefined;
     this.latest.tcActive = undefined;
+    this.latest.liftAndCoast = undefined;
     this.latest.steeringRangeDeg = undefined;
     this.latest.ffb = undefined;
     this.latest.brakePressure = undefined;

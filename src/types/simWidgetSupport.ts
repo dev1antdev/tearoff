@@ -75,6 +75,9 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // stop when that runs out, and litres for the fuel-limited classes.
   'fuel',
   'garagecover',
+  // The battery charge and the motor's state from LMU's telemetry block. It
+  // draws nothing for a car that shows neither, which is most of them.
+  'hybrid',
   'infobar',
   'input',
   // Timed from where the lap fraction wraps, which is where the reference
@@ -82,6 +85,8 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   'lapdelta',
   'laptimelog',
   'laptrace',
+  // LMU's own lift-and-coast light, with the traction control and ABS flags.
+  'liftcoast',
   // Drawn from the map LMU sends with the session, not from the iRacing
   // drawings the two full-size maps need.
   'minimap',
@@ -112,6 +117,9 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   'tyres',
   // Without its wind cell, which the widget drops under LMU.
   'weather',
+  // LMU's own forecast for the session, from its REST API: five points
+  // across practice, qualifying or the race, with the weather as it is.
+  'weatherforecast',
 ];
 
 /**
@@ -128,9 +136,18 @@ export const IRACING_DISABLED_WIDGETS: readonly string[] = [
   // iRacing publishes no dent, aero or suspension state: only the seconds
   // of repair left during a stop, which is a pit-service figure.
   'damage',
+  // iRacing publishes a battery charge for its hybrid cars, but under names
+  // and scales no capture here has confirmed. Held back until one has.
+  'hybrid',
+  // iRacing has no lift-and-coast signal and no flag for traction control
+  // cutting; a strip that could only ever show ABS is not this widget.
+  'liftcoast',
   // iRacing reports tyre temperatures as they were when the car last stopped
   // in the pits, not while it is moving, so there is no live reading.
   'tyres',
+  // iRacing publishes the weather as it is and the session's settings, but
+  // no forecast: there would be a "Now" column and nothing after it.
+  'weatherforecast',
 ];
 
 /** Everything else, hidden while LMU is the running sim. */

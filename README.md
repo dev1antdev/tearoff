@@ -49,6 +49,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 2. Start Tearoff and load into an LMU session to receive telemetry.
 
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Hybrid (for cars that have the system), Lift and Coast Lights, Weather Forecast, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
@@ -245,6 +246,41 @@ Shows how hard you stopped: the peak deceleration of each braking zone against y
 - Adjustable background opacity, session visibility and an option to show only when on track
 
 **What is confirmed and what is not.** On a recorded Le Mans Ultimate race in an LMGT3 the widget finds 26 braking zones in four minutes, with a best of 2.39 g, and discards the two stops that ran into another car. That car has ABS and never locked a wheel, so the lock times have only ever read zero on a recording. On a recorded iRacing race a single frame of 3.68 g, with no incident counted for it, stands as the best stop of the race where the hardest clean stop is 2.16 g: under iRacing a kerb strike or a light touch can still be taken for braking.
+### Hybrid
+
+The hybrid battery of your car: how much charge is left, whether the motor is deploying or regenerating, and what the lap has cost. Le Mans Ultimate only, and drawn only for a car that has the system: a car whose motor never states what it is doing and whose battery charge never moves, such as a GT3, an LMP2 or an LMP3, gets no widget at all rather than an empty one.
+
+**Features:**
+
+- Battery charge as a large figure and a bar: red when nearly empty, amber when nearly full, because a full battery has nowhere to put what the next braking zone recovers. Both thresholds are adjustable, and the figure can pulse ten times as it enters either band
+- A chip that reads DEPLOY, REGEN or IDLE
+- Charge used and recovered on this lap, in percentage points. For the first seconds after the line they hold last lap's totals, marked LAST, so they can be read on the straight
+- Net: what this lap is on course to add to or take from the battery, measured against your last clean lap at the same point of the track. Blank until a lap has been driven from the line without a visit to the pits
+- Seconds the motor has spent deploying on this lap
+- Optional motor row: motor and coolant temperature coloured against overheat thresholds, motor speed, torque, power and the sim's regeneration reading, in Celsius or Fahrenheit and kW, hp or PS
+- Adjustable decimals, background opacity, session visibility and an option to show only when on track
+
+**Not verified yet.** No recording of a hybrid car exists, so the widget is built from the sim's data layout and from how TinyPedal reads the same fields, and has only been tested on hand-built data. In particular:
+
+- The motor states (idle, deploying, regenerating) are numbered as TinyPedal numbers them. Where the sim states none for a car whose charge moves, the state is inferred from the charge rising or falling
+- The units of the motor row are unconfirmed. Temperatures may be written in Celsius or in Kelvin, so a reading above 200 is taken as Kelvin; the regeneration reading is taken to be a power in kilowatts
+- Which cars have a hybrid system is read from the car, not from a list of classes: the widget appears once the motor states what it is doing, or once the charge is seen to move. A car for which the sim states no motor state therefore gets its widget at the first deployment or braking zone rather than at once
+- Under iRacing the widget is switched off until a session in a hybrid car has been captured to confirm the names and scales of its battery data
+
+### Lift and Coast Lights
+
+A strip of lights for the top of the screen that follows Le Mans Ultimate's own lift-and-coast signal, the one behind the lights in the car when an energy-saving target is set. Le Mans Ultimate only: iRacing has no such signal.
+
+**Features:**
+
+- The strip fills as the signal rises: one light for any signal at all, every light when it is full
+- The lit lights turn from violet to pink once the signal passes a threshold you set (80 % by default): lift now
+- Without a target, in a car or a session that has none, the signal reads zero and the strip stays dark, or is not drawn at all with **Hide While Dark**
+- ABS takes the whole strip in yellow while it works, and traction control in blue while it cuts power. Each can be switched off
+- 3 to 20 lights, filling right, left, up or down, with an optional mirrored second strip; the lights size themselves to the box
+- Transparent by default, with an adjustable background, session visibility and an option to show only when on track
+
+**Not verified yet.** The signal reads zero for the whole of the one recording there is, a GT3 with no saving target, so how it rises on the approach to a corner and where the sim's own lights change have not been seen. The 80 % threshold is the point TinyPedal changes colour at. Two further stages, a locked wheel and wheelspin, are specified but switched off and greyed in the settings: they need the slip ratio of each wheel, which Tearoff does not measure yet.
 
 ### Standings
 
@@ -291,6 +327,7 @@ Displays standings information for the current session.
 - Header and footer bars with customizable items and display order:
   - Session name, session time (remaining/elapsed), session clock time, incident count
   - Enhanced incident display showing your count against the initial and subsequent incident limits (e.g. "3 / 8 / 12 x")
+  - Session clock time: the in-game time of day in the system's, the 24-hour or the 12-hour format, with how fast the in-game day runs beside it ("x2") when that is not real time. The speed is measured from the sim's two clocks, so it appears about five seconds into a session
   - Brake bias, local time, track wetness, precipitation, humidity, wind speed/direction
   - Air and track temperature (Metric/Imperial units)
   - Track name
@@ -470,6 +507,24 @@ Displays the weather information for the current session.
 **Horizontal layout:**
 
 ![Weather in the horizontal layout](./docs/assets/weather-horizontal.png)
+
+### Weather Forecast
+
+Shows the weather as it is and Le Mans Ultimate's forecast for the rest of the session, as a row of small columns. Le Mans Ultimate only: iRacing publishes the weather as it is and no forecast.
+
+**Features:**
+
+- A "Now" column with the sky, the air temperature and how hard it is raining, with arrows while the temperature or the rain is on the move
+- Up to four coming forecast points, soonest first, each with its sky, air temperature and chance of rain; a column whose point has begun drops out
+- The first wet point stands out with a blue outline
+- When each point starts, as time to go ("~12m", "~1.4h") or as the in-game clock time ("~15:40")
+- Optional rain percentage, humidity and the forecast's wind for each point (Le Mans Ultimate does not apply wind on track, so it is not felt in the car)
+- Temperature and wind units: Auto, Metric or Imperial
+- Left-to-right or right-to-left, with or without the "Now" column, and a choice of keeping the row at its full width
+- Uses the forecast of the running session: practice, qualifying or the race, and the race's for the warm-up
+- Adjustable background opacity, session visibility and an option to show only when on track (it stays up while you watch a car on track)
+
+**What the times rest on.** The sim publishes what each of its five forecast points holds, and not when it applies. Tearoff places them a fifth of the session apart, starting when the session clock does. In a race that is a fifth of the race's own length (the 15 minutes of a 15-minute race, not the session clock's end time, which also counts the time before the green flag); it is taken from the green flag once that has been seen, and from the race length the session is set to until then. This was measured on one recording: a dry race in real time, where the air temperature met the second and third points' values exactly at their times. In practice and qualifying it is a fifth of the session's length, which is assumed. A session whose weather changes, and one with a time scale above 1, have not been seen, so every time is written with a "~". In a race that ends on laps there is no time to show: the points stay in order with a dash for the time, and drop out as the leader covers each fifth of the laps, which is an assumption as well.
 
 ### Wind
 
@@ -879,6 +934,7 @@ A standalone widget that displays session and timing information independently f
 - Displays flag status, lap counter, session time, and other session info
 - Optional fuel level, last and best lap times, top speed, manufacturer position, and class rank
 - Weather items including humidity, precipitation, wind, and air/track temperature
+- In-game clock in the system's, the 24-hour or the 12-hour format, with how fast the in-game day runs beside it ("x2") when that is not real time
 - Fully configurable: reorder items and toggle each one on or off
 - Adjustable background opacity
 - Session visibility settings (Race, Lone Qualify, Open Qualify, Practice, Offline Testing)
@@ -1023,7 +1079,7 @@ TV-style overlays for iRacing streams, configured together in **Settings > Broad
   - Per-widget visibility shortcuts: Show or hide individual widgets without affecting the rest of the dashboard.
   - Overlay on/off: Turn every overlay off and back on, while the sim is running or not, without changing which widgets are enabled. The same switch is the **Overlay** button in the settings window header, **Show Overlay** in the tray menu and the Hide / Show UI shortcut (Alt+H by default), and each follows the others. It applies to this run of the app: the overlay is on again after a restart.
   - Hidden while paused: The overlay goes off the screen while the game is paused and comes back when you resume, within about a second. The same goes for a screen that stops the session without calling it a pause, such as the pit stop screen in a race against the AI (there it takes about two seconds). On by default; turn it off under **Settings > General > Hide Overlay While the Game Is Paused**. Le Mans Ultimate only: iRacing does not report a pause.
-  - Shown while watching: Widgets set to show only when on track stay on screen while you watch a car on track from outside it, such as a team-mate's stint in a team race, and follow that car: Standings, Relative, Minimap, Battle, Information Bar, Flag, Flag Panel and Weather. The widgets about your own car show your team car's numbers while a team-mate drives it and the camera is on it: Lap Delta, Corner Delta, Lap Time Log, Delta Speed, Corner Names, Timing, the own-car items of the Information Bar, and the Fuel Calculator for a car on virtual energy. Their laps are measured against your own reference laps and are never kept as yours: not as a personal best, a reference lap or fuel history. With the camera on another car those widgets hide, as they do not follow it. Input, Shift Light, Tyres, Car Systems and Lap Trace stay hidden for now, and a car that is in its garage does not count as one being watched. On by default; turn it off under **Settings > General > Keep Widgets On Screen While Watching**. Le Mans Ultimate only for now.
+  - Shown while watching: Widgets set to show only when on track stay on screen while you watch a car on track from outside it, such as a team-mate's stint in a team race, and follow that car: Standings, Relative, Minimap, Battle, Information Bar, Flag, Flag Panel, Weather and Weather Forecast. The widgets about your own car show your team car's numbers while a team-mate drives it and the camera is on it: Lap Delta, Corner Delta, Lap Time Log, Delta Speed, Corner Names, Timing, the own-car items of the Information Bar, and the Fuel Calculator for a car on virtual energy. Their laps are measured against your own reference laps and are never kept as yours: not as a personal best, a reference lap or fuel history. With the camera on another car those widgets hide, as they do not follow it. Input, Shift Light, Tyres, Car Systems and Lap Trace stay hidden for now, and a car that is in its garage does not count as one being watched. On by default; turn it off under **Settings > General > Keep Widgets On Screen While Watching**. Le Mans Ultimate only for now.
   - Reset widget position: Reset any widget's position to the top-left corner if it gets lost off-screen.
   - Close to tray: Closing the window minimizes to the system tray instead of quitting (configurable).
   - Always on top: Keep your overlays visible even when clicking on other windows.
