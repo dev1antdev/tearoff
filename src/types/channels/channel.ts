@@ -24,6 +24,7 @@ import type { PitStopSnapshot } from './pitStop';
 import type { TrackProfileSnapshot } from './trackProfile';
 import type { CruiseSnapshot } from './cruise';
 import type { PitLaneCalibration } from '../pitLane';
+import type { TrafficSnapshot } from './traffic';
 
 export type SessionLifecycleEvent =
   | { type: 'enter'; replay: boolean }
@@ -80,6 +81,7 @@ export interface ChannelPayloads {
   'pit-stop.snapshot': PitStopSnapshot;
   'track-profile.snapshot': TrackProfileSnapshot;
   'cruise.snapshot': CruiseSnapshot;
+  'traffic.snapshot': TrafficSnapshot;
 }
 
 export interface TrackStateSnapshot {
@@ -694,6 +696,29 @@ export interface SessionTimingSnapshot {
   totalRaceLaps: number;
   totalRaceTime: number;
   adjustedRaceTime: number;
+  /**
+   * Laps the focus car has completed. This and the four below are optional
+   * so that snapshot literals and recordings from before them stand as they
+   * are; the processor always states all five.
+   */
+  lapsCompleted?: number;
+  /** Share of the current lap the focus car has covered, 0..1, 2 decimals. */
+  lapProgress?: number;
+  /**
+   * The focus car's own distance at the flag, in laps, 2 decimals.
+   * Fractional in a time race, where the clock will stop it; whole in a lap
+   * race. 0 outside a race under green, and with no pace to project from.
+   * After the chequered flag it is the laps the car has completed.
+   */
+  projectedLaps?: number;
+  /** True when projectedLaps is the scheduled distance, not a projection. */
+  projectedLapsExact?: boolean;
+  /**
+   * Whole laps to add to projectedLaps rounded up: the lap the leader still
+   * has to finish when the clock stops (+1) and a last pit stop that costs
+   * one (-1). Normally +1, 0 or -1; 0 in a lap race.
+   */
+  extraLaps?: number;
   sessionNum: number | null;
   version: number;
 }
@@ -789,6 +814,17 @@ export interface StandingsSnapshot {
    * world.
    */
   carIdxInGarage: boolean[];
+  /**
+   * Pit stops each car has made, as the sim counts them; -1 for an empty
+   * slot. Empty under iRacing, which publishes no count: there the stops a
+   * car was seen to make are in `car-pit.snapshot`.
+   */
+  carIdxPitStops: number[];
+  /**
+   * LMU's pit state per car: 0 none, 1 stop requested, 2 entering, 3 stopped,
+   * 4 exiting; -1 for an empty slot. Empty under iRacing.
+   */
+  carIdxPitState: number[];
   /**
    * Seconds a time penalty will add, per car. 0 for a clean car and for the
    * two kinds served on track. Empty wherever `carIdxPenaltyKind` is.
@@ -1364,6 +1400,13 @@ export const channelRegistry = {
   // A heading, a height and an odometer: figures to read. The dial eases
   // between snapshots, so five a second is enough.
   'cruise.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 5,
+    maxRateHz: 10,
+  },
+  // Gaps and arrival times to read, sortable like the standings: the
+  // processor measures five times a second and rounds what it publishes.
+  'traffic.snapshot': {
     kind: 'snapshot',
     defaultRateHz: 5,
     maxRateHz: 10,

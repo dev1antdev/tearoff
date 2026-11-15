@@ -217,6 +217,11 @@ export class StandingsProcessor implements TelemetryProcessor<StandingsSnapshot>
     // stop at the box. For the count of cars still running in each class.
     // iRacing has no such flag; a car in the garage is not in the world.
     copyBooleanArray(frame, 'LmuCarIdxInGarage', this.latest.carIdxInGarage);
+    // LMU only: the stops the sim has counted for each car, and where it is
+    // in one (1 is a stop asked for, which a rival's row shows before the
+    // car turns in). -1 in both for an empty slot. iRacing has neither.
+    copyNumberArray(frame, 'LmuCarIdxPitStops', this.latest.carIdxPitStops);
+    copyNumberArray(frame, 'LmuCarIdxPitState', this.latest.carIdxPitState);
     this.latest.penaltySeconds =
       numberValue(frame, 'LmuPenaltySeconds') ?? undefined;
     copyBooleanArray(frame, 'CarIdxP2P_Status', this.latest.carIdxP2PStatus);
@@ -322,6 +327,8 @@ export class StandingsProcessor implements TelemetryProcessor<StandingsSnapshot>
     this.latest.carIdxFinishStatus.length = 0;
     this.latest.carIdxLastLapInvalid.length = 0;
     this.latest.carIdxInGarage.length = 0;
+    this.latest.carIdxPitStops.length = 0;
+    this.latest.carIdxPitState.length = 0;
     this.latest.penaltySeconds = undefined;
     this.latest.trackLimitsPointsMax = 0;
     this.latest.carIdxP2PStatus.length = 0;
@@ -361,6 +368,8 @@ export class StandingsProcessor implements TelemetryProcessor<StandingsSnapshot>
       carIdxFinishStatus: [],
       carIdxLastLapInvalid: [],
       carIdxInGarage: [],
+      carIdxPitStops: [],
+      carIdxPitState: [],
       penaltySeconds: undefined,
       trackLimitsPointsMax: 0,
       carIdxP2PStatus: [],

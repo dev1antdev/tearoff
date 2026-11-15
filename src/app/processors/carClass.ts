@@ -31,6 +31,17 @@ export const carClassesFrom = (
   return classes;
 };
 
+/** Whether two cars are of one class. False when either class is unknown. */
+export const isSameClass = (
+  classes: readonly (CarClassEntry | undefined)[],
+  carIdx: number,
+  otherCarIdx: number
+): boolean => {
+  const car = classes[carIdx];
+  const other = classes[otherCarIdx];
+  return !!car && !!other && car.classId === other.classId;
+};
+
 /**
  * The single rule for "a faster class": the session's CarClassRelSpeed where
  * both cars have one, else the class's estimated lap. Cars of one class are

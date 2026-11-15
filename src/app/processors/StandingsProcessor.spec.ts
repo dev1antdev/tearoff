@@ -248,6 +248,40 @@ describe('StandingsProcessor', () => {
     expect(processor.snapshot().carIdxInGarage).toEqual([]);
   });
 
+  it("carries LMU's pit stop count and pit state, and drops them on a new session", () => {
+    const processor = new StandingsProcessor();
+    processor.init(session);
+    processor.onFrame(frame(10));
+    // Absent under iRacing, which counts no stops and states no request.
+    expect(processor.snapshot().carIdxPitStops).toEqual([]);
+    expect(processor.snapshot().carIdxPitState).toEqual([]);
+
+    processor.onFrame(
+      frame(11, {
+        LmuCarIdxPitStops: { value: [2, -1] },
+        LmuCarIdxPitState: { value: [1, -1] },
+      })
+    );
+    // -1 is an empty slot, and stays one.
+    expect(processor.snapshot().carIdxPitStops).toEqual([2, -1]);
+    expect(processor.snapshot().carIdxPitState).toEqual([1, -1]);
+
+    processor.onFrame(frame(1, { SessionNum: { value: [3] } }));
+    expect(processor.snapshot().carIdxPitStops).toEqual([]);
+    expect(processor.snapshot().carIdxPitState).toEqual([]);
+
+    processor.onFrame(
+      frame(2, {
+        SessionNum: { value: [3] },
+        LmuCarIdxPitStops: { value: [0, 0] },
+        LmuCarIdxPitState: { value: [0, 3] },
+      })
+    );
+    processor.onLifecycle({ type: 'disconnect' });
+    expect(processor.snapshot().carIdxPitStops).toEqual([]);
+    expect(processor.snapshot().carIdxPitState).toEqual([]);
+  });
+
   it('carries which budget each LMU car runs on, and drops it on disconnect', () => {
     const processor = new StandingsProcessor();
     processor.init(session);

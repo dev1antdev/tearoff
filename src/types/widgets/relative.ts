@@ -193,6 +193,13 @@ export default defineWidgetManifest({
       classRank: {
         enabled: false,
       },
+      position: {
+        enabled: false,
+      },
+      positionChange: {
+        enabled: false,
+        scope: 'class',
+      },
       displayOrder: [
         'sessionName',
         'sessionTime',
@@ -214,6 +221,8 @@ export default defineWidgetManifest({
         'topSpeed',
         'manufacturerPosition',
         'classRank',
+        'position',
+        'positionChange',
         'trackLimits',
       ],
     },
@@ -282,6 +291,13 @@ export default defineWidgetManifest({
       classRank: {
         enabled: false,
       },
+      position: {
+        enabled: false,
+      },
+      positionChange: {
+        enabled: false,
+        scope: 'class',
+      },
       displayOrder: [
         'sessionName',
         'sessionTime',
@@ -303,6 +319,8 @@ export default defineWidgetManifest({
         'topSpeed',
         'manufacturerPosition',
         'classRank',
+        'position',
+        'positionChange',
         'trackLimits',
       ],
     },

@@ -13,6 +13,9 @@ import {
   type ReferenceLapSource,
 } from '../app/processors/RelativeGapProcessor';
 import { TrackStateProcessor } from '../app/processors/TrackStateProcessor';
+import { CarPitProcessor } from '../app/processors/CarPitProcessor';
+import { LapHistoryProcessor } from '../app/processors/LapHistoryProcessor';
+import { SessionTimingProcessor } from '../app/processors/SessionTimingProcessor';
 import { DashboardProvider } from '../frontend/context/DashboardContext/DashboardContext';
 import { useSessionStore } from '../frontend/context/SessionStore/SessionStore';
 import { toSession, toTelemetry, type ReplayFixture } from './replayFixture';
@@ -85,9 +88,19 @@ export const mountFixture = (
   // Track state carries the session number, which is what resolves the session
   // type. Without it every "is this a race?" branch reads as undefined.
   const trackState = new TrackStateProcessor();
+  // What the rivals box and the session bar's laps and place read beside
+  // the standings: every car's stint and stops, the line crossings, and the
+  // focus car's race as a distance. No lap times are fed to the last, so it
+  // paces a car by its best lap, as the app does before a pace exists.
+  const carPit = new CarPitProcessor();
+  const lapHistory = new LapHistoryProcessor();
+  const sessionTiming = new SessionTimingProcessor();
   standings.init(session);
   relativeGaps.init?.(session);
   trackState.init(session);
+  carPit.init(session);
+  lapHistory.init(session);
+  sessionTiming.init(session);
 
   const published: Partial<ChannelPayloads> = {};
   const listeners = new Map<string, ((payload: unknown) => void)[]>();
@@ -107,9 +120,15 @@ export const mountFixture = (
     standings.onFrame(telemetry);
     relativeGaps.onFrame(telemetry);
     trackState.onFrame(telemetry);
+    carPit.onFrame(telemetry);
+    lapHistory.onFrame(telemetry);
+    sessionTiming.onFrame(telemetry);
     publish('standings.snapshot', standings.snapshot());
     publish('relative-gaps.snapshot', relativeGaps.snapshot());
     publish('track-state.snapshot', trackState.snapshot());
+    publish('car-pit.snapshot', carPit.snapshot());
+    publish('lap-history.snapshot', lapHistory.snapshot());
+    publish('session-timing.snapshot', sessionTiming.snapshot());
   };
 
   // Wind through every frame so the hooks see a settled session rather than a

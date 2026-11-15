@@ -5053,7 +5053,7 @@
       "name": "standings-state",
       "schemaVersion": 1,
       "frameCount": 36000,
-      "rollingHash": "3b64d1ea979a48076a39b3c5df892298da29605ba804f4a79eecc97079ab64bb",
+      "rollingHash": "97d24a9ccb2fe77f68cbcf891c5e65526866f483b7965fb739a81e4ecefbea4d",
       "checkpoints": {
         "firstFrame": {
           "focusCarIdx": 0,
@@ -5956,6 +5956,8 @@
           "carIdxFinishStatus": [],
           "carIdxLastLapInvalid": [],
           "carIdxInGarage": [],
+          "carIdxPitStops": [],
+          "carIdxPitState": [],
           "trackLimitsPointsMax": 0,
           "carIdxP2PStatus": [
             false,
@@ -7160,6 +7162,8 @@
           "carIdxFinishStatus": [],
           "carIdxLastLapInvalid": [],
           "carIdxInGarage": [],
+          "carIdxPitStops": [],
+          "carIdxPitState": [],
           "trackLimitsPointsMax": 0,
           "carIdxP2PStatus": [
             false,
@@ -8442,6 +8446,8 @@
           "carIdxFinishStatus": [],
           "carIdxLastLapInvalid": [],
           "carIdxInGarage": [],
+          "carIdxPitStops": [],
+          "carIdxPitState": [],
           "trackLimitsPointsMax": 0,
           "carIdxP2PStatus": [
             false,
@@ -9535,7 +9541,7 @@
       "name": "session-timing-state",
       "schemaVersion": 1,
       "frameCount": 36000,
-      "rollingHash": "f5b9a8cf140027a3740405dfed9c2f7cb6061b4ba1cf563b1810582dc68fb9d4",
+      "rollingHash": "2569ff226a09feb9f61ec8e4d792f4047167b2a2dc67f3a761ebd94085a739df",
       "checkpoints": {
         "firstFrame": {
           "state": 3,
@@ -9549,6 +9555,11 @@
           "totalRaceLaps": 0,
           "totalRaceTime": 0,
           "adjustedRaceTime": 0,
+          "lapsCompleted": 0,
+          "lapProgress": 0.71,
+          "projectedLaps": 0,
+          "projectedLapsExact": false,
+          "extraLaps": 0,
           "sessionNum": 0,
           "version": 1
         },
@@ -9565,6 +9576,11 @@
           "totalRaceLaps": 17.256579562025657,
           "totalRaceTime": 2100,
           "adjustedRaceTime": 0,
+          "lapsCompleted": 3,
+          "lapProgress": 0.98,
+          "projectedLaps": 15.96,
+          "projectedLapsExact": false,
+          "extraLaps": 1,
           "sessionNum": 0,
           "version": 2993
         },
@@ -9591,6 +9607,11 @@
           "totalRaceLaps": 19.595423010643707,
           "totalRaceTime": 2100,
           "adjustedRaceTime": 0,
+          "lapsCompleted": 0,
+          "lapProgress": 0,
+          "projectedLaps": 17.29,
+          "projectedLapsExact": false,
+          "extraLaps": 0,
           "sessionNum": 0,
           "version": 346
         },

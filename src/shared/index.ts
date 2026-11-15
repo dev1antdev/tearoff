@@ -9,3 +9,4 @@ export * from './stintPace';
 export * from './wheelFigures';
 export * from './trackPosition';
 export * from './trackNotes';
+export * from './trafficForecast';
