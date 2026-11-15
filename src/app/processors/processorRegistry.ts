@@ -44,6 +44,8 @@ import { SessionTimingProcessor } from './SessionTimingProcessor';
 import { StandingsProcessor } from './StandingsProcessor';
 import { TrackStateProcessor } from './TrackStateProcessor';
 import { TyreStateProcessor } from './TyreStateProcessor';
+import { SystemPerformanceProcessor } from './SystemPerformanceProcessor';
+import type { SystemLoadSource } from '../services/systemLoadSampler';
 import type { PoleSideSettings } from '@irdashies/types';
 
 interface ProcessorRegistryOptions {
@@ -63,6 +65,11 @@ interface ProcessorRegistryOptions {
    * ahead and 50 m behind without.
    */
   flagTuning?: () => FlagProcessorTuning;
+  /**
+   * The machine's and Tearoff's own load, read outside the processors;
+   * without it the system performance channel carries only the sim's meters.
+   */
+  systemLoad?: SystemLoadSource;
   /** The race plan in use and its history; without it there is no plan. */
   racePlan?: {
     getPlan: () => RacePlanSelection | null;
@@ -107,6 +114,7 @@ export const createProcessorDefinitions = ({
   radarTuning,
   radarPoleSides,
   flagTuning,
+  systemLoad,
   racePlan,
 }: ProcessorRegistryOptions): readonly AnyProcessorDefinition[] => [
   defineProcessor({
@@ -231,6 +239,11 @@ export const createProcessorDefinitions = ({
     channel: 'tyre-state.snapshot',
     metricsPrefix: 'tyreState',
     create: () => new TyreStateProcessor(),
+  }),
+  defineProcessor({
+    channel: 'system-performance.snapshot',
+    metricsPrefix: 'systemPerformance',
+    create: () => new SystemPerformanceProcessor(systemLoad),
   }),
   defineProcessor({
     channel: 'minimap.snapshot',

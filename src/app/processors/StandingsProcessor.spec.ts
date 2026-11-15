@@ -197,6 +197,57 @@ describe('StandingsProcessor', () => {
     expect(processor.snapshot().carIdxFinishStatus).toEqual([]);
   });
 
+  it('carries which last laps the sim did not time, and drops them on reset', () => {
+    const processor = new StandingsProcessor();
+    processor.init(session);
+    processor.onFrame(frame(10));
+    // iRacing says nothing about other cars' laps: empty, so nobody is marked.
+    expect(processor.snapshot().carIdxLastLapInvalid).toEqual([]);
+
+    processor.onFrame(
+      frame(11, { LmuCarIdxLastLapInvalid: { value: [false, true] } })
+    );
+    expect(processor.snapshot().carIdxLastLapInvalid).toEqual([false, true]);
+
+    // The next lap counted: the flag goes with the frame, it is not latched.
+    processor.onFrame(
+      frame(12, { LmuCarIdxLastLapInvalid: { value: [false, false] } })
+    );
+    expect(processor.snapshot().carIdxLastLapInvalid).toEqual([false, false]);
+
+    processor.onFrame(
+      frame(13, { LmuCarIdxLastLapInvalid: { value: [true, false] } })
+    );
+    // A new session: the clock starts over and the flags go with the rest.
+    processor.onFrame(frame(1, { SessionNum: { value: [3] } }));
+    expect(processor.snapshot().carIdxLastLapInvalid).toEqual([]);
+
+    processor.onFrame(
+      frame(2, {
+        SessionNum: { value: [3] },
+        LmuCarIdxLastLapInvalid: { value: [true, false] },
+      })
+    );
+    processor.onLifecycle({ type: 'disconnect' });
+    expect(processor.snapshot().carIdxLastLapInvalid).toEqual([]);
+  });
+
+  it("carries LMU's garage flag, and drops it on disconnect", () => {
+    const processor = new StandingsProcessor();
+    processor.init(session);
+    processor.onFrame(frame(10));
+    // Absent under iRacing, where a car in the garage is not in the world.
+    expect(processor.snapshot().carIdxInGarage).toEqual([]);
+
+    processor.onFrame(
+      frame(11, { LmuCarIdxInGarage: { value: [false, true] } })
+    );
+    expect(processor.snapshot().carIdxInGarage).toEqual([false, true]);
+
+    processor.onLifecycle({ type: 'disconnect' });
+    expect(processor.snapshot().carIdxInGarage).toEqual([]);
+  });
+
   it('carries which budget each LMU car runs on, and drops it on disconnect', () => {
     const processor = new StandingsProcessor();
     processor.init(session);

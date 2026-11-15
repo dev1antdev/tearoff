@@ -28,6 +28,7 @@ const CHANNELS = [
   'lapLibrary:pinReference',
   'lapLibrary:unpinReference',
   'lapLibrary:getStats',
+  'lapLibrary:getStatus',
 ] as const;
 
 /**
@@ -67,6 +68,7 @@ export function setupLapLibraryBridge(library: LapLibraryService) {
     library.unpinReference(idOrThrow(lapId, 'lapLibrary:unpinReference'))
   );
   ipcMain.handle('lapLibrary:getStats', () => library.getStats());
+  ipcMain.handle('lapLibrary:getStatus', () => library.getStatus());
 
   const unsubscribe = library.onChanged(() => {
     for (const window of BrowserWindow.getAllWindows()) {

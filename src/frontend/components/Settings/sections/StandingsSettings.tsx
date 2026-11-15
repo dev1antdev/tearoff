@@ -399,6 +399,10 @@ const DisplaySettingsList = ({
                   </select>
                 </div>
               )}
+            {setting.configKey === 'lastTime' &&
+              settings.config.lastTime.enabled && (
+                <SettingProp path="lastTime.markInvalid" variant="compact" />
+              )}
           </DraggableSettingItem>
         );
       }}

@@ -51,6 +51,15 @@ const commonTelemetryProperties = [
   { path: 'AirTemp', label: 'Air Temperature' },
   { path: 'TrackTemp', label: 'Track Temperature' },
   { path: 'TrackTempCrew', label: 'Track Temp (Crew)' },
+  // The car's motion under iRacing's names and in its axes: forwards, to the
+  // left and up are positive. LMU fills all six; of iRacing's own, only the
+  // heading is in the frame this widget is sent.
+  { path: 'YawNorth', label: 'Yaw North' },
+  { path: 'VelocityX', label: 'Velocity X (Forward)' },
+  { path: 'VelocityY', label: 'Velocity Y (Left)' },
+  { path: 'VelocityZ', label: 'Velocity Z (Up)' },
+  { path: 'LatAccel', label: 'Lateral Accel' },
+  { path: 'LongAccel', label: 'Longitudinal Accel' },
   // LMU only. Absent under iRacing, where they read N/A.
   { path: 'LmuPitStopTime', label: 'LMU Pit Stop Time' },
   { path: 'LmuRepairTime', label: 'LMU Repair Time' },
@@ -67,6 +76,43 @@ const commonTelemetryProperties = [
   { path: 'LmuBrakeThickness', label: 'LMU Brake Thickness' },
   { path: 'LmuSuspensionDamage', label: 'LMU Suspension Damage' },
   { path: 'LmuAeroDamage', label: 'LMU Aero Damage' },
+  // LMU: the session and the grid's pit stops.
+  { path: 'LmuSessionEndTime', label: 'LMU Session End Time' },
+  { path: 'LmuCarIdxPitState', label: 'LMU Car Pit State' },
+  { path: 'LmuCarIdxPitStops', label: 'LMU Car Pit Stops' },
+  { path: 'LmuCarIdxInGarage', label: 'LMU Car In Garage' },
+  // LMU: the hybrid system. Only the state on a car without one.
+  { path: 'LmuMotorState', label: 'LMU Motor State' },
+  { path: 'LmuBatteryCharge', label: 'LMU Battery Charge' },
+  { path: 'LmuMotorTorque', label: 'LMU Motor Torque' },
+  { path: 'LmuMotorRPM', label: 'LMU Motor RPM' },
+  { path: 'LmuMotorTemp', label: 'LMU Motor Temp' },
+  { path: 'LmuMotorCoolantTemp', label: 'LMU Motor Coolant Temp' },
+  { path: 'LmuLiftAndCoast', label: 'LMU Lift And Coast' },
+  // LMU: the player's wheels and suspension, LF RF LR RR.
+  { path: 'LmuWheelRideHeight', label: 'LMU Ride Height' },
+  { path: 'LmuSuspensionPosition', label: 'LMU Suspension Position' },
+  { path: 'LmuSuspensionForce', label: 'LMU Suspension Force' },
+  { path: 'LmuTyreLoad', label: 'LMU Tyre Load' },
+  { path: 'LmuTyreDeflection', label: 'LMU Tyre Deflection' },
+  { path: 'LmuWheelCamber', label: 'LMU Camber' },
+  { path: 'LmuWheelToe', label: 'LMU Toe' },
+  { path: 'LmuWheelRotation', label: 'LMU Wheel Rotation' },
+  { path: 'LmuTyreStaticRadius', label: 'LMU Tyre Static Radius' },
+  { path: 'LmuWheelSurfaceType', label: 'LMU Wheel Surface' },
+  { path: 'LmuThirdSpringDeflection', label: 'LMU Third Spring Deflection' },
+  // LMU: impacts and what they did to the car.
+  { path: 'LmuLastImpactTime', label: 'LMU Last Impact Time' },
+  { path: 'LmuLastImpactMagnitude', label: 'LMU Last Impact Magnitude' },
+  { path: 'LmuLastImpactPos', label: 'LMU Last Impact Position' },
+  { path: 'LmuDentSeverity', label: 'LMU Dent Severity' },
+  { path: 'LmuBodyDetached', label: 'LMU Body Detached' },
+  { path: 'LmuOverheating', label: 'LMU Overheating' },
+  { path: 'LmuTyreFlat', label: 'LMU Tyre Flat' },
+  { path: 'LmuWheelDetached', label: 'LMU Wheel Detached' },
+  // LMU: where the car is in the world. Its heading, velocity and
+  // acceleration are under iRacing's names above.
+  { path: 'LmuPlayerWorldPos', label: 'LMU World Position' },
 ];
 
 // Common session properties for quick add

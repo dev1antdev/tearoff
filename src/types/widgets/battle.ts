@@ -19,7 +19,7 @@ export default defineWidgetManifest({
     carNumber: { enabled: true },
     driverName: { enabled: true },
     stint: { enabled: true },
-    lastTime: { enabled: true, timeFormat: 'mixed' },
+    lastTime: { enabled: true, timeFormat: 'mixed', markInvalid: true },
     speed: { enabled: false, unit: 'auto' },
     gap: { enabled: true, decimalPlaces: 2 },
     displayOrder: [
@@ -52,6 +52,12 @@ export default defineWidgetManifest({
         { value: 'seconds', label: 'Seconds (83)' },
       ],
       control: 'select',
+    },
+    'lastTime.markInvalid': {
+      type: 'boolean',
+      label: 'Mark Laps That Did Not Count',
+      description:
+        'Dims a last lap the sim gave no time and marks it with a warning sign: a lap voided for track limits or a cut, or an out-lap. Le Mans Ultimate only.',
     },
     'speed.unit': {
       type: 'enum',

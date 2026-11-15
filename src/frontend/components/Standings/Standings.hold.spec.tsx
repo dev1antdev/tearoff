@@ -27,6 +27,7 @@ vi.mock('@irdashies/context', async (importOriginal) => ({
 
 vi.mock('./hooks', () => ({
   useCarClassStats: () => live.classStats,
+  useClassFields: () => [],
   useDriverStandings: () => live.standings,
   useStandingsSettings: () => ({
     titleBar: { enabled: true },

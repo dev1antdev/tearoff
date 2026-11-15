@@ -32,15 +32,22 @@ const library = () => {
   let listener: (() => void) | undefined;
   const service = {
     recordLap: vi.fn(),
+    upsertStint: vi.fn(),
     referenceLap: vi.fn(),
     referenceRevision: vi.fn(),
     listSessions: vi.fn(async () => []),
     listLaps: vi.fn(async () => []),
+    listStints: vi.fn(async () => []),
+    recentLedgerLaps: vi.fn(async () => []),
     deleteLap: vi.fn(async () => true),
     deleteSession: vi.fn(async () => true),
     pinReference: vi.fn(async () => true),
     unpinReference: vi.fn(async () => true),
     getStats: vi.fn(async () => ({ sessions: 1, laps: 2 })),
+    getStatus: vi.fn(async () => ({
+      available: false,
+      reason: 'newer' as const,
+    })),
     onChanged: vi.fn((callback: () => void) => {
       listener = callback;
       return () => {
@@ -95,6 +102,16 @@ describe('lap library bridge', () => {
     expect(await invoke('lapLibrary:getStats')).toEqual({
       sessions: 1,
       laps: 2,
+    });
+  });
+
+  it('says whether the library is in use, and why not', async () => {
+    const { service } = library();
+    setupLapLibraryBridge(service);
+
+    expect(await invoke('lapLibrary:getStatus')).toEqual({
+      available: false,
+      reason: 'newer',
     });
   });
 

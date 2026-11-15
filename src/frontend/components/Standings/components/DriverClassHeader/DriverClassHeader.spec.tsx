@@ -37,3 +37,35 @@ describe('DriverClassHeader estimated laps', () => {
     );
   });
 });
+
+describe('DriverClassHeader driver count', () => {
+  const count = (activeDrivers?: number) => {
+    render(
+      <table>
+        <tbody>
+          <DriverClassHeader
+            className="LMGT3"
+            classColor={0x00ff6a}
+            totalDrivers={14}
+            activeDrivers={activeDrivers}
+            sof={undefined}
+            isMultiClass
+          />
+        </tbody>
+      </table>
+    );
+    return screen.getByTestId('class-driver-count').textContent;
+  };
+
+  it('shows the total alone when no running count is given', () => {
+    expect(count()).toBe('14');
+  });
+
+  it('shows the total alone while the whole class is running', () => {
+    expect(count(14)).toBe('14');
+  });
+
+  it('shows the cars running of the cars entered once some are out', () => {
+    expect(count(12)).toBe('12/14');
+  });
+});

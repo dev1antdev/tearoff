@@ -61,6 +61,7 @@ const SNAPSHOT_CHANNELS = [
   'standings.snapshot',
   'track-state.snapshot',
   'tyre-state.snapshot',
+  'system-performance.snapshot',
   'minimap.snapshot',
   'lap-delta.snapshot',
   'lap-trace.sample',

@@ -12,6 +12,7 @@ import { createLmuEnergyState } from './fuelEnergy';
 import { createLmuLapDistanceState } from './lapDistance';
 import { createLmuSessionClockState } from './sessionClock';
 import { createLmuLapStartState } from './lapStartTiming';
+import { lmuRawWithoutPlayerVehicle } from '../../testing/lmuTape';
 
 describe('mapLmuTelemetry', () => {
   it('maps session scalars', () => {
@@ -76,8 +77,11 @@ describe('mapLmuTelemetry', () => {
     );
     expect(t.dcBrakeBias.value[0]).toBeCloseTo(45);
     expect(t.dcPitSpeedLimiterToggle.value[0]).toBe(false);
+    // iRacing's signs: positive to the left and forwards. The sim's own
+    // longitudinal axis points to the rear, so the fixture's -19.6133 is a
+    // car accelerating.
     expect(t.LatAccel.value[0]).toBeCloseTo(9.80665);
-    expect(t.LongAccel.value[0]).toBeCloseTo(-19.6133);
+    expect(t.LongAccel.value[0]).toBeCloseTo(19.6133);
     // Left, middle and right across the car, from the sim's three zones.
     expect(t.LFtempCL.value[0]).toBeCloseTo(70);
     expect(t.LFtempCM.value[0]).toBeCloseTo(80);
@@ -1848,5 +1852,187 @@ describe('mapLmuTelemetry steering and force feedback', () => {
     expect(
       mapLmuTelemetry(raw as unknown as LmuRawTelemetry).LmuFrontWheelAngle
     ).toBeUndefined();
+  });
+});
+
+describe('mapLmuTelemetry car state keys', () => {
+  // Each group is converted in a module of its own, with its own spec:
+  // carPitState, carMotion, wheelDynamics, damage and hybrid. These cases
+  // are that the mapper calls them, with the fixture's car and without one.
+  const round = (values: readonly number[] | undefined, digits: number) =>
+    values?.map((value) => Number(value.toFixed(digits)));
+
+  /** The keys that describe the player's own car, and so need one. */
+  const PLAYER_CAR_KEYS = [
+    'LmuWheelRideHeight',
+    'LmuSuspensionPosition',
+    'LmuSuspensionForce',
+    'LmuTyreDeflection',
+    'LmuWheelCamber',
+    'LmuWheelToe',
+    'LmuWheelRotation',
+    'LmuTyreStaticRadius',
+    'LmuWheelSurfaceType',
+    'LmuThirdSpringDeflection',
+    'LmuLastImpactTime',
+    'LmuLastImpactMagnitude',
+    'LmuLastImpactPos',
+    'LmuDentSeverity',
+    'LmuBodyDetached',
+    'LmuOverheating',
+    'LmuTyreFlat',
+    'LmuWheelDetached',
+    'LmuMotorState',
+    'LmuLiftAndCoast',
+    'LmuPlayerWorldPos',
+    'YawNorth',
+    'VelocityX',
+    'VelocityY',
+    'VelocityZ',
+    'LatAccel',
+    'LongAccel',
+  ] as const;
+
+  it('publishes where each car is with its pit stop', () => {
+    // Three cars: one that has stopped once, the player, and one standing
+    // at its box on its second stop.
+    const t = mapLmuTelemetry(fixture());
+
+    expect(t.LmuCarIdxPitState?.value).toEqual([0, 0, 3]);
+    expect(t.LmuCarIdxPitStops?.value).toEqual([1, 0, 2]);
+    expect(t.LmuCarIdxInGarage?.value).toEqual([false, false, false]);
+  });
+
+  it('marks an empty slot in the pit keys, and puts no car in its garage', () => {
+    const raw = fixture();
+    raw.vehLapDistPct = new Float64Array([-1, 0.6, 0.2]);
+    raw.vehInGarageStall = new Uint8Array([1, 1, 0]);
+    const t = mapLmuTelemetry(raw);
+
+    expect(t.LmuCarIdxPitState?.value).toEqual([-1, 0, 3]);
+    expect(t.LmuCarIdxPitStops?.value).toEqual([-1, 0, 2]);
+    expect(t.LmuCarIdxInGarage?.value).toEqual([false, true, false]);
+  });
+
+  it('publishes the end of the session on the session clock', () => {
+    expect(mapLmuTelemetry(fixture()).LmuSessionEndTime?.value).toEqual([3600]);
+    // A session the sim has given no end.
+    expect(
+      mapLmuTelemetry({ ...fixture(), endET: 0 }).LmuSessionEndTime
+    ).toBeUndefined();
+  });
+
+  it('publishes the wheels and suspension in the frame’s units', () => {
+    const t = mapLmuTelemetry(fixture());
+
+    // Millimetres, from metres.
+    expect(round(t.LmuWheelRideHeight?.value, 3)).toEqual([54, 50, 63, 59]);
+    expect(round(t.LmuSuspensionPosition?.value, 3)).toEqual([40, 50, 60, 70]);
+    expect(round(t.LmuTyreDeflection?.value, 3)).toEqual([14, 19, 17, 22]);
+    expect(round(t.LmuThirdSpringDeflection?.value, 3)).toEqual([45, 65]);
+    // Degrees, from radians, with the sim's signs.
+    expect(round(t.LmuWheelCamber?.value, 2)).toEqual([
+      -2.0, -2.18, -1.7, -1.61,
+    ]);
+    expect(round(t.LmuWheelToe?.value, 2)).toEqual([-5.15, -4.83, 0.1, -0.1]);
+    // As the sim states them.
+    expect(t.LmuSuspensionForce?.value).toEqual([3600, 5100, 4300, 6000]);
+    expect(t.LmuWheelRotation?.value).toEqual([-153.9, -156.6, -147.2, -149.8]);
+    // Metres, from whole centimetres.
+    expect(t.LmuTyreStaticRadius?.value).toEqual([0.34, 0.34, 0.36, 0.36]);
+    expect(t.LmuWheelSurfaceType?.value).toEqual([0, 5, 0, 0]);
+    // The suspension travel iRacing's keys carry stays in metres.
+    expect(t.RRshockDefl.value[0]).toBe(0.07);
+  });
+
+  it('publishes no tyre load, which the sim leaves at zero', () => {
+    expect(mapLmuTelemetry(fixture()).LmuTyreLoad).toBeUndefined();
+  });
+
+  it('publishes the last impact and the damage it did', () => {
+    const t = mapLmuTelemetry(fixture());
+
+    expect(t.LmuLastImpactTime?.value).toEqual([240.72]);
+    expect(t.LmuLastImpactMagnitude?.value).toEqual([3016.93]);
+    expect(t.LmuLastImpactPos?.value).toEqual([-0.567, -0.153, -2.453]);
+    expect(t.LmuDentSeverity?.value).toEqual([1, 0, 0, 0, 0, 0, 0, 0]);
+    expect(t.LmuBodyDetached?.value).toEqual([false]);
+    expect(t.LmuOverheating?.value).toEqual([false]);
+    expect(t.LmuTyreFlat?.value).toEqual([false, false, false, false]);
+    expect(t.LmuWheelDetached?.value).toEqual([false, false, false, false]);
+  });
+
+  it('says the fixture’s LMGT3 has no hybrid, and publishes none for it', () => {
+    const t = mapLmuTelemetry(fixture());
+
+    expect(t.LmuMotorState?.value).toEqual([0]);
+    expect(t.LmuLiftAndCoast?.value).toEqual([0]);
+    expect(t.LmuBatteryCharge).toBeUndefined();
+    expect(t.LmuMotorTorque).toBeUndefined();
+    expect(t.LmuMotorRPM).toBeUndefined();
+    expect(t.LmuMotorTemp).toBeUndefined();
+    expect(t.LmuMotorCoolantTemp).toBeUndefined();
+  });
+
+  it('publishes the hybrid of a car that has one', () => {
+    const t = mapLmuTelemetry({
+      ...fixture(),
+      electricBoostMotorState: 3,
+      batteryChargeFraction: 0.62,
+      electricBoostMotorTorque: -140,
+      electricBoostMotorRPM: 7800,
+      electricBoostMotorTemperature: 71.5,
+      electricBoostWaterTemperature: 48,
+      liftAndCoastProgress: 255,
+    });
+
+    expect(t.LmuMotorState?.value).toEqual([3]);
+    expect(t.LmuBatteryCharge?.value).toEqual([0.62]);
+    expect(t.LmuMotorTorque?.value).toEqual([-140]);
+    expect(t.LmuMotorRPM?.value).toEqual([7800]);
+    expect(t.LmuMotorTemp?.value).toEqual([71.5]);
+    expect(t.LmuMotorCoolantTemp?.value).toEqual([48]);
+    expect(t.LmuLiftAndCoast?.value).toEqual([1]);
+  });
+
+  it('publishes where the car is and how it is moving, in iRacing’s axes', () => {
+    const t = mapLmuTelemetry(fixture());
+
+    expect(t.LmuPlayerWorldPos?.value).toEqual([0, 0, 0]);
+    // The player, in slot 1, has its nose along the world's -Z.
+    expect(t.YawNorth.value[0]).toBeCloseTo(Math.PI, 12);
+    // Forwards, to the left, up: the sim's are to the left, up, to the rear.
+    expect(t.VelocityX.value[0]).toBe(51.23);
+    expect(t.VelocityY.value[0]).toBe(0.6);
+    expect(t.VelocityZ.value[0]).toBe(0.1);
+  });
+
+  it('publishes none of the player’s car without a player’s car', () => {
+    // At the monitor or spectating the sim writes no single-car field.
+    // Absent, not zero: a 0 would be a car on the ground with no ride
+    // height, pointing north and standing still.
+    const t = mapLmuTelemetry(lmuRawWithoutPlayerVehicle(fixture()));
+
+    for (const key of PLAYER_CAR_KEYS) {
+      expect(t[key], key).toBeUndefined();
+    }
+  });
+
+  it('publishes all of them with one', () => {
+    const t = mapLmuTelemetry(fixture());
+
+    for (const key of PLAYER_CAR_KEYS) {
+      expect(t[key], key).toBeDefined();
+    }
+  });
+
+  it('keeps the per-car and session keys without a player’s car', () => {
+    // Scoring writes those for the whole grid whoever is watching.
+    const t = mapLmuTelemetry(lmuRawWithoutPlayerVehicle(fixture()));
+
+    expect(t.LmuCarIdxPitState?.value).toEqual([0, 0, 3]);
+    expect(t.LmuCarIdxPitStops?.value).toEqual([1, 0, 2]);
+    expect(t.LmuCarIdxInGarage?.value).toEqual([false, false, false]);
+    expect(t.LmuSessionEndTime?.value).toEqual([3600]);
   });
 });

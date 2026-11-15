@@ -129,6 +129,26 @@ describe('player-relative standings gaps', () => {
     ]);
   });
 
+  it.each([
+    // The player is car 1, at 5.5 laps. name, the other car's laps, fraction
+    ['1.4 laps behind the player', 4, 0.1, 1],
+    ['0.6 laps behind the player', 4, 0.9, 0],
+    ['exactly one lap behind the player', 4, 0.5, 0],
+    ['2.3 laps behind the player', 3, 0.2, 2],
+    ['0.6 laps ahead of the player', 6, 0.1, 0],
+    ['exactly one lap ahead of the player', 6, 0.5, 0],
+    ['1.7 laps ahead of the player', 7, 0.2, -1],
+  ])('applies the lap rule to a car %s', (_name, lap, pct, laps) => {
+    const result = gaps([driver(0), driver(1)], {
+      laps: [lap, 5],
+      pct: [pct, 0.5],
+      est: [pct * 100, 50],
+    });
+    expect(result[0].gap?.laps).toBe(laps);
+    // The time is still there beside it; the cell prints one or the other.
+    expect(typeof result[0].gap?.value).toBe('number');
+  });
+
   it('uses the chasing class estimate in multiclass pit fallback', () => {
     const result = gaps(
       [

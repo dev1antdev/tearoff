@@ -4,12 +4,18 @@ import type {
   LapLibraryLap,
   LapLibrarySession,
   LapLibraryStats,
+  LapLibraryStatus,
 } from '@irdashies/types';
 import logger from '@irdashies/utils/logger';
 
 export interface LapLibraryState {
   /** False where the app has no lap library, as in the browser preview. */
   available: boolean;
+  /**
+   * Whether the library's file is in use, once the app has said. When it is
+   * not, there is nothing to list and the page says why instead.
+   */
+  status: LapLibraryStatus | null;
   loading: boolean;
   sessions: LapLibrarySession[];
   stats: LapLibraryStats | null;
@@ -37,6 +43,7 @@ export const useLapLibrary = (
 ): LapLibraryState => {
   const [sessions, setSessions] = useState<LapLibrarySession[]>([]);
   const [stats, setStats] = useState<LapLibraryStats | null>(null);
+  const [status, setStatus] = useState<LapLibraryStatus | null>(null);
   const [loading, setLoading] = useState(Boolean(bridge));
   const [lapsBySession, setLapsBySession] = useState<
     ReadonlyMap<number, LapLibraryLap[]>
@@ -58,6 +65,10 @@ export const useLapLibrary = (
   const reload = useCallback(async () => {
     if (!bridge) return;
     try {
+      const nextStatus = await bridge.getStatus();
+      setStatus(nextStatus);
+      // Every other request would be refused; the page says why instead.
+      if (!nextStatus.available) return;
       const [nextSessions, nextStats] = await Promise.all([
         bridge.listSessions(),
         bridge.getStats(),
@@ -121,6 +132,7 @@ export const useLapLibrary = (
 
   return {
     available: Boolean(bridge),
+    status,
     loading,
     sessions,
     stats,

@@ -20,6 +20,7 @@ export const exposeLapLibraryBridge = () => {
     unpinReference: (lapId) =>
       ipcRenderer.invoke('lapLibrary:unpinReference', lapId),
     getStats: () => ipcRenderer.invoke('lapLibrary:getStats'),
+    getStatus: () => ipcRenderer.invoke('lapLibrary:getStatus'),
     onChanged(callback) {
       const listener = () => callback();
       ipcRenderer.on('lapLibrary:changed', listener);

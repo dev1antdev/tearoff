@@ -41,11 +41,15 @@ export default defineWidgetManifest({
     interval: {
       enabled: false,
       decimalPlaces: 1,
-      displayMode: 'time',
+      // A car more than a lap behind the one ahead reads "-2L", not "3:35".
+      // A dashboard that already stores 'time' keeps it: loading only fills
+      // in fields that are missing.
+      displayMode: 'laps',
     },
     lastTime: {
       enabled: true,
       timeFormat: 'full',
+      markInvalid: true,
     },
     fastestTime: {
       enabled: true,
@@ -531,11 +535,17 @@ export default defineWidgetManifest({
       control: 'select',
       label: 'Interval Display',
       description:
-        'Choose how intervals are displayed when cars are a lap or more apart.',
+        'How the interval reads for a car more than a lap behind the one ahead: in laps ("-2L"), or as a time. Cars on the same lap always show seconds.',
       options: [
         { value: 'time', label: 'Time' },
         { value: 'laps', label: 'Laps When Lapped' },
       ],
+    },
+    'lastTime.markInvalid': {
+      type: 'boolean',
+      label: 'Mark Laps That Did Not Count',
+      description:
+        'Dims a last lap the sim gave no time and marks it with a warning sign: a lap voided for track limits or a cut, or an out-lap. Le Mans Ultimate only.',
     },
     'interval.decimalPlaces': {
       type: 'enum',

@@ -5,6 +5,7 @@ export * from './captureChannelDecorator';
 export * from './liveChannelBridgeDecorator';
 export * from './captureSnapshots';
 export * from './standingsSnapshot';
+export * from './lmuEnduranceGrid';
 export * from './trackStateSnapshot';
 export * from './sessionBarSnapshot';
 export * from './sessionTimingSnapshot';

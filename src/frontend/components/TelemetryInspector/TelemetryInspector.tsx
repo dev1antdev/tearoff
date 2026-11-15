@@ -72,6 +72,34 @@ const TELEMETRY_UNITS: Readonly<Record<string, string>> = {
   LmuBrakeThickness: 'mm',
   LmuSuspensionDamage: 'fraction',
   LmuAeroDamage: 'fraction',
+  // The car's motion, under iRacing's names and in its axes: forwards, to
+  // the left and up.
+  YawNorth: 'rad',
+  VelocityX: 'm/s',
+  VelocityY: 'm/s',
+  VelocityZ: 'm/s',
+  LatAccel: 'm/s²',
+  LongAccel: 'm/s²',
+  LmuPlayerWorldPos: 'm',
+  LmuSessionEndTime: 's',
+  // The player's wheels and suspension under LMU: LF, RF, LR, RR.
+  LmuWheelRideHeight: 'mm',
+  LmuSuspensionPosition: 'mm',
+  LmuSuspensionForce: 'N',
+  LmuTyreLoad: 'N',
+  LmuTyreDeflection: 'mm',
+  LmuWheelCamber: '°',
+  LmuWheelToe: '°',
+  LmuWheelRotation: 'rad/s',
+  LmuTyreStaticRadius: 'm',
+  LmuThirdSpringDeflection: 'mm',
+  LmuLastImpactTime: 's',
+  LmuLastImpactPos: 'm',
+  LmuBatteryCharge: 'fraction',
+  LmuLiftAndCoast: 'fraction',
+  // No unit for LmuMotorTorque, LmuMotorRPM, LmuMotorTemp or
+  // LmuMotorCoolantTemp: theirs are unconfirmed until a hybrid is recorded,
+  // and a unit printed beside the number would read as settled.
 };
 
 const formatValue = (value: unknown): string => {

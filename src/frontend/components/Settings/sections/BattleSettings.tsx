@@ -99,6 +99,7 @@ const DisplaySettingsList = ({
               settings.config.lastTime.enabled && (
                 <div className="pl-8 mt-2">
                   <SettingProp path="lastTime.timeFormat" />
+                  <SettingProp path="lastTime.markInvalid" />
                 </div>
               )}
             {setting.hasSubSetting &&

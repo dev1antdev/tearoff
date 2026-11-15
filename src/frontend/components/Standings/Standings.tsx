@@ -6,6 +6,7 @@ import { SessionBar } from './components/SessionBar/SessionBar';
 import { TitleBar } from './components/TitleBar/TitleBar';
 import {
   useCarClassStats,
+  useClassFields,
   useDriverStandings,
   useStandingsSettings,
   useHighlightColor,
@@ -187,6 +188,16 @@ export const Standings = () => {
     isEmptyRecord
   );
   const classStats = useHeld(useCarClassStats(), isEmptyRecord);
+  // The cars still running in each class, for the "12/14" of the class
+  // header. The same count the Class Fields widget shows.
+  const classFields = useHeld(useClassFields(), isEmptyList);
+  const activeByClass = useMemo(
+    () =>
+      new Map(
+        classFields.map((field) => [String(field.classId), field.active])
+      ),
+    [classFields]
+  );
   const liveTags = useDriverTagMap(settings?.driverTag?.enabled);
   const tagMap = useHeld(liveTags.tagMap, isEmptyMap);
   const hasAnyTag = useHeld(liveTags.hasAnyTag, isFalse);
@@ -345,6 +356,7 @@ export const Standings = () => {
                         : highlightColor
                     }
                     totalDrivers={classStats?.[classId]?.total}
+                    activeDrivers={activeByClass.get(classId)}
                     sof={classStats?.[classId]?.sof}
                     estimatedLaps={estimatedLapsByClass[classId]}
                     highlightColor={highlightColor}
@@ -442,6 +454,11 @@ export const Standings = () => {
                           lastTimeState={
                             settings?.lastTime?.enabled
                               ? result.lastTimeState
+                              : undefined
+                          }
+                          lastLapInvalid={
+                            settings?.lastTime?.enabled
+                              ? result.lastLapInvalid
                               : undefined
                           }
                           onPitRoad={result.onPitRoad}

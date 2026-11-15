@@ -8,6 +8,7 @@ import type {
 } from '../streamChat';
 import type { ReplayContextSnapshot } from './replayContext';
 import type { FlagStateSnapshot } from './flagState';
+import type { SystemPerformanceSnapshot } from './systemPerformance';
 import type { RacePlanProgressSnapshot } from './racePlanProgress';
 import type { PitStopsSnapshot } from './pitStops';
 import type { PitLaneCalibration } from '../pitLane';
@@ -38,6 +39,7 @@ export interface ChannelPayloads {
   'standings.snapshot': StandingsSnapshot;
   'track-state.snapshot': TrackStateSnapshot;
   'tyre-state.snapshot': TyreStateSnapshot;
+  'system-performance.snapshot': SystemPerformanceSnapshot;
   'minimap.snapshot': MinimapSnapshot;
   'lap-delta.snapshot': LapDeltaSnapshot;
   'lap-trace.sample': LapTraceSampleSnapshot;
@@ -688,6 +690,23 @@ export interface StandingsSnapshot {
    */
   carIdxFinishStatus: number[];
   /**
+   * Whether each car's last lap did not count: the sim gave it no time, and
+   * `carIdxLastLapTime` carries the lap timed from its start instead. Wider
+   * than "voided": an out-lap in practice is untimed too.
+   *
+   * Empty under iRacing, which publishes no validity for other cars' laps.
+   */
+  carIdxLastLapInvalid: boolean[];
+  /**
+   * Whether each car is parked in its garage stall, which
+   * `carIdxTrackSurface` cannot say: it reads "in pit stall" for the garage
+   * and for a stop at the box alike.
+   *
+   * Empty under iRacing, where a car in the garage is simply not in the
+   * world.
+   */
+  carIdxInGarage: boolean[];
+  /**
    * Seconds a time penalty will add, per car. 0 for a clean car and for the
    * two kinds served on track. Empty wherever `carIdxPenaltyKind` is.
    *
@@ -1003,6 +1022,12 @@ export const channelRegistry = {
     kind: 'snapshot',
     defaultRateHz: 5,
     maxRateHz: 10,
+  },
+  // The machine is read once a second; nothing here moves faster than that.
+  'system-performance.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 1,
+    maxRateHz: 2,
   },
   // Positional, like track-state; the renderer interpolates between snapshots.
   'minimap.snapshot': {
