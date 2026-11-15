@@ -33,12 +33,18 @@ import {
 } from './opponentLapDistance';
 import type { LmuRestCell, LmuRestCells } from './rest/state';
 import type { LmuLivePenaltyChannels } from './liveStandings/penalties';
-import { isLmuRaceSession } from './mapSession';
+import { isLmuRaceSession, lmuHasLapLimit } from './mapSession';
 import { lmuInCar, lmuInSession, type LmuGameState } from './gameState';
 import {
   createLmuClassPositionState,
   updateLmuClassPositions,
 } from './classPosition';
+import { lmuTimeBehindLeader } from './raceGap';
+import {
+  lmuRaceGreenTime,
+  lmuSessionClock,
+  type LmuSessionClockState,
+} from './sessionClock';
 
 type Raw = import('./native').LmuRawTelemetry;
 
@@ -54,6 +60,9 @@ const PHASE_TO_SESSION_STATE: Record<number, number> = {
   8: SessionState.CoolDown,
   9: SessionState.Racing,
 };
+
+/** EngineWarnings.PitSpeedLimiter, the bit the pit lane helper reads. */
+const ENGINE_WARNING_PIT_LIMITER = 0x10;
 
 /** Matches TrackLocation.NotInWorld, which consumers test with `> -1`. */
 const TRACK_NOT_IN_WORLD = -1;
@@ -118,6 +127,25 @@ const occupiedArr = (
       )
     : [],
 });
+
+/**
+ * The lap a car is on, counted the way iRacing counts `Lap` and
+ * `CarIdxLap`: 1 on the first lap, and 0 for a car that has not reached
+ * the line yet.
+ *
+ * LMU's own counters are laps completed, 0 all the way round the first
+ * lap, and published as they stood they put every reader a lap out: the
+ * lap in the standings header read L0 for the whole of lap one, the laps a
+ * timed race would run came out one short, and a car on its first lap
+ * and one on its second counted as on the same lap.
+ *
+ * A car before the line is the one case where nothing has been started.
+ * LMU holds its lap fraction at exactly 0 until it crosses.
+ */
+const lapStarted = (completed: number, lapDistPct: number): number => {
+  if (completed < 0) return -1;
+  return completed > 0 || lapDistPct > 0 ? completed + 1 : 0;
+};
 
 const lapDistPctArr = (v: ArrayLike<number> | undefined) => ({
   value: v
@@ -303,7 +331,15 @@ export function mapLmuTelemetry(
    * exactly 0 virtual energy is read as fuel-limited, as it always was. See
    * fuelEnergy.ts.
    */
-  energyState?: LmuEnergyState
+  energyState?: LmuEnergyState,
+  /**
+   * The session clock's memory, owned by the caller so it survives between
+   * frames. Omitted -- as most specs do -- the clock is whichever source
+   * this snapshot carries, which steps back a little each time the player
+   * leaves the car, and a race's length is its end time. See
+   * sessionClock.ts.
+   */
+  clockState?: LmuSessionClockState
 ): Telemetry {
   // Boundary note: a handful of generated Telemetry keys (e.g. SessionTime) are
   // typed with an `undefined[]` value shape although the iRacing native layer
@@ -366,8 +402,9 @@ export function mapLmuTelemetry(
   //
   // mElapsedTime is absent with no player car (spectating, garage), hence the
   // fallback.
-  const sessionClock =
-    typeof raw.elapsedTime === 'number' && raw.elapsedTime >= 0
+  const sessionClock = clockState
+    ? lmuSessionClock(clockState, raw)
+    : typeof raw.elapsedTime === 'number' && raw.elapsedTime >= 0
       ? raw.elapsedTime
       : raw.currentET;
   t.SessionTick = num(sessionClock);
@@ -381,7 +418,21 @@ export function mapLmuTelemetry(
   t.SessionState = num(PHASE_TO_SESSION_STATE[raw.gamePhase] ?? 0);
   t.SessionTime = num(sessionClock);
   t.SessionTimeRemain = num(raw.sessionTimeRemaining);
-  t.SessionTimeTotal = num(raw.endET);
+  // The length of the session. LMU gives its end as a time on the session
+  // clock, which for practice and qualifying is the same thing. A race's
+  // clock starts on the grid, though, minutes before the green flag, and
+  // the widgets count a race from the flag: given the end time for a
+  // length, they showed every timed race those minutes longer than it was.
+  const greenAt = clockState
+    ? lmuRaceGreenTime(
+        clockState,
+        { isRace: isLmuRaceSession(raw.session), gamePhase: raw.gamePhase },
+        sessionClock
+      )
+    : null;
+  t.SessionTimeTotal = num(
+    greenAt !== null ? Math.max(0, raw.endET - greenAt) : raw.endET
+  );
   // Only a race can be lap-limited; practice and qualifying are always timed,
   // and an endurance race usually is too. In those, mMaxLaps is not a lap
   // count -- rF2 signals "no limit" with a value far beyond any real race, so
@@ -392,10 +443,7 @@ export function mapLmuTelemetry(
   // The upper bound is iRacing's own sentinel rather than an invented
   // threshold: at or above it, the number cannot be a real lap count whatever
   // encoding LMU chose for "unlimited".
-  const hasLapLimit =
-    isLmuRaceSession(raw.session) &&
-    raw.maxLaps > 0 &&
-    raw.maxLaps < TIMED_SESSION_LAPS;
+  const hasLapLimit = lmuHasLapLimit(raw.session, raw.maxLaps);
   t.SessionLapsRemain = num(
     hasLapLimit
       ? Math.max(
@@ -499,6 +547,16 @@ export function mapLmuTelemetry(
       carIdxLaps
     );
   }
+  // Until here both arrays hold laps completed, which is what the refining
+  // above works in. CarIdxLap goes out as the lap each car is on.
+  const carIdxLapsStarted = t.CarIdxLap.value as number[];
+  const carIdxLapsCompleted = t.CarIdxLapCompleted.value as number[];
+  for (let carIdx = 0; carIdx < carIdxLapsStarted.length; carIdx += 1) {
+    carIdxLapsStarted[carIdx] = lapStarted(
+      carIdxLapsCompleted[carIdx],
+      carIdxLapDistPct[carIdx] ?? 0
+    );
+  }
   t.CarIdxTrackSurface = {
     value: Array.from(raw.vehInPits, (_, carIdx) => trackLocation(raw, carIdx)),
   };
@@ -524,7 +582,24 @@ export function mapLmuTelemetry(
     isLmuRaceSession(raw.session) ? raw.vehPlaces : classPositionState.overall
   );
   t.CarIdxClass = occupiedArr(raw.vehClass, raw, -1);
-  t.CarIdxF2Time = numArr(raw.vehTimeBehindLeader);
+  // The race time behind the overall leader, which the standings difference
+  // into gaps and intervals. Worked out rather than taken from the sim, which
+  // has no time for a car more than a lap down. Outside a race the standings
+  // go by best laps and this is the sim's figure as it stands.
+  t.CarIdxF2Time = isLmuRaceSession(raw.session)
+    ? {
+        value: lmuTimeBehindLeader({
+          places: raw.vehPlaces,
+          classes: raw.vehClass,
+          classPositions: classPositionState.positions,
+          totalLaps: raw.vehTotalLaps,
+          timeIntoLap: raw.vehTimeIntoLap,
+          estimatedLapTime: raw.vehEstimatedLapTime,
+          lapDistPcts: raw.vehLapDistPct,
+          timeBehindLeader: raw.vehTimeBehindLeader,
+        }),
+      }
+    : numArr(raw.vehTimeBehindLeader);
   t.CarIdxEstTime = numArr(raw.vehTimeIntoLap);
   t.CarIdxLastLapTime = lapTimeArr(raw.vehLastLapTime);
   t.CarIdxBestLapTime = lapTimeArr(raw.vehBestLapTime);
@@ -648,16 +723,14 @@ export function mapLmuTelemetry(
   );
   t.Gear = num(raw.gear);
   t.RPM = num(raw.engineRPM);
-  // The lap that goes with LapDistPct rather than LMU's counter as it stands:
+  // The laps that go with LapDistPct rather than LMU's counter as it stands:
   // the counter flips at the timing line, which can be well short of where
   // the position wraps, and anything pairing the two -- the fuel calculator
   // does -- then saw the line twice. Moved in the same frame as the position.
-  t.Lap = num(
-    lapDistanceState && playerIdx >= 0 && lapDistanceState.lap !== null
-      ? lapDistanceState.lap
-      : raw.lapNumber
-  );
-  t.LapCompleted = num(playerCompletedLaps ?? raw.vehTotalLaps[playerIdx] ?? 0);
+  const lapsCompleted = playerCompletedLaps ?? raw.vehTotalLaps[playerIdx] ?? 0;
+  // The lap being driven, as iRacing's Lap is; see lapStarted.
+  t.Lap = num(playerIdx >= 0 ? lapStarted(lapsCompleted, lapDistPct) : 0);
+  t.LapCompleted = num(lapsCompleted);
   t.LapDistPct = num(lapDistPct);
   t.LapBestLapTime = lapTime(raw.vehBestLapTime[playerIdx]);
   t.LapLastLapTime = lapTime(raw.vehLastLapTime[playerIdx]);
@@ -686,6 +759,10 @@ export function mapLmuTelemetry(
       raw.vehLastLapTime?.[playerIdx]
     ),
   };
+  // Not three sector bests, whatever the name suggests: LMU's second figure
+  // is the best time to the end of sector two, which need not come from the
+  // lap the best first sector did. Nothing reads these; the sector timer
+  // keeps its own bests from the current and last laps.
   t.LmuBestSectorTimes = {
     value: mapLmuSectorTimes(
       raw.vehBestSector1?.[playerIdx],
@@ -789,7 +866,10 @@ export function mapLmuTelemetry(
   t.FuelLevelPct = num(
     raw.fuelCapacity && raw.fuel !== undefined ? raw.fuel / raw.fuelCapacity : 0
   );
-  t.EngineWarnings = num(0);
+  // Only the pit limiter, which is the one warning LMU reports as a state.
+  // Left at 0 the pit lane helper told a driver sitting on the limiter to
+  // switch it on, for the whole length of every stop.
+  t.EngineWarnings = num(raw.speedLimiter ? ENGINE_WARNING_PIT_LIMITER : 0);
   t.ShiftGrindRPM = num(raw.engineMaxRPM ?? 0);
   t.ThrottleRaw = num(raw.unfilteredThrottle);
   t.BrakeRaw = num(raw.unfilteredBrake);

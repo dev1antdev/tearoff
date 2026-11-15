@@ -11,6 +11,17 @@ const LAP_TIME_AVG_WINDOW = 10;
 // Bounded independently for all laps and eligible laps, including endurance races.
 const HISTORY_CAPACITY = 100;
 const OUTLIER_THRESHOLD = 1;
+/**
+ * How long a lap time may wait for the lap count it belongs to.
+ *
+ * The two come from different places under Le Mans Ultimate: the time from
+ * the sim's scoring, the count from the app's own reading of where the car
+ * is, which crosses the line a moment before or after scoring says so. On a
+ * recorded race the time came first at more than a quarter of the lap ends,
+ * by up to 0.15 s. Long enough for that, and far too short for a time that
+ * has nothing to do with the lap being counted.
+ */
+const EARLY_TIME_WINDOW_SECONDS = 1;
 
 const median = (numbers: readonly number[]): number => {
   if (numbers.length === 0) return 0;
@@ -106,6 +117,8 @@ export class LapTimesProcessor implements TelemetryProcessor<LapTimesSnapshot> {
           pending: false,
           pendingClean: false,
           lastRecordedLap: -1,
+          earlyTime: -1,
+          earlyAt: 0,
         };
         this.cars[carIdx] = car;
         this.history[carIdx] = [];
@@ -118,8 +131,20 @@ export class LapTimesProcessor implements TelemetryProcessor<LapTimesSnapshot> {
           // Tow, garage reset, or disappearance: do not reuse an old time.
           car.pending = false;
           car.pitLap = true;
+          car.earlyTime = -1;
           if (lap < 0 || car.completed - lap > 1) car.lastRecordedLap = -1;
         } else if (lap > car.completed) {
+          // The time was here before the count. It is this lap's, and
+          // waiting for it to change again would record the next lap's
+          // time in its place and lose this one.
+          const timeCameFirst =
+            car.earlyTime > 0 &&
+            lapTime === car.earlyTime &&
+            sessionTime !== null &&
+            sessionTime - car.earlyAt <= EARLY_TIME_WINDOW_SECONDS &&
+            lap === car.completed + 1 &&
+            car.completed >= 0 &&
+            lap > car.lastRecordedLap;
           // A time unchanged for an entire completed lap can be identical.
           // Do not guess after a timeout: recorded timing updates can arrive
           // over five seconds late, with counter corrections in between.
@@ -133,11 +158,19 @@ export class LapTimesProcessor implements TelemetryProcessor<LapTimesSnapshot> {
             car.lastRecordedLap = car.completed;
             changed = true;
           }
-          car.pending =
-            lap === car.completed + 1 &&
-            car.completed >= 0 &&
-            lap > car.lastRecordedLap;
-          car.pendingClean = !car.pitLap && !inPit && !unavailable;
+          if (timeCameFirst) {
+            this.append(carIdx, lapTime, !car.pitLap && !inPit && !unavailable);
+            car.lastRecordedLap = lap;
+            car.pending = false;
+            changed = true;
+          } else {
+            car.pending =
+              lap === car.completed + 1 &&
+              car.completed >= 0 &&
+              lap > car.lastRecordedLap;
+            car.pendingClean = !car.pitLap && !inPit && !unavailable;
+          }
+          car.earlyTime = -1;
           car.pitLap = inPit || unavailable;
         }
         if (car.pending && lapTime !== car.lastTime) {
@@ -147,6 +180,16 @@ export class LapTimesProcessor implements TelemetryProcessor<LapTimesSnapshot> {
             changed = true;
           }
           car.pending = false;
+        } else if (
+          !car.pending &&
+          lapTime !== car.lastTime &&
+          lapTime > 0 &&
+          sessionTime !== null
+        ) {
+          // A new time with no lap counted yet: kept for the count that
+          // should follow it within a moment.
+          car.earlyTime = lapTime;
+          car.earlyAt = sessionTime;
         }
       } else if (lap === null && lapTime > 0 && lapTime !== car.lastTime) {
         // Older recordings/sources without counters retain the legacy history.
@@ -223,6 +266,10 @@ interface CarLapState {
   pending: boolean;
   pendingClean: boolean;
   lastRecordedLap: number;
+  /** A time that arrived before its lap was counted, or -1. */
+  earlyTime: number;
+  /** The session time it arrived at. */
+  earlyAt: number;
 }
 
 const finiteNumber = (value: unknown): number | null =>

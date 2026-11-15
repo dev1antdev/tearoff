@@ -71,7 +71,7 @@ export interface LmuRestTask {
   readonly id: string;
   readonly path: string;
   /**
-   * `once` runs a single time per activation -- session settings and the
+   * `once` runs a single time per session -- session settings and the
    * forecast cannot change mid-session. `repeat` polls, backing off while the
    * response is unchanged. `burst` polls only when the bridge asks, through
    * `LmuRestPoller.burst`: every `baseIntervalMs` until the bridge's own
@@ -103,13 +103,14 @@ export interface LmuRestTask {
   /**
    * True when an error response is an ordinary state rather than a fault.
    *
-   * Every other path here is one LMU serves whenever the sim is up, so three
-   * failures in a row mean something is wrong and the task latches off for the
-   * activation. That is exactly wrong for a path whose availability depends on
-   * what the viewer is *doing*: the app activates the moment LMU is running,
-   * which is usually the main menu, and an endpoint that only answers from the
-   * spectator view would be given up on seconds after launch and never
-   * retried -- so the feature would appear to do nothing at all.
+   * Every other path here is one LMU serves for the whole of a session, so
+   * three failures in a row mean something is wrong and the task is given up
+   * on until the next session begins or the player arrives in one (see
+   * `LmuRestPoller.beginSession`). That is exactly wrong for a path whose
+   * availability depends on what the viewer is *doing* inside a session: an
+   * endpoint that only answers from the spectator view would be given up on
+   * seconds after the session began and not asked again until the next one
+   * -- so the feature would appear to do nothing at all.
    *
    * An optional task therefore never latches off. A failure costs no retry and
    * is rescheduled on the same backing-off interval an unchanged body gets, so
@@ -691,7 +692,7 @@ export const LMU_REST_TASKS: readonly LmuRestTask[] = [
     id: 'sessions',
     path: '/rest/sessions',
     // Session settings cannot change mid-session, so this is fetched once per
-    // activation and again on a track change.
+    // session.
     mode: 'once',
     baseIntervalMs: 1000,
     outputs: [
@@ -764,7 +765,7 @@ export const LMU_REST_TASKS: readonly LmuRestTask[] = [
   {
     id: 'tire-management',
     path: '/rest/garage/UIScreen/TireManagement',
-    // Once per activation, like the other session-fixed payloads: the
+    // Once per session, like the other session-fixed payloads: the
     // compounds a car can run do not change inside a session.
     mode: 'once',
     baseIntervalMs: 2000,
@@ -820,8 +821,8 @@ export const LMU_REST_TASKS: readonly LmuRestTask[] = [
     // as not following it.
     maxIntervalMs: 1000,
     // LMU answers this only from the spectator view. Without this the task
-    // would latch off three seconds after launch -- at the main menu, long
-    // before anyone starts watching -- and never poll again.
+    // would be given up on three seconds into every session, long before
+    // anyone starts watching, and not asked again until the next one.
     optional: true,
     outputs: [
       {

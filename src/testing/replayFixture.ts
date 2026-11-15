@@ -33,7 +33,20 @@ export interface ReplayFixture {
   /** Grid positions, used for position change in race sessions. */
   qualifying?: Record<string, number>[];
   drivers: Record<string, string | number>[];
-  frames: Record<string, number | boolean | number[] | boolean[]>[];
+  /**
+   * The whole session object, as the sim's bridge built it.
+   *
+   * For a capture cut by `tools/telemetry-replay/lmu-fixture.ts`, which runs
+   * the tape through the app's own session mapping: there is nothing to
+   * rebuild, and rebuilding from the reduced fields above would drop what
+   * only that sim has. When present it is the session, and `weekend`,
+   * `sessions` and `drivers` are left empty.
+   */
+  session?: Session;
+  frames: Record<
+    string,
+    number | boolean | null | (number | boolean | null)[]
+  >[];
 }
 
 /** Wraps a fixture frame into the shape the SDK hands processors. */
@@ -56,6 +69,7 @@ const text = (value: unknown): string => String(value ?? '').replace(/"/g, '');
 
 /** Rebuilds the session object the frontend and processors read. */
 export const toSession = (fixture: ReplayFixture): Session => {
+  if (fixture.session) return fixture.session;
   // Both indices come from the capture. Guessing them gets the player wrong,
   // which silently empties every relative window, and leaves the pace car
   // unfiltered so it turns up as a nameless entry.

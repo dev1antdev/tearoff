@@ -537,7 +537,7 @@ describe('tire-management task', () => {
     );
   });
 
-  it('is fetched once per activation, since a session cannot change it', () => {
+  it('is fetched once per session, since a session cannot change it', () => {
     expect(taskById('tire-management').mode).toBe('once');
   });
 

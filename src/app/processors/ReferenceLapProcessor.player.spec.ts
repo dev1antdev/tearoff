@@ -192,6 +192,50 @@ describe('ReferenceLapProcessor line crossing', () => {
     expect(first).toBeCloseTo(60, 5);
     expect(lapTimeOf(processor.snapshot().bestLaps[0][1])).toBeCloseTo(59.9, 4);
   });
+
+  /**
+   * The car first seen a metre past the line, then round to the crossing
+   * that ends the lap: everything `driveLap` drives but the crossing that
+   * began it. The first ten metres are sampled all the same, as at any real
+   * frame rate, so nothing else about the lap rules it out.
+   */
+  const driveFromJustPastTheLine = (
+    processor: ReferenceLapProcessor,
+    start: number,
+    lapTime: number
+  ) => {
+    processor.onFrame(frame(0.001, start + 0.001 * lapTime));
+    driveLap(processor, start, lapTime);
+  };
+
+  it('does not time a lap from a car first seen just past the line', () => {
+    // The recorder starts with the car a metre into its lap. That looks
+    // like a car that has just crossed the line, but when it crossed is not
+    // known: under Le Mans Ultimate this is where a car first gets a
+    // position after a rolling start, up to a fifth of a second late.
+    const { processor } = setup();
+
+    driveFromJustPastTheLine(processor, 100, 60);
+
+    expect(processor.snapshot().bestLaps).toHaveLength(0);
+
+    // The lap after it starts at a crossing that was seen.
+    driveLap(processor, 160, 60);
+    expect(lapTimeOf(processor.snapshot().bestLaps[0][1])).toBeCloseTo(60, 5);
+  });
+
+  it('does not time the lap it resumes in after a pause', () => {
+    // Nothing was asking for reference laps for a while, so the lap under
+    // way was dropped. Recording resumes with the car just past the line,
+    // and that is a first sight like any other.
+    const { processor } = setup();
+    crossLine(processor, 100);
+    processor.pause();
+
+    driveFromJustPastTheLine(processor, 100, 60);
+
+    expect(processor.snapshot().bestLaps).toHaveLength(0);
+  });
 });
 
 describe("ReferenceLapProcessor player's all-time reference", () => {

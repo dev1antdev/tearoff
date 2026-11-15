@@ -240,13 +240,48 @@ describe('mapLmuSession', () => {
   it('shapes the session info list', () => {
     const s = mapLmuSession(fixture());
     expect(s.SessionInfo.Sessions).toHaveLength(1);
-    expect(s.SessionInfo.Sessions[0].SessionLaps).toBe('12');
+    // Practice, which is never run to a lap count whatever mMaxLaps holds.
+    expect(s.SessionInfo.Sessions[0].SessionLaps).toBe('unlimited');
     expect(s.SessionInfo.Sessions[0].QualifyPositions).toHaveLength(2);
     expect(s.SplitTimeInfo.Sectors).toEqual([
       { SectorNum: 0, SectorStartPct: 0 },
       { SectorNum: 1, SectorStartPct: 1 / 3 },
       { SectorNum: 2, SectorStartPct: 2 / 3 },
     ]);
+  });
+
+  it('gives a lap-limited race its laps as a number', () => {
+    // What iRacing's own session info parses to, and what the session
+    // timer reads: a string was no lap limit at all.
+    const s = mapLmuSession({ ...fixture(), session: 10, maxLaps: 12 });
+    expect(s.SessionInfo.Sessions[0].SessionLaps).toBe(12);
+  });
+
+  it('calls a timed race unlimited rather than two thousand million laps', () => {
+    const s = mapLmuSession({
+      ...fixture(),
+      session: 10,
+      maxLaps: 2147483647,
+    });
+    expect(s.SessionInfo.Sessions[0].SessionLaps).toBe('unlimited');
+  });
+
+  it('places the pit box on the lap from the distance LMU gives', () => {
+    const raw = fixture();
+    const withBox = (pitLapDist: number) =>
+      mapLmuSession({
+        ...raw,
+        drivers: raw.drivers.map((driver) =>
+          driver.isPlayer ? { ...driver, pitLapDist } : driver
+        ),
+      }).DriverInfo.DriverPitTrkPct;
+
+    // 7004 m round; a box 700.4 m past the line.
+    expect(withBox(700.4)).toBeCloseTo(0.1, 9);
+    // The same box, given a lap further on.
+    expect(withBox(7704.4)).toBeCloseTo(0.1, 9);
+    // And where the sim has not said.
+    expect(withBox(0)).toBe(0);
   });
 
   it('gives each LMU track a stable simulator-specific id', () => {

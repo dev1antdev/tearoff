@@ -3,6 +3,15 @@ import type { FuelLapData } from '@irdashies/types';
 const MIN_LAP_TIME = 10;
 const LAP_DIST_RESET_THRESHOLD = 0.5;
 const MAX_PROJECTION_CHANGE_PERCENT = 0.5;
+/**
+ * How far past the line, as a share of the lap, a lap may be picked up and
+ * still be the whole lap. Frames arrive a few times a second, so even a lap
+ * seen crossing the line is first measured a little way into it; and Le
+ * Mans Ultimate reports a car coming up to the start at exactly 0 until it
+ * is over the line, where no crossing is ever seen. Two hundredths of a lap
+ * is a couple of seconds and as much of the fuel.
+ */
+const LAP_START_TOLERANCE = 0.02;
 
 export interface FuelEngineClock {
   now(): number;
@@ -107,6 +116,14 @@ export class FuelProjectionEngine {
   private wasTowedDuringLap = false;
   private wasOnPitRoadDuringLap = false;
   private isLapFullyGreen = true;
+  /**
+   * Whether the lap under way is being measured from the line. The engine
+   * can be started anywhere on a lap -- the app opened mid-race, the widget
+   * turned on, a reset -- and what is left of that lap is not a lap: half of
+   * one burns half the fuel, and recorded it halves the average the driver
+   * fills the tank by. Such a lap ends without being recorded.
+   */
+  private lapFromLine = false;
   private lastProjectedUsage: number | null = null;
   private smoothedProjectedUsage = 0;
   private lastSmoothedLap = -1;
@@ -131,6 +148,7 @@ export class FuelProjectionEngine {
     this.wasTowedDuringLap = false;
     this.wasOnPitRoadDuringLap = false;
     this.isLapFullyGreen = true;
+    this.lapFromLine = false;
     this.resetProjection();
   }
 
@@ -187,6 +205,10 @@ export class FuelProjectionEngine {
       return commands;
     }
 
+    // With nothing seen before this frame, nothing was seen crossing the
+    // line -- though a first frame on lap 1 reads as the count going up by
+    // one, which is what a crossing looks like.
+    const isFirstFrame = this.lastSessionTime === undefined;
     this.lastSessionTime = frame.sessionTime;
     const distanceCrossed =
       this.state.lastLapDistPct > 0.9 && frame.lapDistPct < 0.1;
@@ -202,15 +224,34 @@ export class FuelProjectionEngine {
     }
 
     const lapTime = frame.sessionTime - this.state.lapCrossingTime;
-    if (!lapIncremented && lapTime > 0 && lapTime < MIN_LAP_TIME) {
+    // A crossing seconds after the last one is a stutter at the line, and the
+    // lap under way carries on. Unless that lap was picked up somewhere
+    // else: then this is the first crossing there has been, and the lap is
+    // measured from it.
+    if (
+      this.lapFromLine &&
+      !lapIncremented &&
+      lapTime > 0 &&
+      lapTime < MIN_LAP_TIME
+    ) {
       this.state.lastLapDistPct = frame.lapDistPct;
       return commands;
     }
 
+    // More than one lap counted since the last frame: frames were missed.
+    // The lap ending here was not seen whole, and this frame is not known to
+    // be the line, so the lap starting is whole only if it is found there.
+    const lapsSkipped = frame.lap - this.state.lastLap > 1;
     const completedLap = frame.lap - 1;
     const fuelUsed =
       this.state.lapStartFuel + this.state.accumulatedRefuel - frame.fuelLevel;
-    if (completedLap >= 1 && fuelUsed > 0 && lapTime >= MIN_LAP_TIME) {
+    if (
+      this.lapFromLine &&
+      !lapsSkipped &&
+      completedLap >= 1 &&
+      fuelUsed > 0 &&
+      lapTime >= MIN_LAP_TIME
+    ) {
       const wasTowed = this.wasTowedDuringLap;
       const isOutlier = !validateLap(fuelUsed, lapTime, [
         ...history.getRecentLaps(10),
@@ -236,7 +277,11 @@ export class FuelProjectionEngine {
     this.isLapFullyGreen = isGreenFlag(frame.sessionFlags);
     this.state.isLapDistPctReset = false;
     this.resetProjection();
-    this.startLap(frame, Math.max(frame.lap, completedLap + 1));
+    this.startLap(
+      frame,
+      Math.max(frame.lap, completedLap + 1),
+      !isFirstFrame && !lapsSkipped
+    );
     return commands;
   }
 
@@ -306,13 +351,26 @@ export class FuelProjectionEngine {
     return this.smoothedProjectedUsage;
   }
 
-  private startLap(frame: FuelEngineFrame, lap = frame.lap): void {
+  /**
+   * Starts measuring a lap at this frame. It is the whole lap when the car
+   * was seen to cross the line into it, or is found no further past the line
+   * than a frame could have left it. Started anywhere else, the lap is
+   * measured for the display and never recorded.
+   */
+  private startLap(
+    frame: FuelEngineFrame,
+    lap = frame.lap,
+    crossedLine = false
+  ): void {
     this.state.lastLapDistPct = frame.lapDistPct;
     this.state.lapStartFuel = frame.fuelLevel;
     this.state.lapCrossingTime = frame.sessionTime;
     this.state.lastLap = lap;
     this.state.wasOnPitRoad = frame.onPitRoad;
     this.state.accumulatedRefuel = 0;
+    this.lapFromLine =
+      crossedLine ||
+      (frame.lapDistPct >= 0 && frame.lapDistPct <= LAP_START_TOLERANCE);
     this.logger.debug(`Fuel lap ${lap} started`);
   }
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { useFuelProjectionSnapshot } from '@irdashies/context';
+import { sessionLapLimit } from '@irdashies/shared';
 import {
   fuelDisplayValue,
   refuelLevelPercent,
@@ -81,8 +82,13 @@ export const FuelCalculatorConsumptionGrid: React.FC<
   const isFinalLapOrFinished =
     sessionFlags && (sessionFlags & 0x0002 || sessionFlags & 0x0004);
 
+  // The race's length, or 0 for one with no lap count to show: a timed race
+  // before it has been estimated. Never the number a session gives in place
+  // of a count, which once headed this grid "Race L1 / 2147483647".
+  const raceLaps = sessionLapLimit(displayData?.totalLaps);
+
   // If final lap/finished, we clamp the total race laps to the current lap (so it shows X / X)
-  let effectiveTotalLaps = Math.max(displayData?.totalLaps ?? 0, currentLap);
+  let effectiveTotalLaps = Math.max(raceLaps, currentLap);
   if (isFinalLapOrFinished) {
     effectiveTotalLaps = currentLap;
   }
@@ -370,9 +376,7 @@ export const FuelCalculatorConsumptionGrid: React.FC<
       >
         <span>
           Race L{currentLap}
-          {(displayData?.totalLaps ?? 0) > 0
-            ? ` / ${displayData?.totalLaps.toFixed(0)}`
-            : ''}
+          {raceLaps > 0 ? ` / ${raceLaps.toFixed(0)}` : ''}
         </span>
         <span>
           {isEnergy

@@ -83,6 +83,54 @@ describe('refineLmuOpponentLapDistPcts', () => {
     expect(out[1] - 0.2).toBeCloseTo((50 * POLL_S * 4) / TRACK_M, 5);
   });
 
+  it('leaves a car scoring has not placed at 0, however fast it is going', () => {
+    // Rolling up to a start, scoring holds a car at exactly 0 until it
+    // crosses the line: 22 of the 38 on the recorded race, at 130 km/h and
+    // more. That is not a position to advance from. Advanced all the same,
+    // each ran 20 m up the lap and stood there, and the reference recorder
+    // took a lap that began before the car had reached the line.
+    const state = createLmuOpponentLapDistanceState();
+    const scoringPcts = [0, 0.2];
+    // Refilled from scoring every frame, as the mapper does.
+    let out = [...scoringPcts];
+
+    refineLmuOpponentLapDistPcts(state, out, frame({ scoringPcts }));
+    for (let poll = 1; poll <= 20; poll += 1) {
+      out = [...scoringPcts];
+      refineLmuOpponentLapDistPcts(
+        state,
+        out,
+        frame({ scoringPcts, elapsedTimes: [poll * POLL_S, poll * POLL_S] })
+      );
+      expect(out[0]).toBe(0);
+    }
+    // The car beside it, which has a position, moved on all the while.
+    expect(out[1] - 0.2).toBeCloseTo((50 * POLL_S * 20) / TRACK_M, 9);
+
+    // Over the line: scoring places it, and it advances from there.
+    const placed = [0.001, 0.2];
+    out = [...placed];
+    refineLmuOpponentLapDistPcts(
+      state,
+      out,
+      frame({
+        scoringPcts: placed,
+        elapsedTimes: [21 * POLL_S, 21 * POLL_S],
+      })
+    );
+    expect(out[0]).toBe(0.001);
+    out = [...placed];
+    refineLmuOpponentLapDistPcts(
+      state,
+      out,
+      frame({
+        scoringPcts: placed,
+        elapsedTimes: [22 * POLL_S, 22 * POLL_S],
+      })
+    );
+    expect(out[0] - 0.001).toBeCloseTo((50 * POLL_S) / TRACK_M, 9);
+  });
+
   it('resynchronises when scoring moves on, so drift cannot accumulate', () => {
     const state = createLmuOpponentLapDistanceState();
     const out = [0.1, 0.2];

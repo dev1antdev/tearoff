@@ -468,3 +468,231 @@ describe('useFuelCalculation tank capacity', () => {
     expect(result.current?.fuelTankCapacity).toBe(100);
   });
 });
+
+describe('useFuelCalculation in a session run to the clock', () => {
+  const renderWith = (snapshot: FuelProjectionSnapshot) => {
+    window.channelBridge = {
+      subscribe: <K extends ChannelName>(
+        _channel: K,
+        callback: (payload: ChannelPayloads[K]) => void
+      ) => {
+        callback(snapshot as ChannelPayloads[K]);
+        return () => undefined;
+      },
+    };
+    return renderHook(() =>
+      useFuelCalculation(defaultFuelCalculatorSettings.safetyMargin, {
+        ...defaultFuelCalculatorSettings,
+        enableStorage: false,
+        enableLogging: false,
+      })
+    );
+  };
+
+  beforeEach(() => {
+    useFuelStore.getState().clearAllData();
+  });
+
+  it.each([
+    ['rFactor 2 as text', '2147483647'],
+    ['rFactor 2', 2147483647],
+    ['iRacing in telemetry', 32767],
+    ['iRacing in the session', 'unlimited'],
+  ])(
+    'has no lap total before the first lap: %s',
+    async (_from, sessionLaps) => {
+      // No lap complete yet, so nothing has replaced what the session says,
+      // and what Le Mans Ultimate said was shown: "Race L1 / 2147483647".
+      const { result } = renderWith({
+        ...projection,
+        completedLaps: [],
+        currentLap: 1,
+        sessionLaps,
+        sessionLapsRemain: 32767,
+        isFixedLapRace: false,
+      });
+
+      await waitFor(() => expect(result.current).not.toBeNull());
+      expect(result.current?.totalLaps).toBe(0);
+      // Nor 32767 laps to go, which is what a timed session reports.
+      expect(result.current?.lapsRemaining).toBe(0);
+    }
+  );
+
+  it('keeps the lap total of a race that has one', async () => {
+    const { result } = renderWith({
+      ...projection,
+      completedLaps: [],
+      currentLap: 1,
+      sessionLaps: '16',
+      sessionLapsRemain: 15,
+    });
+
+    await waitFor(() => expect(result.current).not.toBeNull());
+    expect(result.current?.totalLaps).toBe(16);
+    expect(result.current?.lapsRemaining).toBe(15);
+  });
+});
+
+describe('useFuelCalculation lap order', () => {
+  const lap = (
+    lapNumber: number,
+    fuelUsed: number,
+    timestamp: number,
+    sessionNum: number
+  ) => ({
+    lapNumber,
+    fuelUsed,
+    lapTime: 90,
+    isGreenFlag: true,
+    isValidForCalc: true,
+    isOutLap: false,
+    isInLap: false,
+    wasTowed: false,
+    timestamp,
+    sessionNum,
+  });
+  const storage = (
+    stored: FuelProjectionSnapshot['completedLaps'] = [],
+    saveLap = vi.fn<FuelCalculatorBridge['saveLap']>(async () => undefined)
+  ) => {
+    window.fuelCalculatorBridge = {
+      getHistoricalLaps: vi.fn(async () =>
+        stored.map((each) => ({ ...each, isHistorical: true }))
+      ),
+      saveLap,
+      clearHistory: vi.fn(async () => undefined),
+      clearAllHistory: vi.fn(async () => undefined),
+      getQualifyMax: vi.fn(async () => null),
+      saveQualifyMax: vi.fn(async () => undefined),
+      startNewLog: vi.fn(async () => undefined),
+      logData: vi.fn(async () => undefined),
+    } satisfies FuelCalculatorBridge;
+    return saveLap;
+  };
+  const renderWith = (snapshot: FuelProjectionSnapshot) => {
+    window.channelBridge = {
+      subscribe: <K extends ChannelName>(
+        _channel: K,
+        callback: (payload: ChannelPayloads[K]) => void
+      ) => {
+        callback(snapshot as ChannelPayloads[K]);
+        return () => undefined;
+      },
+    };
+    return renderHook(() =>
+      useFuelCalculation(defaultFuelCalculatorSettings.safetyMargin, {
+        ...defaultFuelCalculatorSettings,
+        avgLapsCount: 3,
+        enableStorage: true,
+        enableLogging: false,
+      })
+    );
+  };
+
+  beforeEach(() => {
+    useFuelStore.getState().clearAllData();
+    useFuelStore.setState({ trackId: undefined, carName: undefined });
+  });
+
+  it('counts the laps just driven ahead of stored ones', async () => {
+    // Stored from the end of an earlier 45-minute race, so by the session
+    // clock they finished later than anything in a race two laps old, and
+    // sorted by it they were the last three laps: 3.00 a lap, where the car
+    // is now doing 2.00.
+    storage([
+      lap(30, 3, 2_700_000, 0),
+      lap(29, 3, 2_610_000, 0),
+      lap(28, 3, 2_520_000, 0),
+    ]);
+    const { result } = renderWith({
+      ...projection,
+      trackId: 'spa up',
+      carName: 'bmwm4gt3',
+      lastLapUsage: 2,
+      completedLaps: [lap(2, 2, 190_000, 0), lap(1, 2, 100_000, 0)],
+    });
+
+    await waitFor(() =>
+      expect(useFuelStore.getState().storedLaps).toHaveLength(3)
+    );
+    // The two laps of this race, then the most recent stored one.
+    await waitFor(() => expect(result.current?.avgLaps).toBeCloseTo(7 / 3, 9));
+    expect(result.current?.lastFinishedLap).toBe(2);
+    // The extremes are of this session alone, as they were.
+    expect(result.current?.maxLapUsage).toBe(2);
+  });
+
+  it('keeps stored laps in the order they were saved', async () => {
+    // Storage hands back the most recently saved first, whatever the clock
+    // read. Yesterday's qualifying was saved after yesterday's practice,
+    // though its laps ended earlier in a session of their own.
+    storage([
+      lap(3, 2.9, 400_000, 1),
+      lap(2, 2.8, 310_000, 1),
+      lap(40, 3.6, 3_600_000, 0),
+      lap(39, 3.5, 3_510_000, 0),
+    ]);
+    const { result } = renderWith({
+      ...projection,
+      trackId: 'spa up',
+      carName: 'bmwm4gt3',
+      lastLapUsage: 3,
+      completedLaps: [lap(1, 3, 100_000, 0)],
+    });
+
+    await waitFor(() =>
+      expect(useFuelStore.getState().storedLaps).toHaveLength(4)
+    );
+    await waitFor(() =>
+      expect(result.current?.avgLaps).toBeCloseTo((3 + 2.9 + 2.8) / 3, 9)
+    );
+  });
+
+  it('keeps the laps of a weekend in the order they were driven', async () => {
+    // Practice, qualifying and now the race, all still held by the
+    // processor, newest first. Each session's clock starts again, so the
+    // race's first lap ended "before" every lap of the hour of practice.
+    storage();
+    const { result } = renderWith({
+      ...projection,
+      trackId: 'spa up',
+      carName: 'bmwm4gt3',
+      sessionNum: 2,
+      lastLapUsage: 2,
+      completedLaps: [
+        lap(1, 2, 100_000, 2),
+        lap(3, 2.6, 600_000, 1),
+        lap(2, 2.6, 510_000, 1),
+        lap(20, 4, 3_500_000, 0),
+        lap(19, 4, 3_410_000, 0),
+        lap(18, 4, 3_320_000, 0),
+      ],
+    });
+
+    await waitFor(() =>
+      expect(result.current?.avgLaps).toBeCloseTo((2 + 2.6 + 2.6) / 3, 9)
+    );
+    expect(result.current?.lastFinishedLap).toBe(1);
+  });
+
+  it('saves waiting laps oldest first, as storage orders them', async () => {
+    // Shown in mid-race with two laps already recorded. Storage puts each
+    // lap it is given in front of the last, so the newer goes in second.
+    const saveLap = storage();
+    const first = lap(1, 2, 100_000, 0);
+    const second = lap(2, 2, 190_000, 0);
+    renderWith({
+      ...projection,
+      trackId: 'spa up',
+      carName: 'bmwm4gt3',
+      completedLaps: [second, first],
+    });
+
+    await waitFor(() => expect(saveLap).toHaveBeenCalledTimes(2));
+    expect(saveLap.mock.calls.map(([, , saved]) => saved)).toEqual([
+      first,
+      second,
+    ]);
+  });
+});

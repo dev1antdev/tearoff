@@ -6,24 +6,39 @@ import type { TrackStateSnapshot } from '@irdashies/types';
 import { shallow } from 'zustand/shallow';
 import { useTrackStateSelector } from '@irdashies/context';
 
-const EMPTY_GARAGE_STATE: readonly [boolean, boolean, boolean] = [
+const EMPTY_GARAGE_STATE: readonly [boolean, boolean, boolean, boolean] = [
+  false,
   false,
   false,
   false,
 ];
 
+/**
+ * The garage flags, the on-track flag, and whether any of it is current.
+ *
+ * Le Mans Ultimate leaves its last frame readable when a session ends, and a
+ * session left from the garage ends with the garage flags set: the cover
+ * stayed up over the main menu until the next session began. Out of a
+ * session, or with a frame the sim has stopped writing, there is no garage
+ * to cover. Both are always false under iRacing.
+ */
 const selectGarageState = (snapshot: TrackStateSnapshot) =>
-  [snapshot.isInGarage, snapshot.isGarageVisible, snapshot.isOnTrack] as const;
+  [
+    snapshot.isInGarage,
+    snapshot.isGarageVisible,
+    snapshot.isOnTrack,
+    snapshot.notInSession || snapshot.dataStale,
+  ] as const;
 
 export const GarageCover = () => {
-  const [isInGarageDirect, isGarageVisible, isOnTrack] =
+  const [isInGarageDirect, isGarageVisible, isOnTrack, noSession] =
     useTrackStateSelector(selectGarageState, { equality: shallow }) ??
     EMPTY_GARAGE_STATE;
 
   // Combining both garage-specific flags ensures the fastest possible
   // detection of the garage screen without false positives from other
   // UI screens (like Standings).
-  const finalShow = isInGarageDirect || isGarageVisible;
+  const finalShow = !noSession && (isInGarageDirect || isGarageVisible);
 
   // Hysteresis/Debounce logic to prevent "flashing" during exit
   // Initialize with the current calculated state

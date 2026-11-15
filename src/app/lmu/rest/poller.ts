@@ -8,7 +8,11 @@ import {
   REST_RETRY_LIMIT,
 } from './constants';
 import { LMU_REST_TASKS, type LmuRestTask } from './tasks';
-import { resetLmuRestData, type LmuRestData } from './state';
+import {
+  forgetLmuRestSession,
+  resetLmuRestData,
+  type LmuRestData,
+} from './state';
 
 /**
  * Polls LMU's REST API outside the telemetry loop.
@@ -41,6 +45,26 @@ import { resetLmuRestData, type LmuRestData } from './state';
  * REST_ABSENT_RETRY_MS out to REST_ABSENT_MAX_RETRY_MS, so an API that was
  * merely late is picked up within half a minute while an installation that has
  * none settles at one failed connect every few minutes.
+ *
+ * One path failing is a different matter from the API being absent. Three
+ * failures in a row and that task is given up on, so an endpoint this build of
+ * LMU does not have costs REST_RETRY_LIMIT requests rather than one per
+ * interval for as long as the sim is open. But given up on for the session,
+ * not for the activation. LMU stays open for hours across many sessions, and
+ * the garage and strategy paths fail whenever the player is in the menus or a
+ * session is loading: latched until the sim closed, one visit to the menus
+ * left a practice, a qualifying and an eight-hour race with no refuel target,
+ * no pit-stop estimate and no damage figures.
+ *
+ * So a task that has given up is asked again when there is a reason to expect
+ * a different answer, and the bridge is what knows of one: `beginSession`
+ * when the session changes, which starts every task over and forgets what the
+ * last session said, and `retryGivenUp` when the player arrives in a session
+ * or gets into the car. Not on a timer as well. A path that keeps failing
+ * inside one session costs its three requests each time the bridge has news
+ * and nothing in between, which is the whole point of giving up. The price is
+ * a path that fails three times in the middle of a stint and then recovers:
+ * it stays lost until one of those moments comes round.
  */
 
 export type LmuRestFailure =
@@ -87,8 +111,27 @@ export interface LmuRestPollerOptions {
 export interface LmuRestPoller {
   /** True while LMU is running. Turning it off clears the data. */
   setActive: (active: boolean) => void;
-  /** Re-runs the one-shot tasks, for a track or session change. */
-  invalidateOnce: () => void;
+  /**
+   * Starts every task over, for a session that is not the one before.
+   *
+   * What the last session said is forgotten (see `forgetLmuRestSession`), the
+   * one-shot tasks run again, the repeating ones return to their base rate
+   * and read their next answer afresh, and a task that had given up gets its
+   * retries back. An answer still on its way from before the change is thrown
+   * away and asked for again.
+   *
+   * A `burst` task is left as it is: the bridge starts those itself.
+   */
+  beginSession: () => void;
+  /**
+   * Asks the tasks that have given up once more, and touches nothing else.
+   *
+   * For the player arriving in a session or getting into the car, which is
+   * when the paths LMU serves only inside a session start to answer. Nothing
+   * is forgotten, since the session may be the one the values on screen
+   * already describe.
+   */
+  retryGivenUp: () => void;
   /**
    * Starts a `burst` task polling, or starts it over.
    *
@@ -118,14 +161,18 @@ interface TaskState {
   intervalMs: number;
   hash: number | undefined;
   failures: number;
-  /** Latched off until the next activation. Never set for an optional task. */
+  /**
+   * Given up on, until `beginSession` or `retryGivenUp` asks again. Never set
+   * for an optional task.
+   */
   missing: boolean;
   /**
-   * Whether an optional task's absence has been reported.
+   * Whether the task's absence has been reported: an optional task not
+   * answering, or any other being given up on.
    *
    * One line when it stops answering and one when it starts, so a log says
    * whether the spectator camera was ever readable without saying it 3000
-   * times a session.
+   * times a session -- and whether a path that was given up on came back.
    */
   reportedAbsent: boolean;
   /** A one-shot task that has already landed. */
@@ -183,8 +230,9 @@ export function createLmuRestPoller({
   let reportedAbsent = false;
   let absentRetryMs = REST_ABSENT_RETRY_MS;
   /**
-   * Bumped whenever the poller is reset, so a request that was already in
-   * flight can tell that the world moved while it was away.
+   * Bumped whenever the poller is reset or a session begins, so a request
+   * that was already in flight can tell that the world moved while it was
+   * away.
    *
    * Checking `stopped || !active` after the await was not enough: deactivate
    * and reactivate while a request is outstanding and the check passes, so the
@@ -341,12 +389,13 @@ export function createLmuRestPoller({
 
     // A response from before a reset describes a session that has ended.
     if (stopped || !active || generation !== startedIn) {
-      // Discarding it is not enough: the reactivation that invalidated it
-      // tried to start this task and found inFlight still true, so it never
-      // scheduled anything. Dropping out here as well left the task polling
-      // nothing for the rest of the session. Reactivation lost a cycle, so
-      // this one goes out immediately rather than at the usual interval;
-      // `schedule` re-checks stopped, active, missing and absent itself.
+      // Discarding it is not enough: the reactivation or new session that
+      // invalidated it tried to start this task and found inFlight still
+      // true, so it never scheduled anything. Dropping out here as well left
+      // the task polling nothing for the rest of the session. That start lost
+      // a cycle, so this one goes out immediately rather than at the usual
+      // interval; `schedule` re-checks stopped, active, missing and absent
+      // itself.
       if (!stopped && active) schedule(task, 0);
       return;
     }
@@ -446,8 +495,13 @@ export function createLmuRestPoller({
       state.failures += 1;
       if (state.failures >= REST_RETRY_LIMIT) {
         state.missing = true;
+        // Its return is logged too, by the same flag an optional task uses.
+        // Without that line a log shows a path given up on and never says
+        // whether the next session got it back.
+        state.reportedAbsent = true;
         logger?.warn(
-          `[lmuRest] Giving up on ${task.path} after ${state.failures} failures (${response.reason})`
+          `[lmuRest] Giving up on ${task.path} after ${state.failures} failures (${response.reason}); ` +
+            'asking again when a session begins'
         );
         return;
       }
@@ -530,15 +584,41 @@ export function createLmuRestPoller({
       startAll();
     },
 
-    /** Re-runs the one-shot tasks, for a track or session change. */
-    invalidateOnce: () => {
-      if (stopped) return;
+    /** Starts every task over; see LmuRestPoller.beginSession. */
+    beginSession: () => {
+      // Nothing to start over while LMU is away: deactivating left the tasks
+      // and the data as a first session needs them.
+      if (stopped || !active) return;
+      // A request sent before the change may be answered with the session
+      // before, and anything in that answer the new session's own does not
+      // replace would stay. `run` drops an answer from an earlier generation
+      // and asks again at once.
+      generation += 1;
+      forgetLmuRestSession(data);
       tasks.forEach((task) => {
-        if (task.mode !== 'once') return;
+        if (task.mode === 'burst') return;
         const state = stateOf(task);
-        state.satisfied = false;
+        state.intervalMs = task.baseIntervalMs;
+        // Dropped with the values, or an answer identical to the last one
+        // would be skipped as unchanged and what was forgotten above would
+        // never come back.
         state.hash = undefined;
-        if (active) schedule(task, 0);
+        state.failures = 0;
+        state.missing = false;
+        state.satisfied = false;
+        schedule(task, 0);
+      });
+    },
+
+    /** Asks the given-up tasks again; see LmuRestPoller.retryGivenUp. */
+    retryGivenUp: () => {
+      if (stopped || !active) return;
+      tasks.forEach((task) => {
+        const state = stateOf(task);
+        if (!state.missing) return;
+        state.missing = false;
+        state.failures = 0;
+        schedule(task, 0);
       });
     },
 

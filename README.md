@@ -591,6 +591,7 @@ Displays per-sector timing deltas for the current lap, colour-coded by performan
 
 - Per-sector deltas coloured green/yellow/red based on performance vs reference
 - Comparison source: ghost lap when available, or session best only
+- Le Mans Ultimate: the three sectors and their times are the game's own, so they match its timing screen; the ghost is your all-time reference lap for the track and car
 - Continuous scrolling strip with the current sector position-pinned to the centre
 - Option to limit the number of visible sectors (sliding carousel)
 - Track incident sectors: sectors where you picked up incidents are flagged with a warning icon

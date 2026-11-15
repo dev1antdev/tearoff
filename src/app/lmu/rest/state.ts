@@ -87,3 +87,38 @@ export const resetLmuRestData = (data: LmuRestData): void => {
   data.gameState = undefined;
   data.revision += 1;
 };
+
+/**
+ * Forgets what was learned about one session, for when another begins.
+ *
+ * `resetLmuRestData` runs when LMU goes away, and LMU stays open across
+ * sessions for hours. The refuel target, the pit-stop estimate, the wear and
+ * damage figures and the tank and energy capacities all describe one car in
+ * one session, and nothing else ever takes them down: a parser that finds
+ * nothing in the next session's answer leaves the value standing, and so does
+ * a path that is not answering at all. A race was shown the values of a
+ * practice run hours earlier in a different car.
+ *
+ * Everything goes except what is not the session's to forget:
+ *
+ * - `gameState`, which says where the player is now and is read every frame;
+ * - the spectator camera's slot, a live reading too, which its own task drops
+ *   when the path stops answering;
+ * - the nationalities. They are keyed by driver name, which does not go stale
+ *   with the session, and they are asked for only when a driver arrives on the
+ *   grid (see ../nationalityWatch.ts). A grid carried from practice into
+ *   qualifying has no arrivals, so flags dropped here would not come back.
+ *
+ * `cells` and `session` are replaced rather than emptied, as everywhere else,
+ * so a frame already handed out keeps what it was built from. `revision` moves
+ * only if a session value was dropped: it costs a full snapshot rebuild, and
+ * the first session after launch has nothing to forget.
+ */
+export const forgetLmuRestSession = (data: LmuRestData): void => {
+  const { focusCarIdx } = data.cells;
+  data.cells = focusCarIdx ? { focusCarIdx } : {};
+
+  const { nationalities, ...ofTheSession } = data.session;
+  data.session = nationalities ? { nationalities } : {};
+  if (Object.keys(ofTheSession).length > 0) data.revision += 1;
+};

@@ -117,9 +117,12 @@ const emptyReference = (): LapDeltaReference => ({
  * sim's own current-lap clock is not used: under Le Mans Ultimate it starts
  * at the timing line, which is not where the lap fraction wraps.
  *
- * A lap is only timed if it was seen from its start. On the out-lap, after a
- * return to the pits, and after the widget has been off for part of a lap,
- * there is no delta until the line is next crossed.
+ * A lap is only timed if it was seen from its start, on the track. On the
+ * out-lap, after a return to the pits, and after the widget has been off for
+ * part of a lap, there is no delta until the line is next crossed. The pit
+ * lane counts as off the track for this: on most circuits it runs past the
+ * line, and a clock started there would set the whole out-lap, pit exit and
+ * all, against a flying lap.
  */
 export class LapDeltaProcessor implements TelemetryProcessor<LapDeltaSnapshot> {
   readonly channel = 'lap-delta.snapshot';
@@ -209,9 +212,13 @@ export class LapDeltaProcessor implements TelemetryProcessor<LapDeltaSnapshot> {
     return this.latest;
   }
 
-  /** The player's lap fraction, or null when the sim has none for them. */
+  /**
+   * The player's lap fraction, or null when there is no place on the track
+   * to time them from: the sim has none, or the car is in the pit lane.
+   */
   private playerPct(frame: Telemetry): number | null {
     if (this.playerCarIdx < 0) return null;
+    if (frame.CarIdxOnPitRoad?.value?.[this.playerCarIdx] === true) return null;
     const value = frame.CarIdxLapDistPct?.value?.[this.playerCarIdx] as unknown;
     // Exactly 0 is Le Mans Ultimate holding a car that has not reached the
     // line yet, on the grid or rolling up to the start: not a position, and

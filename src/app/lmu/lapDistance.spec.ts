@@ -310,6 +310,163 @@ describe('estimateLmuLapDistPct invariants', () => {
   });
 });
 
+describe('a car scoring has not placed on the lap', () => {
+  // LMU measures a car that has not crossed the line yet as a negative
+  // distance, and the addon clamps that to exactly 0: on the grid, rolling
+  // up to a start, back in its garage. It is not a position, so there is
+  // nothing to advance from. Advanced by speed all the same, a car anchored
+  // 145 m short of the line at a rolling start left 0 at once, and the
+  // reference recorder began a lap there.
+  /** Rolling up to the start at 41 m/s, as the player is on the tape. */
+  const ROLLING = 41;
+
+  /** Feeds 10 ms frames from `from` for `seconds`, returning each value. */
+  const run = (
+    state: ReturnType<typeof createLmuLapDistanceState>,
+    from: number,
+    seconds: number,
+    overrides: { scoringPct: number; lapNumber?: number; speedMs?: number }
+  ) => {
+    const values: number[] = [];
+    for (let i = 1; i <= seconds * 100; i += 1) {
+      values.push(
+        estimateLmuLapDistPct(
+          state,
+          frame({ elapsedTime: from + i / 100, ...overrides })
+        )
+      );
+    }
+    return values;
+  };
+
+  it('stands at 0 while scoring reads exactly 0, however fast it is going', () => {
+    const state = createLmuLapDistanceState();
+    const first = estimateLmuLapDistPct(
+      state,
+      frame({ scoringPct: 0, elapsedTime: 100, lapNumber: 0, speedMs: ROLLING })
+    );
+
+    // Three and a half seconds to the line, scoring repeating its 0.
+    const approach = run(state, 100, 3.5, {
+      scoringPct: 0,
+      lapNumber: 0,
+      speedMs: ROLLING,
+    });
+
+    expect(first).toBe(0);
+    expect(new Set(approach)).toEqual(new Set([0]));
+    expect(state.lap).toBe(0);
+  });
+
+  it('takes the first place scoring gives it and advances from there', () => {
+    const state = createLmuLapDistanceState();
+    estimateLmuLapDistPct(
+      state,
+      frame({ scoringPct: 0, elapsedTime: 100, lapNumber: 0, speedMs: ROLLING })
+    );
+    run(state, 100, 3.5, { scoringPct: 0, lapNumber: 0, speedMs: ROLLING });
+
+    // Over the line: scoring's next update has the car 4 m into the lap.
+    const placed = 4 / TRACK_M;
+    const after = run(state, 103.5, 0.19, {
+      scoringPct: placed,
+      lapNumber: 0,
+      speedMs: ROLLING,
+    });
+
+    expect(after[0]).toBe(placed);
+    // 0.41 m every frame from there on.
+    for (let i = 1; i < after.length; i += 1) {
+      expect((after[i] - after[i - 1]) * TRACK_M).toBeCloseTo(ROLLING / 100, 6);
+    }
+  });
+
+  it('stands at 0 when scoring takes its place away mid-lap', () => {
+    // Returned to the garage, or reset: scoring drops from a real position
+    // to exactly 0, and the car is nowhere on the lap until it moves off.
+    for (const from of [0.3, 0.7]) {
+      const state = createLmuLapDistanceState();
+      estimateLmuLapDistPct(
+        state,
+        frame({ scoringPct: from, elapsedTime: 100 })
+      );
+      run(state, 100, 0.2, { scoringPct: from });
+
+      const after = run(state, 100.2, 1, { scoringPct: 0 });
+
+      expect(new Set(after)).toEqual(new Set([0]));
+    }
+  });
+
+  it('stays where it is once the wait at the line has run out', () => {
+    // Held short of scoring's line for longer than any gap takes to drive,
+    // so scoring's 0 is taken after all. It is still not a place to advance
+    // from when the car pulls away a moment later.
+    const state = createLmuLapDistanceState();
+    estimateLmuLapDistPct(
+      state,
+      frame({ lapNumber: 4, scoringPct: 0.9995, elapsedTime: 100 })
+    );
+    const waiting = run(state, 100, 30.1, {
+      scoringPct: 0,
+      lapNumber: 5,
+      speedMs: 0,
+    });
+
+    const pullingAway = run(state, 130.1, 0.3, { scoringPct: 0, lapNumber: 5 });
+
+    // On the old lap for the thirty seconds, then at scoring's 0.
+    expect(waiting[2990]).toBeCloseTo(0.9995, 9);
+    expect(waiting.at(-1)).toBe(0);
+    expect(new Set(pullingAway)).toEqual(new Set([0]));
+    expect(state.lap).toBe(5);
+  });
+
+  it('carries on over the line when scoring reads 0 with the estimate past it', () => {
+    // The estimate reached the line a frame or two ahead of the car, and
+    // scoring's update caught the car between the timing line and its own:
+    // exactly 0. That is the old lap carrying on, as it is when the
+    // estimate is still short of the line -- not a 0 to stand on, which
+    // would hold the car for a scoring update and then jump it.
+    const state = createLmuLapDistanceState();
+    // 3.15 m short of the line, so the estimate is 0.35 m over it at 100.05.
+    const shortM = 3.15;
+    const anchorPct = 1 - shortM / TRACK_M;
+    estimateLmuLapDistPct(
+      state,
+      frame({ lapNumber: 4, scoringPct: anchorPct, elapsedTime: 100 })
+    );
+    const metres: number[] = [];
+    let wraps = 0;
+    let previous = anchorPct;
+    for (let i = 1; i <= 30; i += 1) {
+      // Scoring reads 0 from 100.06 and places the car at 100.25.
+      const scoringPct =
+        i < 6 ? anchorPct : i < 25 ? 0 : (0.25 * SPEED - shortM) / TRACK_M;
+      const value = estimateLmuLapDistPct(
+        state,
+        frame({
+          lapNumber: i < 6 ? 4 : 5,
+          scoringPct,
+          elapsedTime: 100 + i / 100,
+        })
+      );
+      if (value < previous - 0.5) wraps += 1;
+      previous = value;
+      metres.push((value > 0.5 ? value - 1 : value) * TRACK_M);
+    }
+
+    expect(wraps).toBe(1);
+    // 0.7 m every frame, through the 0 and through the update after it.
+    for (let i = 1; i < metres.length; i += 1) {
+      expect(metres[i] - metres[i - 1]).toBeCloseTo(SPEED / 100, 6);
+    }
+    expect(metres[4]).toBeCloseTo(0.35, 6);
+    expect(metres[29]).toBeCloseTo(0.3 * SPEED - shortM, 6);
+    expect(state.lap).toBe(5);
+  });
+});
+
 describe('a lap that turns over before scoring wraps', () => {
   /**
    * Drives across the line at a steady SPEED: 10 ms frames, a scoring update

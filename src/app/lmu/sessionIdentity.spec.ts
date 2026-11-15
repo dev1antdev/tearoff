@@ -67,7 +67,6 @@ describe('createLmuSessionIdentity', () => {
     trackName: 'Algarve International Circuit',
     session: 1,
     serverName: 'Some Server',
-    endET: 3600,
     currentET: 100,
     playerLaps: 2,
   };
@@ -194,13 +193,21 @@ describe('createLmuSessionIdentity', () => {
     expect(seen.size).toBe(3);
   });
 
-  it('declares one when the session length changes', () => {
-    // A different length is a different session even at the same type.
+  it('keeps a race through its start, with the clock running on', () => {
+    // An online race from the grid to the green flag: the sim reports no
+    // session boundary, the clock and the lap count only go up. LMU moves
+    // the race's end time twice on the way, which once read as two new
+    // sessions and emptied every widget with the field already rolling.
     const identity = createLmuSessionIdentity();
-    const before = identity.observe(sample);
-    const after = identity.observe({ ...sample, endET: 1800 });
-    expect(after).not.toBe(before);
-    expect(identity.lastChange()).toBe('stamp');
+    const race = { ...sample, session: 10, playerLaps: 0, playerSlot: 4 };
+    const events = { sessionStartEvents: 3, sessionEndEvents: 2 };
+    const onTheGrid = identity.observe({ ...race, ...events, currentET: 1 });
+    for (const currentET of [30, 94, 95, 156, 157, 400]) {
+      expect(identity.observe({ ...race, ...events, currentET })).toBe(
+        onTheGrid
+      );
+      expect(identity.lastChange()).toBeNull();
+    }
   });
 
   it('declares one on a track change', () => {
@@ -291,7 +298,6 @@ describe('both mappers report the same session', () => {
       trackName: raw.trackName,
       session: raw.session,
       serverName: raw.serverName,
-      endET: raw.endET,
       currentET: raw.currentET,
       playerLaps: 3,
     });
@@ -317,7 +323,6 @@ describe('both mappers report the same session', () => {
         trackName: raw.trackName,
         session: raw.session,
         serverName: raw.serverName,
-        endET: raw.endET,
         currentET,
       });
 

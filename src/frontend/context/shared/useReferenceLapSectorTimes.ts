@@ -1,16 +1,40 @@
 import { useMemo } from 'react';
-import { useDriverCarIdx, useSessionStore } from '../SessionStore/SessionStore';
+import type { ReferenceLap } from '@irdashies/types';
+import { useSessionStore } from '../SessionStore/SessionStore';
 import { useReferenceLapStore } from '../ReferenceLapStore/ReferenceLapStore';
 import { useSectorTimingStore } from '../SectorTimingStore/SectorTimingStore';
 import { interpolateAtPoint } from '@irdashies/utils/referenceLapInterpolation';
 
 /**
- * Derives per-sector times from the persisted (ghost) reference lap for the
- * player's car class.  Returns the sector times and a flag indicating whether a
- * valid reference lap is available.
+ * The lap the sector ghost is, or null when there is none.
  *
- * hasReferenceLap is true when a valid reference lap (either loaded from disk
- * or created in-session) is available for comparison.
+ * The class reference where the session has one for the player's class, as
+ * an iRacing session does. Le Mans Ultimate has no class references, and
+ * there -- as wherever the class has no lap -- the ghost is the player's own
+ * all-time lap on this track in this car, from the lap library.
+ *
+ * With neither, the sectors are compared against the session's own bests.
+ */
+export const useGhostReferenceLap = (): ReferenceLap | null => {
+  const playerClassId = useSessionStore((s) => {
+    const carIdx = s.session?.DriverInfo?.DriverCarIdx;
+    const drivers = s.session?.DriverInfo?.Drivers;
+    return drivers?.find((d) => d.CarIdx === carIdx)?.CarClassID ?? null;
+  });
+
+  // A selector for the lap itself, so this re-runs when the lap object
+  // changes: once the stored laps have loaded, or the library has a new one.
+  return useReferenceLapStore(
+    (s) =>
+      (playerClassId != null ? s.persistedLaps.get(playerClassId) : null) ??
+      s.playerAllTimeLap
+  );
+};
+
+/**
+ * Derives per-sector times from the ghost reference lap (see
+ * useGhostReferenceLap).  Returns the sector times and a flag indicating
+ * whether a valid reference lap is available.
  *
  * Sector times are computed by interpolating the reference lap's
  * timeElapsedSinceStart at each sector-boundary trackPct, then diffing
@@ -20,32 +44,11 @@ export const useReferenceLapSectorTimes = (): {
   refSectorTimes: (number | null)[];
   hasReferenceLap: boolean;
 } => {
-  const playerCarIdx = useDriverCarIdx();
-
-  const playerClassId = useSessionStore((s) => {
-    const carIdx = s.session?.DriverInfo?.DriverCarIdx;
-    const drivers = s.session?.DriverInfo?.Drivers;
-    return drivers?.find((d) => d.CarIdx === carIdx)?.CarClassID ?? null;
-  });
-
   const sectors = useSectorTimingStore((s) => s.sectors);
-
-  // Subscribe so we recompute once persisted laps finish loading asynchronously.
-  // We use a selector for the lap itself so we re-run when the lap object
-  // reference changes (e.g. after async load or in-session promotion).
-  const refLap = useReferenceLapStore((s) =>
-    playerCarIdx != null && playerClassId != null
-      ? s.getReferenceLap(playerCarIdx, playerClassId, true)
-      : null
-  );
+  const refLap = useGhostReferenceLap();
 
   return useMemo(() => {
-    if (
-      playerCarIdx == null ||
-      playerClassId == null ||
-      sectors.length === 0 ||
-      !refLap
-    ) {
+    if (sectors.length === 0 || !refLap) {
       return { refSectorTimes: [], hasReferenceLap: false };
     }
 
@@ -71,6 +74,5 @@ export const useReferenceLapSectorTimes = (): {
     });
 
     return { refSectorTimes, hasReferenceLap: true };
-    // refLap selector triggers re-run if the reference lap object changes.
-  }, [playerCarIdx, playerClassId, sectors, refLap]);
+  }, [sectors, refLap]);
 };

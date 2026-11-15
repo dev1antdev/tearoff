@@ -24,11 +24,23 @@ const frame = (
     SessionNum: { value: [sessionNum] },
   }) as unknown as Telemetry;
 
+/**
+ * Brings the car up to the line, so the lap that follows begins at a
+ * crossing the recorder saw: only such a lap is timed. A second before the
+ * lap's first frame, which is too far apart for the crossing to be placed
+ * between the two, so the lap starts at that first frame.
+ */
+const approachLine = (
+  processor: ReferenceLapProcessor,
+  makeFrame: (lapDistPct: number, sessionTime: number) => Telemetry = frame
+) => processor.onFrame(makeFrame(0.999, -1));
+
 /** Drives a full clean lap for car 0 through the given frame factory. */
 const runCleanLap = (
   processor: ReferenceLapProcessor,
   makeFrame: (lapDistPct: number, sessionTime: number) => Telemetry
 ) => {
+  approachLine(processor, makeFrame);
   processor.onFrame(makeFrame(0.001, 0));
   processor.onFrame(makeFrame(0.001, 0.01));
   for (let point = 1; point < 100; point += 1) {
@@ -42,6 +54,7 @@ describe('ReferenceLapProcessor', () => {
     const save = vi.fn();
     const processor = new ReferenceLapProcessor({ load: () => null, save });
     processor.init(session());
+    approachLine(processor);
     processor.onFrame(frame(0.001, 0));
     processor.onFrame(frame(0.001, 0.01));
     for (let point = 1; point < 100; point += 1) {
@@ -52,6 +65,7 @@ describe('ReferenceLapProcessor', () => {
     const snapshot = processor.snapshot();
     expect(snapshot.bestLaps).toHaveLength(1);
     expect(snapshot.persistedLaps).toHaveLength(1);
+    expect(snapshot.bestLaps[0][1].startTime).toBe(0);
     expect(snapshot.bestLaps[0][1].finishTime).toBe(60);
     expect(snapshot.bestLaps[0][1].tangents.every(Number.isFinite)).toBe(true);
     expect(save).toHaveBeenCalledOnce();
@@ -148,6 +162,12 @@ describe('ReferenceLapProcessor', () => {
     runCleanLap(processor, (pct, time) => frame(pct, time));
 
     expect(processor.snapshot().bestLaps).toHaveLength(1);
+    // With nothing stored, the class's best lap of the session stands in
+    // for the stored one: Relative and the standings gaps read it for a car
+    // that has no lap of its own yet.
+    expect(processor.snapshot().persistedLaps).toEqual([
+      [12, processor.snapshot().bestLaps[0][1]],
+    ]);
     expect(save).not.toHaveBeenCalled();
     expect(load).not.toHaveBeenCalled();
   });
@@ -172,10 +192,126 @@ describe('ReferenceLapProcessor', () => {
     expect(load).not.toHaveBeenCalled();
   });
 
+  describe('class references', () => {
+    /** Seconds each of three cars takes for a lap. */
+    const LAP_TIMES = [60, 62, 80];
+
+    const gridSession = (
+      weekend: Record<string, unknown>,
+      classIds: number[]
+    ) =>
+      ({
+        WeekendInfo: { TrackLength: '1 km', ...weekend },
+        DriverInfo: {
+          PaceCarIdx: -1,
+          Drivers: classIds.map((CarClassID, CarIdx) => ({
+            CarIdx,
+            CarClassID,
+          })),
+        },
+      }) as unknown as Session;
+
+    /**
+     * Every car over the line and round one lap at its own pace, a frame
+     * every tenth of a second. They start short of the line, so each lap
+     * begins at a crossing that was seen.
+     */
+    const driveGrid = (processor: ReferenceLapProcessor) => {
+      for (let tick = 0; tick <= 820; tick += 1) {
+        const time = tick / 10;
+        processor.onFrame({
+          CarIdxLapDistPct: {
+            value: LAP_TIMES.map((lapTime) => (0.9873 + time / lapTime) % 1),
+          },
+          CarIdxOnPitRoad: { value: LAP_TIMES.map(() => false) },
+          SessionTime: { value: [time] },
+          SessionNum: { value: [1] },
+        } as unknown as Telemetry);
+      }
+    };
+
+    const lapTimesOf = (
+      laps: ReturnType<ReferenceLapProcessor['snapshot']>['bestLaps']
+    ) =>
+      laps.map(([key, lap]) => [
+        key,
+        Math.round((lap.finishTime - lap.startTime) * 1000) / 1000,
+      ]);
+
+    it('keeps none under Le Mans Ultimate, where no class can key one', () => {
+      // No series to store a lap under, and class ids that are the order the
+      // sim first listed the classes in: 0 is a class like the others. Filled
+      // from the session all the same, the "stored" reference was another
+      // car's lap for classes 1 and 2 and missing for class 0.
+      const save = vi.fn();
+      const load = vi.fn(() => null);
+      const processor = new ReferenceLapProcessor({ load, save });
+      processor.init(
+        gridSession(
+          { SimMode: 'Le Mans Ultimate', SeriesID: 0, TrackID: 1_000_009 },
+          [0, 1, 1]
+        )
+      );
+      driveGrid(processor);
+
+      const snapshot = processor.snapshot();
+      expect(snapshot.persistedLaps).toEqual([]);
+      // Each car's lap is its own session best, whatever the pace of its
+      // class: there is no class lap to hold the 80 s one against.
+      expect(lapTimesOf(snapshot.bestLaps)).toEqual([
+        [0, 60],
+        [1, 62],
+        [2, 80],
+      ]);
+      expect(save).not.toHaveBeenCalled();
+      expect(load).not.toHaveBeenCalled();
+    });
+
+    it('keeps none under Le Mans Ultimate through a session rebuild', () => {
+      // LMU rebuilds the session twice a second, and each rebuild looks for
+      // stored laps for any class that has appeared since.
+      const load = vi.fn(() => null);
+      const processor = new ReferenceLapProcessor({ load, save: vi.fn() });
+      const lmu = { SimMode: 'Le Mans Ultimate', SeriesID: 0, TrackID: 77 };
+      processor.init(gridSession(lmu, [0, 1, 1]));
+      driveGrid(processor);
+      processor.init(gridSession(lmu, [0, 1, 1, 2]));
+
+      expect(processor.snapshot().persistedLaps).toEqual([]);
+      expect(processor.snapshot().bestLaps).toHaveLength(3);
+      expect(load).not.toHaveBeenCalled();
+    });
+
+    it("stands the class's best of the session in for a stored lap in an iRacing session without a series", () => {
+      // An AI race, a hosted or league session: SeriesID 0, so nothing is
+      // stored, but iRacing's class ids are its own and the best lap of the
+      // session is kept per class as it always was.
+      const save = vi.fn();
+      const processor = new ReferenceLapProcessor({ load: () => null, save });
+      processor.init(
+        gridSession({ SimMode: 'full', SeriesID: 0, TrackID: 9 }, [12, 13, 13])
+      );
+      driveGrid(processor);
+
+      const snapshot = processor.snapshot();
+      expect(lapTimesOf(snapshot.persistedLaps)).toEqual([
+        [12, 60],
+        [13, 62],
+      ]);
+      // And a lap far off the class's pace is not a reference for its car.
+      expect(lapTimesOf(snapshot.bestLaps)).toEqual([
+        [0, 60],
+        [1, 62],
+      ]);
+      expect(save).not.toHaveBeenCalled();
+    });
+  });
+
   it('rejects a lap that enters pit road', () => {
     const save = vi.fn();
     const processor = new ReferenceLapProcessor({ load: () => null, save });
     processor.init(session());
+    approachLine(processor);
     processor.onFrame(frame(0.001, 0));
     processor.onFrame(frame(0.001, 0.01));
     for (let point = 1; point < 100; point += 1) {
@@ -241,6 +377,7 @@ describe('ReferenceLapProcessor', () => {
     const save = vi.fn();
     const processor = new ReferenceLapProcessor({ load: () => null, save });
     processor.init(session());
+    approachLine(processor);
     processor.onFrame(frame(0.001, 0));
     processor.onFrame(frame(0.001, 0.01));
     for (let point = 1; point < 96; point += 1) {
@@ -338,7 +475,8 @@ describe('ReferenceLapProcessor', () => {
         SessionTime: { value: [time] },
         SessionNum: { value: [1] },
       }) as unknown as Telemetry;
-    expect(() => processor.onFrame(sparseFrame(0.001, 0))).not.toThrow();
+    expect(() => approachLine(processor, sparseFrame)).not.toThrow();
+    processor.onFrame(sparseFrame(0.001, 0));
     processor.onFrame(sparseFrame(0.001, 0.01));
     for (let point = 1; point < 100; point += 1) {
       processor.onFrame(sparseFrame((point + 0.1) / 100, point * 0.6));

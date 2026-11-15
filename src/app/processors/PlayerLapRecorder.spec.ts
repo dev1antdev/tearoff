@@ -670,12 +670,16 @@ describe('PlayerLapRecorder', () => {
     );
   });
 
-  it('counts laps from one under LMU, which counts the laps completed', () => {
+  it('numbers laps from one under LMU as under iRacing', () => {
+    // LMU's own counter is laps completed. The bridge publishes the lap
+    // being driven instead, as iRacing does, so there is nothing for the
+    // recorder to add: it used to, and would now count every lap twice
+    // over.
     const { recorder, recorded } = setup('lmu');
-    crossLine(recorder, 100, { lap: 0 });
+    crossLine(recorder, 100, { lap: 1 });
 
-    driveLap(recorder, 100, 60, () => ({ lap: 0 }));
-    driveLap(recorder, 160, 60, () => ({ lap: 1 }));
+    driveLap(recorder, 100, 60, () => ({ lap: 1 }));
+    driveLap(recorder, 160, 60, () => ({ lap: 2 }));
 
     expect(recorded.map(({ lap }) => lap.lapNumber)).toEqual([1, 2]);
   });

@@ -144,6 +144,60 @@ describe('LapTimesProcessor', () => {
     expect(processor.snapshot().cleanLapTimeHistory).toEqual([[90]]);
   });
 
+  it('records a lap whose time arrives a moment before its count', () => {
+    // Le Mans Ultimate: the time is the sim's, the count the app's own
+    // reading of where the car is, and either can be first. Three laps, the
+    // time ahead of the count on the second, as on the recorded race where
+    // car 10's 84.257, 76.957, 76.820 came out as 84.257, 76.820.
+    const processor = new LapTimesProcessor();
+    processor.onFrame(timedFrame(0, 0, -1));
+    processor.onFrame(timedFrame(84.2, 1, -1));
+    processor.onFrame(timedFrame(84.3, 1, 84.257));
+    processor.onFrame(timedFrame(161.2, 1, 76.957));
+    processor.onFrame(timedFrame(161.3, 2, 76.957));
+    expect(processor.snapshot().lapTimeHistory).toEqual([[84.257, 76.957]]);
+    processor.onFrame(timedFrame(238.1, 3, 76.957));
+    processor.onFrame(timedFrame(238.2, 3, 76.82));
+    expect(processor.snapshot().lapTimeHistory).toEqual([
+      [84.257, 76.957, 76.82],
+    ]);
+    // The first lap began before anything was seen of it.
+    expect(processor.snapshot().cleanLapTimeHistory).toEqual([[76.957, 76.82]]);
+  });
+
+  it('records the first lap when its time is ahead of the count', () => {
+    const processor = new LapTimesProcessor();
+    processor.onFrame(timedFrame(0, 0, -1));
+    processor.onFrame(timedFrame(90.0, 0, 90.4));
+    processor.onFrame(timedFrame(90.1, 1, 90.4));
+    expect(processor.snapshot().lapTimeHistory).toEqual([[90.4]]);
+  });
+
+  it('does not take a time for a lap counted long after it', () => {
+    // A time with no count behind it for a whole lap is not the lap that
+    // is then counted: late timing for a lap already past, or a correction.
+    const processor = new LapTimesProcessor();
+    processor.onFrame(timedFrame(0, 0, -1));
+    processor.onFrame(timedFrame(90, 1, 90));
+    processor.onFrame(timedFrame(120, 1, 88));
+    processor.onFrame(timedFrame(181, 2, 88));
+    expect(processor.snapshot().lapTimeHistory).toEqual([[90]]);
+    processor.onFrame(timedFrame(182, 2, 91));
+    expect(processor.snapshot().lapTimeHistory).toEqual([[90, 91]]);
+  });
+
+  it('keeps a lap in the pits out of the clean laps, time first or not', () => {
+    const processor = new LapTimesProcessor();
+    processor.onFrame(timedFrame(0, 0, -1));
+    processor.onFrame(timedFrame(90, 1, 90));
+    processor.onFrame(timedFrame(150, 1, 90, true));
+    processor.onFrame(timedFrame(200, 1, 90));
+    processor.onFrame(timedFrame(229.9, 1, 140));
+    processor.onFrame(timedFrame(230, 2, 140));
+    expect(processor.snapshot().lapTimeHistory).toEqual([[90, 140]]);
+    expect(processor.snapshot().cleanLapTimeHistory).toEqual([[]]);
+  });
+
   it('does not reuse a stale time during a late counter correction from fuel-test', () => {
     const processor = new LapTimesProcessor();
     processor.onFrame(timedFrame(2344.617, 25, 79.4656));
