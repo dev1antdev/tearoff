@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { InputTrace } from './InputTrace';
 import { useEffect, useState } from 'react';
 import { WidgetScale } from '@irdashies/domain/widgetPresentation/WidgetScale';
+import { cornerExitFrames } from '../fixtures/cornerExit';
 
 const meta: Meta<typeof InputTrace> = {
   component: InputTrace,
@@ -203,4 +204,66 @@ export const Scaled: StoryObj<typeof Traces> = {
       <Traces brakeAbsActive />
     </WidgetScale>
   ),
+};
+
+const cornerExit = cornerExitFrames({ brakeOverlap: true });
+
+/**
+ * Plays the made-up corner into the trace at 60 Hz and stops on its last
+ * frame, in one of the two input sources.
+ */
+const CornerExit = ({
+  pedals,
+  absStyle,
+}: {
+  pedals: boolean;
+  absStyle: 'overlay' | 'bar';
+}) => {
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(
+      () => setIndex((current) => Math.min(current + 1, cornerExit.length - 1)),
+      1000 / 60
+    );
+    return () => clearInterval(interval);
+  }, []);
+  const frame = cornerExit[index];
+  return (
+    <InputTrace
+      input={{
+        brake: frame.brake,
+        throttle: pedals ? frame.throttleRaw : frame.throttle,
+        brakeAbsActive: frame.brakeAbsActive,
+        tcActive: frame.tcActive,
+        steer: frame.steeringWheelAngle,
+      }}
+      settings={{
+        includeBrake: true,
+        includeThrottle: true,
+        includeClutch: false,
+        includeAbs: true,
+        includeTc: true,
+        absStyle,
+      }}
+    />
+  );
+};
+
+type CornerExitStory = StoryObj<typeof CornerExit>;
+
+/** What the car receives: the throttle dips under each cut. */
+export const TractionControl: CornerExitStory = {
+  render: (args) => <CornerExit {...args} />,
+  args: { pedals: false, absStyle: 'overlay' },
+};
+
+/** What the driver presses: the pedal stays flat through the same cuts. */
+export const TractionControlPedals: CornerExitStory = {
+  ...TractionControl,
+  args: { pedals: true, absStyle: 'overlay' },
+};
+
+export const TractionControlBarStyle: CornerExitStory = {
+  ...TractionControl,
+  args: { pedals: false, absStyle: 'bar' },
 };

@@ -839,6 +839,136 @@ describe('dashboards', () => {
     });
   });
 
+  describe('Input widget saved before the input source choice', () => {
+    const layout = { x: 622, y: 864, width: 396, height: 92 };
+    // The widget as a dashboard stored it when the source was the Use Raw
+    // Inputs checkbox, with a few settings moved off their defaults.
+    const savedConfig = (useRawValues: unknown) => ({
+      useRawValues,
+      trace: {
+        enabled: true,
+        includeThrottle: true,
+        includeBrake: true,
+        includeAbs: false,
+        includeSteer: true,
+        includeClutch: false,
+        strokeWidth: 5,
+        maxSamples: 400,
+      },
+      bar: {
+        enabled: true,
+        includeClutch: false,
+        includeBrake: true,
+        includeThrottle: true,
+        includeAbs: true,
+      },
+      gear: {
+        enabled: true,
+        size: 100,
+        showspeed: true,
+        showspeedunit: true,
+        unit: 'auto',
+      },
+      abs: { enabled: false },
+      steer: { enabled: true, config: { style: 'lmp', color: 'dark' } },
+      background: { opacity: 80 },
+      showOnlyWhenOnTrack: true,
+      displayOrder: ['trace', 'bar', 'gear', 'steer'],
+    });
+    const inputIn = (dashboard: DashboardLayout, id = 'input') =>
+      dashboard.widgets.find((w) => w.id === id)?.config as Record<
+        string,
+        Record<string, unknown>
+      >;
+    const load = (useRawValues: unknown) =>
+      withDashboardDefaults({
+        widgets: [
+          {
+            id: 'input',
+            enabled: true,
+            layout,
+            config: savedConfig(useRawValues),
+          },
+        ],
+      });
+
+    it('keeps Use Raw Inputs as it was: on is the Pedals source, off is Car', () => {
+      // The choice is still stored as the boolean, so there is nothing to
+      // convert and an older build reads a newer dashboard the same way.
+      expect(inputIn(load(true)).useRawValues).toBe(true);
+      expect(inputIn(load(false)).useRawValues).toBe(false);
+    });
+
+    it('starts a dashboard that never had the setting on the Car source', () => {
+      expect(inputIn(load(undefined)).useRawValues).toBe(false);
+      expect(inputIn(withDashboardDefaults({ widgets: [] })).useRawValues).toBe(
+        false
+      );
+    });
+
+    it('fills in what the widget has gained and keeps what was saved', () => {
+      const config = inputIn(load(true));
+
+      // The two marks are on; everything else new is off or as it was.
+      expect(config.trace).toMatchObject({
+        includeTc: true,
+        absStyle: 'overlay',
+        includeAbs: false,
+        strokeWidth: 5,
+      });
+      expect(config.bar).toMatchObject({
+        includeTc: true,
+        dual: false,
+        brakeFromPressure: false,
+        showMaxMarker: true,
+        includeFfb: false,
+        includeClutch: false,
+      });
+      expect(config.steer).toEqual({
+        enabled: true,
+        config: { style: 'lmp', color: 'dark' },
+        angleReadout: 'beyond270',
+        rotationArc: 'never',
+        rangeDeg: 0,
+        showWheelAngle: false,
+      });
+      expect(config.steerMeter).toEqual({
+        enabled: false,
+        markDeg: 90,
+        showAngle: true,
+      });
+      // No layout was saved, so none is invented: the meter stays out.
+      expect(config.layoutTree).toBeUndefined();
+      // Loading it again changes nothing.
+      const loaded = load(true);
+      expect(withDashboardDefaults(loaded)).toEqual(loaded);
+    });
+
+    it('keeps the source of a second Input widget its own', () => {
+      const migrated = withDashboardDefaults({
+        widgets: [
+          {
+            id: 'input',
+            enabled: true,
+            layout,
+            config: savedConfig(false),
+          },
+          {
+            id: 'input-x1',
+            type: 'input',
+            enabled: true,
+            layout,
+            config: savedConfig(true),
+          },
+        ],
+      });
+
+      expect(inputIn(migrated).useRawValues).toBe(false);
+      expect(inputIn(migrated, 'input-x1').useRawValues).toBe(true);
+      expect(inputIn(migrated, 'input-x1').bar.includeTc).toBe(true);
+    });
+  });
+
   describe('Lap trace layout migration', () => {
     const layout = { x: 20, y: 40, width: 400, height: 120 };
     const lapTraceIn = (dashboard: DashboardLayout) =>

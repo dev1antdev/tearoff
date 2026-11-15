@@ -1,4 +1,5 @@
 import { memo, useEffect, useLayoutEffect, useRef } from 'react';
+import { usePaintingPaused } from '@irdashies/context';
 import { useWidgetScale } from '@irdashies/domain/widgetPresentation/WidgetScale';
 import { perfMetrics } from '@irdashies/utils/perfMetrics';
 import {
@@ -17,6 +18,14 @@ export const InputTrace = memo(({ input, settings }: InputTraceProps) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawingRef = useRef<InputTraceDrawing | null>(null);
   const widgetScale = useWidgetScale();
+  // No painting while the trace cannot be seen: the overlay hidden, or its
+  // window. Sampling goes on, so the history has no hole in it when the
+  // trace is back on screen.
+  const paintingPaused = usePaintingPaused();
+  const pausedRef = useRef(paintingPaused);
+  const wasPausedRef = useRef(paintingPaused);
+  /** The frame asked for and not yet painted or cancelled; 0 for none. */
+  const pendingFrameRef = useRef(0);
 
   useLayoutEffect(() => {
     const ctx = canvasRef.current?.getContext('2d');
@@ -26,6 +35,17 @@ export const InputTrace = memo(({ input, settings }: InputTraceProps) => {
       drawingRef.current = null;
     };
   }, []);
+
+  // Before the effects that read the ref, so that none of them acts on the
+  // value of the render before. A frame already asked for is dropped: the
+  // paint that ends the pause draws what it would have.
+  useLayoutEffect(() => {
+    pausedRef.current = paintingPaused;
+    if (paintingPaused && pendingFrameRef.current !== 0) {
+      cancelAnimationFrame(pendingFrameRef.current);
+      pendingFrameRef.current = 0;
+    }
+  }, [paintingPaused]);
 
   useLayoutEffect(() => {
     const canvas = canvasRef.current;
@@ -39,6 +59,9 @@ export const InputTrace = memo(({ input, settings }: InputTraceProps) => {
       if (canvas.width === nextWidth && canvas.height === nextHeight) return;
       canvas.width = nextWidth;
       canvas.height = nextHeight;
+      // The buffer keeps its size up to date while paused, and the paint
+      // that ends the pause fills it.
+      if (pausedRef.current) return;
       const drawing = drawingRef.current;
       if (drawing) perfMetrics.measure('inputTraceFrame', drawing.paint);
     };
@@ -56,16 +79,36 @@ export const InputTrace = memo(({ input, settings }: InputTraceProps) => {
     };
   }, [widgetScale]);
 
+  // The pause is read from a ref and is not a dependency: a change of it is
+  // not a new sample, and recording one would put the same input in twice.
   useEffect(() => {
     const drawing = drawingRef.current;
     if (!drawing) return;
     drawing.configure(settings);
     drawing.sample(input);
-    const handle = requestAnimationFrame(() =>
-      perfMetrics.measure('inputTraceFrame', drawing.paint)
-    );
-    return () => cancelAnimationFrame(handle);
+    if (pausedRef.current) return;
+    const handle = requestAnimationFrame(() => {
+      pendingFrameRef.current = 0;
+      perfMetrics.measure('inputTraceFrame', drawing.paint);
+    });
+    pendingFrameRef.current = handle;
+    return () => {
+      cancelAnimationFrame(handle);
+      if (pendingFrameRef.current === handle) pendingFrameRef.current = 0;
+    };
   }, [input, settings]);
+
+  // One paint when the pause ends, of everything sampled during it. After
+  // the sampling effect: a sample that arrives with the end of the pause has
+  // asked for its own frame, and that frame is the one paint.
+  useEffect(() => {
+    const resumed = wasPausedRef.current && !paintingPaused;
+    wasPausedRef.current = paintingPaused;
+    const drawing = drawingRef.current;
+    if (resumed && drawing && pendingFrameRef.current === 0) {
+      perfMetrics.measure('inputTraceFrame', drawing.paint);
+    }
+  }, [paintingPaused]);
 
   return (
     <canvas ref={canvasRef} className="block w-full h-full min-w-0 min-h-0" />

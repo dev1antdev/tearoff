@@ -371,6 +371,12 @@ export interface SteerConfig {
 }
 
 export interface InputConfig {
+  /**
+   * The input source, kept as the boolean it has always been stored as:
+   * false is Car, what the car receives after traction control, ABS and
+   * shift cuts; true is Pedals, the raw pedal position. Where the chosen
+   * source has no value the other one is shown.
+   */
   useRawValues: boolean;
   trace: {
     enabled: boolean;
@@ -378,7 +384,12 @@ export interface InputConfig {
     includeBrake: boolean;
     includeClutch: boolean;
     includeAbs: boolean;
-    /** 'overlay' draws a wider stroke on top of the brake curve; 'bar' fills the area under the curve to y=0 */
+    /** Mark the throttle curve while traction control is cutting. Default true. */
+    includeTc?: boolean;
+    /**
+     * How ABS and traction control are marked: 'overlay' draws a wider stroke
+     * on top of the pedal's curve; 'bar' fills the area under the curve to y=0
+     */
     absStyle?: 'overlay' | 'bar';
     includeSteer?: boolean;
     strokeWidth?: number;
@@ -390,6 +401,22 @@ export interface InputConfig {
     includeBrake: boolean;
     includeThrottle: boolean;
     includeAbs: boolean;
+    /** Mark the throttle bar while traction control is cutting. Default true. */
+    includeTc?: boolean;
+    /**
+     * Draw each pedal as a narrow strip of pedal travel beside a wide strip
+     * of what the car received, whatever the input source. Default false.
+     */
+    dual?: boolean;
+    /**
+     * With `dual`: the brake's wide strip shows the brake line pressure
+     * instead of the brake the car received. Default false.
+     */
+    brakeFromPressure?: boolean;
+    /** A cap above each pedal bar, lit at full pedal travel. Default true. */
+    showMaxMarker?: boolean;
+    /** A fourth bar: the size of the force feedback. Default false. */
+    includeFfb?: boolean;
   };
   gear: {
     enabled: boolean;
@@ -404,6 +431,37 @@ export interface InputConfig {
   steer: {
     enabled: boolean;
     config: SteerConfig;
+    /**
+     * When the wheel shows its angle in degrees. `beyond270`, the default,
+     * shows it only past 270 degrees either way.
+     */
+    angleReadout?: 'beyond270' | 'always' | 'never';
+    /**
+     * An arc from 12 o'clock sweeping by the steering angle; `stationary`
+     * draws it below 1 m/s. Default `never`.
+     */
+    rotationArc?: 'never' | 'stationary' | 'always';
+    /**
+     * The wheel's lock-to-lock rotation in degrees, for a wheel whose range
+     * the sim gets wrong; 0, the default, uses the sim's.
+     */
+    rangeDeg?: number;
+    /**
+     * Le Mans Ultimate: the front wheel angle and the steering ratio as two
+     * small numbers under the wheel. Default false.
+     */
+    showWheelAngle?: boolean;
+  };
+  /**
+   * The `steermeter` layout element: a horizontal bar filling from the centre
+   * toward the steered side.
+   */
+  steerMeter?: {
+    enabled: boolean;
+    /** Spacing of the scale marks, degrees of wheel angle. */
+    markDeg: number;
+    /** Whole degrees at the steered end. */
+    showAngle: boolean;
   };
   background: { opacity: number };
   displayOrder: string[];

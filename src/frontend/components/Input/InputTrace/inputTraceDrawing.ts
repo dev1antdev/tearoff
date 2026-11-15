@@ -6,6 +6,8 @@ export interface InputTraceInput {
   brake?: number;
   brakeAbsActive?: boolean;
   throttle?: number;
+  /** Traction control is cutting power on this sample. */
+  tcActive?: boolean;
   steer?: number;
 }
 
@@ -14,6 +16,8 @@ export interface InputTraceSettings {
   includeThrottle: boolean;
   includeBrake: boolean;
   includeAbs: boolean;
+  includeTc: boolean;
+  /** How both assists are marked: ABS on the brake, TC on the throttle. */
   absStyle: 'overlay' | 'bar';
   includeSteer: boolean;
   strokeWidth: number;
@@ -29,7 +33,10 @@ const GRID_DASH = [2, 2];
 const SOLID_DASH: number[] = [];
 const DEFAULT_SETTINGS: Partial<InputTraceSettings> = {};
 const BRAKE_COLOR = getColor('red');
+// One colour for an assist at work, on whichever pedal's curve it is: ABS on
+// the brake and traction control on the throttle.
 const ABS_COLOR = getColor('yellow', 500);
+const TC_COLOR = ABS_COLOR;
 const THROTTLE_COLOR = getColor('green');
 const CLUTCH_COLOR = getColor('blue');
 const STEER_COLOR = getColor('slate', 300);
@@ -42,6 +49,7 @@ export class InputTraceDrawing {
     includeThrottle: true,
     includeBrake: true,
     includeAbs: true,
+    includeTc: true,
     absStyle: 'overlay',
     includeSteer: true,
     strokeWidth: 3,
@@ -50,6 +58,13 @@ export class InputTraceDrawing {
   private brake: number[] = [];
   private abs: boolean[] = [];
   private throttle: number[] = [];
+  private tc: boolean[] = [];
+  /**
+   * How many samples in the ring have traction control cutting. Most of the
+   * time, and always under a sim that does not report it, there are none
+   * and the mark is not drawn at all.
+   */
+  private tcSamples = 0;
   private clutch: number[] = [];
   private steer: number[] = [];
   private indices: number[] = [];
@@ -65,10 +80,16 @@ export class InputTraceDrawing {
     this.y(clamp(this.brake[this.sampleIndex(index)]));
   private readonly absActive = (index: number) =>
     this.abs[this.sampleIndex(index)];
+  private readonly throttleY = (index: number) =>
+    this.y(clamp(this.throttle[this.sampleIndex(index)]));
+  private readonly tcActive = (index: number) =>
+    this.tc[this.sampleIndex(index)];
   private readonly standardLine;
   private readonly steeringLine;
   private readonly absLine;
   private readonly absArea;
+  private readonly tcLine;
+  private readonly tcArea;
 
   constructor(private readonly ctx: CanvasRenderingContext2D) {
     this.standardLine = line<number>()
@@ -98,6 +119,19 @@ export class InputTraceDrawing {
       .defined(this.absActive)
       .curve(curveBasis)
       .context(ctx);
+    this.tcLine = line<number>()
+      .x((index) => this.x(index))
+      .y(this.throttleY)
+      .defined(this.tcActive)
+      .curve(curveBasis)
+      .context(ctx);
+    this.tcArea = area<number>()
+      .x((index) => this.x(index))
+      .y0(this.y(0))
+      .y1(this.throttleY)
+      .defined(this.tcActive)
+      .curve(curveBasis)
+      .context(ctx);
     this.configure();
   }
 
@@ -108,6 +142,7 @@ export class InputTraceDrawing {
     current.includeThrottle = settings.includeThrottle ?? true;
     current.includeBrake = settings.includeBrake ?? true;
     current.includeAbs = settings.includeAbs ?? true;
+    current.includeTc = settings.includeTc ?? true;
     current.includeSteer = settings.includeSteer ?? true;
     current.absStyle = settings.absStyle ?? 'overlay';
     current.strokeWidth = settings.strokeWidth ?? 3;
@@ -125,6 +160,8 @@ export class InputTraceDrawing {
     this.brake = Array<number>(count).fill(0);
     this.abs = Array<boolean>(count).fill(false);
     this.throttle = Array<number>(count).fill(0);
+    this.tc = Array<boolean>(count).fill(false);
+    this.tcSamples = 0;
     this.clutch = Array<number>(count).fill(0);
     this.steer = Array<number>(count).fill(0.5);
     this.indices = Array.from({ length: count }, (_, index) => index);
@@ -140,7 +177,14 @@ export class InputTraceDrawing {
       this.brake[index] = input.brake ?? 0;
       if (settings.includeAbs) this.abs[index] = input.brakeAbsActive ?? false;
     }
-    if (settings.includeThrottle) this.throttle[index] = input.throttle ?? 0;
+    if (settings.includeThrottle) {
+      this.throttle[index] = input.throttle ?? 0;
+      if (settings.includeTc) {
+        const active = input.tcActive ?? false;
+        if (this.tc[index] !== active) this.tcSamples += active ? 1 : -1;
+        this.tc[index] = active;
+      }
+    }
     if (settings.includeClutch) this.clutch[index] = input.clutch ?? 0;
     if (settings.includeSteer) {
       this.steer[index] = clamp((input.steer ?? 0) / (2 * Math.PI) + 0.5);
@@ -197,10 +241,39 @@ export class InputTraceDrawing {
     if (visibleStroke) ctx.lineWidth = settings.strokeWidth;
     if (visibleStroke && settings.includeClutch)
       this.stroke(this.clutch, CLUTCH_COLOR);
-    if (visibleStroke && settings.includeThrottle)
-      this.stroke(this.throttle, THROTTLE_COLOR);
+    if (settings.includeThrottle) this.drawThrottle(visibleStroke);
     if (settings.includeBrake) this.drawBrake(visibleStroke);
   };
+
+  /**
+   * The throttle with traction control marked the way ABS is on the brake:
+   * the fill below the curve and the highlight above it.
+   */
+  private drawThrottle(visibleStroke: boolean): void {
+    const { ctx, settings } = this;
+    const marked = settings.includeTc && this.tcSamples > 0;
+    if (marked && settings.absStyle === 'bar') {
+      ctx.beginPath();
+      this.tcArea(this.indices);
+      ctx.fillStyle = TC_COLOR;
+      ctx.globalAlpha = 0.3;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    if (!visibleStroke) return;
+    this.stroke(this.throttle, THROTTLE_COLOR);
+    if (!marked) return;
+    ctx.beginPath();
+    this.tcLine(this.indices);
+    ctx.strokeStyle = TC_COLOR;
+    ctx.lineWidth =
+      settings.absStyle === 'bar'
+        ? settings.strokeWidth
+        : Math.round(settings.strokeWidth * 1.67);
+    ctx.stroke();
+    // The brake is drawn next, at the pedals' own width.
+    ctx.lineWidth = settings.strokeWidth;
+  }
 
   /** Keep the ABS fill below the brake curve and its highlight above it. */
   private drawBrake(visibleStroke: boolean): void {

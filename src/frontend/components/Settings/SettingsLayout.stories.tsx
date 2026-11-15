@@ -426,6 +426,51 @@ export const InputCustomScale: Story = {
   },
 };
 
+/**
+ * The Input page with its input source choice, which sits above the tabs so
+ * that it is on screen whichever of them is open.
+ */
+export const InputSource: Story = {
+  args: {
+    initialPath: '/settings/input',
+    initialTab: { key: 'inputTab', value: 'options' },
+  },
+};
+
+/** Scrolls a settings page to the panel under a heading, once it is there. */
+const useScrollToPanel = (title: string) => {
+  useEffect(() => {
+    // The page waits for its dashboard, so the panel is not there at mount.
+    const timer = window.setInterval(() => {
+      const heading = Array.from(document.querySelectorAll('h3')).find(
+        (candidate) => candidate.textContent === title
+      );
+      if (!heading) return;
+      window.clearInterval(timer);
+      heading.scrollIntoView({ block: 'start' });
+    }, 50);
+    return () => window.clearInterval(timer);
+  }, [title]);
+};
+
+/** The Input options at the trace and bar settings, with the two TC marks. */
+export const InputTraceAndBarOptions: Story = {
+  ...InputSource,
+  render: () => {
+    useScrollToPanel('Trace');
+    return <SettingsLayout />;
+  },
+};
+
+/** The Input options at the steering settings and the steering meter. */
+export const InputSteeringOptions: Story = {
+  ...InputSource,
+  render: () => {
+    useScrollToPanel('Steer');
+    return <SettingsLayout />;
+  },
+};
+
 export const LapTraceLayout: Story = {
   args: {
     initialPath: '/settings/laptrace',

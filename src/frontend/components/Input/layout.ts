@@ -3,7 +3,8 @@ import { resolveLayoutTree } from '@irdashies/domain/layoutTree';
 
 export { hasLayoutTree, isEmptyLayoutTree } from '@irdashies/domain/layoutTree';
 
-export type InputElementId = 'trace' | 'bar' | 'gear' | 'abs' | 'steer';
+export type InputElementId =
+  'trace' | 'bar' | 'gear' | 'abs' | 'steer' | 'steermeter';
 
 export const INPUT_ELEMENTS: { id: InputElementId; label: string }[] = [
   { id: 'trace', label: 'Trace' },
@@ -11,11 +12,12 @@ export const INPUT_ELEMENTS: { id: InputElementId; label: string }[] = [
   { id: 'gear', label: 'Gear' },
   { id: 'abs', label: 'ABS' },
   { id: 'steer', label: 'Steer' },
+  { id: 'steermeter', label: 'Steering Meter' },
 ];
 
 type LegacyLayoutConfig = Pick<
   InputConfig,
-  'trace' | 'bar' | 'gear' | 'abs' | 'steer' | 'displayOrder'
+  'trace' | 'bar' | 'gear' | 'abs' | 'steer' | 'steerMeter' | 'displayOrder'
 >;
 
 const isElementId = (id: string): id is InputElementId =>
@@ -38,6 +40,7 @@ export const buildDefaultInputTree = (
     gear: !!config.gear?.enabled && !steerIsRing,
     abs: !!config.abs?.enabled,
     steer: !!config.steer?.enabled,
+    steermeter: !!config.steerMeter?.enabled,
   };
 
   const order = (config.displayOrder ?? []).filter(isElementId);
@@ -51,6 +54,7 @@ export const buildDefaultInputTree = (
   const weightOf = (id: InputElementId) => {
     if (id === 'trace') return 4;
     if (id === 'steer' && steerIsRing) return 2;
+    if (id === 'steermeter') return 2;
     return 1;
   };
 

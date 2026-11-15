@@ -125,3 +125,61 @@ export const AllWheels: Story = {
     );
   },
 };
+
+const radians = (degrees: number) => (degrees * Math.PI) / 180;
+
+/**
+ * Half the lock to the left on the recorded Le Mans Ultimate LMGT3, drawn at
+ * the range the setup states and at the cockpit animation's, which is what
+ * the wheel used to be scaled by.
+ */
+export const CorrectedRange: Story = {
+  render: () => (
+    <div className="flex items-start gap-6 p-4">
+      {(
+        [
+          ['Setup range, 476°', 119],
+          ['Cockpit animation, 719° (before)', 179.75],
+        ] as const
+      ).map(([label, degrees]) => (
+        <div key={label} className="space-y-2">
+          <div className="text-sm text-white">{label}</div>
+          <div className="w-40 h-40 bg-slate-800 p-2 rounded-md">
+            <InputSteer
+              angleRad={radians(degrees)}
+              angleReadout="always"
+              rotationArc="always"
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  ),
+};
+
+/** The readout, the arc and the two wheel-angle numbers, at widget size. */
+export const ReadoutArcAndWheelAngle: Story = {
+  args: {
+    angleRad: radians(119),
+    angleReadout: 'always',
+    rotationArc: 'always',
+    frontWheelAngleDeg: 8.6,
+  },
+  render: (args) => (
+    <div className="flex items-start gap-6 p-4">
+      <div className="w-[76px] h-[76px] bg-slate-800 rounded-md">
+        <InputSteer {...args} />
+      </div>
+      <div className="w-40 h-40 bg-slate-800 p-2 rounded-md">
+        <InputSteer {...args} />
+      </div>
+      <div className="w-40 h-40 bg-slate-800 p-2 rounded-md">
+        <InputSteer
+          {...args}
+          angleRad={radians(-300)}
+          frontWheelAngleDeg={-21.7}
+        />
+      </div>
+    </div>
+  ),
+};

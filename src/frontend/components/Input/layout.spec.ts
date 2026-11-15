@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import type { LayoutNode } from '@irdashies/types';
 import { getWidgetDefaultConfig } from '@irdashies/types';
 import {
+  INPUT_ELEMENTS,
   buildDefaultInputTree,
   getInputLayoutTree,
   hasLayoutTree,
@@ -75,6 +76,45 @@ describe('buildDefaultInputTree', () => {
     const result = boxes(tree);
     expect(result.map((b) => b.widgets[0])).not.toContain('gear');
     expect(result.find((b) => b.widgets[0] === 'steer')?.weight).toBe(2);
+  });
+
+  it('adds the steering meter when it is enabled, twice as wide as a bar', () => {
+    const tree = buildDefaultInputTree({
+      ...defaults,
+      steerMeter: { enabled: true, markDeg: 90, showAngle: true },
+    });
+    const result = boxes(tree);
+
+    expect(result.map((b) => b.widgets[0])).toEqual([
+      'trace',
+      'bar',
+      'gear',
+      'steer',
+      'steermeter',
+    ]);
+    expect(result.at(-1)?.weight).toBe(2);
+  });
+
+  it('leaves the steering meter out by default and for a config saved before it', () => {
+    expect(
+      boxes(buildDefaultInputTree(defaults)).map((b) => b.widgets[0])
+    ).not.toContain('steermeter');
+    expect(
+      boxes(buildDefaultInputTree({ ...defaults, steerMeter: undefined })).map(
+        (b) => b.widgets[0]
+      )
+    ).not.toContain('steermeter');
+  });
+
+  it('offers the steering meter to the layout editor', () => {
+    expect(INPUT_ELEMENTS.map((element) => element.id)).toEqual([
+      'trace',
+      'bar',
+      'gear',
+      'abs',
+      'steer',
+      'steermeter',
+    ]);
   });
 
   it('ignores unknown ids in displayOrder', () => {

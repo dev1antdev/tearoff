@@ -21,7 +21,9 @@ export const createDriverControlsProbe =
     const processor = rateLimited(new DriverControlsProcessor());
     return {
       name: 'driver-controls-state',
-      schemaVersion: 1,
+      // 2: the snapshot gained the steering range, force feedback and the
+      // brake pressure, read from the six variables at the end of the list.
+      schemaVersion: 2,
       variables: [
         'SessionTick',
         'Brake',
@@ -40,6 +42,12 @@ export const createDriverControlsProbe =
         'OilTemp',
         'WaterTemp',
         'EngineWarnings',
+        'SteeringWheelAngleMax',
+        'SteeringWheelPctTorqueSign',
+        'LFbrakeLinePress',
+        'RFbrakeLinePress',
+        'LRbrakeLinePress',
+        'RRbrakeLinePress',
       ],
       onSessionInfo(text) {
         processor.init(yaml.load(text, { json: true }) as Session);

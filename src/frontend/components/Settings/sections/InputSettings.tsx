@@ -15,7 +15,6 @@ import { SettingDivider } from '../components/SettingDivider';
 import { SettingsSection } from '../components/SettingSection';
 import { SettingToggleRow } from '../components/SettingToggleRow';
 import { SettingActionButton } from '../components/SettingActionButton';
-import { SettingSelectRow } from '../components/SettingSelectRow';
 import { SettingButtonGroupRow } from '../components/SettingButtonGroupRow';
 import { LayoutVisualizer } from './LayoutVisualizer';
 import {
@@ -49,6 +48,81 @@ const DEFAULT_GEAR_FLASH: NonNullable<
 };
 
 const generateId = () => Math.random().toString(36).substring(2, 9);
+
+/**
+ * The two input sources, in the words the settings page uses. Stored as the
+ * `useRawValues` boolean it has always been: Pedals is true.
+ */
+const INPUT_SOURCES = [
+  {
+    pedals: false,
+    label: 'Car',
+    description:
+      "What the car receives: throttle and brake after traction control, ABS and shift cuts. Works while you watch another car and in replays, where the sim gives that car's inputs.",
+  },
+  {
+    pedals: true,
+    label: 'Pedals',
+    description: 'What you press: the raw pedal position, before the assists.',
+  },
+] as const;
+
+interface InputSourceChoiceProps {
+  /** The stored `useRawValues`. */
+  pedals: boolean;
+  onChange: (pedals: boolean) => void;
+}
+
+/** The explicit two-way choice between the car's inputs and the pedals. */
+const InputSourceChoice = ({ pedals, onChange }: InputSourceChoiceProps) => (
+  <SettingsSection title="Input source">
+    <div
+      role="radiogroup"
+      aria-label="Input source"
+      className="grid gap-2 sm:grid-cols-2"
+    >
+      {INPUT_SOURCES.map((source) => {
+        const selected = source.pedals === pedals;
+        return (
+          <button
+            key={source.label}
+            type="button"
+            role="radio"
+            aria-checked={selected}
+            tabIndex={selected ? 0 : -1}
+            onClick={() => onChange(source.pedals)}
+            onKeyDown={(event) => {
+              if (!event.key.startsWith('Arrow')) return;
+              event.preventDefault();
+              onChange(!source.pedals);
+              event.currentTarget.parentElement
+                ?.querySelector<HTMLButtonElement>(
+                  '[role="radio"][aria-checked="false"]'
+                )
+                ?.focus();
+            }}
+            className={`flex flex-col items-start rounded-md border p-3 text-left transition-colors ${
+              selected
+                ? 'border-accent-500 bg-accent-600/20'
+                : 'border-settings-boundary hover:border-slate-400'
+            }`}
+          >
+            <span
+              className={`block text-md font-semibold ${
+                selected ? 'text-white' : 'text-slate-300'
+              }`}
+            >
+              {source.label}
+            </span>
+            <span className="mt-1 block text-sm text-slate-400">
+              {source.description}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  </SettingsSection>
+);
 
 // Configs saved before the layout editor have no tree. Seed one from the
 // enabled flags so the editor shows what the overlay draws today.
@@ -205,6 +279,13 @@ const SingleInputWidgetSettings = ({ widgetId }: { widgetId: string }) => {
                 </div>
               </div>
 
+              <InputSourceChoice
+                pedals={config.useRawValues === true}
+                onChange={(useRawValues) =>
+                  handleConfigChange({ useRawValues })
+                }
+              />
+
               {/* Tabs */}
               <div className="flex flex-wrap gap-1 border-b border-slate-700 pb-1">
                 <TabButton
@@ -263,7 +344,6 @@ const SingleInputWidgetSettings = ({ widgetId }: { widgetId: string }) => {
                       title="Widget options"
                       scaleWidgetId={widgetId}
                     >
-                      <SettingProp path="useRawValues" />
                       <SettingProp path="background.opacity" />
                     </SettingsSection>
 
@@ -377,30 +457,11 @@ const SingleInputWidgetSettings = ({ widgetId }: { widgetId: string }) => {
 
                       <SettingProp path="trace.includeAbs" />
 
-                      {config.trace.includeAbs && (
-                        <SettingSelectRow<'overlay' | 'bar'>
-                          title="ABS Style"
-                          description="How ABS is shown in the trace"
-                          value={config.trace.absStyle ?? 'overlay'}
-                          options={[
-                            {
-                              label: 'Overlay',
-                              value: 'overlay',
-                            },
-                            {
-                              label: 'Bar (fill under curve)',
-                              value: 'bar',
-                            },
-                          ]}
-                          onChange={(v) =>
-                            handleConfigChange({
-                              trace: {
-                                ...config.trace,
-                                absStyle: v,
-                              },
-                            })
-                          }
-                        />
+                      <SettingProp path="trace.includeTc" />
+
+                      {(config.trace.includeAbs ||
+                        (config.trace.includeTc ?? true)) && (
+                        <SettingProp path="trace.absStyle" />
                       )}
 
                       <SettingProp path="trace.includeSteer" />
@@ -419,6 +480,20 @@ const SingleInputWidgetSettings = ({ widgetId }: { widgetId: string }) => {
                       <SettingProp path="bar.includeBrake" />
 
                       <SettingProp path="bar.includeAbs" />
+
+                      <SettingProp path="bar.includeTc" />
+
+                      <SettingProp path="bar.dual" />
+
+                      {config.bar.dual && (
+                        <SettingsSection>
+                          <SettingProp path="bar.brakeFromPressure" />
+                        </SettingsSection>
+                      )}
+
+                      <SettingProp path="bar.showMaxMarker" />
+
+                      <SettingProp path="bar.includeFfb" />
                     </SettingsSection>
 
                     {/* Steer Settings */}
@@ -426,6 +501,32 @@ const SingleInputWidgetSettings = ({ widgetId }: { widgetId: string }) => {
                       <SettingProp path="steer.config.style" />
 
                       <SettingProp path="steer.config.color" />
+
+                      <SettingProp path="steer.rangeDeg" />
+
+                      {/* The ring keeps its centre for the gear and speed. */}
+                      {config.steer.config?.style !== 'ring' && (
+                        <>
+                          <SettingProp path="steer.angleReadout" />
+
+                          <SettingProp path="steer.rotationArc" />
+
+                          <SettingProp path="steer.showWheelAngle" />
+                        </>
+                      )}
+                    </SettingsSection>
+
+                    {/* Steering Meter Settings */}
+                    <SettingsSection title="Steering Meter">
+                      <p className="text-sm text-slate-400">
+                        A bar that fills from its centre toward the side the
+                        wheel is turned to. Add the Steering Meter element in
+                        the Layout tab to show it.
+                      </p>
+
+                      <SettingProp path="steerMeter.markDeg" />
+
+                      <SettingProp path="steerMeter.showAngle" />
                     </SettingsSection>
 
                     {/* Gear Settings */}

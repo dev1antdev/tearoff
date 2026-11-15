@@ -4,18 +4,33 @@ import { InputAbsIndicator } from '../InputAbsIndicator/InputAbsIndicator';
 import { InputBar } from '../InputBar/InputBar';
 import { InputGear } from '../InputGear/InputGear';
 import { InputSteer } from '../InputSteer/InputSteer';
+import { InputSteerMeter } from '../InputSteerMeter/InputSteerMeter';
 import { InputTrace } from '../InputTrace/InputTrace';
 import { getInputLayoutTree } from '../layout';
 
 export interface InputProps {
+  /** The pedals of the chosen input source. */
   brake?: number;
   throttle?: number;
   clutch?: number;
+  /** Pedal travel and what the car received, for the bars that draw both. */
+  brakePedal?: number;
+  throttlePedal?: number;
+  clutchPedal?: number;
+  brakeCar?: number;
+  throttleCar?: number;
+  clutchCar?: number;
   gear?: number;
   speed?: number;
   unit?: number;
   steer?: number;
+  /** Lock-to-lock rotation the steering meter is drawn against, degrees. */
+  steerRangeDeg?: number;
+  frontWheelAngleDeg?: number;
+  stationary?: boolean;
+  ffb?: number;
   brakeAbsActive?: boolean;
+  tcActive?: boolean;
   traceTick?: number;
   settings: InputWidgetSettings['config'];
   /** Background colour while the shift flash is on. */
@@ -66,11 +81,22 @@ export const InputContainer = memo(
     brake,
     throttle,
     clutch,
+    brakePedal,
+    throttlePedal,
+    clutchPedal,
+    brakeCar,
+    throttleCar,
+    clutchCar,
     gear,
     speed,
     steer,
+    steerRangeDeg,
+    frontWheelAngleDeg,
+    stationary,
+    ffb,
     unit,
     brakeAbsActive,
+    tcActive,
     traceTick,
     settings,
     flashColor,
@@ -79,8 +105,16 @@ export const InputContainer = memo(
     const tree = useMemo(() => getInputLayoutTree(settings), [settings]);
 
     const traceInput = useMemo(
-      () => ({ brake, throttle, clutch, brakeAbsActive, steer, traceTick }),
-      [brake, throttle, clutch, brakeAbsActive, steer, traceTick]
+      () => ({
+        brake,
+        throttle,
+        clutch,
+        brakeAbsActive,
+        tcActive,
+        steer,
+        traceTick,
+      }),
+      [brake, throttle, clutch, brakeAbsActive, tcActive, steer, traceTick]
     );
     const renderElement = useCallback(
       (id: string) => {
@@ -93,7 +127,15 @@ export const InputContainer = memo(
                 brake={brake}
                 brakeAbsActive={brakeAbsActive}
                 throttle={throttle}
+                tcActive={tcActive}
                 clutch={clutch}
+                brakePedal={brakePedal}
+                throttlePedal={throttlePedal}
+                clutchPedal={clutchPedal}
+                brakeCar={brakeCar}
+                throttleCar={throttleCar}
+                clutchCar={clutchCar}
+                ffb={ffb}
                 settings={settings.bar}
               />
             );
@@ -127,6 +169,21 @@ export const InputContainer = memo(
                 unit={unit}
                 gearSettings={settings.gear}
                 flashColor={gearFlashColor}
+                angleReadout={settings.steer.angleReadout}
+                rotationArc={settings.steer.rotationArc}
+                stationary={stationary}
+                frontWheelAngleDeg={
+                  settings.steer.showWheelAngle ? frontWheelAngleDeg : undefined
+                }
+              />
+            );
+          case 'steermeter':
+            return (
+              <InputSteerMeter
+                angleRad={steer}
+                rangeDeg={steerRangeDeg}
+                markDeg={settings.steerMeter?.markDeg}
+                showAngle={settings.steerMeter?.showAngle}
               />
             );
           default:
@@ -138,11 +195,22 @@ export const InputContainer = memo(
         brake,
         throttle,
         clutch,
+        brakePedal,
+        throttlePedal,
+        clutchPedal,
+        brakeCar,
+        throttleCar,
+        clutchCar,
         gear,
         speed,
         steer,
+        steerRangeDeg,
+        frontWheelAngleDeg,
+        stationary,
+        ffb,
         unit,
         brakeAbsActive,
+        tcActive,
         settings,
         gearFlashColor,
       ]

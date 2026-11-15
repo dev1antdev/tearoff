@@ -1735,3 +1735,118 @@ describe('mapLmuTelemetry flag facts', () => {
     expect(t.LmuNumRedLights).toBeUndefined();
   });
 });
+
+describe('mapLmuTelemetry steering and force feedback', () => {
+  const degrees = (radians: number) => (radians * 180) / Math.PI;
+  /** Half the lock to the left, with the three ranges as given. */
+  const steered = (
+    ranges: { physical?: number; setup?: unknown; visual?: number },
+    filteredSteering = -0.5
+  ) =>
+    mapLmuTelemetry(
+      {
+        ...fixture(),
+        filteredSteering,
+        physicalSteeringWheelRange: ranges.physical,
+        visualSteeringWheelRange: ranges.visual,
+      },
+      undefined,
+      undefined,
+      ranges.setup === undefined
+        ? undefined
+        : { steerLockDeg: { value: [ranges.setup as number] } }
+    );
+
+  it('scales the wheel by the driver’s own range when the sim knows it', () => {
+    const t = steered({ physical: 900, setup: 476, visual: 719 });
+
+    // Lock to lock, in radians, as iRacing states it.
+    expect(degrees(t.SteeringWheelAngleMax.value[0])).toBeCloseTo(900);
+    // Half the lock is a quarter of the range, and left is positive.
+    expect(degrees(t.SteeringWheelAngle.value[0])).toBeCloseTo(225);
+  });
+
+  it('falls back to the setup’s steering lock, then to the cockpit animation', () => {
+    // The recorded LMGT3: the driver's wheel reads 0, the setup 476 and the
+    // animation 719.
+    const setup = steered({ physical: 0, setup: 476, visual: 719 });
+    expect(degrees(setup.SteeringWheelAngleMax.value[0])).toBeCloseTo(476);
+    expect(setup.SteeringWheelAngleMax.value[0]).toBeCloseTo(8.308, 3);
+    expect(degrees(setup.SteeringWheelAngle.value[0])).toBeCloseTo(119);
+
+    // No REST answer yet: the animation's range, as before there was a
+    // choice.
+    const visual = steered({ physical: 0, visual: 719 });
+    expect(degrees(visual.SteeringWheelAngleMax.value[0])).toBeCloseTo(719);
+    expect(degrees(visual.SteeringWheelAngle.value[0])).toBeCloseTo(179.75);
+  });
+
+  it.each([
+    ['zero', 0],
+    ['negative', -476],
+    ['not a number', Number.NaN],
+    ['text', '476 (17.2) deg'],
+  ])('passes over a setup lock that is %s', (_label, setup) => {
+    const t = steered({ physical: 0, setup, visual: 719 });
+
+    expect(degrees(t.SteeringWheelAngleMax.value[0])).toBeCloseTo(719);
+  });
+
+  it('turns the wheel to the right for a positive steering fraction', () => {
+    const t = steered({ setup: 476, visual: 719 }, 0.25);
+
+    expect(degrees(t.SteeringWheelAngle.value[0])).toBeCloseTo(-59.5);
+  });
+
+  it('publishes no angle and no range when the sim states none', () => {
+    const t = steered({});
+
+    expect(t.SteeringWheelAngleMax.value[0]).toBe(0);
+    expect(Math.abs(t.SteeringWheelAngle.value[0])).toBe(0);
+  });
+
+  it('publishes force feedback as a signed fraction under iRacing’s key', () => {
+    expect(
+      mapLmuTelemetry({ ...fixture(), ffbTorque: 0.5 })
+        .SteeringWheelPctTorqueSign.value[0]
+    ).toBe(0.5);
+    expect(
+      mapLmuTelemetry({ ...fixture(), ffbTorque: -1.02 })
+        .SteeringWheelPctTorqueSign.value[0]
+    ).toBe(-1.02);
+
+    // An addon built before the export: absent, not a steady zero.
+    const raw: Record<string, unknown> = { ...fixture() };
+    delete raw.ffbTorque;
+    expect(
+      mapLmuTelemetry(raw as unknown as LmuRawTelemetry)
+        .SteeringWheelPctTorqueSign
+    ).toBeUndefined();
+  });
+
+  it('publishes the mean front wheel angle, signed like the steering wheel', () => {
+    // The fixture steers left: both front wheels point left, which the sim
+    // gives as negative toe, a little apart for the static toe.
+    const t = mapLmuTelemetry(fixture());
+
+    expect(t.SteeringWheelAngle.value[0]).toBeGreaterThan(0);
+    expect(t.LmuFrontWheelAngle?.value[0]).toBeCloseTo(4.988, 3);
+
+    // Static toe alone, equal and opposite, is no steering.
+    expect(
+      mapLmuTelemetry({
+        ...fixture(),
+        wheelToe: new Float64Array([0.002, -0.002, 0, 0]),
+      }).LmuFrontWheelAngle?.value[0]
+    ).toBeCloseTo(0);
+  });
+
+  it('leaves the front wheel angle absent when the sim has not written the wheels', () => {
+    const raw: Record<string, unknown> = { ...fixture() };
+    delete raw.wheelToe;
+
+    expect(
+      mapLmuTelemetry(raw as unknown as LmuRawTelemetry).LmuFrontWheelAngle
+    ).toBeUndefined();
+  });
+});
