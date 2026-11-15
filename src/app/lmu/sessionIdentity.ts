@@ -29,6 +29,14 @@ import { fnv1a32 } from './hash';
  * event is the same session, and should find its history where it left it.
  * That is also why the clock is not in it.
  *
+ * Stable is not unique, though. The next race on the same server and track
+ * has the same id, after a restart of the app and equally when the server
+ * comes back round to a race, so the id says "this kind of session here" and
+ * not "this event". Nothing written to disk under it may be read back as the
+ * session's own: the lap history did, and opened a race with the crossings
+ * of the one before. `SIMULATOR_HAS_UNIQUE_SESSION_IDS` in types/simulators
+ * is where a store keyed by session id asks.
+ *
  * Which leaves one case the stamp alone cannot see, and it is the common one
  * online: a server rolling its practice session. Nothing identifying moves --
  * same track, same type, same server -- so the stamp is unchanged and every

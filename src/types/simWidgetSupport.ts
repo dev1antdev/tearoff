@@ -119,6 +119,9 @@ export const LMU_DISABLED_WIDGETS: readonly string[] = [
   'radar',
   'rejoin',
   'slowcarahead',
+  // Race plans name drivers by iRacing customer id.
+  'stintplan',
+  'strategytimeline',
   'tachometer',
   'streamchat',
   // LMU simulates no wind: its wind vector is always zero.
@@ -153,7 +156,7 @@ export const DEFAULT_SIM_WIDGET_SUPPORT: SimWidgetSupportConfig = {
  * it did, which costs a user their hand edits once per change and is why the
  * number is bumped only for a real one.
  */
-export const SIM_WIDGET_SUPPORT_VERSION = 13;
+export const SIM_WIDGET_SUPPORT_VERSION = 14;
 
 /**
  * Whether a widget is unavailable under the running sim.
@@ -170,6 +173,19 @@ export const isWidgetDisabledForSim = (
   !!widgetId &&
   !!simulator &&
   (config.disabledWidgets[simulator] ?? []).includes(widgetId);
+
+/**
+ * Whether the running sim can show at least one of these widgets.
+ *
+ * For work the main process does on a widget's behalf: a recorder or a poll
+ * whose only readers are hidden under the running sim has nobody to work for.
+ */
+export const isAnyWidgetAvailableForSim = (
+  config: SimWidgetSupportConfig,
+  widgetIds: readonly string[],
+  simulator: ActiveSimulator | null | undefined
+): boolean =>
+  widgetIds.some((id) => !isWidgetDisabledForSim(config, id, simulator));
 
 /** The hover text for a disabled widget, or null when it is available. */
 export const widgetDisabledMessage = (

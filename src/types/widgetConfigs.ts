@@ -1,4 +1,5 @@
 import type { DashboardWidget } from './dashboardLayout';
+import type { GantryPitStopsConfig } from './gantryPitStops';
 import type { CornerNameOverlayConfig } from './cornerName';
 import type { FlagPanelConfig } from './flagPanel';
 import type { LapTraceColors, LapTraceSound, LapTraceSource } from './lapTrace';
@@ -1469,7 +1470,12 @@ export const LAP_GRAPH_LAP_WINDOW_BOUNDS = { min: 5, max: 300 } as const;
 export const LAP_GRAPH_GAP_MAX_BOUNDS = { min: 0, max: 600 } as const;
 
 /** Overlay widgets that can be docked under the Gantry incident feed. */
-export const GANTRY_DOCK_WIDGET_TYPES = ['fuel', 'map', 'flatmap'] as const;
+export const GANTRY_DOCK_WIDGET_TYPES = [
+  'fuel',
+  'map',
+  'flatmap',
+  'strategytimeline',
+] as const;
 export type GantryDockWidgetType = (typeof GANTRY_DOCK_WIDGET_TYPES)[number];
 
 export const GANTRY_DOCK_MAX_PANELS = 3;
@@ -1538,6 +1544,8 @@ export interface GantryConfig {
   dock: GantryDockConfig;
   /** Which standings the left pane shows. Sanitise with sanitizeGantryStandings. */
   standings: GantryStandingsConfig;
+  /** Pit service timings per car. Sanitise with sanitizeGantryPitStops. */
+  pitStops: GantryPitStopsConfig;
 }
 
 export interface GantryWindowConfig {
@@ -1691,6 +1699,27 @@ export interface InformationBarConfig extends SessionBarConfig {
   sessionVisibility: SessionVisibilitySettings;
 }
 
+/** Where the car stands against the race plan, for the driver in it. */
+export interface StintPlanConfig {
+  background: { opacity: number };
+  /** Add race elapsed time to clock times, e.g. "01:42 (+12:42)". */
+  showElapsedTime: boolean;
+  showFuel: boolean;
+  showNextDriver: boolean;
+}
+
+/** The team's view of who drives when. */
+export interface StrategyTimelineConfig {
+  background: { opacity: number };
+  /** Add race elapsed time to clock times, e.g. "01:42 (+12:42)". */
+  showElapsedTime: boolean;
+  /** The whole race as a strip with a "now" marker. */
+  showStrip: boolean;
+  showDoneStints: boolean;
+  /** Recent unplanned stops under the stint list. */
+  showStops: boolean;
+}
+
 export interface WidgetConfigMap {
   standings: StandingsConfig;
   relative: RelativeConfig;
@@ -1733,6 +1762,8 @@ export interface WidgetConfigMap {
   broadcastevents: BroadcastEventsConfig;
   broadcastweather: BroadcastWeatherConfig;
   broadcastpodium: BroadcastPodiumConfig;
+  stintplan: StintPlanConfig;
+  strategytimeline: StrategyTimelineConfig;
 }
 
 export type TypedDashboardWidget<
@@ -1778,7 +1809,8 @@ export type SettingsTabType =
   | 'braking'
   | 'help'
   | 'dock'
-  | 'standings';
+  | 'standings'
+  | 'pitstops';
 
 /** Available widgets for the Fuel Calculator */
 export type FuelWidgetType =
@@ -1855,3 +1887,6 @@ export type CornerNameWidgetSettings =
   BaseWidgetSettings<CornerNameOverlayConfig>;
 export type BattleWidgetSettings = BaseWidgetSettings<BattleConfig>;
 export type LapTraceWidgetSettings = BaseWidgetSettings<LapTraceConfig>;
+export type StintPlanWidgetSettings = BaseWidgetSettings<StintPlanConfig>;
+export type StrategyTimelineWidgetSettings =
+  BaseWidgetSettings<StrategyTimelineConfig>;

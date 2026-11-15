@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { channelRegistry } from '@irdashies/types';
+import { channelRegistry, SessionState } from '@irdashies/types';
+import type { Session, Telemetry } from '@irdashies/types';
 import { createProcessorDefinitions } from './processorRegistry';
 
 /**
  * Snapshot channels owned by a standalone runtime instead of the host.
- * LapHistoryRuntime records lap crossings outside demand gating so an enabled
- * Gantry keeps recording with its window closed; registering it here as well
+ * LapHistoryRuntime and PitStopRuntime record outside demand gating so an enabled
+ * Gantry keeps recording with its window closed; registering them here as well
  * would run a second processor and publish a competing snapshot.
  * ReplayContextRuntime is read by the incident and lap-history runtimes, so it
  * must run whether or not a window subscribes.
@@ -14,6 +15,7 @@ import { createProcessorDefinitions } from './processorRegistry';
  */
 const RUNTIME_OWNED_CHANNELS = [
   'lap-history.snapshot',
+  'pit-stops.snapshot',
   'replay.context',
   'streamchat.messages',
   'streamchat.emotes',
@@ -53,6 +55,52 @@ describe('processor registry', () => {
     for (const runtimeOwned of RUNTIME_OWNED_CHANNELS) {
       expect(channels).not.toContain(runtimeOwned);
     }
+  });
+
+  it('gives the race plan processor no plan unless a bridge hands one in', () => {
+    // As the Le Mans Ultimate bridge builds the registry: without `racePlan`.
+    // A plan is keyed to iRacing, and the stint history to a session id that
+    // names one event, so there the processor follows nothing and has
+    // nowhere to write.
+    const definition = createProcessorDefinitions({
+      referenceLapPersistence: {
+        load: () => null,
+        save: () => undefined,
+      },
+    }).find(({ channel }) => channel === 'race-plan.progress');
+    const processor = definition?.create({
+      aggregateReplay: false,
+      sourceReplay: false,
+      snapshot: () => undefined,
+    });
+
+    processor?.init({
+      WeekendInfo: {
+        SubSessionID: 99,
+        TrackID: 7,
+        SimMode: 'Le Mans Ultimate',
+      },
+      SessionInfo: { Sessions: [{ SessionNum: 10, SessionType: 'Race' }] },
+      DriverInfo: {
+        DriverCarIdx: 0,
+        Drivers: [{ CarIdx: 0, UserID: 0, TeamID: 0 }],
+      },
+    } as unknown as Session);
+    for (const sessionTime of [10, 20, 30]) {
+      processor?.onFrame({
+        SessionTime: { value: [sessionTime] },
+        SessionNum: { value: [10] },
+        SessionState: { value: [SessionState.Racing] },
+        CarIdxLapCompleted: { value: [sessionTime / 10] },
+        FuelLevel: { value: [50] },
+      } as unknown as Telemetry);
+    }
+
+    expect(processor?.snapshot()).toMatchObject({
+      status: 'no-plan',
+      planningId: null,
+      stints: [],
+    });
   });
 
   it('declares the processor dependency graph explicitly', () => {

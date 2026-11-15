@@ -90,6 +90,9 @@ export const MinimapCanvas = ({
 }: MinimapCanvasProps) => {
   const widgetScale = useWidgetScale();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Set when a resize clears the canvas, so the next commit repaints at once
+  // even if new positions arrive with it; otherwise the disc blinks.
+  const canvasInvalidatedRef = useRef(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
@@ -99,6 +102,7 @@ export const MinimapCanvas = ({
     const resize = () => {
       const dpr = (window.devicePixelRatio || 1) * widgetScale;
       const { clientWidth: width, clientHeight: height } = canvas;
+      canvasInvalidatedRef.current = true;
       canvas.width = Math.round(width * dpr);
       canvas.height = Math.round(height * dpr);
       setSize({ width, height });
@@ -250,7 +254,7 @@ export const MinimapCanvas = ({
     context.stroke();
   };
 
-  useProgressAnimation(cars, draw);
+  useProgressAnimation(cars, draw, undefined, canvasInvalidatedRef);
 
   return <canvas ref={canvasRef} className="h-full w-full" />;
 };

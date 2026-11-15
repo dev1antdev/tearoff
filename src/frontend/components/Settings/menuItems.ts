@@ -8,17 +8,19 @@ import {
   WrenchIcon,
   InfoIcon,
   NewspaperIcon,
+  FlagCheckeredIcon,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
 import { WIDGET_MANIFESTS } from '@irdashies/types';
 import type { WidgetCategory } from '@irdashies/types';
+import { compareMenuLabels } from './menuLabelOrder';
 
 export interface MenuItem {
   to: string;
   path: string;
   label: string;
   widgetType?: string;
-  category?: WidgetCategory | 'Tools';
+  category?: WidgetCategory;
   /** Widgets that share this item's page; it shows On while any of them is. */
   groupTypes?: string[];
   icon?: Icon;
@@ -47,28 +49,30 @@ export const toolItems: MenuItem[] = [
     path: '/profiles',
     label: 'Profiles',
     icon: UsersIcon,
-    category: 'Tools',
   },
   {
     to: '/settings/driver-tags',
     path: '/driver-tags',
     label: 'Driver Tags',
     icon: TagIcon,
-    category: 'Tools',
+  },
+  {
+    to: '/settings/race-plan',
+    path: '/race-plan',
+    label: 'Race Plan',
+    icon: FlagCheckeredIcon,
   },
   {
     to: '/settings/car-setup',
     path: '/car-setup',
     label: 'Setup Comparison',
     icon: ScalesIcon,
-    category: 'Tools',
   },
   {
     to: '/settings/laps',
     path: '/laps',
     label: 'Laps',
     icon: ListNumbersIcon,
-    category: 'Tools',
   },
 ];
 
@@ -82,7 +86,7 @@ export const widgetItems: MenuItem[] = WIDGET_MANIFESTS.map(
     ...(groupTypes && { groupTypes }),
     ...(hideInMenu && { hideInMenu }),
   })
-).sort((a, b) => a.label.localeCompare(b.label));
+).sort((a, b) => compareMenuLabels(a.label, b.label));
 
 /**
  * Whether the settings menu offers a switch for this widget: it is listed

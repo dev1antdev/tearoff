@@ -5,7 +5,26 @@ import {
   RATING_COLUMN_IDS,
   SIMULATOR_IDS,
   simulatorHasDriverRatings,
+  simulatorHasUniqueSessionIds,
 } from './simulators';
+
+describe('simulatorHasUniqueSessionIds', () => {
+  it('trusts an iRacing session id and not a Le Mans Ultimate one', () => {
+    expect(simulatorHasUniqueSessionIds('iracing')).toBe(true);
+    expect(simulatorHasUniqueSessionIds('lmu')).toBe(false);
+  });
+
+  it('changes nothing while no simulator has been detected', () => {
+    expect(simulatorHasUniqueSessionIds(null)).toBe(true);
+    expect(simulatorHasUniqueSessionIds(undefined)).toBe(true);
+  });
+
+  it('answers for every known simulator', () => {
+    for (const id of SIMULATOR_IDS) {
+      expect(typeof simulatorHasUniqueSessionIds(id)).toBe('boolean');
+    }
+  });
+});
 
 describe('simulatorHasDriverRatings', () => {
   it('reports iRacing as having ratings and LMU as not', () => {

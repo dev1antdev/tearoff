@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import logger from '../../logger';
 import type { OverlayManager } from '../../overlayManager';
 import type { SessionLifecycle } from '../../sessionLifecycle';
+import type { ChannelBus } from '../channelBridge';
 
 /**
  * The LMU bridge's telemetry loop is the only thing that ever reports the sim
@@ -129,6 +130,14 @@ vi.mock('../../perfMetrics', () => ({
 vi.mock('../../processors/processorRegistry', () => ({
   createDefaultProcessorHost: vi.fn(),
 }));
+
+// What the bridge loads for its processors once it is given a channel bus.
+vi.mock('../../storage/referenceLaps', () => ({
+  getReferenceLap: vi.fn(),
+  saveReferenceLap: vi.fn(),
+}));
+vi.mock('../../storage/lapLibrary', () => ({ getLapLibrary: () => null }));
+vi.mock('../../storage/flagTuning', () => ({ getFlagTuning: vi.fn() }));
 
 // Keeps the track-map work off the filesystem.
 vi.mock('../../lmu/trackMap', () => ({
@@ -707,5 +716,36 @@ describe('publishLmuSDKEvents and driver ratings', () => {
 
     bridge.stop();
     vi.unstubAllEnvs();
+  });
+});
+
+/**
+ * A race plan names its drivers, team and track by iRacing ids, and the
+ * stint history is kept under a session id LMU does not have. The LMU bridge
+ * therefore gives the processors neither: the race plan processor then
+ * reports no plan and has nowhere to write.
+ */
+describe('publishLmuSDKEvents and race plans', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sdkState.running = true;
+    sdkState.readThrows = false;
+  });
+
+  it('hands the processors no race plan and no stint history', async () => {
+    const { publishLmuSDKEvents } = await import('./lmuSdkBridge');
+    const { createDefaultProcessorHost } =
+      await import('../../processors/processorRegistry');
+    const bridge = await publishLmuSDKEvents(
+      createOverlayManager(),
+      createLifecycle(),
+      {} as ChannelBus
+    );
+    bridge.stop();
+
+    expect(createDefaultProcessorHost).toHaveBeenCalledOnce();
+    expect(
+      vi.mocked(createDefaultProcessorHost).mock.calls[0][0]
+    ).not.toHaveProperty('racePlan');
   });
 });
