@@ -119,6 +119,9 @@ export const LMU_DISABLED_WIDGETS: readonly string[] = [
   'radar',
   'rejoin',
   'slowcarahead',
+  // Race plans name drivers by iRacing customer id.
+  'stintplan',
+  'strategytimeline',
   'tachometer',
   'streamchat',
   // LMU simulates no wind: its wind vector is always zero.
@@ -153,7 +156,7 @@ export const DEFAULT_SIM_WIDGET_SUPPORT: SimWidgetSupportConfig = {
  * it did, which costs a user their hand edits once per change and is why the
  * number is bumped only for a real one.
  */
-export const SIM_WIDGET_SUPPORT_VERSION = 13;
+export const SIM_WIDGET_SUPPORT_VERSION = 14;
 
 /**
  * Whether a widget is unavailable under the running sim.

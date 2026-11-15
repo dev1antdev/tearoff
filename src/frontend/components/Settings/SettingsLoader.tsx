@@ -29,6 +29,7 @@ import { LapLibrarySettings } from './sections/LapLibrary/LapLibrarySettings';
 import { StreamChatSettings } from './sections/StreamChatSettings';
 import { DriverTagsSettings } from './sections/DriverTagsSettings';
 import { KeybindingsSettings } from './sections/KeybindingsSettings';
+import { RacePlanSettings } from './sections/RacePlanSettings';
 import { LapTimeLogSettings } from './sections/LapTimeLogSettings';
 import { InformationBarSettings } from './sections/InformationBarSettings';
 import { useDashboard } from '@irdashies/context';
@@ -48,6 +49,9 @@ import { BattleSettings } from './sections/BattleSettings';
 import { BroadcastSettingsPage } from './sections/BroadcastGroupSettings';
 import { GantrySettings } from './sections/GantrySettings';
 import { SettingsPreviewContext } from '@irdashies/domain/widgetPreview/settingsPreviewContext';
+import { widgetSettingsType } from './widgetSettingsType';
+import { StintPlanSettings } from './sections/StintPlanSettings';
+import { StrategyTimelineSettings } from './sections/StrategyTimelineSettings';
 
 /**
  * Settings page per widget type. Telemetry Inspector has none of its own: its
@@ -98,6 +102,8 @@ export const WIDGET_SETTINGS: Record<
   broadcastweather: BroadcastSettingsPage,
   broadcastpodium: BroadcastSettingsPage,
   gantry: GantrySettings,
+  stintplan: StintPlanSettings,
+  strategytimeline: StrategyTimelineSettings,
 };
 
 interface SettingsLoaderProps {
@@ -119,12 +125,13 @@ export const SettingsLoader = ({ previewMode }: SettingsLoaderProps = {}) => {
   if (widgetId === 'release-notes') return <ReleaseNotesSettings />;
   if (widgetId === 'driver-tags') return <DriverTagsSettings />;
   if (widgetId === 'keybindings') return <KeybindingsSettings />;
+  if (widgetId === 'race-plan') return <RacePlanSettings />;
 
   // 2. Find specific widget instance (may be undefined if widgetId is a type name)
   const widget = currentDashboard?.widgets.find((w) => w.id === widgetId);
-  const type = widget ? widget.type || widget.id : widgetId;
+  const type = widgetSettingsType(currentDashboard?.widgets, widgetId ?? '');
 
-  const Settings = Object.hasOwn(WIDGET_SETTINGS, type ?? '')
+  const Settings = Object.hasOwn(WIDGET_SETTINGS, type)
     ? WIDGET_SETTINGS[type as keyof typeof WIDGET_SETTINGS]
     : undefined;
   if (Settings)

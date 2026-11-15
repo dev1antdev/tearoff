@@ -27,6 +27,12 @@ import type {
 import { ProcessorHost } from './ProcessorHost';
 import type { ChannelBus } from '../bridge/channelBus';
 import type { SessionLifecycle } from '../sessionLifecycle';
+import {
+  noRacePlanHistory,
+  RacePlanProgressProcessor,
+  type RacePlanHistoryPersistence,
+  type RacePlanSelection,
+} from './RacePlanProgressProcessor';
 import { RadarProcessor } from './RadarProcessor';
 import { RadioProcessor } from './RadioProcessor';
 import { ReferenceLapProcessor } from './ReferenceLapProcessor';
@@ -57,6 +63,13 @@ interface ProcessorRegistryOptions {
    * ahead and 50 m behind without.
    */
   flagTuning?: () => FlagProcessorTuning;
+  /** The race plan in use and its history; without it there is no plan. */
+  racePlan?: {
+    getPlan: () => RacePlanSelection | null;
+    persistence: RacePlanHistoryPersistence;
+    /** Epoch milliseconds; defaults to Date.now. */
+    now?: () => number;
+  };
 }
 
 interface DefaultProcessorHostOptions extends ProcessorRegistryOptions {
@@ -94,6 +107,7 @@ export const createProcessorDefinitions = ({
   radarTuning,
   radarPoleSides,
   flagTuning,
+  racePlan,
 }: ProcessorRegistryOptions): readonly AnyProcessorDefinition[] => [
   defineProcessor({
     channel: 'blind-spot.snapshot',
@@ -232,6 +246,23 @@ export const createProcessorDefinitions = ({
     channel: 'lap-log.snapshot',
     metricsPrefix: 'lapLog',
     create: () => new LapLogProcessor(),
+  }),
+  defineProcessor({
+    channel: 'race-plan.progress',
+    // Stint history is built over the whole race, so a minimised Gantry keeps it.
+    processWhileHidden: true,
+    metricsPrefix: 'racePlanProgress',
+    create: ({ aggregateReplay, sourceReplay }) =>
+      new RacePlanProgressProcessor({
+        getPlan: racePlan?.getPlan ?? (() => null),
+        persistence:
+          racePlan && !aggregateReplay
+            ? racePlan.persistence
+            : noRacePlanHistory,
+        now: racePlan?.now,
+        // An aggregated tape replay is tracked like a live race.
+        sourceReplay: sourceReplay && !aggregateReplay,
+      }),
   }),
 ];
 

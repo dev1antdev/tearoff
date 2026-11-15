@@ -47,6 +47,7 @@ export const FlatTrackMapCanvas = ({
   maxFps,
 }: FlatTrackMapCanvasProps) => {
   const widgetScale = useWidgetScale();
+  const canvasInvalidatedRef = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const driversOffTrack = useCarIdxOffTrack();
@@ -103,6 +104,7 @@ export const FlatTrackMapCanvas = ({
     const resize = () => {
       const dpr = (window.devicePixelRatio || 1) * widgetScale;
       const { clientWidth: width, clientHeight: height } = canvas;
+      canvasInvalidatedRef.current = true;
       canvas.width = width * dpr;
       canvas.height = height * dpr;
 
@@ -143,165 +145,161 @@ export const FlatTrackMapCanvas = ({
     };
   }, [widgetScale]);
 
-  useProgressAnimation(
-    drivers,
-    (progressValues, count) => {
-      const canvas = canvasRef.current;
-      const ctx = canvas?.getContext('2d');
-      if (!canvas || !ctx || canvasSize.width === 0) return;
+  const drawFrame = (progressValues: Float64Array, count: number) => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx || canvasSize.width === 0) return;
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      const centerY = canvasSize.height / 2;
-      const usableWidth = canvasSize.width - HORIZONTAL_PADDING * 2;
-      const trackStartX = HORIZONTAL_PADDING;
-      const trackEndX = canvasSize.width - HORIZONTAL_PADDING;
+    const centerY = canvasSize.height / 2;
+    const usableWidth = canvasSize.width - HORIZONTAL_PADDING * 2;
+    const trackStartX = HORIZONTAL_PADDING;
+    const trackEndX = canvasSize.width - HORIZONTAL_PADDING;
 
-      const outlineColor = invertTrackColors ? 'white' : 'black';
-      const trackColor = invertTrackColors ? 'black' : 'white';
+    const outlineColor = invertTrackColors ? 'white' : 'black';
+    const trackColor = invertTrackColors ? 'black' : 'white';
 
-      // Draw horizontal track line with outline (matching curved track map)
-      const circleScale = 0.25; // Scale factor to match curved map coordinate space
-      const scaledTrackLineWidth = trackLineWidth * circleScale;
-      const scaledOutlineWidth = trackOutlineWidth * circleScale;
+    // Draw horizontal track line with outline (matching curved track map)
+    const circleScale = 0.25; // Scale factor to match curved map coordinate space
+    const scaledTrackLineWidth = trackLineWidth * circleScale;
+    const scaledOutlineWidth = trackOutlineWidth * circleScale;
 
-      // First draw outline
-      ctx.strokeStyle = outlineColor;
-      ctx.lineWidth = scaledOutlineWidth;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(trackStartX, centerY);
-      ctx.lineTo(trackEndX, centerY);
-      ctx.stroke();
+    // First draw outline
+    ctx.strokeStyle = outlineColor;
+    ctx.lineWidth = scaledOutlineWidth;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(trackStartX, centerY);
+    ctx.lineTo(trackEndX, centerY);
+    ctx.stroke();
 
-      // Then draw track on top
-      ctx.strokeStyle = trackColor;
-      ctx.lineWidth = scaledTrackLineWidth;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(trackStartX, centerY);
-      ctx.lineTo(trackEndX, centerY);
-      ctx.stroke();
+    // Then draw track on top
+    ctx.strokeStyle = trackColor;
+    ctx.lineWidth = scaledTrackLineWidth;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(trackStartX, centerY);
+    ctx.lineTo(trackEndX, centerY);
+    ctx.stroke();
 
-      // Draw start/finish line
-      ctx.strokeStyle = getColor('red');
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(HORIZONTAL_PADDING, centerY - 10);
-      ctx.lineTo(HORIZONTAL_PADDING, centerY + 10);
-      ctx.stroke();
+    // Draw start/finish line
+    ctx.strokeStyle = getColor('red');
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(HORIZONTAL_PADDING, centerY - 10);
+    ctx.lineTo(HORIZONTAL_PADDING, centerY + 10);
+    ctx.stroke();
 
-      // Draw checkered flag above the line
-      const flagSize = 8;
-      const flagY = centerY - 25;
-      const flagX = HORIZONTAL_PADDING - flagSize;
+    // Draw checkered flag above the line
+    const flagSize = 8;
+    const flagY = centerY - 25;
+    const flagX = HORIZONTAL_PADDING - flagSize;
 
-      // Draw 2x2 checkered pattern
-      for (let row = 0; row < 2; row++) {
-        for (let col = 0; col < 2; col++) {
-          const isBlack = (row + col) % 2 === 0;
-          ctx.fillStyle = isBlack ? 'black' : 'white';
-          ctx.fillRect(
-            flagX + col * flagSize,
-            flagY + row * flagSize,
-            flagSize,
-            flagSize
-          );
-        }
-      }
-
-      // Add border around flag
-      ctx.strokeStyle = 'black';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(flagX, flagY, flagSize * 2, flagSize * 2);
-
-      // Draw drivers
-      // Apply scale factor to match curved track map proportions
-      for (const orderedDriver of orderedDrivers) {
-        const { driver, isPlayer, classPosition, interpolationIndex } =
-          orderedDriver;
-        if (interpolationIndex >= count) continue;
-        const color = driverColors[driver.CarIdx];
-        if (!color) continue;
-
-        const x = progressToFlatX(
-          progressValues[interpolationIndex],
-          HORIZONTAL_PADDING,
-          usableWidth
+    // Draw 2x2 checkered pattern
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 2; col++) {
+        const isBlack = (row + col) % 2 === 0;
+        ctx.fillStyle = isBlack ? 'black' : 'white';
+        ctx.fillRect(
+          flagX + col * flagSize,
+          flagY + row * flagSize,
+          flagSize,
+          flagSize
         );
-        const radius =
-          (isPlayer ? playerCircleSize : driverCircleSize) * circleScale;
-        const fontSize = radius * (trackmapFontSize / 100);
-        const originalColor = color.fill;
-        let fillColor = color.fill;
-        let textColor = color.text;
-        const livePosition =
-          driverLivePositions[driver.CarIdx] ?? classPosition;
+      }
+    }
 
-        // highlight leader?
-        if (!isPlayer && invertLeaderColor && livePosition === 1) {
-          fillColor = 'white';
-          textColor = originalColor;
-        }
+    // Add border around flag
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(flagX, flagY, flagSize * 2, flagSize * 2);
 
-        // on pit road?
-        const onPitRoad = !!carIdxIsOnPitRoad?.[driver.CarIdx];
+    // Draw drivers
+    // Apply scale factor to match curved track map proportions
+    for (const orderedDriver of orderedDrivers) {
+      const { driver, isPlayer, classPosition, interpolationIndex } =
+        orderedDriver;
+      if (interpolationIndex >= count) continue;
+      const color = driverColors[driver.CarIdx];
+      if (!color) continue;
+
+      const x = progressToFlatX(
+        progressValues[interpolationIndex],
+        HORIZONTAL_PADDING,
+        usableWidth
+      );
+      const radius =
+        (isPlayer ? playerCircleSize : driverCircleSize) * circleScale;
+      const fontSize = radius * (trackmapFontSize / 100);
+      const originalColor = color.fill;
+      let fillColor = color.fill;
+      let textColor = color.text;
+      const livePosition = driverLivePositions[driver.CarIdx] ?? classPosition;
+
+      // highlight leader?
+      if (!isPlayer && invertLeaderColor && livePosition === 1) {
+        fillColor = 'white';
+        textColor = originalColor;
+      }
+
+      // on pit road?
+      const onPitRoad = !!carIdxIsOnPitRoad?.[driver.CarIdx];
+      if (onPitRoad) {
+        fillColor = '#999999';
+        textColor = 'white';
+      }
+
+      ctx.fillStyle = fillColor;
+      ctx.beginPath();
+      ctx.arc(x, centerY, radius, 0, 2 * Math.PI);
+      ctx.fill();
+
+      // draw a border?
+      if (driversOffTrack[driver.CarIdx]) {
+        ctx.strokeStyle = getColor('yellow', 400);
+        ctx.lineWidth = 4;
+        ctx.stroke();
+      } else if (!isPlayer && invertLeaderColor && livePosition === 1) {
+        ctx.strokeStyle = originalColor;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+
+      if (showCarNumbers) {
+        ctx.fillStyle = textColor;
+        ctx.font = `${fontSize}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        let displayText;
         if (onPitRoad) {
-          fillColor = '#999999';
-          textColor = 'white';
+          displayText = 'P';
+        } else if (displayMode === 'livePosition') {
+          displayText =
+            livePosition !== undefined && livePosition > 0
+              ? livePosition.toString()
+              : '';
+        } else if (displayMode === 'sessionPosition') {
+          displayText =
+            classPosition !== undefined && classPosition > 0
+              ? classPosition.toString()
+              : '';
+        } else {
+          displayText = driver.CarNumber;
         }
-
-        ctx.fillStyle = fillColor;
-        ctx.beginPath();
-        ctx.arc(x, centerY, radius, 0, 2 * Math.PI);
-        ctx.fill();
-
-        // draw a border?
-        if (driversOffTrack[driver.CarIdx]) {
-          ctx.strokeStyle = getColor('yellow', 400);
-          ctx.lineWidth = 4;
-          ctx.stroke();
-        } else if (!isPlayer && invertLeaderColor && livePosition === 1) {
-          ctx.strokeStyle = originalColor;
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-
-        if (showCarNumbers) {
-          ctx.fillStyle = textColor;
-          ctx.font = `${fontSize}px sans-serif`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          let displayText;
-          if (onPitRoad) {
-            displayText = 'P';
-          } else if (displayMode === 'livePosition') {
-            displayText =
-              livePosition !== undefined && livePosition > 0
-                ? livePosition.toString()
-                : '';
-          } else if (displayMode === 'sessionPosition') {
-            displayText =
-              classPosition !== undefined && classPosition > 0
-                ? classPosition.toString()
-                : '';
-          } else {
-            displayText = driver.CarNumber;
-          }
-          if (displayText) {
-            const cache = orderedDriver.textMetricsCache;
-            const visualOffset = getCachedTextVisualOffset(
-              ctx,
-              displayText,
-              cache
-            );
-            ctx.fillText(displayText, x, centerY + visualOffset);
-          }
+        if (displayText) {
+          const cache = orderedDriver.textMetricsCache;
+          const visualOffset = getCachedTextVisualOffset(
+            ctx,
+            displayText,
+            cache
+          );
+          ctx.fillText(displayText, x, centerY + visualOffset);
         }
       }
-    },
-    maxFps
-  );
+    }
+  };
+  useProgressAnimation(drivers, drawFrame, maxFps, canvasInvalidatedRef);
 
   return (
     <div className="w-full h-full">

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { PushPin } from '@phosphor-icons/react';
 import logo from '../../../../assets/icons/logo.svg';
 import { Tooltip } from '../Tooltip/Tooltip';
-type GantryView = 'standings-incidents' | 'lap-graph';
+type GantryView = 'standings-incidents' | 'lap-graph' | 'pit-stops';
 
 interface GantryTabBarProps {
   activeView: GantryView;
@@ -19,6 +19,7 @@ interface GantryTabBarProps {
 const VIEW_LABELS: Record<GantryView, string> = {
   'standings-incidents': 'Standings & Incidents',
   'lap-graph': 'Lap Graph',
+  'pit-stops': 'Pit Stops',
 };
 
 const VIEW_TOOLTIPS: Record<GantryView, string> = {
@@ -26,6 +27,8 @@ const VIEW_TOOLTIPS: Record<GantryView, string> = {
     'Live running order by class, side by side with the incident feed. Use it to see who is in trouble and jump the replay straight to it.',
   'lap-graph':
     "Plots every driver's gap to the class leader lap by lap, so you can see where positions were won and lost.",
+  'pit-stops':
+    "Every team's pit stops: when they stopped, how long they spent in the pit lane and stopped, driver changes, and an estimate of the service from the stop time.",
 };
 
 const FOCUS_NOTE =
@@ -112,29 +115,29 @@ export const GantryTabBar = memo(
           aria-label="Gantry views"
           className="flex items-end gap-1 border-b border-slate-700 bg-slate-900 px-4"
         >
-          {(['standings-incidents', 'lap-graph'] as GantryView[]).map(
-            (view) => (
-              <Tooltip
-                key={view}
-                content={VIEW_TOOLTIPS[view]}
-                placement="bottom"
+          {(
+            ['standings-incidents', 'lap-graph', 'pit-stops'] as GantryView[]
+          ).map((view) => (
+            <Tooltip
+              key={view}
+              content={VIEW_TOOLTIPS[view]}
+              placement="bottom"
+            >
+              <button
+                type="button"
+                aria-pressed={activeView === view}
+                onClick={() => onViewChange(view)}
+                className={[
+                  'inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-t-md border-b-2 px-3 py-2 text-sm font-semibold transition-colors',
+                  activeView === view
+                    ? 'border-accent-400 bg-accent-400/10 text-accent-200'
+                    : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-200',
+                ].join(' ')}
               >
-                <button
-                  type="button"
-                  aria-pressed={activeView === view}
-                  onClick={() => onViewChange(view)}
-                  className={[
-                    'inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-t-md border-b-2 px-3 py-2 text-sm font-semibold transition-colors',
-                    activeView === view
-                      ? 'border-accent-400 bg-accent-400/10 text-accent-200'
-                      : 'border-transparent text-slate-400 hover:bg-slate-800 hover:text-slate-200',
-                  ].join(' ')}
-                >
-                  {VIEW_LABELS[view]}
-                </button>
-              </Tooltip>
-            )
-          )}
+                {VIEW_LABELS[view]}
+              </button>
+            </Tooltip>
+          ))}
         </nav>
       </div>
     );
