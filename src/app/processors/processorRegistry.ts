@@ -11,6 +11,11 @@ import type {
 } from './ReferenceLapProcessor';
 import { CarSpeedsProcessor } from './CarSpeedsProcessor';
 import { BlindSpotProcessor } from './BlindSpotProcessor';
+import { CarPitProcessor } from './CarPitProcessor';
+import {
+  TrackProfileProcessor,
+  type TrackProfileSource,
+} from './TrackProfileProcessor';
 import { DriverControlsProcessor } from './DriverControlsProcessor';
 import { FlagStateProcessor } from './FlagStateProcessor';
 import { FuelProjectionProcessor } from './FuelProjectionProcessor';
@@ -45,7 +50,11 @@ import { SessionTimingProcessor } from './SessionTimingProcessor';
 import { StandingsProcessor } from './StandingsProcessor';
 import { TrackStateProcessor } from './TrackStateProcessor';
 import { TyreStateProcessor } from './TyreStateProcessor';
+import { WheelDynamicsProcessor } from './WheelDynamicsProcessor';
+import { DamageProcessor } from './DamageProcessor';
 import { SystemPerformanceProcessor } from './SystemPerformanceProcessor';
+import { GForceProcessor } from './GForceProcessor';
+import { BrakingProcessor } from './BrakingProcessor';
 import { WeatherForecastProcessor } from './WeatherForecastProcessor';
 import type { SystemLoadSource } from '../services/systemLoadSampler';
 import type { PoleSideSettings } from '@irdashies/types';
@@ -72,6 +81,11 @@ interface ProcessorRegistryOptions {
    * without it the system performance channel carries only the sim's meters.
    */
   systemLoad?: SystemLoadSource;
+  /**
+   * The stored track profiles and the simulator they are filed under;
+   * without them the track profile channel names no track.
+   */
+  trackProfiles?: { source: TrackProfileSource; simulator: string };
   /** The race plan in use and its history; without it there is no plan. */
   racePlan?: {
     getPlan: () => RacePlanSelection | null;
@@ -117,6 +131,7 @@ export const createProcessorDefinitions = ({
   radarPoleSides,
   flagTuning,
   systemLoad,
+  trackProfiles,
   racePlan,
 }: ProcessorRegistryOptions): readonly AnyProcessorDefinition[] => [
   defineProcessor({
@@ -140,6 +155,23 @@ export const createProcessorDefinitions = ({
     channel: 'car-speeds.snapshot',
     metricsPrefix: 'carSpeeds',
     create: () => new CarSpeedsProcessor(),
+  }),
+  defineProcessor({
+    channel: 'car-pit.snapshot',
+    // Stops and stints are counted over the whole race, so a hidden overlay
+    // must not miss one.
+    processWhileHidden: true,
+    metricsPrefix: 'carPit',
+    create: () => new CarPitProcessor(),
+  }),
+  defineProcessor({
+    channel: 'track-profile.snapshot',
+    metricsPrefix: 'trackProfile',
+    create: () =>
+      new TrackProfileProcessor(
+        trackProfiles?.source,
+        trackProfiles?.simulator
+      ),
   }),
   defineProcessor({
     channel: 'flag-state.snapshot',
@@ -252,9 +284,33 @@ export const createProcessorDefinitions = ({
     create: () => new TyreStateProcessor(),
   }),
   defineProcessor({
+    channel: 'wheel-dynamics.snapshot',
+    metricsPrefix: 'wheelDynamics',
+    create: () => new WheelDynamicsProcessor(),
+  }),
+  defineProcessor({
+    channel: 'damage.snapshot',
+    metricsPrefix: 'damage',
+    create: () => new DamageProcessor(),
+  }),
+  defineProcessor({
     channel: 'system-performance.snapshot',
     metricsPrefix: 'systemPerformance',
     create: () => new SystemPerformanceProcessor(systemLoad),
+  }),
+  defineProcessor({
+    channel: 'g-force.snapshot',
+    // The held maxima outlast the overlay being hidden.
+    retainWhenInactive: true,
+    metricsPrefix: 'gForce',
+    create: () => new GForceProcessor(),
+  }),
+  defineProcessor({
+    channel: 'braking.snapshot',
+    // So do the last zone and the bests it is measured against.
+    retainWhenInactive: true,
+    metricsPrefix: 'braking',
+    create: () => new BrakingProcessor(),
   }),
   defineProcessor({
     channel: 'weather-forecast.snapshot',

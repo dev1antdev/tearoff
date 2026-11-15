@@ -39,9 +39,13 @@ import { SectorDeltaSettings } from './sections/SectorDeltaSettings';
 import { DeltaSpeedSettings } from './sections/DeltaSpeedSettings';
 import { CarSystemsSettings } from './sections/CarSystemsSettings';
 import { TyresSettings } from './sections/TyresSettings';
+import { ChassisSettings } from './sections/ChassisSettings';
+import { DamageSettings } from './sections/DamageSettings';
 import { LiftCoastSettings } from './sections/LiftCoastSettings';
 import { HybridSettings } from './sections/HybridSettings';
 import { SystemPerformanceSettings } from './sections/SystemPerformanceSettings';
+import { FrictionCircleSettings } from './sections/FrictionCircleSettings';
+import { BrakePerformanceSettings } from './sections/BrakePerformanceSettings';
 import { LapDeltaSettings } from './sections/LapDeltaSettings';
 import { CornerDeltaSettings } from './sections/CornerDeltaSettings';
 import { TimingSettings } from './sections/TimingSettings';
@@ -93,9 +97,13 @@ export const WIDGET_SETTINGS: Record<
   deltaspeed: DeltaSpeedSettings,
   carsystems: CarSystemsSettings,
   tyres: TyresSettings,
+  chassis: ChassisSettings,
+  damage: DamageSettings,
   liftcoast: LiftCoastSettings,
   hybrid: HybridSettings,
   systemperformance: SystemPerformanceSettings,
+  frictioncircle: FrictionCircleSettings,
+  brakeperformance: BrakePerformanceSettings,
   lapdelta: LapDeltaSettings,
   cornerdelta: CornerDeltaSettings,
   timing: TimingSettings,

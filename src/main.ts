@@ -64,7 +64,7 @@ import {
   closeLapLibraryOnShutdown,
   startLapLibrary,
 } from './app/storage/lapLibrary';
-import { PlayerLapRecorder } from './app/processors/PlayerLapRecorder';
+import { PlayerLedgerRuntime } from './app/processors/playerLedgerRuntime';
 import { wirePlayerLapRecording } from './app/playerLapRecording';
 import { setupLapLibraryBridge } from './app/bridge/lapLibraryBridge';
 import { flushLapTracesOnShutdown } from './app/storage/lapTraces';
@@ -80,6 +80,11 @@ import {
 } from './app/storage/settingsWindowBounds';
 import { flushSimulatorUsageOnShutdown } from './app/storage/simulatorUsage';
 import { flushTrackCarStoreOnShutdown } from './app/storage/trackCarStore';
+import { flushTrackProfilesOnShutdown } from './app/storage/trackProfiles';
+import {
+  setupTrackProfileRecording,
+  startTrackProfiles,
+} from './app/trackProfileRecording';
 import { setupChromiumFlagsBridge } from './app/bridge/chromiumFlagsBridge';
 import { getHiddenWidgets } from './app/widgetVisibility';
 import { setupRaceControlBridge } from './app/bridge/raceControlBridge';
@@ -221,6 +226,7 @@ let sessionProfileSwitcher: SessionProfileSwitcher | undefined;
 let incidentRuntime: IncidentRuntime | undefined;
 let disposeLapHistoryRuntime: (() => void) | undefined;
 let disposeLapLibraryRecording: (() => void) | undefined;
+let disposeTrackProfileRecording: (() => void) | undefined;
 let disposePitStopRuntime: (() => void) | undefined;
 let disposeStreamChat: (() => void) | undefined;
 let disposeReplayContextRuntime: (() => void) | undefined;
@@ -264,7 +270,9 @@ const replayArchiveIndex: ArchiveIndex = {
 let disposeRendererDataSubscriptions: (() => void) | undefined;
 
 /**
- * Records every lap the player completes into the lap library.
+ * Records every lap the player completes into the lap library, with what
+ * the lap cost and the stint it belongs to, and publishes the player's
+ * ledger and stint channels.
  *
  * Hosted outside the ProcessorHost, like the lap history: a processor runs
  * only while a window wants its channel, and a library that recorded laps
@@ -281,17 +289,22 @@ function setupLapLibraryRecording(replayContext: ReplayContextRuntime): void {
     process.env.IRDASHIES_TELEMETRY_REPLAY || process.env.IRDASHIES_LMU_REPLAY
   );
   const bootId = Date.now().toString(36);
-  let recorder: PlayerLapRecorder | undefined;
+  let ledger: PlayerLedgerRuntime | undefined;
   let replaySource = false;
 
+  // A tape, a replay source and demo mode are measured and shown, but none
+  // of it is the player's to keep. With a replay file loaded nothing is
+  // measured at all: scrubbing is not driving.
   const applyEnabled = () => {
-    recorder?.setEnabled(
-      !isTapeReplay &&
-        !replaySource &&
-        !replayContext.isReplayFile() &&
-        !getIsDemoMode()
-    );
+    ledger?.setPersisting(!isTapeReplay && !replaySource && !getIsDemoMode());
+    ledger?.setPaused(replayContext.isReplayFile());
   };
+  // Before any ledger exists, so that one hears of a replay source before
+  // it starts over for the new connection.
+  const unsubscribeEnter = lifecycle.onEnter(({ replay }) => {
+    replaySource = replay;
+    applyEnabled();
+  });
 
   // The simulator as well as the bridge: left on auto-detect, the bridge is
   // there before any game is found, and the recorder can only be made once
@@ -303,33 +316,38 @@ function setupLapLibraryRecording(replayContext: ReplayContextRuntime): void {
     onSimulatorChanged: onActiveSimulatorChanged,
     createRecorder: (simulator) => {
       log.info(`[LapLibrary] Recording the player's laps for ${simulator}`);
-      return new PlayerLapRecorder(
-        { record: (session, lap) => library.recordLap(session, lap) },
-        { simulator, bootId, now: () => Date.now() }
+      return new PlayerLedgerRuntime(
+        channelBus,
+        lifecycle,
+        runtimePerfMetrics,
+        library,
+        {
+          simulator,
+          bootId,
+          now: () => Date.now(),
+          log: (message) => log.info(message),
+          logError: (message, error) => log.error(message, error),
+        }
       );
     },
     onRecorderChanged: (next) => {
-      recorder = next;
+      // The one before stores what it has in hand and lets go.
+      ledger?.dispose();
+      ledger = next;
       applyEnabled();
     },
   });
-  const unsubscribeEnter = lifecycle.onEnter(({ replay }) => {
-    replaySource = replay;
-    recorder?.onEnter();
-    applyEnabled();
-  });
-  const unsubscribeDisconnect = lifecycle.onDisconnect(() =>
-    recorder?.onDisconnect()
-  );
   const unsubscribeReplayContext = replayContext.onChange(applyEnabled);
 
+  // Before the library closes: the lap waiting for its time and the open
+  // stint are stored by this.
   disposeLapLibraryRecording = () => {
     disposeWiring();
     unsubscribeEnter();
-    unsubscribeDisconnect();
     unsubscribeReplayContext();
     disposeBridge();
-    recorder = undefined;
+    ledger?.dispose();
+    ledger = undefined;
   };
 }
 
@@ -411,6 +429,32 @@ function setupLapHistoryRuntime(
     unsubscribeReplayContext();
     runtime.dispose();
   };
+}
+
+/**
+ * Builds each track's profile (its elevation, its line and its sector
+ * starts) from the laps the player drives. Always on and outside the
+ * ProcessorHost, like the lap library and for the same reason; like it, it
+ * takes nothing from a tape, a replay or demo mode.
+ */
+function setupTrackProfiles(replayContext: ReplayContextRuntime): void {
+  const isTapeReplay = Boolean(
+    process.env.IRDASHIES_TELEMETRY_REPLAY || process.env.IRDASHIES_LMU_REPLAY
+  );
+  disposeTrackProfileRecording = setupTrackProfileRecording({
+    store: startTrackProfiles(),
+    getBridge: getCurrentBridge,
+    getSimulator: getActiveSimulator,
+    onBridgeChanged,
+    onSimulatorChanged: onActiveSimulatorChanged,
+    lifecycle: getSessionLifecycle(),
+    isLive: () =>
+      !isTapeReplay && !replayContext.isReplayFile() && !getIsDemoMode(),
+    onLiveChanged: (callback) => replayContext.onChange(callback),
+    metrics: runtimePerfMetrics,
+    logInfo: (message) => log.info(message),
+    logError: (message, error) => log.error(message, error),
+  });
 }
 
 const pitStopPersistence: PitStopPersistence = {
@@ -646,6 +690,8 @@ void app.whenReady().then(async () => {
   // Before the telemetry bridge: its reference recorder asks the library
   // for the player's all-time lap as soon as it is created.
   startLapLibrary();
+  // Likewise: the track profile channel reads them from its first frame.
+  startTrackProfiles();
   await iRacingSDKSetup(overlayManager, channelBus);
   setupTapeReplayBridge(getCurrentBridge);
   if (process.env.IRDASHIES_TELEMETRY_REPLAY) createTapeReplayWindow();
@@ -693,6 +739,7 @@ void app.whenReady().then(async () => {
   setupRaceControlBridge(incidents, dashboard, replayContextRuntime);
   setupLapHistoryRuntime(dashboard, replayContextRuntime);
   setupLapLibraryRecording(replayContextRuntime);
+  setupTrackProfiles(replayContextRuntime);
   setupPitStopRuntime(dashboard, replayContextRuntime);
   disposeStreamChat = setupStreamChat(channelBus, listDashboards);
   // Returns false when the Gantry widget is disabled, so Settings can explain
@@ -908,6 +955,7 @@ const handleBeforeQuit = createBeforeQuitHandler({
     incidentRuntime?.dispose();
     disposeLapHistoryRuntime?.();
     disposeLapLibraryRecording?.();
+    disposeTrackProfileRecording?.();
     disposePitStopRuntime?.();
     disposeOverlayVisibility?.();
     disposeStreamChat?.();
@@ -936,6 +984,7 @@ const handleBeforeQuit = createBeforeQuitHandler({
       flushSettingsWindowBoundsOnShutdown(),
       flushSimulatorUsageOnShutdown(),
       flushTrackCarStoreOnShutdown(),
+      flushTrackProfilesOnShutdown(),
     ]);
   },
   quit: () => app.quit(),

@@ -45,12 +45,29 @@ const TEMPERATURE_DECIMALS = 1;
 const PRESSURE_DECIMALS = 1;
 const TREAD_DECIMALS = 3;
 
+/**
+ * Time constant of the pressure averages the deviation is taken from,
+ * seconds. TinyPedal averages over 500 of its 20 ms ticks, which is the same
+ * 5 s.
+ */
+const PRESSURE_AVERAGE_TAU_S = 5;
+/** A longer gap than this between two ticks is averaged as if it were this. */
+const MAX_STEP_S = 1;
+/**
+ * A pressure that moves this far between two ticks is another tyre, not the
+ * same one warming up: the averages start again from the new readings.
+ */
+const TYRE_CHANGE_KPA = 15;
+/** Stands in a list of pressures for a wheel that gave none. */
+const NO_PRESSURE = Number.NaN;
+
 const emptyWheel = (): TyreWheelState => ({
   surfaceTempC: null,
   innerLayerTempC: null,
   carcassTempC: null,
   optimalTempC: null,
   pressureKpa: null,
+  pressureDeviationKpa: null,
   treadRemaining: null,
   brakeTempC: null,
   compound: COMPOUND_UNKNOWN,
@@ -64,6 +81,11 @@ const emptyWheel = (): TyreWheelState => ({
  * under a sim that does not publish them at all -- and the snapshot then says
  * `available: false` rather than holding the last reading: a tyre temperature
  * from before the driver got out is not a reading of anything.
+ *
+ * One figure is not a reading of the tick: how far each wheel's pressure sits
+ * below the highest of the four. It is taken from an average of each
+ * pressure over the session clock, so that a kerb or a hot corner does not
+ * make it jump, and the averages are dropped with the readings.
  */
 export class TyreStateProcessor implements TelemetryProcessor<TyreStateSnapshot> {
   readonly channel = 'tyre-state.snapshot';
@@ -81,6 +103,22 @@ export class TyreStateProcessor implements TelemetryProcessor<TyreStateSnapshot>
     sessionNum: null,
     version: 0,
   };
+
+  /** Each wheel's averaged pressure, kPa; meaningful while `averaging`. */
+  private readonly pressureAverages = [0, 0, 0, 0];
+  /** The pressures of the previous tick, to tell a tyre change by. */
+  private readonly lastPressures = [0, 0, 0, 0];
+  private averaging = false;
+  /** SessionTime at the previous tick. */
+  private lastTime: number | undefined;
+  /** This tick's pressures, kPa, reused every tick; NaN is no reading. */
+  private readonly pressures = [
+    NO_PRESSURE,
+    NO_PRESSURE,
+    NO_PRESSURE,
+    NO_PRESSURE,
+  ];
+  private readonly deviations: (number | null)[] = [null, null, null, null];
 
   /**
    * Deliberately does nothing: the host calls this on every session publish,
@@ -114,6 +152,7 @@ export class TyreStateProcessor implements TelemetryProcessor<TyreStateSnapshot>
         }
         this.latest.version += 1;
       }
+      this.dropPressureAverages();
       return;
     }
 
@@ -124,6 +163,14 @@ export class TyreStateProcessor implements TelemetryProcessor<TyreStateSnapshot>
     const compounds = numbers(frame, 'LmuCarIdxWheelCompounds');
     const playerCarIdx = scalar(frame, 'PlayerCarIdx');
 
+    // Named "cold" after iRacing's channel, but LMU fills it with the live
+    // pressure, in kPa.
+    for (let wheel = 0; wheel < WHEEL_COUNT; wheel += 1) {
+      this.pressures[wheel] =
+        scalar(frame, `${CORNERS[wheel]}coldPressure`) ?? NO_PRESSURE;
+    }
+    this.updatePressureDeviations(scalar(frame, 'SessionTime'));
+
     for (let wheel = 0; wheel < WHEEL_COUNT; wheel += 1) {
       const corner = CORNERS[wheel];
       const next: TyreWheelState = {
@@ -131,12 +178,11 @@ export class TyreStateProcessor implements TelemetryProcessor<TyreStateSnapshot>
         innerLayerTempC: this.zones(innerLayer, wheel),
         carcassTempC: this.temperature(carcass?.[wheel]),
         optimalTempC: this.temperature(optimal?.[wheel]),
-        // Named "cold" after iRacing's channel, but LMU fills it with the live
-        // pressure, in kPa.
         pressureKpa: this.rounded(
-          scalar(frame, `${corner}coldPressure`),
+          finite(this.pressures[wheel]),
           PRESSURE_DECIMALS
         ),
+        pressureDeviationKpa: this.deviations[wheel],
         treadRemaining: this.rounded(
           scalar(frame, `${corner}wearM`),
           TREAD_DECIMALS
@@ -168,10 +214,73 @@ export class TyreStateProcessor implements TelemetryProcessor<TyreStateSnapshot>
     this.latest.available = false;
     this.latest.sessionNum = null;
     this.latest.version += 1;
+    this.dropPressureAverages();
   }
 
   snapshot(): TyreStateSnapshot {
     return this.latest;
+  }
+
+  private dropPressureAverages(): void {
+    this.averaging = false;
+    this.lastTime = undefined;
+  }
+
+  /**
+   * Moves each wheel's averaged pressure toward this tick's reading and
+   * fills `deviations` with how far each average sits below the highest.
+   *
+   * The averages start from the first readings rather than from zero, so the
+   * figure is right from the first tick. They start again when the session
+   * clock steps backwards and when a tyre is changed, and they are dropped,
+   * with nothing published, while any of the four wheels has no reading.
+   */
+  private updatePressureDeviations(time: number | undefined): void {
+    let allRead = true;
+    for (let wheel = 0; wheel < WHEEL_COUNT; wheel += 1) {
+      if (Number.isNaN(this.pressures[wheel])) allRead = false;
+    }
+    if (!allRead) {
+      this.dropPressureAverages();
+      this.deviations.fill(null);
+      return;
+    }
+
+    // Seconds since the previous tick; without a clock, a tick's nominal
+    // length. A clock that stands still, as in a paused sim, moves nothing.
+    const elapsed =
+      time === undefined || this.lastTime === undefined
+        ? 1 / this.tickRateHz
+        : time - this.lastTime;
+    this.lastTime = time;
+
+    let restart = !this.averaging || elapsed < 0;
+    for (let wheel = 0; wheel < WHEEL_COUNT && !restart; wheel += 1) {
+      restart =
+        Math.abs(this.pressures[wheel] - this.lastPressures[wheel]) >
+        TYRE_CHANGE_KPA;
+    }
+
+    const gain =
+      1 - Math.exp(-Math.min(elapsed, MAX_STEP_S) / PRESSURE_AVERAGE_TAU_S);
+    let highest = Number.NEGATIVE_INFINITY;
+    for (let wheel = 0; wheel < WHEEL_COUNT; wheel += 1) {
+      const pressure = this.pressures[wheel];
+      this.lastPressures[wheel] = pressure;
+      this.pressureAverages[wheel] = restart
+        ? pressure
+        : this.pressureAverages[wheel] +
+          gain * (pressure - this.pressureAverages[wheel]);
+      highest = Math.max(highest, this.pressureAverages[wheel]);
+    }
+    this.averaging = true;
+
+    for (let wheel = 0; wheel < WHEEL_COUNT; wheel += 1) {
+      this.deviations[wheel] = round(
+        highest - this.pressureAverages[wheel],
+        PRESSURE_DECIMALS
+      );
+    }
   }
 
   private rounded(value: number | undefined, decimals: number): number | null {
@@ -212,6 +321,7 @@ export class TyreStateProcessor implements TelemetryProcessor<TyreStateSnapshot>
       a.carcassTempC === b.carcassTempC &&
       a.optimalTempC === b.optimalTempC &&
       a.pressureKpa === b.pressureKpa &&
+      a.pressureDeviationKpa === b.pressureDeviationKpa &&
       a.treadRemaining === b.treadRemaining &&
       a.brakeTempC === b.brakeTempC &&
       a.compound === b.compound

@@ -70,6 +70,14 @@ export interface LedgerLap {
   /** Overall and class position at the line. */
   position: number | null;
   classPosition: number | null;
+  /**
+   * Hybrid battery spent and recovered over the lap, in percentage points of
+   * its charge; null for a car without one. Measured and published, but not
+   * stored by the lap library yet: their two columns come with the hybrid
+   * widget, which is why they are optional here.
+   */
+  batteryDrainPct?: number | null;
+  batteryRegenPct?: number | null;
 }
 
 export type StintOpenedBy = 'pitExit' | 'green' | 'joined';

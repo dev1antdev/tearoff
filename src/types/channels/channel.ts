@@ -10,9 +10,16 @@ import type { ReplayContextSnapshot } from './replayContext';
 import type { FlagStateSnapshot } from './flagState';
 import type { HybridSnapshot } from './hybrid';
 import type { SystemPerformanceSnapshot } from './systemPerformance';
+import type { GForceSnapshot } from './gForce';
+import type { BrakingSnapshot } from './braking';
+import type { DamageSnapshot } from './damage';
+import type { WheelDynamicsSnapshot } from './wheelDynamics';
 import type { WeatherForecastSnapshot } from './weatherForecast';
 import type { RacePlanProgressSnapshot } from './racePlanProgress';
 import type { PitStopsSnapshot } from './pitStops';
+import type { PlayerLedgerSnapshot, PlayerStintSnapshot } from './playerLedger';
+import type { CarPitSnapshot } from './carPit';
+import type { TrackProfileSnapshot } from './trackProfile';
 import type { PitLaneCalibration } from '../pitLane';
 
 export type SessionLifecycleEvent =
@@ -42,7 +49,11 @@ export interface ChannelPayloads {
   'standings.snapshot': StandingsSnapshot;
   'track-state.snapshot': TrackStateSnapshot;
   'tyre-state.snapshot': TyreStateSnapshot;
+  'wheel-dynamics.snapshot': WheelDynamicsSnapshot;
+  'damage.snapshot': DamageSnapshot;
   'system-performance.snapshot': SystemPerformanceSnapshot;
+  'g-force.snapshot': GForceSnapshot;
+  'braking.snapshot': BrakingSnapshot;
   'weather-forecast.snapshot': WeatherForecastSnapshot;
   'minimap.snapshot': MinimapSnapshot;
   'lap-delta.snapshot': LapDeltaSnapshot;
@@ -59,6 +70,10 @@ export interface ChannelPayloads {
   'streamchat.emotes': StreamChatEmotesSnapshot;
   'race-plan.progress': RacePlanProgressSnapshot;
   'pit-stops.snapshot': PitStopsSnapshot;
+  'player-ledger.snapshot': PlayerLedgerSnapshot;
+  'player-stint.snapshot': PlayerStintSnapshot;
+  'car-pit.snapshot': CarPitSnapshot;
+  'track-profile.snapshot': TrackProfileSnapshot;
 }
 
 export interface TrackStateSnapshot {
@@ -398,6 +413,11 @@ export interface TyreWheelState {
   optimalTempC: number | null;
   /** Live pressure. */
   pressureKpa: number | null;
+  /**
+   * How far this wheel's averaged pressure sits below the highest of the four,
+   * kPa, to 0.1; 0 for the highest wheel. Null until all four have read.
+   */
+  pressureDeviationKpa: number | null;
   /** Tread left: 1 for a new tyre, falling toward 0. */
   treadRemaining: number | null;
   brakeTempC: number | null;
@@ -1087,11 +1107,39 @@ export const channelRegistry = {
     defaultRateHz: 5,
     maxRateHz: 10,
   },
+  // Figures to read at each corner of the car, not positions to animate: ten
+  // a second is legible, and the processor still smooths at 25.
+  'wheel-dynamics.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 10,
+    maxRateHz: 25,
+  },
+  // Published when the car is hit or something on it changes, which is a
+  // handful of times a race; the cap only bounds a crash that changes several
+  // zones at once.
+  'damage.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 5,
+    maxRateHz: 10,
+  },
   // The machine is read once a second; nothing here moves faster than that.
   'system-performance.snapshot': {
     kind: 'snapshot',
     defaultRateHz: 1,
     maxRateHz: 2,
+  },
+  // The dot of the friction circle: input-style, like the pedals.
+  'g-force.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 30,
+    maxRateHz: 60,
+  },
+  // Nothing moves between braking zones; inside one, the running distance
+  // and time are figures to read.
+  'braking.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 10,
+    maxRateHz: 20,
   },
   // Minutes to a change in the weather: in steady weather about one
   // publication a minute, and never a figure that moves within a second.
@@ -1153,6 +1201,36 @@ export const channelRegistry = {
     kind: 'snapshot',
     defaultRateHz: 1,
     maxRateHz: 2,
+  },
+  // The player's finished laps and stints. Publishes when a row or a stint is
+  // added or patched, which is once or twice a lap; the cap bounds nothing
+  // in practice.
+  'player-ledger.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 2,
+    maxRateHz: 5,
+  },
+  // The stint under way. Its figures are rounded so that it moves about once
+  // a second while driving.
+  'player-stint.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 5,
+    maxRateHz: 10,
+  },
+  // Publishes on change: a car in the pit lane moves its timer five times a
+  // second, and with nobody in the lane a lap completion is all that does.
+  'car-pit.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 2,
+    maxRateHz: 5,
+  },
+  // Publishes when the track changes, when its stored profile does, and at
+  // each 5 % of the lap recording a track's first profile. The cap only
+  // bounds a burst of note edits.
+  'track-profile.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 2,
+    maxRateHz: 5,
   },
 } as const satisfies ChannelRegistry;
 

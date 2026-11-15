@@ -40,9 +40,12 @@ export const LAP_LIBRARY_MAX_LAPS = 5000;
 export interface LapLibraryService {
   /**
    * Stores a finished lap, with its ledger row and stint when it carries
-   * them. Returns at once; failures are logged, not thrown.
+   * them. Returns at once; failures are logged, not thrown. What it returns
+   * settles with the lap's row id once the lap is stored, or with null when
+   * it was not; it never rejects, so a caller with no use for the id can
+   * let it go.
    */
-  recordLap(session: LapSessionInput, lap: LapInput): void;
+  recordLap(session: LapSessionInput, lap: LapInput): Promise<number | null>;
   /**
    * Stores a stint, or brings the stored one up to date: for when a stint
    * opens and when it closes. Returns at once; failures are logged.
@@ -245,10 +248,10 @@ export const createLapLibraryService = (
 
   return {
     recordLap(session, lap) {
-      if (down) return;
-      client
+      if (down) return Promise.resolve(null);
+      return client
         .call('recordLap', session, lap)
-        .then(({ eligible, ledgerError }) => {
+        .then(({ lapId, eligible, ledgerError }) => {
           if (ledgerError !== null) {
             options.logError(
               '[LapLibrary] A lap was stored without its ledger:',
@@ -263,9 +266,11 @@ export const createLapLibraryService = (
             lapsSincePrune = 0;
             prune();
           }
+          return lapId;
         })
         .catch((error: unknown) => {
           options.logError('[LapLibrary] Could not record a lap:', error);
+          return null;
         });
     },
 

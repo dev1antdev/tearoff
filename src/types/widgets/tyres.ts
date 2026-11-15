@@ -31,6 +31,15 @@ export default defineWidgetManifest({
       rear: 186,
       tolerance: 3.5,
     },
+    pressureColdBelow: 65,
+    // The three rows below are off so that a saved dashboard keeps its look
+    // and the default height still fits; with load and deflection on, the
+    // widget wants about 430 px.
+    showPressureDeviation: false,
+    showLoad: false,
+    lowLoadThreshold: 1,
+    showDeflection: false,
+    liftOffThreshold: 1,
     showBrakes: true,
     showWear: false,
     showCompound: true,
@@ -168,6 +177,56 @@ export default defineWidgetManifest({
       max: 50,
       step: 0.5,
       units: 'kPa',
+    },
+    pressureColdBelow: {
+      type: 'number',
+      control: 'input',
+      label: 'Cold Tyre Below',
+      description:
+        'While the carcass of a tyre is under this temperature its pressure is drawn blue whatever the target says: a cold pressure cannot be judged against a hot target. 0 switches this off.',
+      min: 0,
+      max: 150,
+      step: 1,
+      units: '°C',
+    },
+    showPressureDeviation: {
+      type: 'boolean',
+      label: 'Show Pressure Deviation',
+      description:
+        'Under each pressure, how far it sits below the highest of the four, averaged over a few seconds. The highest wheel reads 0.0.',
+    },
+    showLoad: {
+      type: 'boolean',
+      label: 'Show Load Share',
+      description:
+        'A bar under each tyre for its share of the load on all four wheels, full at 50%. The share is taken from suspension load when the sim withholds tyre load, as Le Mans Ultimate does, which makes it an estimate: the split between left and right is sound, the split between front and rear is approximate.',
+    },
+    lowLoadThreshold: {
+      type: 'number',
+      control: 'input',
+      label: 'Low Load At',
+      description: 'At or below this share the bar and its figure turn red.',
+      min: 0,
+      max: 25,
+      step: 1,
+      units: '%',
+    },
+    showDeflection: {
+      type: 'boolean',
+      label: 'Show Tyre Deflection',
+      description:
+        'How far each tyre is squashed, in millimetres. A wheel in the air reads 0.',
+    },
+    liftOffThreshold: {
+      type: 'number',
+      control: 'input',
+      label: 'Lift-Off At',
+      description:
+        'At or below this deflection the figure turns red: the wheel is off the ground, or all but.',
+      min: 0,
+      max: 20,
+      step: 1,
+      units: 'mm',
     },
     showBrakes: {
       type: 'boolean',

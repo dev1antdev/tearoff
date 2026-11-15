@@ -39,6 +39,7 @@ export interface RendererPerfSample {
   standingsFinalTimingMs?: NumericSampleStats;
   lapTraceFrameMs?: NumericSampleStats;
   lapTraceBrakeCueMs?: NumericSampleStats;
+  frictionCircleFrameMs?: NumericSampleStats;
   widgetDragMs?: NumericSampleStats;
   telemetryWakeups?: number;
   channelWakeups?: number;
@@ -57,6 +58,7 @@ export const RENDERER_PERF_MEASURE_NAMES = [
   'standingsFinalTiming',
   'lapTraceFrame',
   'lapTraceBrakeCue',
+  'frictionCircleFrame',
   'widgetDrag',
 ] as const;
 

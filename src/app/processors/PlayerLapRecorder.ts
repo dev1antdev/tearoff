@@ -5,6 +5,7 @@ import type {
   Session,
   Telemetry,
 } from '@irdashies/types';
+import { voidFlagIsThisLaps } from '../../shared/lapValidity';
 import {
   bucketIndex,
   crossingTime,
@@ -20,6 +21,35 @@ export interface PlayerLapSink {
   record(session: LapSessionInput, lap: LapInput): void;
 }
 
+/** A lap as the recorder closed it, for whoever follows the same laps. */
+export interface ClosedLap {
+  session: LapSessionInput;
+  lap: LapInput;
+  /** Session clock at the two ends, seconds. */
+  startTime: number;
+  endTime: number;
+  /** Opened by the car being let go from the line, not at a crossing. */
+  fromStart: boolean;
+}
+
+/**
+ * Told where the recorder's laps begin and end, so that whatever else is
+ * measured per lap is measured over the very same laps. Called whether or
+ * not laps are being stored.
+ */
+export interface PlayerLapHooks {
+  /**
+   * A lap opened: at a line crossing, or, with `fromStart`, by the car
+   * being let go from the line. At a crossing that also ended a lap this
+   * follows `onLapClosed` on the same frame.
+   */
+  onLapOpened?(startTime: number, frame: Telemetry, fromStart: boolean): void;
+  /** A lap ended at the line. Called before the lap is handed to the sink. */
+  onLapClosed?(closed: ClosedLap, frame: Telemetry): void;
+  /** The lap under way was given up; there will be no row for it. */
+  onLapAbandoned?(): void;
+}
+
 export interface PlayerLapRecorderOptions {
   /** 'iracing' or 'lmu'. */
   simulator: string;
@@ -30,12 +60,11 @@ export interface PlayerLapRecorderOptions {
    * two runs never collide.
    */
   bootId: string;
+  hooks?: PlayerLapHooks;
 }
 
 /** Conversion from the m/s of the raw `Speed` channel to the km/h stored. */
 const MS_TO_KPH = 3.6;
-/** Where a lap is far enough from the line that LMU's void flag is its own. */
-const INVALIDATION_START_PCT = 0.05;
 /**
  * Further back than this in one step is not driving: the car was returned to
  * its pit, or the sim reset it. A spin that rolls backwards stays inside it.
@@ -48,6 +77,11 @@ const FORWARD_JUMP_PCT = 0.25;
  * have moved on yet; a tenth of the way round it has.
  */
 const LAP_NUMBER_PCT = 0.1;
+/**
+ * A car let go from the line is first seen this close to it. Further round,
+ * a fraction that leaves 0 is the sim placing the car somewhere, not a start.
+ */
+const RELEASE_MAX_PCT = 0.05;
 
 const numberAt = (
   frame: Telemetry,
@@ -66,6 +100,8 @@ const flagAt = (frame: Telemetry, key: keyof Telemetry, index = 0): boolean => {
 /** The lap being driven, from the crossing that began it. */
 interface ActiveLap {
   startTime: number;
+  /** Opened by a release from the line: its start was not a crossing. */
+  fromStart: boolean;
   lapNumber: number | null;
   pointPos: Float32Array;
   times: Float32Array;
@@ -92,8 +128,19 @@ interface ActiveLap {
  * decided from those facts later, not here.
  *
  * A lap is timed between two line crossings that were both seen. The stretch
- * driven before the first crossing -- leaving the pits, joining mid-lap, the
- * start of a race in Le Mans Ultimate -- is not a lap and is not recorded.
+ * driven before the first crossing -- leaving the pits, joining mid-lap --
+ * is not a lap and is not recorded. The one lap that does not begin at a
+ * crossing is the first of a Le Mans Ultimate race: the sim holds a car
+ * rolling up to the start at a lap fraction of exactly 0 and lets it go at
+ * the line, so no crossing is ever seen. That lap opens when the fraction is
+ * let go, is marked as begun from the start, and is kept without a curve:
+ * its first metres were not sampled and its clock did not start at a
+ * crossing, so it can never be a reference.
+ *
+ * Timing and storing are separate. Laps are timed, and the hooks told of
+ * them, for as long as the recorder is enabled; `setPersisting(false)` only
+ * stops them being handed to the sink, which is what a tape, a replay
+ * source and demo mode want.
  */
 export class PlayerLapRecorder {
   private playerCarIdx = -1;
@@ -110,25 +157,81 @@ export class PlayerLapRecorder {
   private backwardJumpPct = 0;
 
   private enabled = true;
+  private persisting = true;
   private sessionNum: number | null = null;
   private tokenCounter = 0;
   private token = '';
   private active: ActiveLap | null = null;
   private prevPct: number | null = null;
   private prevTime: number | null = null;
+  /** The frame before this one had the car held at the line. */
+  private heldAtLine = false;
+  private readonly hooks: PlayerLapHooks;
 
   constructor(
     private readonly sink: PlayerLapSink,
     private readonly options: PlayerLapRecorderOptions
   ) {
+    this.hooks = options.hooks ?? {};
     this.nextToken();
   }
 
-  /** Stops or resumes recording. A lap under way when stopped is dropped. */
+  /**
+   * Stops or resumes timing altogether: no laps, and no word to the hooks.
+   * A lap under way when stopped is dropped.
+   */
   setEnabled(enabled: boolean): void {
     if (enabled === this.enabled) return;
     this.enabled = enabled;
     this.abandonLap();
+  }
+
+  /**
+   * Stops or resumes handing laps to the sink. Laps are timed and the hooks
+   * are called all the same, and the lap under way carries on.
+   */
+  setPersisting(persisting: boolean): void {
+    this.persisting = persisting;
+  }
+
+  /** Names the session laps are filed under: one run of one session. */
+  sessionToken(): string {
+    return this.token;
+  }
+
+  /** Moves when the event, track or car is another one. */
+  identityKey(): string {
+    return this.identity;
+  }
+
+  /** False while the sim names no car for the player. */
+  hasPlayer(): boolean {
+    return this.playerPresent && this.playerCarIdx >= 0;
+  }
+
+  /** The player's slot, or -1. */
+  playerSlot(): number {
+    return this.playerCarIdx;
+  }
+
+  /** How many ten-metre points a lap of this track has; 0 when unknown. */
+  curvePoints(): number {
+    return this.pointsCount;
+  }
+
+  /** Whether a lap is being timed. */
+  hasOpenLap(): boolean {
+    return this.active !== null;
+  }
+
+  /**
+   * The session a lap closed now would be filed under, or null before the
+   * sim has described one.
+   */
+  currentSession(): LapSessionInput | null {
+    return this.sessionInfo && this.carKey !== ''
+      ? this.sessionInput(this.sessionInfo)
+      : null;
   }
 
   /**
@@ -215,30 +318,43 @@ export class PlayerLapRecorder {
     const trackPct = numberAt(frame, 'CarIdxLapDistPct', this.playerCarIdx);
     const prevPct = this.prevPct;
     const prevTime = this.prevTime;
+    const wasHeld = this.heldAtLine;
     this.prevTime = sessionTime;
-    if (
-      trackPct === null ||
-      trackPct < 0 ||
-      trackPct > 1 ||
-      isHeldAtLine(trackPct)
-    ) {
+    this.heldAtLine = false;
+    if (trackPct === null || trackPct < 0 || trackPct > 1) {
       this.abandonLap();
       return;
     }
+    if (isHeldAtLine(trackPct)) {
+      this.abandonLap();
+      this.heldAtLine = true;
+      return;
+    }
     this.prevPct = trackPct;
+    if (
+      wasHeld &&
+      this.isRelease(trackPct, frame) &&
+      prevTime !== null &&
+      sessionTime >= prevTime
+    ) {
+      // Let go from the line: the first lap of the race starts here.
+      this.openLap(sessionTime, frame, true);
+      this.sample(this.active as ActiveLap, trackPct, sessionTime, frame);
+      return;
+    }
     if (prevPct === null || prevTime === null) return;
     // The clock ran backwards: a restart, or a replay being scrubbed.
     if (sessionTime < prevTime) {
-      this.active = null;
+      this.dropLap();
       return;
     }
 
     if (isLineCrossing(prevPct, trackPct)) {
       const crossedAt = crossingTime(prevPct, trackPct, prevTime, sessionTime);
       if (this.active) this.finishLap(this.active, crossedAt, frame);
-      this.active = this.startLap(crossedAt, frame);
+      this.openLap(crossedAt, frame, false);
       // The frame that revealed the crossing is the new lap's first sample.
-      this.sample(this.active, trackPct, sessionTime, frame);
+      this.sample(this.active as ActiveLap, trackPct, sessionTime, frame);
       return;
     }
 
@@ -247,15 +363,35 @@ export class PlayerLapRecorder {
     const moved = trackPct - prevPct;
     if (moved < -this.backwardJumpPct || moved > FORWARD_JUMP_PCT) {
       // Put back in the pits, or reset: the lap was not driven to its end.
-      this.active = null;
+      this.dropLap();
       return;
     }
     this.sample(lap, trackPct, sessionTime, frame);
   }
 
-  private startLap(startTime: number, frame: Telemetry): ActiveLap {
-    return {
+  /**
+   * Whether a fraction that has just left 0 is the car being let go from the
+   * line. Only Le Mans Ultimate holds a car at 0, and only a car on the
+   * track is let go: one that the sim has placed in the pit lane or its
+   * garage has not started a lap by appearing there.
+   */
+  private isRelease(trackPct: number, frame: Telemetry): boolean {
+    return (
+      this.options.simulator === 'lmu' &&
+      trackPct < RELEASE_MAX_PCT &&
+      !flagAt(frame, 'CarIdxOnPitRoad', this.playerCarIdx) &&
+      !flagAt(frame, 'IsInGarage')
+    );
+  }
+
+  private openLap(
+    startTime: number,
+    frame: Telemetry,
+    fromStart: boolean
+  ): void {
+    this.active = {
       startTime,
+      fromStart,
       lapNumber: null,
       pointPos: new Float32Array(this.pointsCount).fill(-1),
       times: new Float32Array(this.pointsCount),
@@ -269,6 +405,7 @@ export class PlayerLapRecorder {
       fuelAtStart: numberAt(frame, 'FuelLevel'),
       energyAtStart: this.virtualEnergy(frame),
     };
+    this.hooks.onLapOpened?.(startTime, frame, fromStart);
   }
 
   /** Takes one frame into the lap: its facts, and a curve point if due. */
@@ -282,10 +419,7 @@ export class PlayerLapRecorder {
     // The void flag is ignored just after the line, where it may still be
     // the previous lap's: it stays set for the rest of a voided lap, so a
     // cut early in the lap is caught once past it.
-    if (
-      flagAt(frame, 'LmuLapInvalidated') &&
-      trackPct >= INVALIDATION_START_PCT
-    ) {
+    if (flagAt(frame, 'LmuLapInvalidated') && voidFlagIsThisLaps(trackPct)) {
       lap.voided = true;
     }
     if (!flagAt(frame, 'IsOnTrack')) lap.own = false;
@@ -310,8 +444,13 @@ export class PlayerLapRecorder {
     frame: Telemetry
   ): void {
     const lapTime = finishTime - lap.startTime;
-    if (!(lapTime > 0) || !this.sessionInfo) return;
-    const complete = lap.contiguous && !lap.pointPos.includes(-1);
+    if (!(lapTime > 0) || !this.sessionInfo) {
+      this.hooks.onLapAbandoned?.();
+      return;
+    }
+    // A lap let go from the line has no crossing to hang its curve on.
+    const complete =
+      !lap.fromStart && lap.contiguous && !lap.pointPos.includes(-1);
     const curve: LapCurve | null = complete
       ? {
           interval: this.interval,
@@ -323,7 +462,8 @@ export class PlayerLapRecorder {
     const incidentsNow = numberAt(frame, 'PlayerCarMyIncidentCount');
     const fuelNow = numberAt(frame, 'FuelLevel');
     const energyNow = this.virtualEnergy(frame);
-    this.sink.record(this.sessionInput(this.sessionInfo), {
+    const session = this.sessionInput(this.sessionInfo);
+    const input: LapInput = {
       lapNumber: lap.lapNumber,
       lapTime,
       completedAt: this.options.now(),
@@ -341,7 +481,18 @@ export class PlayerLapRecorder {
       trackTemp:
         numberAt(frame, 'TrackTempCrew') ?? numberAt(frame, 'TrackTemp'),
       curve,
-    });
+    };
+    this.hooks.onLapClosed?.(
+      {
+        session,
+        lap: input,
+        startTime: lap.startTime,
+        endTime: finishTime,
+        fromStart: lap.fromStart,
+      },
+      frame
+    );
+    if (this.persisting) this.sink.record(session, input);
   }
 
   /**
@@ -387,9 +538,19 @@ export class PlayerLapRecorder {
     };
   }
 
+  /** Gives up the lap under way; the next one starts at a crossing seen. */
   private abandonLap(): void {
-    this.active = null;
+    this.dropLap();
     this.prevPct = null;
+    this.heldAtLine = false;
+  }
+
+  /** Gives up the lap under way and keeps following the car. */
+  private dropLap(): void {
+    if (this.active) {
+      this.active = null;
+      this.hooks.onLapAbandoned?.();
+    }
   }
 
   private nextToken(): void {

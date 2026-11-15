@@ -191,11 +191,17 @@ describe.skipIf(!available)('lap delta on a recorded LMU session', () => {
     expect(simBestLap).toBeCloseTo(86.66, 2);
     expect(Math.abs(bestLapEvents[0].lapTime - simBestLap)).toBeLessThan(0.03);
 
-    // The library's recorder passed on that same lap and no other: the
-    // opening stretch is not a lap, and the recording ends part-way round
-    // the next. Filed under the car's model rather than the livery file LMU
-    // puts in CarPath, and fit to be a reference.
-    expect(recorded).toHaveLength(1);
+    // The library's recorder passed on two laps; the recording ends part-way
+    // round the third. The first is the one from the rolling start: it
+    // opens when the sim lets the car go at the line, is kept without a
+    // curve, and so can never be the reference.
+    expect(recorded).toHaveLength(2);
+    expect(recorded[0].lap).toMatchObject({ complete: false, curve: null });
+    expect(isEligibleLap(recorded[0].lap)).toBe(false);
+    // The second is that same lap, driven from line to line. Filed under
+    // the car's model rather than the livery file LMU puts in CarPath, and
+    // fit to be a reference.
+    recorded.shift();
     expect(recorded[0].session).toMatchObject({
       simulator: 'lmu',
       sessionKey: '',

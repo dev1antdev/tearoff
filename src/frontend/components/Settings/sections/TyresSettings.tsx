@@ -102,11 +102,13 @@ export const TyresSettings = () => {
   const followCompound =
     config.tyreWindow?.followCompound ??
     defaultConfig.tyreWindow.followCompound;
+  const showLoad = config.showLoad ?? defaultConfig.showLoad;
+  const showDeflection = config.showDeflection ?? defaultConfig.showDeflection;
 
   return (
     <BaseSettingsSection
       title="Tyres"
-      description="Tyre temperatures across the tread, pressures, tread remaining and brake temperatures for your car. Le Mans Ultimate only."
+      description="Tyre temperatures across the tread, pressures, tread remaining and brake temperatures for your car, with each wheel's share of the load and how far its tyre is squashed if you want them. Le Mans Ultimate only."
       settings={settings as TyresWidgetSettings}
       onSettingsChange={(s) => setSettings(s as TyresWidgetSettings)}
       widgetId={SETTING_ID}
@@ -175,7 +177,7 @@ export const TyresSettings = () => {
                       <SettingProp path="brakeWindow.max" />
                     </SettingsSection>
 
-                    <SettingsSection title="Target Pressure">
+                    <SettingsSection title="Pressure">
                       <SettingProp path="pressureTarget.enabled" />
                       {pressureTarget.enabled && (
                         <>
@@ -216,6 +218,19 @@ export const TyresSettings = () => {
                             }
                           />
                         </>
+                      )}
+                      <SettingDivider />
+                      <SettingProp path="pressureColdBelow" />
+                      <SettingProp path="showPressureDeviation" />
+                    </SettingsSection>
+
+                    <SettingsSection title="Load and Deflection">
+                      <SettingProp path="showLoad" />
+                      {showLoad && <SettingProp path="lowLoadThreshold" />}
+                      <SettingDivider />
+                      <SettingProp path="showDeflection" />
+                      {showDeflection && (
+                        <SettingProp path="liftOffThreshold" />
                       )}
                     </SettingsSection>
                   </>

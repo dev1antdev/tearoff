@@ -256,6 +256,9 @@ export async function publishLmuSDKEvents(
   const flagTuningStorage = channelBus
     ? await import('../../storage/flagTuning')
     : undefined;
+  const trackProfiles = channelBus
+    ? (await import('../../trackProfileRecording')).getTrackProfileSource()
+    : null;
   const processorHost =
     channelBus && referenceLapStorage
       ? createDefaultProcessorHost({
@@ -281,6 +284,9 @@ export async function publishLmuSDKEvents(
             : undefined,
           flagTuning: flagTuningStorage?.getFlagTuning,
           systemLoad: getSystemLoadSampler(),
+          trackProfiles: trackProfiles
+            ? { source: trackProfiles, simulator: 'lmu' }
+            : undefined,
         })
       : undefined;
 

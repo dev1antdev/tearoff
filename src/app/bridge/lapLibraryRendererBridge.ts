@@ -12,6 +12,8 @@ export const exposeLapLibraryBridge = () => {
       ipcRenderer.invoke('lapLibrary:listSessions', limit, offset),
     listLaps: (sessionId) =>
       ipcRenderer.invoke('lapLibrary:listLaps', sessionId),
+    listStints: (sessionId) =>
+      ipcRenderer.invoke('lapLibrary:listStints', sessionId),
     deleteLap: (lapId) => ipcRenderer.invoke('lapLibrary:deleteLap', lapId),
     deleteSession: (sessionId) =>
       ipcRenderer.invoke('lapLibrary:deleteSession', sessionId),

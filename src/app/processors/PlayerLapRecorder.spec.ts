@@ -365,7 +365,8 @@ describe('PlayerLapRecorder', () => {
 
   it('does not time a lap from a car held at the line', () => {
     // LMU reports exactly 0 until a car on the grid, or rolling up to the
-    // start, reaches the line.
+    // start, reaches the line. The wait is no part of a lap: the first lap
+    // starts when the car is let go, and is kept without a curve.
     const { recorder, recorded } = setup('lmu');
 
     recorder.onFrame(frame(0.99, 69.9));
@@ -378,10 +379,101 @@ describe('PlayerLapRecorder', () => {
     }
     recorder.onFrame(frame(0.999, 159.94));
     recorder.onFrame(frame(0.001, 160.06));
-    expect(recorded).toHaveLength(0);
+    expect(recorded).toHaveLength(1);
+    // Timed from the frame that let it go, not from the 30 s on the grid.
+    expect(recorded[0].lap.lapTime).toBeCloseTo(160 - 100.06, 6);
+    expect(recorded[0].lap).toMatchObject({ complete: false, curve: null });
 
     driveLap(recorder, 160, 60);
+    expect(recorded).toHaveLength(2);
+    expect(recorded[1].lap.complete).toBe(true);
+  });
+
+  it('starts no lap from the line under a sim that holds no car there', () => {
+    // Only Le Mans Ultimate reports a fraction of exactly 0 for a car that
+    // has not reached the line.
+    const { recorder, recorded } = setup('iracing');
+
+    recorder.onFrame(frame(0, 99.5));
+    for (let point = 0; point < 100; point += 1) {
+      const pct = (point + 0.1) / 100;
+      recorder.onFrame(frame(pct, 100 + pct * 60));
+    }
+    recorder.onFrame(frame(0.999, 159.94));
+    recorder.onFrame(frame(0.001, 160.06));
+
+    expect(recorded).toHaveLength(0);
+  });
+
+  it('starts no lap for a car the sim places in the pit lane', () => {
+    // Leaving the garage with the pit exit just past the line looks the
+    // same in the lap fraction: 0, then a little more than 0.
+    const { recorder, recorded } = setup('lmu');
+
+    recorder.onFrame(frame(0, 99.5, { onPitRoad: true }));
+    for (let point = 0; point < 100; point += 1) {
+      const pct = (point + 0.1) / 100;
+      recorder.onFrame(frame(pct, 100 + pct * 60, { onPitRoad: point < 5 }));
+    }
+    recorder.onFrame(frame(0.999, 159.94));
+    recorder.onFrame(frame(0.001, 160.06));
+
+    expect(recorded).toHaveLength(0);
+  });
+
+  it('tells its hooks where laps begin and end, stored or not', () => {
+    const events: string[] = [];
+    const recorded: Recorded[] = [];
+    const recorder = new PlayerLapRecorder(
+      {
+        record: (lapSession, lap) =>
+          recorded.push({ session: lapSession, lap }),
+      },
+      {
+        simulator: 'lmu',
+        bootId: 'boot',
+        now: () => 0,
+        hooks: {
+          onLapOpened: (startTime, _frame, fromStart) =>
+            events.push(`open ${startTime.toFixed(2)} ${fromStart}`),
+          onLapClosed: (closed) =>
+            events.push(
+              `close ${closed.startTime.toFixed(2)}-${closed.endTime.toFixed(2)} ${closed.fromStart}`
+            ),
+          onLapAbandoned: () => events.push('abandon'),
+        },
+      }
+    );
+    recorder.onEnter();
+    recorder.onSession(session({ car: LMU_CAR }));
+    recorder.setPersisting(false);
+
+    // Let go from the line, a lap, and a lap given up half-way.
+    recorder.onFrame(frame(0, 99.5));
+    for (let point = 0; point < 100; point += 1) {
+      const pct = (point + 0.1) / 100;
+      recorder.onFrame(frame(pct, 100 + pct * 60));
+    }
+    recorder.onFrame(frame(0.999, 159.94));
+    recorder.onFrame(frame(0.001, 160.06));
+    recorder.setPersisting(true);
+    driveLap(recorder, 160, 60);
+    recorder.onFrame(frame(0.3, 238));
+    recorder.onFrame(frame(-1, 239));
+
+    expect(events).toEqual([
+      'open 100.06 true',
+      'close 100.06-160.00 true',
+      'open 160.00 false',
+      'close 160.00-220.00 false',
+      'open 220.00 false',
+      'abandon',
+    ]);
+    // Only the lap that ended while laps were being stored reached the sink.
     expect(recorded).toHaveLength(1);
+    expect(recorded[0].lap.lapTime).toBeCloseTo(60, 6);
+    expect(recorder.sessionToken()).toBe(recorded[0].session.token);
+    expect(recorder.currentSession()?.carKey).toBe('Ferrari 296 LMGT3 Evo');
   });
 
   it('marks a lap that touched pit road, and still records it', () => {

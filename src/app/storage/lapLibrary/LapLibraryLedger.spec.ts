@@ -19,7 +19,12 @@ import {
   LEDGER_LAP_WET,
   type LedgerStint,
 } from '../../../types/ledger';
-import { LapLibraryDatabase, stintPace } from './LapLibraryDatabase';
+import { BASELINE_EXCLUDED_FLAGS } from '../../../shared/lapValidity';
+import {
+  LapLibraryDatabase,
+  isEligibleLap,
+  stintPace,
+} from './LapLibraryDatabase';
 
 /**
  * The second version of the schema: what each lap cost, and the stints, kept
@@ -871,5 +876,120 @@ describe('lap ledger: the latest laps of a track and car', () => {
     expect(times('lmu', 10, 'Ferrari 296 LMGT3 Evo')).toEqual([81]);
     expect(times('lmu', 9, 'Porsche 963')).toEqual([82]);
     expect(times('lmu', 11, 'Ferrari 296 LMGT3 Evo')).toEqual([]);
+  });
+});
+
+/**
+ * The first lap of a race under Le Mans Ultimate does not begin at a line
+ * crossing: the sim lets the car go at the line. It is kept for what it
+ * cost. As a pace it is worthless -- seconds too long when timed from the
+ * green flag, too short when timed from the grid -- and it once became the
+ * best lap of a session, so it must never be the lap another is measured
+ * against, by any road.
+ */
+describe('lap ledger: the lap from the start of a race', () => {
+  const key = ['lmu', 9, 'Ferrari 296 LMGT3 Evo'] as const;
+
+  /** As the recorder hands it over: timed, incomplete, without a curve. */
+  const fromStart = (lapTime: number): LapInput =>
+    lap(lapTime, {
+      complete: false,
+      curve: null,
+      ledger: ledger({ flags: LEDGER_LAP_FROM_START }),
+    });
+  const whole = (lapTime: number): LapInput =>
+    lap(lapTime, { ledger: ledger({ flags: 0, stintLap: 2 }) });
+
+  it('is kept, with what it cost', () => {
+    const recorded = db.recordLap(session(), fromStart(89.83));
+
+    expect(recorded.ledgerError).toBeNull();
+    const [listed] = db.listLaps(recorded.sessionId);
+    expect(listed).toMatchObject({
+      lapTime: 89.83,
+      complete: false,
+      own: true,
+      fuelUsed: 2.308,
+      energyUsed: 0.02333,
+    });
+    expect(listed.ledger).toMatchObject({
+      flags: LEDGER_LAP_FROM_START,
+      treadUsed: [0.00492, 0.00534, 0.00501, 0.00482],
+    });
+  });
+
+  it('is never the reference, though it is the quickest lap there is', () => {
+    // Timed from the grid it comes out seconds quicker than any real lap.
+    const start = db.recordLap(session(), fromStart(80));
+    const lineToLine = db.recordLap(session(), whole(86.671));
+
+    expect(start.eligible).toBe(false);
+    expect(lineToLine.eligible).toBe(true);
+    expect(db.referenceLap(...key)?.lapId).toBe(lineToLine.lapId);
+    expect(
+      db
+        .listLaps(start.sessionId)
+        .map((listed) => [listed.eligible, listed.isReference])
+    ).toEqual([
+      [false, false],
+      [true, true],
+    ]);
+    // Nor is it the session's best in the list of sessions.
+    expect(db.listSessions()[0].bestLapTime).toBe(86.671);
+  });
+
+  it('is not the reference when it is the only lap there is', () => {
+    const start = db.recordLap(session(), fromStart(80));
+
+    expect(db.referenceLap(...key)).toBeNull();
+    expect(db.listLaps(start.sessionId)[0].isReference).toBe(false);
+    expect(db.listSessions()[0].bestLapTime).toBeNull();
+  });
+
+  it('cannot be made the reference by hand', () => {
+    const start = db.recordLap(session(), fromStart(80));
+    const lineToLine = db.recordLap(session(), whole(86.671));
+
+    expect(db.pinReference(start.lapId)).toBe(false);
+    expect(db.referenceLap(...key)).toMatchObject({
+      lapId: lineToLine.lapId,
+      pinned: false,
+    });
+  });
+
+  it('is refused by name, were it ever to come with a whole curve', () => {
+    // What the recorder never sends. The rule does not rest on that.
+    const curved = lap(80, {
+      ledger: ledger({ flags: LEDGER_LAP_FROM_START }),
+    });
+    expect(curved.complete && curved.curve !== null).toBe(true);
+
+    expect(isEligibleLap(curved)).toBe(false);
+    // The same lap without the flag is one, serviced and wet as it is.
+    expect(isEligibleLap(lap(80, { ledger: ledger() }))).toBe(true);
+    expect(db.recordLap(session(), curved).eligible).toBe(false);
+    expect(db.referenceLap(...key)).toBeNull();
+  });
+
+  it('is left out of the laps a baseline is made of', () => {
+    db.recordLap(session(), fromStart(80));
+    db.recordLap(session(), whole(86.671));
+
+    expect(
+      db
+        .recentLedgerLaps(...key, 10, BASELINE_EXCLUDED_FLAGS)
+        .map((row) => row.lapTime)
+    ).toEqual([86.671]);
+  });
+
+  it('does not stand in the way of the cap as a reference would', () => {
+    // The cap spares the reference of each track and car, and nothing else.
+    const start = db.recordLap(session(), fromStart(80));
+    const lineToLine = db.recordLap(session(), whole(86.671));
+    db.recordLap(session(), whole(88));
+
+    expect(db.prune(1)).toBe(2);
+    const left = db.listLaps(start.sessionId).map((listed) => listed.id);
+    expect(left).toEqual([lineToLine.lapId]);
   });
 });
