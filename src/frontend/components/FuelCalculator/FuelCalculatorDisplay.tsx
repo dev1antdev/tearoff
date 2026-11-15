@@ -1,5 +1,9 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useDashboard, useFuelProjectionSnapshot } from '@irdashies/context';
+import {
+  useDashboard,
+  useDrivingState,
+  useFuelProjectionSnapshot,
+} from '@irdashies/context';
 import {
   FuelCalculatorHeader,
   FuelCalculatorGauge,
@@ -149,6 +153,12 @@ export const FuelCalculatorDisplay = ({
   }, [settings.layoutTree]);
 
   const isOnTrack = projection?.isOnTrack ?? false;
+  // A team-mate's stint in the user's own car, where the sim goes on writing
+  // what the car has left: virtual energy, as things stand. The laps are
+  // counted and the figures are live. For a car counted in litres the sim
+  // writes no fuel level then, and the widget has nothing to show.
+  const { isWatchingOwnCar } = useDrivingState();
+  const isWatchedLive = isWatchingOwnCar && projection?.watched === true;
 
   const currentFuelLevel = projection?.fuelLevel;
 
@@ -211,7 +221,13 @@ export const FuelCalculatorDisplay = ({
   // Safety fallback
   if (!hasSettings) return <div className="text-red-500">Missing Settings</div>;
 
-  if (!editMode && settings?.showOnlyWhenOnTrack && !isOnTrack) return null;
+  if (
+    !editMode &&
+    settings?.showOnlyWhenOnTrack &&
+    !(isOnTrack || isWatchedLive)
+  ) {
+    return null;
+  }
   if (!editMode && !isSessionVisible) return <></>;
 
   const renderWidget = (widgetId: string) => {

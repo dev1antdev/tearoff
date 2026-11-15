@@ -65,7 +65,13 @@ const show = (
     },
   } as unknown as ReturnType<typeof useDashboard>);
   vi.mocked(useSystemPerformanceSnapshot).mockReturnValue(performance);
-  vi.mocked(useDrivingState).mockReturnValue({ isDriving, isWatching });
+  vi.mocked(useDrivingState).mockReturnValue({
+    isDriving,
+    isWatching,
+    // The widget describes the machine, so which car is watched is all one.
+    isWatchingOwnCar: false,
+    isWatchingOtherCar: isWatching,
+  });
   vi.mocked(useSessionVisibility).mockReturnValue(sessionVisible);
   return render(<SystemPerformance />);
 };

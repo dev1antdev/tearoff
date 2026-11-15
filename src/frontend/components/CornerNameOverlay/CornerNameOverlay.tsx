@@ -1,5 +1,5 @@
 import type { CornerNameOverlayConfig } from '@irdashies/types';
-import { useSessionVisibility } from '@irdashies/context';
+import { useDrivingState, useSessionVisibility } from '@irdashies/context';
 import { useCurrentSection } from './hooks/useCurrentSection';
 
 type CornerNameOverlayProps = Partial<CornerNameOverlayConfig>;
@@ -14,8 +14,12 @@ export const CornerNameOverlay = ({
 }: CornerNameOverlayProps) => {
   const { section, progress, lapDistPct } = useCurrentSection();
   const isSessionVisible = useSessionVisibility(sessionVisibility);
+  const { isWatchingOtherCar } = useDrivingState();
 
   if (!isSessionVisible) return null;
+  // The corner is the one the user's own car is in, whoever is driving it.
+  // With the camera on another car it is not the corner on screen.
+  if (isWatchingOtherCar) return null;
 
   if (!section || !section.name) return null;
 

@@ -22,6 +22,10 @@ export const setupFuelCalculatorBridge = () => {
   ipcMain.handle(
     'fuel:saveLap',
     (_, trackId: string | number, carName: string, lap: FuelLapData) => {
+      // The history is the user's own driving. A lap a team-mate drove any
+      // part of is counted while the session runs and is not kept, whatever
+      // sends it here.
+      if (lap?.wasWatched) return;
       logger.info(
         `[Main] Saving lap ${lap.lapNumber} for ${carName} at track ${trackId}`
       );

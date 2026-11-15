@@ -18,6 +18,13 @@ export interface FuelLapData {
   isInLap?: boolean;
   /** Whether the car was towed during this lap */
   wasTowed?: boolean;
+  /**
+   * Whether somebody else drove any part of this lap: a team-mate's stint,
+   * watched from outside the car. Such a lap counts toward the live
+   * projection, because the car used that fuel, and is never saved to the
+   * lap history, which is the user's own. Absent for a lap the user drove.
+   */
+  wasWatched?: boolean;
   /** Whether this lap is from a previous session (historical) */
   isHistorical?: boolean;
   /** Timestamp when lap was completed */

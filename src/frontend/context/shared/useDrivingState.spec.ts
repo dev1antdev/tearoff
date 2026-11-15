@@ -8,9 +8,15 @@ vi.mock('../TelemetryStore/TelemetryStore', () => ({
   useTelemetryValue: vi.fn(),
 }));
 
+// Whether the car being watched is the user's own entry. Not a frame key:
+// the track state works it out from the watched car and the own entry.
+const trackState = vi.hoisted(() => ({ watchingOwnCar: false }));
+
 vi.mock('../ChannelStore', () => ({
   trackStateSelectors: {
     watching: (snapshot: { watching?: boolean }) => snapshot.watching,
+    watchingOwnCar: (snapshot: { watchingOwnCar?: boolean }) =>
+      snapshot.watchingOwnCar,
   },
   useTrackStateSelector: vi.fn((selector) =>
     selector({
@@ -24,6 +30,7 @@ vi.mock('../ChannelStore', () => ({
       dataStale: useTelemetryValue('LmuDataStale'),
       outOfCar: useTelemetryValue('LmuOutOfCar'),
       watching: useTelemetryValue('LmuWatching'),
+      watchingOwnCar: trackState.watchingOwnCar,
     })
   ),
 }));
@@ -326,44 +333,79 @@ describe('useDrivingState', () => {
       // Nine, not six: the frame also carries whether the sim has stopped
       // writing it and whether LMU says the player is out of the car, both
       // checked before anything else, and whether the user is watching a
-      // car. The snapshot is selected from twice, once for driving and once
-      // for watching, and this mock builds it afresh each time.
+      // car. The snapshot is selected from four times -- driving, watching,
+      // watching the own car and watching another -- and this mock builds
+      // it afresh each time.
       expect(useTelemetryValue).toHaveBeenCalledWith('LmuDataStale');
       expect(useTelemetryValue).toHaveBeenCalledWith('LmuOutOfCar');
       expect(useTelemetryValue).toHaveBeenCalledWith('LmuWatching');
-      expect(useTelemetryValue).toHaveBeenCalledTimes(18);
+      expect(useTelemetryValue).toHaveBeenCalledTimes(36);
     });
   });
 });
 
 describe('useDrivingState while watching a car', () => {
-  const state = (overrides: Record<string, boolean>) => {
+  const state = (
+    overrides: Record<string, boolean>,
+    watchingOwnCar = false
+  ) => {
     vi.mocked(useTelemetryValue).mockImplementation(
       (key: string) => overrides[key] ?? false
     );
+    trackState.watchingOwnCar = watchingOwnCar;
     return renderHook(() => useDrivingState()).result.current;
   };
 
-  /** A team-mate's stint: at the monitor, the team car out on the circuit. */
-  const teamMateDriving = { LmuWatching: true, LmuOutOfCar: true };
+  /** Out of the car with a car to watch: the team car, or a rival. */
+  const watching = { LmuWatching: true, LmuOutOfCar: true };
+  /** A team-mate's stint, the camera left on the team car. */
+  const teamMateDriving = () => state(watching, true);
+  /** The same stint with the camera moved to a rival. */
+  const cameraOnRival = () => state(watching, false);
 
   beforeEach(() => {
     general.showWhileWatching = true;
   });
 
-  it('is watching, and not driving, through a team-mate’s stint', () => {
-    expect(state(teamMateDriving)).toEqual({
+  it('is watching the own car, and not driving, through a team-mate’s stint', () => {
+    expect(teamMateDriving()).toEqual({
       isDriving: false,
       isWatching: true,
+      isWatchingOwnCar: true,
+      isWatchingOtherCar: false,
+    });
+  });
+
+  it('is watching another car, and not the own one, with the camera on a rival', () => {
+    expect(cameraOnRival()).toEqual({
+      isDriving: false,
+      isWatching: true,
+      isWatchingOwnCar: false,
+      isWatchingOtherCar: true,
     });
   });
 
   it('is not watching with the setting switched off', () => {
     general.showWhileWatching = false;
 
-    expect(state(teamMateDriving)).toEqual({
+    expect(teamMateDriving()).toEqual({
       isDriving: false,
       isWatching: false,
+      isWatchingOwnCar: false,
+      isWatchingOtherCar: false,
+    });
+  });
+
+  it('still says the camera is on another car with the setting switched off', () => {
+    // The setting decides what stays on screen. That the own car's figures
+    // are not the ones on screen is the sim's fact, whatever it says.
+    general.showWhileWatching = false;
+
+    expect(cameraOnRival()).toEqual({
+      isDriving: false,
+      isWatching: false,
+      isWatchingOwnCar: false,
+      isWatchingOtherCar: true,
     });
   });
 
@@ -371,6 +413,8 @@ describe('useDrivingState while watching a car', () => {
     expect(state({ IsOnTrack: true })).toEqual({
       isDriving: true,
       isWatching: false,
+      isWatchingOwnCar: false,
+      isWatchingOtherCar: false,
     });
   });
 
@@ -378,13 +422,15 @@ describe('useDrivingState while watching a car', () => {
     expect(state({ LmuOutOfCar: true })).toEqual({
       isDriving: false,
       isWatching: false,
+      isWatchingOwnCar: false,
+      isWatchingOtherCar: false,
     });
   });
 
   it('does not count watching as driving, whatever the pit flags say', () => {
     // The watched car in the pit lane: the pit term of the driving gate is
     // true for the focus car, and the user is still not at the wheel.
-    expect(state({ ...teamMateDriving, CarIdxOnPitRoad: true }).isDriving).toBe(
+    expect(state({ ...watching, CarIdxOnPitRoad: true }, true).isDriving).toBe(
       false
     );
   });

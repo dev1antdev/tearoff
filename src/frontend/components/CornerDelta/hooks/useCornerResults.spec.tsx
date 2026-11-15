@@ -305,6 +305,83 @@ describe('useCornerResults', () => {
     expect(result.current.results).toHaveLength(0);
   });
 
+  describe('with a team-mate at the wheel of the user’s own car', () => {
+    /** The car's samples as they are then: live, and not the user on track. */
+    const teamMate = { isOnTrack: false };
+
+    it('reports nothing unless told the user is watching that car', () => {
+      const { result } = renderHook(() => useCornerResults(true, 'name'));
+
+      placeAt(0.19);
+      go(260, 50, teamMate);
+
+      expect(result.current.results).toHaveLength(0);
+    });
+
+    it('reports the corners the team-mate drives', () => {
+      const { result } = renderHook(() => useCornerResults(true, 'name', true));
+
+      placeAt(0.19);
+      go(260, 50, teamMate);
+
+      expect(result.current.results).toHaveLength(1);
+      expect(result.current.results[0].sectionId).toBe('turn-1');
+      expect(result.current.results[0].timeSec).toBeCloseTo(4, 6);
+    });
+
+    it('sets them against the user’s own reference laps', () => {
+      useReferenceLapStore.setState({
+        bestLaps: new Map([[PLAYER_CAR_IDX, steadyLap(40)]]),
+        playerAllTimeLap: steadyLap(62.5),
+      });
+      const { result } = renderHook(() => useCornerResults(true, 'name', true));
+
+      placeAt(0.19);
+      go(260, 50, teamMate);
+
+      const { readings } = result.current.results[0];
+      expect(readings.sessionBest.timeDeltaSec).toBeCloseTo(-1, 2);
+      expect(readings.allTime.timeDeltaSec).toBeCloseTo(0.8, 2);
+    });
+
+    it('stops when the camera moves to another car, without a new subscription', () => {
+      const { result, rerender } = renderHook(
+        ({ watchingOwnCar }) => useCornerResults(true, 'name', watchingOwnCar),
+        { initialProps: { watchingOwnCar: true } }
+      );
+      placeAt(0.19);
+      go(260, 50, teamMate);
+      expect(result.current.results).toHaveLength(1);
+      const subscriptions = subscribedChannels.length;
+
+      rerender({ watchingOwnCar: false });
+      go(TRACK_M, 50, teamMate);
+
+      // Whatever was on screen is not the car on screen any more.
+      expect(result.current.results).toHaveLength(0);
+      expect(subscribedChannels).toHaveLength(subscriptions);
+    });
+
+    it('carries on with the user’s own corners when they take the car back', () => {
+      const { result, rerender } = renderHook(
+        ({ watchingOwnCar }) => useCornerResults(true, 'name', watchingOwnCar),
+        { initialProps: { watchingOwnCar: true } }
+      );
+      placeAt(0.19);
+      go(260, 50, teamMate);
+
+      rerender({ watchingOwnCar: false });
+      // A lap on, the user driving, and quicker through the corner.
+      go(TRACK_M, 62.5);
+
+      const turnOne = result.current.results.find(
+        (entry) => entry.sectionId === 'turn-1'
+      );
+      // Against the last time the car went through it, whoever drove.
+      expect(turnOne?.readings.lastLap.timeDeltaSec).toBeCloseTo(-0.8, 3);
+    });
+  });
+
   it('starts afresh when the session moves on', () => {
     const { result } = renderHook(() => useCornerResults(true, 'name'));
 

@@ -10778,7 +10778,7 @@
       "name": "track-state",
       "schemaVersion": 3,
       "frameCount": 36000,
-      "rollingHash": "53c4c42cf2ef16c7847eb6941c93980e9ffb635a1250deff391379a06e978d30",
+      "rollingHash": "2e54691591f06d654290b213852498b8d21e0e06480b31a4cf86d1ac33db89cc",
       "checkpoints": {
         "firstFrame": {
           "focusCarIdx": 0,
@@ -11084,6 +11084,7 @@
           "notInSession": false,
           "outOfCar": false,
           "watching": false,
+          "watchingOwnCar": false,
           "playerCarInPitStall": false,
           "playerTrackSurface": 3,
           "onPitRoad": false,
@@ -11408,6 +11409,7 @@
           "notInSession": false,
           "outOfCar": false,
           "watching": false,
+          "watchingOwnCar": false,
           "playerCarInPitStall": false,
           "playerTrackSurface": 3,
           "onPitRoad": false,
@@ -11784,13 +11786,14 @@
       "name": "lap-log-state",
       "schemaVersion": 2,
       "frameCount": 36000,
-      "rollingHash": "dcc8351a666a3e013e1b7c4e0364d2fd8cfec92782ce725efe0877b2d2a19882",
+      "rollingHash": "aab202f90c46c773832ad17659708c673790ede91b6869d4eb333a3b686c8fd5",
       "checkpoints": {
         "firstFrame": {
           "lapCompleted": -1,
           "currentLapTime": 0,
           "lastLapTime": 0,
           "bestLapTime": 0,
+          "ownBestLapTime": 0,
           "carIdxBestLapTime": [
             -1,
             -1,
@@ -11884,6 +11887,7 @@
           "currentLapTime": 130.43760681152344,
           "lastLapTime": 129.2841033935547,
           "bestLapTime": 129.2841033935547,
+          "ownBestLapTime": 129.2841033935547,
           "carIdxBestLapTime": [
             129.2841033935547,
             125.53410339355469,

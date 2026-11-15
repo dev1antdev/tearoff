@@ -12,6 +12,7 @@ export const trackStateStorySnapshot = {
   notInSession: false,
   outOfCar: false,
   watching: false,
+  watchingOwnCar: false,
   playerCarInPitStall: false,
   playerTrackSurface: 3,
   onPitRoad: false,

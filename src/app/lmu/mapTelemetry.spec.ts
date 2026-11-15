@@ -6,7 +6,8 @@ import {
   TIMED_SESSION_LAPS,
 } from '@irdashies/types';
 import type { LmuRawTelemetry } from './native';
-import { mapLmuSectorTimes, mapLmuTelemetry } from './mapTelemetry';
+import { mapLmuTelemetry } from './mapTelemetry';
+import { mapLmuSectorTimes } from './sectorTimes';
 import { fixture } from './rawFixture';
 import { createLmuEnergyState } from './fuelEnergy';
 import { createLmuLapDistanceState } from './lapDistance';

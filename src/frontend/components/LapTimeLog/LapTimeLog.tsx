@@ -23,7 +23,10 @@ const FREEZE_TIME = 5;
 
 export const LapTimeLog = () => {
   const { isDemoMode } = useDashboard();
-  const { isDriving } = useDrivingState();
+  const { isDriving, isWatchingOwnCar } = useDrivingState();
+  // The lap being timed is live for the user's own car, whoever drives it:
+  // the user, or a team-mate while the user watches that car.
+  const isLapLive = isDriving || isWatchingOwnCar;
   const playerIndex = useFocusCarIdx();
   const data = useLapTimeLog();
   const isSessionVisible = useSessionVisibility(
@@ -36,7 +39,7 @@ export const LapTimeLog = () => {
   }
 
   // Show only when on track setting
-  if (data.settings?.showOnlyWhenOnTrack && !isDriving) {
+  if (data.settings?.showOnlyWhenOnTrack && !isLapLive) {
     return null;
   }
 
@@ -62,7 +65,7 @@ export const LapTimeLog = () => {
   return (
     <LapTimeLogDisplay
       settings={data.settings}
-      current={isDriving ? data.current : undefined}
+      current={isLapLive ? data.current : undefined}
       lastlap={data.lastlap}
       bestlap={data.bestlap}
       alltimelap={data.alltimelap}

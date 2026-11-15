@@ -414,3 +414,141 @@ describe('FuelProjectionEngine projection', () => {
     expect(projected).toBeCloseTo(4.0, 2);
   });
 });
+
+describe('FuelProjectionEngine with somebody else at the wheel', () => {
+  const persist = { persistLaps: true };
+  const step = (
+    engine: FuelProjectionEngine,
+    overrides: Partial<FuelEngineFrame>
+  ) => engine.onFrame(frame(overrides), history, validLap, isGreen, persist);
+
+  it('counts a lap a team-mate drove and does not save it', () => {
+    const engine = engineFromTheLine();
+    step(engine, { lapDistPct: 0.5, sessionTime: 55, watched: true });
+
+    const commands = step(engine, {
+      fuelLevel: 47,
+      lap: 2,
+      lapDistPct: 0.01,
+      sessionTime: 100,
+      watched: true,
+    });
+
+    // The car used that fuel, so the lap is one of the session's.
+    expect(commands).toHaveLength(1);
+    expect(commands[0]).toMatchObject({
+      type: 'lapCompleted',
+      lap: {
+        lapNumber: 1,
+        fuelUsed: 3,
+        isValidForCalc: true,
+        wasWatched: true,
+      },
+    });
+  });
+
+  it('does not save a lap the user took over part-way round', () => {
+    const engine = engineFromTheLine();
+    // The team-mate's for the first half, the user's from the pit stop on.
+    step(engine, { lapDistPct: 0.3, sessionTime: 40, watched: true });
+    step(engine, { lapDistPct: 0.6, sessionTime: 70 });
+
+    const commands = step(engine, {
+      fuelLevel: 47,
+      lap: 2,
+      lapDistPct: 0.01,
+      sessionTime: 100,
+    });
+
+    expect(commands.map((command) => command.type)).toEqual(['lapCompleted']);
+    expect(commands[0].lap.wasWatched).toBe(true);
+  });
+
+  it('does not save a lap the user got out of part-way round', () => {
+    const engine = engineFromTheLine();
+    step(engine, { lapDistPct: 0.6, sessionTime: 70 });
+
+    const commands = step(engine, {
+      fuelLevel: 47,
+      lap: 2,
+      lapDistPct: 0.01,
+      sessionTime: 100,
+      watched: true,
+    });
+
+    expect(commands.map((command) => command.type)).toEqual(['lapCompleted']);
+    expect(commands[0].lap.wasWatched).toBe(true);
+  });
+
+  it('saves the user’s own lap again from the next crossing', () => {
+    const engine = engineFromTheLine();
+    step(engine, { lapDistPct: 0.5, sessionTime: 55, watched: true });
+    // The line, with the user back at the wheel on the frame that crosses.
+    step(engine, { fuelLevel: 47, lap: 2, lapDistPct: 0.01, sessionTime: 100 });
+    step(engine, {
+      fuelLevel: 45.5,
+      lap: 2,
+      lapDistPct: 0.5,
+      sessionTime: 145,
+    });
+
+    const commands = step(engine, {
+      fuelLevel: 44,
+      lap: 3,
+      lapDistPct: 0.01,
+      sessionTime: 190,
+    });
+
+    expect(commands.map((command) => command.type)).toEqual([
+      'lapCompleted',
+      'saveLap',
+    ]);
+    // A lap the user drove is the object it always was.
+    expect(commands[0].lap).not.toHaveProperty('wasWatched');
+  });
+
+  it('counts the frame that crosses the line against both laps', () => {
+    const engine = engineFromTheLine();
+    step(engine, { lapDistPct: 0.5, sessionTime: 55 });
+
+    // Driven to the line; the team-mate's from the crossing frame on.
+    const first = step(engine, {
+      fuelLevel: 47,
+      lap: 2,
+      lapDistPct: 0.01,
+      sessionTime: 100,
+      watched: true,
+    });
+    const second = step(engine, {
+      fuelLevel: 44,
+      lap: 3,
+      lapDistPct: 0.01,
+      sessionTime: 190,
+    });
+
+    // The frame is the last the first lap saw and the first of the second,
+    // and it was not the user's.
+    expect(first[0].lap.wasWatched).toBe(true);
+    expect(second[0].lap.wasWatched).toBe(true);
+    expect(second.map((command) => command.type)).toEqual(['lapCompleted']);
+  });
+
+  it('forgets the lap under way when it is reset', () => {
+    const engine = engineFromTheLine();
+    step(engine, { lapDistPct: 0.5, sessionTime: 55, watched: true });
+    engine.reset();
+    step(engine, { lap: 5, lapDistPct: 0.01, sessionTime: 300 });
+
+    const commands = step(engine, {
+      fuelLevel: 47,
+      lap: 6,
+      lapDistPct: 0.01,
+      sessionTime: 390,
+    });
+
+    expect(commands.map((command) => command.type)).toEqual([
+      'lapCompleted',
+      'saveLap',
+    ]);
+  });
+});

@@ -40,6 +40,17 @@ vi.mock('@irdashies/context', async (importOriginal) => ({
 
 const defaults = getWidgetDefaultConfig('timing');
 
+/** Where the user is, as useDrivingState says it; nowhere unless told. */
+const where = (
+  state: Partial<ReturnType<typeof useDrivingState>> = {}
+): ReturnType<typeof useDrivingState> => ({
+  isDriving: false,
+  isWatching: false,
+  isWatchingOwnCar: false,
+  isWatchingOtherCar: false,
+  ...state,
+});
+
 type ConfigOverrides = Omit<Partial<TimingConfig>, 'tiles'> & {
   tiles?: Partial<TimingConfig['tiles']>;
 };
@@ -597,6 +608,7 @@ describe('Timing', () => {
     currentLapTime: 52.34,
     lastLapTime: 104.53,
     bestLapTime: 104.054,
+    ownBestLapTime: 104.054,
     // A rival in class is quicker; the prototypes quicker still.
     carIdxBestLapTime: [93.2, 93.6, 104.3, 104.054, 103.611],
     sessionNum: 0,
@@ -695,10 +707,7 @@ describe('Timing', () => {
     vi.clearAllMocks();
     withConfig({});
     withChannels(midLapChannels);
-    vi.mocked(useDrivingState).mockReturnValue({
-      isDriving: true,
-      isWatching: false,
-    });
+    vi.mocked(useDrivingState).mockReturnValue(where({ isDriving: true }));
     vi.mocked(useSessionVisibility).mockReturnValue(true);
     useSessionStore.setState({ session });
     useSectorTimingStore.getState().setThresholds(0.005, 0.01);
@@ -1013,19 +1022,56 @@ describe('Timing', () => {
   });
 
   it('hides while not driving, unless told to stay', () => {
-    vi.mocked(useDrivingState).mockReturnValue({
-      isDriving: false,
-      isWatching: false,
-    });
+    vi.mocked(useDrivingState).mockReturnValue(where());
 
     expect(render(<Timing />).container.firstChild).toBeNull();
   });
 
+  it('times a team-mate’s lap in the user’s own car, and holds the sectors', () => {
+    vi.mocked(useDrivingState).mockReturnValue(
+      where({ isWatching: true, isWatchingOwnCar: true })
+    );
+    withConfig({ tiles: { currentLap: true } });
+
+    const { container } = render(<Timing />);
+
+    // The lap, the delta and the lap times are the team car's, live.
+    expect(value(container, 'lap').textContent).toBe('4');
+    expect(value(container, 'delta').textContent).toBe('+0.084');
+    expect(value(container, 'current-lap').textContent).toBe('0:52.3');
+    expect(value(container, 'last-lap').textContent).toBe('1:44.530');
+    expect(tone(container, 'last-lap')).not.toContain('opacity-60');
+    // The sector timer follows the user's own driving alone: its times are
+    // from their last lap at the wheel, and step back.
+    expect(value(container, 'sector-1').textContent).toBe('31.204');
+    expect(tone(container, 'sector-1')).toContain('opacity-60');
+    expect(tone(container, 'sector-2')).toContain('opacity-60');
+  });
+
+  it('stays hidden while the camera is on another car', () => {
+    // The figures are still the team car's, which is not the car on screen.
+    vi.mocked(useDrivingState).mockReturnValue(
+      where({ isWatching: true, isWatchingOtherCar: true })
+    );
+
+    expect(render(<Timing />).container.firstChild).toBeNull();
+  });
+
+  it('holds its last figures over another car when told to stay on screen', () => {
+    vi.mocked(useDrivingState).mockReturnValue(
+      where({ isWatching: true, isWatchingOtherCar: true })
+    );
+    withConfig({ showOnlyWhenOnTrack: false, tiles: { currentLap: true } });
+
+    const { container } = render(<Timing />);
+
+    expect(tone(container, 'last-lap')).toContain('opacity-60');
+    expect(value(container, 'delta').textContent).toBe('-.---');
+    expect(value(container, 'current-lap').textContent).toBe('-:--.-');
+  });
+
   it('holds its last figures, dimmed, when told to stay out of the car', () => {
-    vi.mocked(useDrivingState).mockReturnValue({
-      isDriving: false,
-      isWatching: false,
-    });
+    vi.mocked(useDrivingState).mockReturnValue(where());
     withConfig({ showOnlyWhenOnTrack: false, tiles: { currentLap: true } });
 
     const { container } = render(<Timing />);
@@ -1047,10 +1093,7 @@ describe('Timing', () => {
   it('shows a fixed sample in demo mode, whatever the session', () => {
     withConfig({}, true);
     withChannels({});
-    vi.mocked(useDrivingState).mockReturnValue({
-      isDriving: false,
-      isWatching: false,
-    });
+    vi.mocked(useDrivingState).mockReturnValue(where());
 
     const { container } = render(<Timing />);
 

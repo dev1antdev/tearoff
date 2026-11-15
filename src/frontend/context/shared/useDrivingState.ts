@@ -24,6 +24,10 @@ const selectIsDriving = (snapshot: TrackStateSnapshot): boolean => {
   );
 };
 
+/** Watching a car that is not the user's own entry: the camera on a rival. */
+const selectIsWatchingOtherCar = (snapshot: TrackStateSnapshot): boolean =>
+  snapshot.watching && !snapshot.watchingOwnCar;
+
 /**
  * Where the user is, for the widgets that show only on track.
  *
@@ -34,17 +38,35 @@ const selectIsDriving = (snapshot: TrackStateSnapshot): boolean => {
  * up while watching is switched off, so a widget never has to read the
  * setting itself.
  *
- * A widget that has something true to show for a watched car hides on
- * `!(isDriving || isWatching)`. One that describes the user's own driving --
- * the pedals, the driver's aids -- hides on `!isDriving` alone.
+ * `isWatchingOwnCar` is watching with the car on screen being the user's own
+ * entry: the team car with a team-mate at the wheel. The lap, the lap times,
+ * the delta and the rest of what describes one car are the own entry's
+ * whatever the camera is on, so a widget made of those is shown while
+ * watching only when this holds. Subject to the same General setting.
+ *
+ * `isWatchingOtherCar` is the camera on any other car. The own car's numbers
+ * are still true then and are not what is on screen: a widget that stays up
+ * regardless of where the user is shows no live figure of the own car while
+ * it holds. This one is the sim's fact alone, whatever the setting.
+ *
+ * A widget that has something true to show for any watched car hides on
+ * `!(isDriving || isWatching)`. One about the user's own car hides on
+ * `!(isDriving || isWatchingOwnCar)`. One that describes the user's own
+ * driving -- the pedals, the driver's aids -- hides on `!isDriving` alone.
  */
 export const useDrivingState = () => {
   const isDriving = useTrackStateSelector(selectIsDriving) ?? false;
   const watching = useTrackStateSelector(trackStateSelectors.watching) ?? false;
+  const watchingOwnCar =
+    useTrackStateSelector(trackStateSelectors.watchingOwnCar) ?? false;
+  const isWatchingOtherCar =
+    useTrackStateSelector(selectIsWatchingOtherCar) ?? false;
   const showWhileWatching = useShowWhileWatching();
 
   return {
     isDriving,
     isWatching: watching && showWhileWatching,
+    isWatchingOwnCar: watchingOwnCar && showWhileWatching,
+    isWatchingOtherCar,
   };
 };

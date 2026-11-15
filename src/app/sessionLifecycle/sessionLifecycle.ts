@@ -156,9 +156,17 @@ export function createSessionLifecycle(): SessionLifecycle {
 
     // Mirrors the renderer's useDrivingState: in the car counts even when
     // stationary in the pit box, while the garage and replay playback do not.
+    // Nor does LMU's monitor. The pit flags describe the car, not the user:
+    // one left in the pit lane keeps them set while the user sits at the
+    // monitor, and through a team-mate's stint they are the team car's, in
+    // and out of the pits with somebody else at the wheel.
     const inCar =
       flag('IsOnTrack') || flag('PlayerCarInPitStall') || flag('OnPitRoad');
-    const isDriving = inCar && !flag('IsInGarage') && !flag('IsReplayPlaying');
+    const isDriving =
+      inCar &&
+      !flag('IsInGarage') &&
+      !flag('IsReplayPlaying') &&
+      !flag('LmuOutOfCar');
 
     if (isDriving === lastIsDriving) return;
     lastIsDriving = isDriving;

@@ -23,6 +23,7 @@ export const trackStateSelectors = {
   sessionTime: (snapshot: TrackStateSnapshot) => snapshot.sessionTime,
   speed: (snapshot: TrackStateSnapshot) => snapshot.speed,
   watching: (snapshot: TrackStateSnapshot) => snapshot.watching,
+  watchingOwnCar: (snapshot: TrackStateSnapshot) => snapshot.watchingOwnCar,
 } as const;
 
 export const useTrackStateSelector = <Selected>(

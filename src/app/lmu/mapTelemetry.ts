@@ -59,6 +59,8 @@ import {
 } from './lapStartTiming';
 import { lmuWatchedSlot } from './ownEntry';
 import { lmuFrontWheelAngleDeg, lmuSteeringRangeDeg } from './steering';
+import { writeLmuOwnEntryKeys } from './ownEntryKeys';
+import { lmuSectorIdx, mapLmuSectorTimes } from './sectorTimes';
 
 type Raw = import('./native').LmuRawTelemetry;
 
@@ -252,34 +254,6 @@ function carSessionFlags(raw: Raw): number[] {
   });
 }
 
-const validTime = (value: number | undefined): number | null =>
-  value !== undefined && Number.isFinite(value) && value > 0 ? value : null;
-
-export function mapLmuSectorTimes(
-  sector1: number | undefined,
-  sector1And2: number | undefined,
-  lapTime?: number
-): (number | null)[] {
-  const first = validTime(sector1);
-  const cumulativeSecond = validTime(sector1And2);
-  const second =
-    first !== null && cumulativeSecond !== null && cumulativeSecond > first
-      ? cumulativeSecond - first
-      : null;
-  const fullLap = validTime(lapTime);
-  const third =
-    cumulativeSecond !== null && fullLap !== null && fullLap > cumulativeSecond
-      ? fullLap - cumulativeSecond
-      : null;
-  return [first, second, third];
-}
-
-function sectorIdx(rawSector: number | undefined): number {
-  if (rawSector === 1) return 0;
-  if (rawSector === 2) return 1;
-  return 2;
-}
-
 function trackLocation(raw: Raw, carIdx: number): number {
   // An empty slot is not a car sitting on the track. Without this every index
   // up to max(mID) reported on-track, which consumers test with
@@ -401,10 +375,11 @@ export function mapLmuTelemetry(
   lapStartState?: LmuLapStartState,
   /**
    * The slot of the user's own entry, found by the caller on the session
-   * snapshot, which is the one that carries entry names: -1 for none. It is
-   * what the focus falls back to while a team-mate drives the car and the sim
-   * names no player vehicle. Omitted -- as most specs do -- there is no such
-   * fallback, as before. See ownEntry.ts.
+   * snapshot, which is the one that carries entry names: -1 for none. While
+   * a team-mate drives the car and the sim names no player vehicle, it is
+   * what the focus falls back to and the car the single-car keys describe.
+   * Omitted -- as most specs do -- there is no such fallback and those keys
+   * are empty, as before. See ownEntry.ts and ownEntryKeys.ts.
    */
   ownEntrySlot = -1
 ): Telemetry {
@@ -592,8 +567,9 @@ export function mapLmuTelemetry(
   // the viewer's own car -- or no car -- whoever the camera was on.
   //
   // With nothing focused and no player vehicle it is the user's own entry:
-  // the team car, while a team-mate drives it. PlayerCarIdx above stays -1
-  // then, and IsOnTrack false: this is the car being watched, not driven.
+  // the team car, while a team-mate drives it. PlayerCarIdx names that entry
+  // too by the time the frame goes out (see the end of this function), and
+  // IsOnTrack stays false: this is the car being watched, not driven.
   const watchedIdx = focusCarIdx(restCells, playerIdx, ownEntrySlot);
   t.CamCarIdx = num(watchedIdx);
   t.PlayerCarPitSvStatus = num(0);
@@ -914,7 +890,7 @@ export function mapLmuTelemetry(
       raw.vehBestLapTime?.[playerIdx]
     ),
   };
-  t.LmuSectorIdx = num(sectorIdx(raw.vehSector?.[playerIdx]));
+  t.LmuSectorIdx = num(lmuSectorIdx(raw.vehSector?.[playerIdx]));
   t.Speed = num(raw.speed);
   t.Yaw = num(0);
   t.Pitch = num(0);
@@ -1154,6 +1130,17 @@ export function mapLmuTelemetry(
   t.FastRepairAvailable = num(0);
   t.TireSetsUsed = num(0);
   t.TireSetsAvailable = num(0);
+
+  // With a team-mate at the wheel the sim names no player vehicle, and the
+  // keys above that describe one car were written empty. The ones scoring
+  // has a source for are written again here, for the user's own entry: its
+  // slot as PlayerCarIdx, its lap, lap times, sectors, place and pit state,
+  // and its speed and energy where it has a telemetry block. LmuOutOfCar is
+  // set with them, because the pit flags then describe a car the user is
+  // not in. IsOnTrack and the garage keys stay as they are. Last, so it
+  // describes the frame as it goes out; a frame with a player vehicle is
+  // not touched. See ownEntryKeys.ts.
+  writeLmuOwnEntryKeys(t, raw, playerIdx, ownEntrySlot);
 
   return t as unknown as Telemetry;
 }

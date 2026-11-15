@@ -397,10 +397,23 @@ export function mapLmuSession(
    * SessionUniqueID on the frame, and a disagreement would read as a session
    * change on every other tick.
    */
-  sessionIdentity?: LmuSessionIdentity
+  sessionIdentity?: LmuSessionIdentity,
+  /**
+   * The slot of the user's own entry as the caller resolved it, -1 for
+   * none: the player's vehicle while there is one, and the entry remembered
+   * from then while a team-mate drives it. It is DriverInfo.DriverCarIdx,
+   * and must be the slot the telemetry mapper is given, so that the session
+   * and the frame name the same car. Omitted -- as most specs do -- the
+   * entry is the one scoring flags as the player's, as before. See
+   * ownEntry.ts.
+   */
+  ownEntrySlot?: number
 ): Session {
   const trackLengthM = raw.lapDist;
-  const playerDriver = raw.drivers.find((d) => d.isPlayer);
+  const playerDriver =
+    ownEntrySlot === undefined
+      ? raw.drivers.find((d) => d.isPlayer)
+      : raw.drivers.find((d) => d.id === ownEntrySlot);
   const shiftLights = deriveLmuShiftLightRpm(
     raw.engineMaxRPM,
     lmuShiftPointRpm(
@@ -539,7 +552,9 @@ export function mapLmuSession(
     ),
   }));
 
-  const playerIdx = playerDriver?.id ?? -1;
+  // The caller's slot as it stands, even for an entry the grid does not
+  // list yet: it is the one the frame names.
+  const playerIdx = ownEntrySlot ?? playerDriver?.id ?? -1;
   const currentSessionType = sessionType(raw.session);
 
   // Qualifying grid: qualification is LMU's quali time; class ranks computed

@@ -13,6 +13,7 @@ import {
   type FuelEngineFrame,
 } from '@irdashies/shared';
 import type { TelemetryProcessor } from './TelemetryProcessor';
+import { isAwayFromWheel } from './watchedCar';
 
 const MAX_LAP_HISTORY = 50;
 const CLASS_PACE_HISTORY = 5;
@@ -47,6 +48,12 @@ const VIRTUAL_ENERGY_KEY_SUFFIX = ' (virtual energy)';
 const MAX_TANK_LAP_HISTORY = 10;
 /** How many recent laps the tank's litres a lap is averaged over. */
 const TANK_AVERAGE_LAPS = 5;
+/**
+ * How long a car's virtual energy is counted on its held reading while
+ * somebody else drives it. A frame or two without a telemetry block is a
+ * dropped frame; longer than this, the sim is not sending one.
+ */
+const ENERGY_READING_HOLD_SECONDS = 1;
 
 export interface FuelProjectionPersistence {
   lapCompleted(lap: FuelLapData): void;
@@ -231,6 +238,14 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
   private readonly tankEngine: FuelProjectionEngine;
   private readonly tankLaps: FuelLapData[] = [];
   private tankLevel = 0;
+  /**
+   * The session time of the last frame that had the budget to count in:
+   * every frame at the wheel, and with somebody else driving the ones on
+   * which the sim wrote it for the car.
+   */
+  private lastReadingAt = Number.NEGATIVE_INFINITY;
+  /** True while nothing is being counted, so the engine is cleared once. */
+  private idle = false;
 
   constructor(options: FuelProjectionProcessorOptions = {}) {
     this.persistence = options.persistence ?? noPersistence;
@@ -325,26 +340,58 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
       sessionInfo?.SessionType,
       sessionInfo?.SessionLaps
     );
-    const engineFrame: FuelEngineFrame = {
-      fuelLevel,
-      lap,
-      lapDistPct,
-      onPitRoad: booleanValue(frame, 'OnPitRoad'),
-      playerCarTowTime: value(frame, 'PlayerCarTowTime'),
-      sessionFlags: value(frame, 'SessionFlags'),
-      sessionNum,
-      sessionTime,
-    };
-    const commands = this.engine.onFrame(
-      engineFrame,
-      { getRecentLaps: (count) => this.laps.slice(0, count) },
-      validateLap,
-      isGreenFlag,
-      { persistLaps: this.persistLaps }
-    );
-    this.lastCommands = commands;
-    this.execute(commands);
-    if (onEnergy && hasTankReading) this.countTank(engineFrame);
+    // With somebody else at the wheel the car goes on lapping and using its
+    // budget, and the laps are counted for as long as the sim goes on
+    // writing that budget for it. Where it does not -- the tank of any car
+    // the user is not in, the energy of one with no telemetry block -- there
+    // is a lap count and nothing to measure it in. Counted against a held
+    // or missing reading, the lap the user gets back in on would be charged
+    // with the whole stint.
+    const watched = isAwayFromWheel(frame);
+    const hasReading =
+      !watched || this.hasBudgetReading(frame, onEnergy, hasTankReading);
+    if (hasReading) this.lastReadingAt = sessionTime;
+    // An energy reading is held through a dropped frame, as the per-car
+    // channel holds it. A tank reading is not: without one the level is 0.
+    const counting =
+      hasReading ||
+      (onEnergy &&
+        sessionTime >= this.lastReadingAt &&
+        sessionTime - this.lastReadingAt <= ENERGY_READING_HOLD_SECONDS);
+    if (counting) {
+      this.idle = false;
+      const engineFrame: FuelEngineFrame = {
+        fuelLevel,
+        lap,
+        lapDistPct,
+        onPitRoad: booleanValue(frame, 'OnPitRoad'),
+        playerCarTowTime: value(frame, 'PlayerCarTowTime'),
+        sessionFlags: value(frame, 'SessionFlags'),
+        sessionNum,
+        sessionTime,
+        // Left off a frame at the wheel, which is then the frame it always
+        // was.
+        ...(watched ? { watched } : {}),
+      };
+      const commands = this.engine.onFrame(
+        engineFrame,
+        { getRecentLaps: (count) => this.laps.slice(0, count) },
+        validateLap,
+        isGreenFlag,
+        { persistLaps: this.persistLaps }
+      );
+      this.lastCommands = commands;
+      this.execute(commands);
+      if (onEnergy && hasTankReading) this.countTank(engineFrame);
+    } else if (!this.idle) {
+      // Nothing to count in. The lap under way is dropped, and the laps
+      // already counted stand; the next lap is picked up where the reading
+      // comes back, and recorded from the line after that.
+      this.idle = true;
+      this.engine.reset();
+      this.tankEngine.reset();
+      this.lastCommands = [];
+    }
 
     const engine = this.engine.snapshot();
     const currentLapUsage =
@@ -396,6 +443,8 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
       isFixedLapRace: raceProjection.isFixedLapRace,
       sessionType: sessionInfo?.SessionType,
       isOnTrack: booleanValue(frame, 'IsOnTrack'),
+      // Left out at the wheel, so that snapshot is the one it always was.
+      ...(watched && counting ? { watched } : {}),
       trackId: trackOf(this.session),
       carName:
         this.carKey !== undefined && onEnergy
@@ -438,6 +487,22 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
     state: ReturnType<FuelProjectionEngine['snapshot']>;
   } {
     return { commands: this.lastCommands, state: this.engine.snapshot() };
+  }
+
+  /**
+   * Whether this frame carries the budget itself, written by the sim for
+   * the car: its fuel level, or for a car on virtual energy the energy of
+   * its own telemetry block. The per-car energy channel does not say: it
+   * holds a car's last reading through a frame without one.
+   */
+  private hasBudgetReading(
+    frame: Telemetry,
+    onEnergy: boolean,
+    hasTankReading: boolean
+  ): boolean {
+    return onEnergy
+      ? typeof frame.LmuVirtualEnergy?.value?.[0] === 'number'
+      : hasTankReading;
   }
 
   private execute(commands: readonly FuelEngineCommand[]): void {
@@ -492,6 +557,8 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
     this.engine.reset();
     this.tankEngine.reset();
     this.lastCommands = [];
+    this.lastReadingAt = Number.NEGATIVE_INFINITY;
+    this.idle = false;
     this.classLapTimes.clear();
     this.lastLapTimesByCarIdx = [];
     this.leaderFinishLap = undefined;

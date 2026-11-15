@@ -74,6 +74,7 @@ const lapLog = (overrides: Partial<LapLogSnapshot> = {}): LapLogSnapshot => ({
   currentLapTime: 52.34,
   lastLapTime: 104.53,
   bestLapTime: 104.054,
+  ownBestLapTime: 104.054,
   carIdxBestLapTime: fieldBestLaps(104.054, 103.611),
   sessionNum: 0,
   sessionTime: 600,
@@ -413,6 +414,24 @@ export const OutOfTheCar: Story = {
     },
     { showOnlyWhenOnTrack: false }
   ),
+};
+
+/**
+ * A team-mate's stint, watched from the monitor: the lap, the delta and the
+ * lap times are the team car's and live, and the sector times, which are
+ * the user's own from their last lap at the wheel, step back.
+ */
+export const TeamMateDriving: Story = {
+  ...story({
+    ...midLap,
+    'track-state.snapshot': {
+      ...driving,
+      isOnTrack: false,
+      outOfCar: true,
+      watching: true,
+      watchingOwnCar: true,
+    },
+  }),
 };
 
 /** Two decimals throughout and larger text, in a box resized to suit. */

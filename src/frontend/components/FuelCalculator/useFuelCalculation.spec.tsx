@@ -300,6 +300,54 @@ describe('useFuelCalculation channel parity', () => {
     );
   });
 
+  it('does not save a lap a team-mate drove, and still counts it', async () => {
+    const saveLap = vi.fn(async () => undefined);
+    const saveQualifyMax = vi.fn(async () => undefined);
+    window.fuelCalculatorBridge = {
+      getHistoricalLaps: vi.fn(async () => []),
+      saveLap,
+      clearHistory: vi.fn(async () => undefined),
+      clearAllHistory: vi.fn(async () => undefined),
+      getQualifyMax: vi.fn(async () => null),
+      saveQualifyMax,
+      startNewLog: vi.fn(async () => undefined),
+      logData: vi.fn(async () => undefined),
+    } satisfies FuelCalculatorBridge;
+    useFuelStore.setState({ trackId: 'old-track', carName: 'old-car' });
+    // The newer lap is the team-mate's, the older the user's own.
+    const [latest, own] = projection.completedLaps;
+    const teamMates = { ...latest, fuelUsed: 4.5, wasWatched: true };
+    window.channelBridge = {
+      subscribe: <K extends ChannelName>(
+        _channel: K,
+        callback: (payload: ChannelPayloads[K]) => void
+      ) => {
+        callback({
+          ...projection,
+          trackId: 'new-track',
+          carName: 'new-car',
+          lastLapUsage: teamMates.fuelUsed,
+          completedLaps: [teamMates, own],
+        } as unknown as ChannelPayloads[K]);
+        return () => undefined;
+      },
+    };
+
+    const { result } = renderHook(() =>
+      useFuelCalculation(defaultFuelCalculatorSettings.safetyMargin, {
+        ...defaultFuelCalculatorSettings,
+        enableStorage: true,
+      })
+    );
+
+    await waitFor(() => expect(saveLap).toHaveBeenCalledOnce());
+    expect(saveLap).toHaveBeenCalledWith('new-track', 'new-car', own);
+    // It is what the car used last lap, and is in the session's figures.
+    await waitFor(() => expect(result.current).not.toBeNull());
+    expect(result.current?.lastLapUsage).toBe(4.5);
+    expect(result.current?.maxLapUsage).toBe(4.5);
+  });
+
   it('never writes to disk when embedded', async () => {
     const getHistoricalLaps = vi.fn(async () => []);
     const saveLap = vi.fn(async () => undefined);

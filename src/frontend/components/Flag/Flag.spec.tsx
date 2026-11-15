@@ -81,6 +81,8 @@ const drawn = (
   vi.mocked(useDrivingState).mockReturnValue({
     isDriving: isOnTrack,
     isWatching,
+    isWatchingOwnCar: false,
+    isWatchingOtherCar: isWatching,
   });
   const { container } = render(<Flag />);
   return container.querySelector('span')?.textContent ?? null;

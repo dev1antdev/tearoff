@@ -62,10 +62,15 @@ const selectCurrentLap = (snapshot: SessionTimingSnapshot): number =>
  * draw, at the precision they draw it, so the panel is redrawn when a figure
  * on it changes and not on every snapshot. A channel no tile needs is not
  * subscribed to.
+ *
+ * `isLapLive` is the lap being timed for the user's own car: the user is
+ * driving it, or watching it with a team-mate at the wheel. `isDriving` is
+ * the first of those alone, which is all the sector timer follows.
  */
 export const useTimingReadings = (
   settings: TimingConfig,
-  isDriving: boolean
+  isDriving: boolean,
+  isLapLive = isDriving
 ): TimingReadings => {
   const {
     tiles,
@@ -197,9 +202,9 @@ export const useTimingReadings = (
     lap: lap !== undefined && lap > 0 ? lap : null,
     // Out of the car nothing is being driven against the reference, and the
     // lap clock is not a lap time.
-    delta: isDriving ? (lapDelta?.delta ?? null) : null,
+    delta: isLapLive ? (lapDelta?.delta ?? null) : null,
     referenceLapTime: lapDelta?.referenceLapTime ?? null,
-    lapVoid: isDriving && (lapLog?.lapVoid ?? false),
+    lapVoid: isLapLive && (lapLog?.lapVoid ?? false),
     lastLapTime: lapLog?.lastLapTime ?? null,
     lastLapInvalid: lapLog?.lastLapInvalid ?? false,
     bestLapTime: lapLog?.bestLapTime ?? null,
@@ -207,8 +212,9 @@ export const useTimingReadings = (
     allTimeBestLapTime: lapDelta?.allTimeBestLapTime ?? null,
     stintBestLapTime: lapDelta?.stintBestLapTime ?? null,
     paceLapTime: pace ?? null,
-    currentLapTime: isDriving ? (lapLog?.currentLapTime ?? null) : null,
+    currentLapTime: isLapLive ? (lapLog?.currentLapTime ?? null) : null,
     sectors,
-    dimmed: !isDriving,
+    dimmed: !isLapLive,
+    sectorsHeld: isLapLive && !isDriving,
   };
 };

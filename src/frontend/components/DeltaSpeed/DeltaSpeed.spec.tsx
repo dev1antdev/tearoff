@@ -184,6 +184,48 @@ describe('DeltaSpeed', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  describe('through a team-mate’s stint', () => {
+    /** Out of the car and watching, with the speed the team car is doing. */
+    const watching = (
+      watchingOwnCar: boolean
+    ): Partial<TrackStateSnapshot> => ({
+      speed: speedForDelta(4.2),
+      lapDistPct: REF_PCT,
+      isOnTrack: false,
+      outOfCar: true,
+      watching: true,
+      watchingOwnCar,
+    });
+
+    it('shows the team car’s speed against the user’s own lap', () => {
+      seedAll(watching(true));
+
+      render(<DeltaSpeed {...baseConfig} showOnlyWhenOnTrack />);
+
+      expect(screen.getByText('+4.2')).toBeInTheDocument();
+    });
+
+    it('stays hidden while the camera is on another car', () => {
+      seedAll(watching(false));
+
+      const { container } = render(
+        <DeltaSpeed {...baseConfig} showOnlyWhenOnTrack />
+      );
+
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it('shows no delta over another car when told to stay on screen', () => {
+      // The speed is still the team car's, which is not the car on screen.
+      seedAll(watching(false));
+
+      render(<DeltaSpeed {...baseConfig} />);
+
+      expect(screen.queryByText('+4.2')).not.toBeInTheDocument();
+      expect(screen.getByText('No clean lap')).toBeInTheDocument();
+    });
+  });
+
   it('omits the number when showNumber is off', () => {
     seedAll({
       speed: speedForDelta(4.2),

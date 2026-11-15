@@ -21,6 +21,21 @@ const seedSession = () =>
 const seedTrack = (speedMs: number, lapDistPct: number) =>
   seedTrackState({ speed: speedMs, lapDistPct });
 
+/** Out of the car, watching the user's own entry or another car. */
+const seedWatching = (
+  speedMs: number,
+  lapDistPct: number,
+  watchingOwnCar: boolean
+) =>
+  seedTrackState({
+    speed: speedMs,
+    lapDistPct,
+    isOnTrack: false,
+    outOfCar: true,
+    watching: true,
+    watchingOwnCar,
+  });
+
 const seedBestLap = (lap: ReferenceLap | null) =>
   useReferenceLapStore.setState({
     bestLaps: lap ? new Map([[PLAYER_CAR_IDX, lap]]) : new Map(),
@@ -38,6 +53,41 @@ describe('useDeltaSpeed', () => {
 
     const { result } = renderHook(() => useDeltaSpeed());
     expect(result.current).toBeNull();
+  });
+
+  describe('through a team-mate’s stint', () => {
+    const lap = buildMockSpeedLap();
+    const pct = lap.pointPos[200];
+    const quicker = (mockSpeedAt(pct) + 10) / 3.6;
+
+    beforeEach(() => {
+      seedSession();
+      seedBestLap(lap);
+    });
+
+    it('compares the team car’s speed with the user’s own lap', () => {
+      seedWatching(quicker, pct, true);
+
+      const { result } = renderHook(() => useDeltaSpeed());
+      expect(result.current).toBeCloseTo(10, 1);
+    });
+
+    it('has nothing to show with the camera on another car', () => {
+      seedWatching(quicker, pct, false);
+
+      const { result } = renderHook(() => useDeltaSpeed());
+      expect(result.current).toBeNull();
+    });
+
+    it('has nothing to show for a car the sim sends no speed for', () => {
+      // No telemetry block for the team car: its speed is left out of the
+      // frame, and reads here as 0. Not a car standing still at 200 km/h
+      // down on the reference.
+      seedWatching(0, pct, true);
+
+      const { result } = renderHook(() => useDeltaSpeed());
+      expect(result.current).toBeNull();
+    });
   });
 
   it('returns zero when matching the reference exactly', () => {

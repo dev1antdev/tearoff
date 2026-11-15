@@ -89,6 +89,15 @@ export interface TrackStateSnapshot {
    * false under iRacing for now.
    */
   watching: boolean;
+  /**
+   * True while the car being watched is the user's own entry: a team-mate's
+   * stint with the camera left on the team car. The figures that describe
+   * one car -- the lap, the lap times, the speed -- are the own entry's
+   * whatever the camera is on, so they are what is on screen only while this
+   * is set. Never true without `watching`. Always false under iRacing for
+   * now.
+   */
+  watchingOwnCar: boolean;
   playerCarInPitStall: boolean;
   playerTrackSurface: number;
   onPitRoad: boolean;
@@ -531,6 +540,16 @@ export interface LapLogSnapshot {
   currentLapTime: number;
   lastLapTime: number;
   bestLapTime: number;
+  /**
+   * The best lap of the session that the user drove themselves, from the
+   * line to the line; 0 for none. This is the one a personal best is taken
+   * from. Under Le Mans Ultimate `bestLapTime` is the car's, so after a
+   * team-mate's stint it may be theirs; a time counts here only if it
+   * appeared with the user at the wheel for at least as long as the lap
+   * took. Under iRacing, whose best lap is the player's own, the two are
+   * the same.
+   */
+  ownBestLapTime: number;
   carIdxBestLapTime: readonly number[];
   sessionNum: number | null;
   sessionTime: number;
@@ -893,6 +912,14 @@ export interface FuelProjectionSnapshot {
   isFixedLapRace: boolean;
   sessionType?: string;
   isOnTrack: boolean;
+  /**
+   * True while somebody else is driving the car and the sim goes on writing
+   * the budget counted here, so the figures are live for it: a team-mate's
+   * stint in a car on virtual energy. Left out when the user is at the
+   * wheel, and when the sim writes nothing for the car, where the figures
+   * are the last ones read. Only ever set under Le Mans Ultimate.
+   */
+  watched?: boolean;
   trackId?: string | number;
   /**
    * The car the lap history is kept under, not a name to show. A car running

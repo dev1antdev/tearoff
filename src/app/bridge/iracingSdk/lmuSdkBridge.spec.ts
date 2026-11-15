@@ -18,10 +18,14 @@ const sdkState = vi.hoisted(() => ({
   sessionEndEvents: 0,
   /** Makes every shared-memory read throw, as a vanished mapping would. */
   readThrows: false,
+  /** Whether the sim names a player vehicle, and in which slot. */
+  playerHasVehicle: true,
+  playerVehicleIdx: 0,
   /** The grid a session poll reports, so a spec can choose its names. */
   drivers: [] as {
     id: number;
     name: string;
+    vehicleName?: string;
     control?: number;
     isPlayer?: boolean;
   }[],
@@ -70,8 +74,8 @@ const rawFrame = () => {
     gamePhase: 5,
     numVehicles: 2,
     activeVehicles: 2,
-    playerVehicleIdx: 0,
-    playerHasVehicle: true,
+    playerVehicleIdx: sdkState.playerVehicleIdx,
+    playerHasVehicle: sdkState.playerHasVehicle,
     sessionEndEvents: sdkState.sessionEndEvents,
     lapDist: 5000,
     speed: 0,
@@ -716,6 +720,86 @@ describe('publishLmuSDKEvents and driver ratings', () => {
 
     bridge.stop();
     vi.unstubAllEnvs();
+  });
+});
+
+/**
+ * The session and the frame have to name the same car as the user's. The
+ * bridge resolves the own entry once, on the session poll, and hands that
+ * slot to both mappers; and since the session's signature sees only shared
+ * memory, a change of slot has to rebuild the session by itself.
+ */
+describe('publishLmuSDKEvents and the user’s own entry', () => {
+  /** The slot the session mapper was last given as the own entry. */
+  const ownEntrySlotGiven = () => mapSessionSpy.mock.calls.at(-1)?.[5];
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sdkState.running = true;
+    sdkState.readThrows = false;
+    sdkState.playerHasVehicle = true;
+    sdkState.playerVehicleIdx = 0;
+    sdkState.drivers = [
+      { id: 0, name: 'The User', vehicleName: 'Team X #77:LMGT3' },
+      { id: 1, name: 'A Rival', vehicleName: 'Team Y #12:LMGT3' },
+    ];
+  });
+
+  afterEach(() => {
+    sdkState.playerHasVehicle = true;
+    sdkState.playerVehicleIdx = 0;
+    sdkState.drivers = [];
+  });
+
+  it('gives the session mapper the player’s slot while the player has a vehicle', async () => {
+    const { publishLmuSDKEvents } = await import('./lmuSdkBridge');
+    const bridge = await publishLmuSDKEvents(createOverlayManager());
+
+    await vi.waitFor(() => expect(mapSessionSpy).toHaveBeenCalled());
+    expect(ownEntrySlotGiven()).toBe(0);
+
+    bridge.stop();
+  });
+
+  it('goes on naming the entry through a team-mate’s stint, and rebuilds the session when it moves', async () => {
+    const { publishLmuSDKEvents } = await import('./lmuSdkBridge');
+    const bridge = await publishLmuSDKEvents(createOverlayManager());
+    await vi.waitFor(() => expect(mapSessionSpy).toHaveBeenCalled());
+    const builds = mapSessionSpy.mock.calls.length;
+
+    // The team-mate takes over: no player vehicle, and the sim hands the
+    // entry another slot. Nothing the session's signature sees has moved.
+    sdkState.playerHasVehicle = false;
+    sdkState.playerVehicleIdx = -1;
+    sdkState.drivers = [
+      { id: 0, name: 'A Rival', vehicleName: 'Team Y #12:LMGT3' },
+      { id: 1, name: 'The Team-mate', vehicleName: 'Team X #77:LMGT3' },
+    ];
+
+    await vi.waitFor(() =>
+      expect(mapSessionSpy.mock.calls.length).toBeGreaterThan(builds)
+    );
+    expect(ownEntrySlotGiven()).toBe(1);
+
+    bridge.stop();
+  });
+
+  it('does not rebuild the session while the entry stays where it is', async () => {
+    const { publishLmuSDKEvents } = await import('./lmuSdkBridge');
+    const bridge = await publishLmuSDKEvents(createOverlayManager());
+    await vi.waitFor(() => expect(mapSessionSpy).toHaveBeenCalled());
+    const builds = mapSessionSpy.mock.calls.length;
+
+    // Remembered in the same slot: the same car, and nothing to republish.
+    // Long enough for the next session poll, which is where it is looked
+    // for, to have come and gone.
+    sdkState.playerHasVehicle = false;
+    sdkState.playerVehicleIdx = -1;
+    await new Promise((resolve) => setTimeout(resolve, 700));
+
+    expect(mapSessionSpy.mock.calls.length).toBe(builds);
+
+    bridge.stop();
   });
 });
 

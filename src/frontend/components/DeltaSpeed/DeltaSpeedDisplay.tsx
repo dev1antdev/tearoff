@@ -1,5 +1,6 @@
 import {
   trackStateSelectors,
+  useDrivingState,
   useGeneralSettings,
   useSessionVisibility,
   useTrackStateSelector,
@@ -23,6 +24,7 @@ export const DeltaSpeedDisplay = ({
   deltaKph,
 }: DeltaSpeedConfig & { deltaKph: number | null }) => {
   const isOnTrack = useTrackStateSelector(trackStateSelectors.isOnTrack);
+  const { isWatchingOwnCar } = useDrivingState();
   // 0 = imperial, 1 = metric
   const displayUnits = useTrackStateSelector(trackStateSelectors.displayUnits);
   const isVisibleInSession = useSessionVisibility(sessionVisibility);
@@ -39,7 +41,9 @@ export const DeltaSpeedDisplay = ({
         : 'normal';
 
   if (!isVisibleInSession) return null;
-  if (showOnlyWhenOnTrack && !isOnTrack) return null;
+  // At the wheel, or watching the user's own car with a team-mate in it:
+  // its speed against the user's own reference lap.
+  if (showOnlyWhenOnTrack && !(isOnTrack || isWatchingOwnCar)) return null;
 
   const resolvedUnit = resolveSpeedUnit(unit, displayUnits);
   const isMph = resolvedUnit === 'mph';
