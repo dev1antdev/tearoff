@@ -1,6 +1,10 @@
 import { useEffect, useRef, type RefObject } from 'react';
 import type { LapTraceSamples, LapTraceView } from '@irdashies/types';
-import { getChannelSnapshotStore, useLapTraceStore } from '@irdashies/context';
+import {
+  getChannelSnapshotStore,
+  useLapTraceStore,
+  usePaintingPaused,
+} from '@irdashies/context';
 import {
   MAX_SAMPLE_GAP_M,
   indexAtOrBefore,
@@ -523,6 +527,19 @@ export const useLapTraceFrame = (
   // Asks the drawing effect for a frame. The position is subscribed in an
   // effect of its own, so a settings change does not resubscribe it.
   const requestDrawRef = useRef<() => void>(() => undefined);
+
+  // No frames while the plot cannot be seen: the overlay hidden, or its
+  // window. The recorder is not part of this widget and keeps recording, so
+  // the frame drawn when the pause ends has the whole lap to draw from.
+  // Declared before the drawing effect, which reads the ref when it builds
+  // its scheduler: a settings change while paused must not start one running.
+  const paintingPaused = usePaintingPaused();
+  const paintingPausedRef = useRef(paintingPaused);
+  const setPausedRef = useRef<(paused: boolean) => void>(() => undefined);
+  useEffect(() => {
+    paintingPausedRef.current = paintingPaused;
+    setPausedRef.current(paintingPaused);
+  }, [paintingPaused]);
 
   useEffect(() => {
     if (carDistanceMOverride !== undefined) return;
@@ -1066,14 +1083,17 @@ export const useLapTraceFrame = (
       (state, prev) =>
         state.referenceLap !== prev.referenceLap ||
         state.trackLengthM !== prev.trackLengthM ||
-        state.activeLap !== prev.activeLap
+        state.activeLap !== prev.activeLap,
+      paintingPausedRef.current
     );
     requestDraw = scheduler.request;
     requestDrawRef.current = scheduler.request;
+    setPausedRef.current = scheduler.setPaused;
 
     return () => {
       scheduler.dispose();
       requestDrawRef.current = () => undefined;
+      setPausedRef.current = () => undefined;
     };
   }, [
     refs,

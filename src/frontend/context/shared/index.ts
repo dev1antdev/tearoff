@@ -18,3 +18,4 @@ export * from './useActiveSimulator';
 export * from './useSimWidgetSupport';
 export * from './useHiddenWidgetIds';
 export * from './useOverlayHidden';
+export * from './usePaintingPaused';

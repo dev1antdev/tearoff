@@ -11,7 +11,8 @@ import {
   useLapHistorySnapshot,
   useWeekendInfoNumCarClasses,
   useCarIdxSpeed,
-  useTrackStateSnapshot,
+  useTrackStateSelector,
+  trackStateSelectors,
   useSessionStore,
 } from '@irdashies/context';
 import { formatTime } from '@irdashies/utils/time';
@@ -413,7 +414,9 @@ export const Battle = () => {
 
   // Speed: derived from CarIdxLapDistPct movement, in km/h.
   const carSpeeds = useCarIdxSpeed(settings?.speed?.enabled ?? false);
-  const displayUnits = useTrackStateSnapshot()?.displayUnits;
+  // The one field, not the snapshot: that is republished 25 times a second
+  // with every car's position in it, and would render the widget as often.
+  const displayUnits = useTrackStateSelector(trackStateSelectors.displayUnits);
   const resolvedSpeedUnit = resolveSpeedUnit(
     settings?.speed?.unit,
     displayUnits

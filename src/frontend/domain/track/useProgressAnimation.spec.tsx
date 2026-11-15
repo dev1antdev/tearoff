@@ -202,6 +202,103 @@ describe('useProgressAnimation', () => {
     expect(callbacks.size).toBe(1);
   });
 
+  describe('a frame cap on a moving field', () => {
+    const draw = vi.fn();
+    const Harness = ({
+      source,
+      cap,
+    }: {
+      source: ReturnType<typeof drivers>;
+      cap: number;
+    }) => {
+      useProgressAnimation(source, draw, cap);
+      return null;
+    };
+    /**
+     * A second of driving: a snapshot every 40 ms keeps the cars moving, and
+     * the display refreshes `hz` times, each `jitter(index)` ms off the beat.
+     * Returns the draws made, the one at mount not counted.
+     */
+    const drawsInOneSecond = (
+      cap: number,
+      hz: number,
+      jitter: (index: number) => number = () => 0
+    ) => {
+      const view = render(<Harness source={drivers(0)} cap={cap} />);
+      view.rerender(<Harness source={drivers(0.0005)} cap={cap} />);
+      draw.mockClear();
+      let snapshots = 0;
+      for (let index = 1; index <= hz; index++) {
+        const time = (index * 1000) / hz + jitter(index);
+        while ((snapshots + 1) * 40 <= time) {
+          snapshots++;
+          commitAt(snapshots * 40);
+          view.rerender(
+            <Harness source={drivers(0.0005 + snapshots * 0.001)} cap={cap} />
+          );
+        }
+        frame(time);
+      }
+      view.unmount();
+      return draw.mock.calls.length;
+    };
+
+    it.each([60, 120, 144, 240])(
+      'draws about 60 times a second at a cap of 60 on a %i Hz display',
+      (hz) => {
+        const draws = drawsInOneSecond(60, hz);
+        expect(draws).toBeGreaterThanOrEqual(59);
+        expect(draws).toBeLessThanOrEqual(60);
+      }
+    );
+
+    it.each([59.94, 60])(
+      'draws on every refresh of a %s Hz display at a cap of 60, however the timestamps wobble',
+      (hz) => {
+        // Refresh times are never exactly an interval apart. Measured from
+        // the last draw, half of them fall a hair short of the cap and the
+        // map drops to every other frame.
+        const draws = drawsInOneSecond(60, hz, (index) =>
+          index % 2 ? 0.2 : -0.2
+        );
+        expect(draws).toBeGreaterThanOrEqual(58);
+        expect(draws).toBeLessThanOrEqual(60);
+      }
+    );
+
+    it.each([60, 144])(
+      'draws about 30 times a second at a cap of 30 on a %i Hz display',
+      (hz) => {
+        const draws = drawsInOneSecond(30, hz, (index) =>
+          index % 2 ? 0.2 : -0.2
+        );
+        expect(draws).toBeGreaterThanOrEqual(29);
+        expect(draws).toBeLessThanOrEqual(30);
+      }
+    );
+
+    it('draws every frame of a display slower than the cap', () => {
+      expect(drawsInOneSecond(60, 30)).toBe(30);
+    });
+
+    it('skips the slots a stall went past, with no burst to catch up', () => {
+      const view = render(<Harness source={drivers(0)} cap={60} />);
+      commitAt(40);
+      view.rerender(<Harness source={drivers(0.1)} cap={60} />);
+      draw.mockClear();
+      // Half a second with no frame at all, then the display catches up.
+      frame(540);
+      expect(draw).toHaveBeenCalledTimes(1);
+      commitAt(541);
+      view.rerender(<Harness source={drivers(0.2)} cap={60} />);
+      frame(540 + 1000 / 240);
+      frame(540 + 2000 / 240);
+      expect(draw).toHaveBeenCalledTimes(1);
+      frame(540 + 4000 / 240);
+      expect(draw).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it('uses the latest committed appearance in an already pending frame', () => {
     const oldDraw = vi.fn();
     const latestDraw = vi.fn();
@@ -302,6 +399,123 @@ describe('useProgressAnimation', () => {
     frame(32);
     expect(draw.mock.calls.at(-1)?.[0][0]).toBeCloseTo(0.9);
     expect(callbacks.size).toBe(0);
+  });
+
+  describe('paused, as while the overlay is hidden', () => {
+    const draw = vi.fn();
+    const Harness = ({
+      source,
+      paused,
+      appearance = 'plain',
+    }: {
+      source: ReturnType<typeof drivers>;
+      paused: boolean;
+      appearance?: string;
+    }) => {
+      useProgressAnimation(
+        source,
+        (values, count) => draw(appearance, values[0], count),
+        undefined,
+        undefined,
+        paused
+      );
+      return null;
+    };
+
+    beforeEach(() => draw.mockClear());
+
+    it('draws nothing and asks for no frame, whatever arrives', () => {
+      const view = render(<Harness source={drivers(0.1)} paused={false} />);
+      commitAt(5);
+      view.rerender(<Harness source={drivers(0.3)} paused={false} />);
+      expect(callbacks.size).toBe(1);
+      draw.mockClear();
+
+      // The pending frame goes with the pause.
+      view.rerender(<Harness source={drivers(0.3)} paused />);
+      expect(callbacks.size).toBe(0);
+
+      // New positions, the same positions restyled, and time passing.
+      commitAt(45);
+      view.rerender(<Harness source={drivers(0.5)} paused />);
+      view.rerender(
+        <Harness source={drivers(0.5)} paused appearance="restyled" />
+      );
+      frame(60);
+      frame(200);
+
+      expect(draw).not.toHaveBeenCalled();
+      expect(callbacks.size).toBe(0);
+    });
+
+    it('paints once when the pause ends, where the cars are by then', () => {
+      const view = render(<Harness source={drivers(0.1)} paused={false} />);
+      view.rerender(<Harness source={drivers(0.1)} paused />);
+      commitAt(40);
+      view.rerender(<Harness source={drivers(0.3)} paused />);
+      commitAt(80);
+      const latest = drivers(0.5);
+      view.rerender(<Harness source={latest} paused appearance="restyled" />);
+      draw.mockClear();
+
+      commitAt(400);
+      view.rerender(
+        <Harness source={latest} paused={false} appearance="restyled" />
+      );
+
+      // In the commit itself, not a frame later, and not eased in from where
+      // the cars were when the overlay went away.
+      expect(draw).toHaveBeenCalledTimes(1);
+      expect(draw.mock.calls[0][0]).toBe('restyled');
+      expect(draw.mock.calls[0][1]).toBeCloseTo(0.5);
+      expect(callbacks.size).toBe(0);
+    });
+
+    it('paints and animates on when positions arrive with the end of the pause', () => {
+      const view = render(<Harness source={drivers(0.1)} paused />);
+      expect(draw).not.toHaveBeenCalled();
+
+      commitAt(40);
+      view.rerender(<Harness source={drivers(0.3)} paused={false} />);
+      expect(draw).toHaveBeenCalledTimes(1);
+      expect(callbacks.size).toBe(1);
+      frame(80);
+      expect(draw.mock.calls.at(-1)?.[1]).toBeCloseTo(0.3);
+      expect(callbacks.size).toBe(0);
+    });
+
+    it('restores a canvas that was cleared while paused', () => {
+      let canvas = 'cars';
+      const Canvas = ({
+        paused,
+        revision,
+      }: {
+        paused: boolean;
+        revision: number;
+      }) => {
+        const invalidated = useRef(false);
+        useLayoutEffect(() => {
+          canvas = '';
+          invalidated.current = true;
+        }, [revision]);
+        useProgressAnimation(
+          source,
+          () => {
+            canvas = `cars:${revision}`;
+          },
+          30,
+          invalidated,
+          paused
+        );
+        return null;
+      };
+      const source = drivers(0.1);
+      const view = render(<Canvas paused={false} revision={0} />);
+      view.rerender(<Canvas paused revision={1} />);
+      expect(canvas).toBe('');
+      view.rerender(<Canvas paused={false} revision={1} />);
+      expect(canvas).toBe('cars:1');
+    });
   });
 
   it('records draw work and cancels pending work on unmount including StrictMode', () => {

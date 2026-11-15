@@ -7,6 +7,9 @@ import { createContext, useContext } from 'react';
  * still there when the overlay comes back. Anything that reaches the driver
  * some other way than by being painted inside the overlay has to ask: a
  * sound, or an element that sets its own visibility.
+ *
+ * A widget that draws for itself, on a canvas or in a frame loop, asks
+ * `usePaintingPaused` instead, so that it stops drawing as well.
  */
 export const OverlayHiddenContext = createContext(false);
 

@@ -27,7 +27,8 @@ vi.mock('@irdashies/context', () => ({
   useLapHistorySnapshot: () => undefined,
   useWeekendInfoNumCarClasses: () => 1,
   useCarIdxSpeed: () => [],
-  useTrackStateSnapshot: () => undefined,
+  trackStateSelectors: { displayUnits: () => undefined },
+  useTrackStateSelector: () => undefined,
   useSessionStore: () => -1,
 }));
 

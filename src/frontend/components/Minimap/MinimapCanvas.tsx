@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { usePaintingPaused } from '@irdashies/context';
 import { useWidgetScale } from '@irdashies/domain/widgetPresentation/WidgetScale';
 import {
   pointAtProgress,
@@ -15,6 +16,7 @@ import {
   project,
   updateView,
 } from './minimapModel';
+import { MinimapRibbon } from './minimapRibbon';
 
 /** One car on the map, in the order its progress is animated. */
 export interface MinimapCar {
@@ -56,16 +58,20 @@ const PIT_ALPHA = 0.4;
 /** The focus marker is drawn a little larger than the rest. */
 const FOCUS_SCALE = 1.15;
 const TAU = Math.PI * 2;
-
-const buildTrackPath = (geometry: TrackGeometry): Path2D => {
-  const path = new Path2D();
-  path.moveTo(geometry.xs[0], geometry.ys[0]);
-  for (let index = 1; index < geometry.count; index += 1) {
-    path.lineTo(geometry.xs[index], geometry.ys[index]);
-  }
-  path.closePath();
-  return path;
-};
+/**
+ * The most the map is redrawn in a second, as the radar is.
+ *
+ * Positions arrive 25 times a second and are eased between, so every refresh
+ * of the display has something new to draw: uncapped, a 144 or 240 Hz monitor
+ * redraws the map that often. Sixty looks the same on a 60 Hz display and
+ * stays smooth with the map turning under the car.
+ */
+const MAX_FPS = 60;
+/**
+ * Pixels past the edge of the disc the track is still drawn for, so the soft
+ * edge of a stroke just outside it is not cut short.
+ */
+const RIBBON_GUARD = 2;
 
 /**
  * Draws the close-range map: a disc centred on the focus car, the track around
@@ -89,6 +95,7 @@ export const MinimapCanvas = ({
   emptyMessage,
 }: MinimapCanvasProps) => {
   const widgetScale = useWidgetScale();
+  const paintingPaused = usePaintingPaused();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Set when a resize clears the canvas, so the next commit repaints at once
   // even if new positions arrive with it; otherwise the disc blinks.
@@ -114,10 +121,8 @@ export const MinimapCanvas = ({
     return () => observer.disconnect();
   }, [widgetScale]);
 
-  const trackPath = useMemo(
-    () => (geometry ? buildTrackPath(geometry) : null),
-    [geometry]
-  );
+  // The stretch of track round the car, rebuilt when the car drives out of it.
+  const [ribbon] = useState(() => new MinimapRibbon());
 
   // Scratch objects reused by every frame, so drawing allocates nothing.
   const scratch = useRef({
@@ -152,7 +157,7 @@ export const MinimapCanvas = ({
     const focusIndex = cars.findIndex((car) => car.isFocus);
     const shown = Math.min(count, cars.length);
 
-    if (!geometry || !trackPath || focusIndex < 0 || focusIndex >= shown) {
+    if (!geometry || focusIndex < 0 || focusIndex >= shown) {
       context.fillStyle = 'rgb(226 232 240 / 0.85)';
       context.textAlign = 'center';
       context.textBaseline = 'middle';
@@ -180,6 +185,16 @@ export const MinimapCanvas = ({
         originY
       );
 
+      // Half the width of the wider of the two strokes, in drawing units.
+      const half = (trackWidth / 2 + TRACK_EDGE) * unitsPerMeter;
+      // Only the track that can reach the disc, not the whole lap.
+      const trackPath = ribbon.pathFor(
+        geometry,
+        centre.x,
+        centre.y,
+        (radius + RIBBON_GUARD) / view.scale + half
+      );
+
       context.save();
       context.translate(originX, originY);
       context.rotate(rotation);
@@ -198,7 +213,6 @@ export const MinimapCanvas = ({
         pointAtProgress(geometry, 0, point);
         tangentAtProgress(geometry, 0, tangent);
         // Across the track: the tangent turned a quarter.
-        const half = (trackWidth / 2 + TRACK_EDGE) * unitsPerMeter;
         context.beginPath();
         context.moveTo(point.x - tangent.y * half, point.y + tangent.x * half);
         context.lineTo(point.x + tangent.y * half, point.y - tangent.x * half);
@@ -254,7 +268,13 @@ export const MinimapCanvas = ({
     context.stroke();
   };
 
-  useProgressAnimation(cars, draw, undefined, canvasInvalidatedRef);
+  useProgressAnimation(
+    cars,
+    draw,
+    MAX_FPS,
+    canvasInvalidatedRef,
+    paintingPaused
+  );
 
   return <canvas ref={canvasRef} className="h-full w-full" />;
 };
