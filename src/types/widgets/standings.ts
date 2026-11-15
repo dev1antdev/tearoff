@@ -460,7 +460,8 @@ export default defineWidgetManifest({
     showOnlyWhenOnTrack: {
       type: 'boolean',
       label: 'Show only when on track',
-      description: 'If enabled, standings will only be shown when driving',
+      description:
+        'Hidden in the garage and in the menus. Shown while you drive and while you watch a car on track.',
     },
     'iratingChange.estimateInPractice': {
       type: 'boolean',

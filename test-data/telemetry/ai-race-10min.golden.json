@@ -10766,7 +10766,7 @@
       "name": "track-state",
       "schemaVersion": 3,
       "frameCount": 36000,
-      "rollingHash": "7b552e6af142117870da2509f729f6615923b3f3bbed661859723018b1e6dbf5",
+      "rollingHash": "53c4c42cf2ef16c7847eb6941c93980e9ffb635a1250deff391379a06e978d30",
       "checkpoints": {
         "firstFrame": {
           "focusCarIdx": 0,
@@ -11071,6 +11071,7 @@
           "dataStale": false,
           "notInSession": false,
           "outOfCar": false,
+          "watching": false,
           "playerCarInPitStall": false,
           "playerTrackSurface": 3,
           "onPitRoad": false,
@@ -11394,6 +11395,7 @@
           "dataStale": false,
           "notInSession": false,
           "outOfCar": false,
+          "watching": false,
           "playerCarInPitStall": false,
           "playerTrackSurface": 3,
           "onPitRoad": false,

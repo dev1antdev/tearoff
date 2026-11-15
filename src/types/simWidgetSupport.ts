@@ -40,6 +40,10 @@ export interface SimWidgetSupportConfig {
  */
 export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   'battle',
+  // LMU's own dials, each with the top of its scale: brake bias, ABS, the
+  // three traction dials, brake migration and the map, under names the sim
+  // fixes for every car. It has a list of rows of its own in the settings.
+  'carsystems',
   // Timed from the car's lap fraction and speed, which LMU publishes, over
   // the corners of the bundled track data: the same data Corner Names uses.
   'cornerdelta',
@@ -110,7 +114,6 @@ export const LMU_DISABLED_WIDGETS: readonly string[] = [
   'broadcastpodium',
   'broadcastticker',
   'broadcastweather',
-  'carsystems',
   'fastercarsfrombehind',
   'flatmap',
   'gantry',

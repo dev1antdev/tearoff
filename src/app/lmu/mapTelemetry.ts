@@ -13,6 +13,7 @@ import {
 import { lapTimeOrAbsent } from './sentinels';
 import { lmuTrackWetness } from './trackWetness';
 import { lmuCarCompound, lmuCompoundChannel } from './tireCompound';
+import { writeLmuDials } from './carDials';
 import { lmuTrackLimitsChannel, lmuTrackLimitsMax } from './trackLimits';
 import { lmuEnergyChannels, type LmuEnergyState } from './fuelEnergy';
 import {
@@ -51,6 +52,7 @@ import {
   observeLmuLapStarts,
   type LmuLapStartState,
 } from './lapStartTiming';
+import { lmuWatchedSlot } from './ownEntry';
 
 type Raw = import('./native').LmuRawTelemetry;
 
@@ -290,19 +292,26 @@ function trackLocation(raw: Raw, carIdx: number): number {
  * processors behave the same as when an iRacing telemetry var is absent.
  */
 /**
- * The slot to focus on: the spectator camera's, or the player's own.
+ * The slot to focus on: the car the sim's camera is on, or the player's own,
+ * or, with no player vehicle, the user's own entry as remembered.
  *
- * Falls back exactly as the processors do, and for the same reason -- a camera
+ * Falls back as the processors do, and for the same reason -- a camera
  * reading of -1 means nothing is focused, not that slot -1 is. The REST task
  * only ever lands an integer in range here, so there is no validation left to
- * do; what this adds is the fallback and one place to read it from.
+ * do; what this adds is the fallbacks and one place to read it from. The
+ * rule itself is in ownEntry.ts, where the bridge reads it for the log.
  */
 const focusCarIdx = (
   restCells: LmuRestCells | undefined,
-  playerIdx: number
+  playerIdx: number,
+  ownEntrySlot: number
 ): number => {
   const focus = restCells?.focusCarIdx?.value?.[0];
-  return typeof focus === 'number' && focus >= 0 ? focus : playerIdx;
+  return lmuWatchedSlot(
+    typeof focus === 'number' ? focus : undefined,
+    playerIdx,
+    ownEntrySlot
+  );
 };
 
 /**
@@ -383,7 +392,15 @@ export function mapLmuTelemetry(
    * lap the sim gives no time for has none, as before. See
    * lapStartTiming.ts.
    */
-  lapStartState?: LmuLapStartState
+  lapStartState?: LmuLapStartState,
+  /**
+   * The slot of the user's own entry, found by the caller on the session
+   * snapshot, which is the one that carries entry names: -1 for none. It is
+   * what the focus falls back to while a team-mate drives the car and the sim
+   * names no player vehicle. Omitted -- as most specs do -- there is no such
+   * fallback, as before. See ownEntry.ts.
+   */
+  ownEntrySlot = -1
 ): Telemetry {
   // Boundary note: a handful of generated Telemetry keys (e.g. SessionTime) are
   // typed with an `undefined[]` value shape although the iRacing native layer
@@ -556,7 +573,12 @@ export function mapLmuTelemetry(
   //
   // This used to be hardcoded to `playerIdx`, which made every widget show
   // the viewer's own car -- or no car -- whoever the camera was on.
-  t.CamCarIdx = num(focusCarIdx(restCells, playerIdx));
+  //
+  // With nothing focused and no player vehicle it is the user's own entry:
+  // the team car, while a team-mate drives it. PlayerCarIdx above stays -1
+  // then, and IsOnTrack false: this is the car being watched, not driven.
+  const watchedIdx = focusCarIdx(restCells, playerIdx, ownEntrySlot);
+  t.CamCarIdx = num(watchedIdx);
   t.PlayerCarPitSvStatus = num(0);
   t.CarLeftRight = num(blindSpot?.state ?? CarLeftRight.Off);
 
@@ -968,59 +990,20 @@ export function mapLmuTelemetry(
   // fraction -- there is no mFrontBrakeBias, front is its complement -- so the
   // complement alone gave 0.508 where 50.8 was wanted, and the widget showed a
   // bias of "0.5%" that barely moved as it was adjusted.
-  t.dcBrakeBias = num(
-    raw.rearBrakeBias === undefined ? 0 : (1 - raw.rearBrakeBias) * 100
-  );
-  // Driver-adjustable dials.
   //
-  // LMU publishes each as a setting plus the top of its own scale, and a car
-  // without the control reports 0 for both -- so the max is the only thing
-  // that separates "ABS turned off" from "no ABS fitted". A channel is
-  // published only when its max is positive, because CarSystemsProcessor
-  // discovers rows by which variables a frame carries and keeps them for the
-  // rest of the session: publishing a flat 0 would give every LMU car a row
-  // for every control, each reading "off".
+  // Absent rather than 0 when the player has no car, like the dials below:
+  // Car Systems keeps the last reading of a value that stops being published,
+  // and a 0 here replaced the bias with "0.0%" on leaving the car.
+  if (raw.rearBrakeBias !== undefined) {
+    t.dcBrakeBias = num((1 - raw.rearBrakeBias) * 100);
+  }
+  // Driver-adjustable dials, each under a key of its own with the top of its
+  // scale beside it; see carDials.ts.
   //
   // dcPeakBrakeBias is deliberately not set. It used to carry a copy of
   // dcBrakeBias, which put a second column on screen -- labelled Rear Brake
   // Valve -- showing the same percentage as the brake bias beside it.
-  //
-  // LMU's brake migration has no home either, for the same reason: the only
-  // free brake channels are named Rear Brake Valve and Brake Bias Target in
-  // the catalogue, and a migration reading under either name is worse than an
-  // absent row. raw.migration is exported and waiting; giving it a column
-  // needs a label that does not come from an iRacing CarPath, which is a
-  // change to shared code rather than to this mapping.
-  const dial = (key: string, value?: number, max?: number) => {
-    if ((max ?? 0) > 0) t[key] = num(value);
-  };
-  dial('dcABS', raw.abs, raw.absMax);
-  dial('dcEnginePower', raw.motorMap, raw.motorMapMax);
-  dial('dcAntiRollFront', raw.frontAntiSway, raw.frontAntiSwayMax);
-  dial('dcAntiRollRear', raw.rearAntiSway, raw.rearAntiSwayMax);
-
-  // Three traction dials into the catalogue's two generic traction slots.
-  //
-  // LMU splits traction control into an overall level, a slip target and a
-  // throttle cut, and which of them a car actually offers varies -- a GT3 has
-  // the level alone, a Hypercar the slip and cut pair. iRacing's catalogue has
-  // Traction Control and Traction Control 2, named generically because the
-  // channel means whatever the car wires to it, so the dials the car has are
-  // filled in in order rather than each being pinned to a fixed slot. A car
-  // with only slip and cut would otherwise leave the TC column blank and show
-  // its first dial under TC2.
-  //
-  // The maxes are fixed per car and a car change resets the processor, so a
-  // column cannot change meaning underneath a driver mid-session.
-  let tcSlot = 0;
-  const tcDial = (value?: number, max?: number) => {
-    if ((max ?? 0) <= 0 || tcSlot > 1) return;
-    t[tcSlot === 0 ? 'dcTractionControl' : 'dcTractionControl2'] = num(value);
-    tcSlot += 1;
-  };
-  tcDial(raw.tc, raw.tcMax);
-  tcDial(raw.tcSlip, raw.tcSlipMax);
-  tcDial(raw.tcCut, raw.tcCutMax);
+  writeLmuDials(t, raw);
   t.dcPitSpeedLimiterToggle = bool(raw.speedLimiter);
   t.PitstopActive = bool(false);
   t.OnPitRoad = bool(playerIdx >= 0 ? raw.vehInPits[playerIdx] === 1 : false);
@@ -1063,6 +1046,31 @@ export function mapLmuTelemetry(
   // Falsifying the pit flags instead would misreport the car to everything
   // else that reads them.
   t.LmuOutOfCar = bool(gameState !== undefined && !lmuInCar(gameState));
+  // Watching a car that is out on the circuit or in the pit lane, from
+  // outside it: a team-mate's stint, or any car the camera is on. This is
+  // what keeps the widgets that have something true to show on screen while
+  // IsOnTrack, which stays the user at the wheel, is false.
+  //
+  // `!inCar` rather than the monitor state by name. The state is polled once
+  // a second and trails shared memory by about a second at a driver change:
+  // the player's vehicle is gone while the sim still says driving, and is
+  // back while it still says monitor. Keyed on the state alone, every widget
+  // would blink off and on at each change.
+  //
+  // A car in its pit box counts, as it does for driving. One in its garage
+  // stall does not, so sitting at the monitor with one's own car parked shows
+  // nothing more than it did. Nor does a frozen frame, which is what the
+  // monitor is against the AI. With no word from the sim there is no
+  // watching either: a block alone cannot tell the monitor from a menu.
+  t.LmuWatching = bool(
+    gameState !== undefined &&
+      lmuInSession(gameState) &&
+      !inCar &&
+      !dataFrozen &&
+      watchedIdx >= 0 &&
+      isOccupied(raw, watchedIdx) &&
+      !raw.vehInGarageStall[watchedIdx]
+  );
   // Paused in the car with a menu open, which takes the whole overlay off
   // the screen. The sim's own word for it, or the next thing to it: the sim
   // saying the player is driving while it has stopped writing the block.

@@ -146,7 +146,10 @@ describe('LapDelta', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     withConfig({});
-    vi.mocked(useDrivingState).mockReturnValue({ isDriving: true });
+    vi.mocked(useDrivingState).mockReturnValue({
+      isDriving: true,
+      isWatching: false,
+    });
     vi.mocked(useSessionVisibility).mockReturnValue(true);
     vi.mocked(useLapDeltaSnapshot).mockReturnValue(snapshot);
   });
@@ -189,12 +192,26 @@ describe('LapDelta', () => {
   });
 
   it('hides while not driving, unless told to stay', () => {
-    vi.mocked(useDrivingState).mockReturnValue({ isDriving: false });
+    vi.mocked(useDrivingState).mockReturnValue({
+      isDriving: false,
+      isWatching: false,
+    });
 
     expect(render(<LapDelta />).container.firstChild).toBeNull();
 
     withConfig({ showOnlyWhenOnTrack: false });
     expect(render(<LapDelta />).container.firstChild).not.toBeNull();
+  });
+
+  it('stays hidden while watching a car: the lap it times is the user’s own', () => {
+    // A team-mate's stint. The delta has nothing true to show for a watched
+    // car yet, so watching does not count as on track here.
+    vi.mocked(useDrivingState).mockReturnValue({
+      isDriving: false,
+      isWatching: true,
+    });
+
+    expect(render(<LapDelta />).container.firstChild).toBeNull();
   });
 
   it('hides in a session it is switched off for', () => {
@@ -208,7 +225,10 @@ describe('LapDelta', () => {
       isDemoMode: true,
       currentDashboard: { widgets: [] },
     } as never);
-    vi.mocked(useDrivingState).mockReturnValue({ isDriving: false });
+    vi.mocked(useDrivingState).mockReturnValue({
+      isDriving: false,
+      isWatching: false,
+    });
     vi.mocked(useLapDeltaSnapshot).mockReturnValue(undefined);
 
     const { container } = render(<LapDelta />);

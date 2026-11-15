@@ -695,7 +695,10 @@ describe('Timing', () => {
     vi.clearAllMocks();
     withConfig({});
     withChannels(midLapChannels);
-    vi.mocked(useDrivingState).mockReturnValue({ isDriving: true });
+    vi.mocked(useDrivingState).mockReturnValue({
+      isDriving: true,
+      isWatching: false,
+    });
     vi.mocked(useSessionVisibility).mockReturnValue(true);
     useSessionStore.setState({ session });
     useSectorTimingStore.getState().setThresholds(0.005, 0.01);
@@ -1010,13 +1013,19 @@ describe('Timing', () => {
   });
 
   it('hides while not driving, unless told to stay', () => {
-    vi.mocked(useDrivingState).mockReturnValue({ isDriving: false });
+    vi.mocked(useDrivingState).mockReturnValue({
+      isDriving: false,
+      isWatching: false,
+    });
 
     expect(render(<Timing />).container.firstChild).toBeNull();
   });
 
   it('holds its last figures, dimmed, when told to stay out of the car', () => {
-    vi.mocked(useDrivingState).mockReturnValue({ isDriving: false });
+    vi.mocked(useDrivingState).mockReturnValue({
+      isDriving: false,
+      isWatching: false,
+    });
     withConfig({ showOnlyWhenOnTrack: false, tiles: { currentLap: true } });
 
     const { container } = render(<Timing />);
@@ -1038,7 +1047,10 @@ describe('Timing', () => {
   it('shows a fixed sample in demo mode, whatever the session', () => {
     withConfig({}, true);
     withChannels({});
-    vi.mocked(useDrivingState).mockReturnValue({ isDriving: false });
+    vi.mocked(useDrivingState).mockReturnValue({
+      isDriving: false,
+      isWatching: false,
+    });
 
     const { container } = render(<Timing />);
 

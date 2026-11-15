@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import {
   trackStateSelectors,
+  useDrivingState,
   useFlagStateSnapshot,
   useTrackStateSelector,
   useSessionVisibility,
@@ -21,12 +22,18 @@ export const Flag = () => {
   const flagState = useFlagStateSnapshot();
   const isPlayerOnTrack =
     useTrackStateSelector(trackStateSelectors.isOnTrack) ?? false;
+  const { isWatching } = useDrivingState();
   const isVisibleInSession = useSessionVisibility(settings.sessionVisibility);
 
   const blinkOn = useBlinkState(settings.animate, settings.blinkPeriod);
 
   if (!isVisibleInSession) return null;
-  if (settings.showOnlyWhenOnTrack && !isPlayerOnTrack) return null;
+  // On track is at the wheel, or watching a car that is out of its garage.
+  // The flags of the session hold either way; a blue is the player's own, so
+  // none is drawn for a watched car.
+  if (settings.showOnlyWhenOnTrack && !(isPlayerOnTrack || isWatching)) {
+    return null;
+  }
 
   const flagLabel = flagWidgetLabel(
     flagState?.kind ?? 'none',

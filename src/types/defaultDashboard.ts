@@ -22,6 +22,7 @@ export const defaultDashboard: {
     fontWeight: 'normal',
     colorPalette: 'black',
     showOnlyWhenOnTrack: true,
+    showWhileWatching: true,
     highlightColor: 960745,
     skipTaskbar: true,
     disableHardwareAcceleration: false,

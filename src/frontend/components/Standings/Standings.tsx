@@ -145,7 +145,7 @@ export const Standings = () => {
   const settings = useStandingsSettings();
   const { holding } = useSessionHold();
   const generalSettings = useGeneralSettings();
-  const { isDriving } = useDrivingState();
+  const { isDriving, isWatching } = useDrivingState();
   const isSessionVisible = useSessionVisibility(settings?.sessionVisibility);
 
   const estimatedLapsEnabled =
@@ -286,8 +286,9 @@ export const Standings = () => {
 
   if (!isSessionVisible) return <></>;
 
-  // Show only when on track setting
-  if (settings?.showOnlyWhenOnTrack && !isDriving) {
+  // Show only when on track: driving, or watching a car that is out of its
+  // garage. The standings are about the focus car, which is then that car.
+  if (settings?.showOnlyWhenOnTrack && !(isDriving || isWatching)) {
     return <></>;
   }
 

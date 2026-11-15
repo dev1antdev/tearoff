@@ -1036,7 +1036,28 @@ export interface SectorDeltaConfig {
  * shows a blank in place rather than shifting everything up.
  */
 export interface CarSystemsConfig {
+  /** The columns under iRacing. */
   rows: string[];
+  /**
+   * The columns under Le Mans Ultimate. A list of its own rather than more
+   * entries in `rows`, so a selection saved for iRacing is left as it was.
+   */
+  lmuRows: string[];
+  /**
+   * `onChange` draws the widget only for a while after the driver moves a
+   * dial; `always` keeps it on screen.
+   */
+  displayMode: 'always' | 'onChange';
+  /** Seconds the widget stays after the last dial movement, in `onChange`. */
+  changeHoldSeconds: number;
+  /** Highlight the value of the column that moved. */
+  flashOnChange: boolean;
+  /** Light the ABS and traction control columns while they intervene. */
+  highlightActive: boolean;
+  /** The top of the scale after the value (`6/11`) where the sim gives one. */
+  showScale: boolean;
+  /** A signed delta from the pit baseline under the brake bias. */
+  showBrakeBiasDelta: boolean;
   /** Blank rows for adjustments the current car does not have. */
   showUnsupportedRows: boolean;
   /**

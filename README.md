@@ -48,7 +48,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 1. In LMU, enable **Settings > Gameplay > Enable Plugins**, then restart the simulator.
 2. Start Tearoff and load into an LMU session to receive telemetry.
 
-**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, Tyres, Minimap, Lap Delta, Corner Delta, Timing, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Car Systems, Lap Timer, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, Tyres, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
@@ -146,6 +146,9 @@ Displays your car's in-car adjustments in one compact widget.
 - Live brake bias, ABS, traction control, and other adjustments supported by your car
 - Car-specific control labels, including brake migration, brake valves, and engine maps
 - Configurable columns, with independent options to hide unsupported or switched-off systems
+- The dial you just moved lights up, and the widget can stay off screen until you move one: it then appears for a few seconds with every column in its usual place
+- The ABS column lights while ABS is working, and an optional small figure under the brake bias shows how far it has moved since the car last stood in the pits
+- Works under Le Mans Ultimate, with a column list of its own: brake bias, ABS, traction control (TC), TC slip, TC cut, brake migration and the engine or motor map, plus the anti-roll bars, the wipers and the setup's regeneration level, which are off by default. A dial the car does not have reads `--`, or is left out with the option above. Under LMU the TC column also lights while traction control cuts power, each dial can show the top of its scale (`6/11`), and the names are the sim's own, the same on every car. The regeneration level is the garage's figure and may not follow a change made on track
 
 <img src="./docs/assets/carsystems.png" alt="Car Systems showing brake bias, ABS, and traction control" width="444">
 
@@ -898,6 +901,7 @@ TV-style overlays for iRacing streams, configured together in **Settings > Broad
   - Per-widget visibility shortcuts: Show or hide individual widgets without affecting the rest of the dashboard.
   - Overlay on/off: Turn every overlay off and back on, while the sim is running or not, without changing which widgets are enabled. The same switch is the **Overlay** button in the settings window header, **Show Overlay** in the tray menu and the Hide / Show UI shortcut (Alt+H by default), and each follows the others. It applies to this run of the app: the overlay is on again after a restart.
   - Hidden while paused: The overlay goes off the screen while the game is paused and comes back when you resume, within about a second. The same goes for a screen that stops the session without calling it a pause, such as the pit stop screen in a race against the AI (there it takes about two seconds). On by default; turn it off under **Settings > General > Hide Overlay While the Game Is Paused**. Le Mans Ultimate only: iRacing does not report a pause.
+  - Shown while watching: Widgets set to show only when on track stay on screen while you watch a car on track from outside it, such as a team-mate's stint in a team race, and follow that car: Standings, Relative, Minimap, Battle, Information Bar, Flag, Flag Panel and Weather. The widgets that show your own driving (Input, Lap Delta, Tyres and the rest) stay hidden for now, and a car that is in its garage does not count as one being watched. On by default; turn it off under **Settings > General > Keep Widgets On Screen While Watching**. Le Mans Ultimate only for now.
   - Reset widget position: Reset any widget's position to the top-left corner if it gets lost off-screen.
   - Close to tray: Closing the window minimizes to the system tray instead of quitting (configurable).
   - Always on top: Keep your overlays visible even when clicking on other windows.

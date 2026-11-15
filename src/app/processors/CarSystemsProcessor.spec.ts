@@ -7,7 +7,7 @@ import type { Session, Telemetry } from '@irdashies/types';
  * not expose is absent from the frame entirely, not present-and-null.
  */
 const frame = (
-  values: Record<string, number | boolean | undefined>,
+  values: Record<string, number | boolean | number[] | undefined>,
   { inCar = true }: { inCar?: boolean } = {}
 ): Telemetry => {
   const out: Record<string, { value: unknown[] }> = {
@@ -16,7 +16,8 @@ const frame = (
   };
   for (const [key, value] of Object.entries(values)) {
     if (value === undefined) continue;
-    out[key] = { value: [value] };
+    // An array is a cell that holds several values, as LmuDialMax does.
+    out[key] = { value: Array.isArray(value) ? value : [value] };
   }
   return out as unknown as Telemetry;
 };
@@ -407,6 +408,392 @@ describe('CarSystemsProcessor', () => {
       processor.onLifecycle({ type: 'disconnect' });
 
       expect(processor.snapshot().discovered).toBe(false);
+    });
+  });
+
+  /**
+   * Le Mans Ultimate's dials, as its mapper publishes them: each under a key
+   * of its own, with the top of every scale in LmuDialMax in the order of
+   * LMU_DIAL_KEYS (ABS, TC, slip, cut, migration, map, front and rear bar).
+   */
+  describe("Le Mans Ultimate's dials", () => {
+    /** The recorded LMGT3: no brake migration, a two-position map. */
+    const LMGT3_MAX = [9, 11, 11, 11, 0, 1, 7, 7];
+    const lmgt3 = (
+      overrides: Record<string, number | boolean | number[] | undefined> = {}
+    ) => ({
+      dcBrakeBias: 51.75,
+      dcABS: 9,
+      dcTractionControl: 6,
+      LmuTcSlip: 7,
+      LmuTcCut: 7,
+      LmuMotorMap: 1,
+      LmuWiper: 1,
+      LmuDialMax: LMGT3_MAX,
+      BrakeABSactive: false,
+      LmuTcActive: false,
+      LmuOutOfCar: false,
+      ...overrides,
+    });
+
+    it('reports each dial under its own name, in catalogue order', () => {
+      processor.onFrame(frame(lmgt3()));
+
+      expect(processor.snapshot().adjustments.map((a) => a.label)).toEqual([
+        'Brake Bias',
+        'ABS',
+        'Traction Control',
+        'TC Slip',
+        'TC Cut',
+        'Map',
+        'Wipers',
+      ]);
+    });
+
+    it('states the top of each scale the sim gives', () => {
+      processor.onFrame(frame(lmgt3()));
+
+      expect(byKey(processor, 'dcABS')?.max).toBe(9);
+      expect(byKey(processor, 'dcTractionControl')?.max).toBe(11);
+      expect(byKey(processor, 'LmuTcSlip')?.max).toBe(11);
+      expect(byKey(processor, 'LmuTcCut')?.max).toBe(11);
+      expect(byKey(processor, 'LmuMotorMap')?.max).toBe(1);
+      // A split and a mode: neither has a scale to state.
+      expect(byKey(processor, 'dcBrakeBias')?.max).toBeUndefined();
+      expect(byKey(processor, 'LmuWiper')?.max).toBeUndefined();
+    });
+
+    it('republishes when the top of a scale changes', () => {
+      processor.onFrame(frame(lmgt3()));
+      const version = processor.snapshot().version;
+
+      processor.onFrame(
+        frame(lmgt3({ LmuDialMax: [12, 11, 11, 11, 0, 1, 7, 7] }))
+      );
+
+      expect(byKey(processor, 'dcABS')?.max).toBe(12);
+      expect(processor.snapshot().version).toBeGreaterThan(version);
+      // The scale moved, not the dial.
+      expect(processor.snapshot().lastChange).toBeNull();
+    });
+
+    it('states no scale under iRacing, which publishes none', () => {
+      processor.onFrame(frame({ dcBrakeBias: 54.5, dcABS: 2 }));
+
+      expect(byKey(processor, 'dcABS')?.max).toBeUndefined();
+      expect(byKey(processor, 'dcABS')).not.toHaveProperty('max');
+    });
+
+    it('reads position 0 of a migration dial or a map as a setting', () => {
+      processor.onFrame(
+        frame({
+          LmuBrakeMigration: 0,
+          LmuMotorMap: 0,
+          LmuWiper: 0,
+          LmuDialMax: [0, 0, 0, 0, 8, 5, 0, 0],
+        })
+      );
+
+      expect(byKey(processor, 'LmuBrakeMigration')?.isOff).toBe(false);
+      expect(byKey(processor, 'LmuMotorMap')?.isOff).toBe(false);
+      expect(byKey(processor, 'LmuWiper')?.isOff).toBe(false);
+    });
+
+    it('still reads ABS, traction control, slip and cut at 0 as off', () => {
+      processor.onFrame(
+        frame(
+          lmgt3({ dcABS: 0, dcTractionControl: 0, LmuTcSlip: 0, LmuTcCut: 0 })
+        )
+      );
+
+      expect(byKey(processor, 'dcABS')?.isOff).toBe(true);
+      expect(byKey(processor, 'dcTractionControl')?.isOff).toBe(true);
+      expect(byKey(processor, 'LmuTcSlip')?.isOff).toBe(true);
+      expect(byKey(processor, 'LmuTcCut')?.isOff).toBe(true);
+    });
+
+    it('does not take the car as entered while the player is at the monitor', () => {
+      // A car left in its pit stall keeps the pit flags set while the player
+      // sits at the monitor, which is what LmuOutOfCar is for.
+      processor.onFrame(
+        frame(lmgt3({ PlayerCarInPitStall: true, LmuOutOfCar: true }), {
+          inCar: false,
+        })
+      );
+
+      expect(processor.snapshot().discovered).toBe(false);
+    });
+  });
+
+  describe('a system intervening', () => {
+    it('lights ABS from BrakeABSactive, under either sim', () => {
+      processor.onFrame(frame({ dcABS: 3, BrakeABSactive: false }));
+      expect(byKey(processor, 'dcABS')?.active).toBe(false);
+
+      processor.onFrame(frame({ dcABS: 3, BrakeABSactive: true }));
+      expect(byKey(processor, 'dcABS')?.active).toBe(true);
+    });
+
+    it('lights traction control from LmuTcActive', () => {
+      processor.onFrame(frame({ dcTractionControl: 6, LmuTcActive: true }));
+
+      expect(byKey(processor, 'dcTractionControl')?.active).toBe(true);
+    });
+
+    it('has no traction control light under iRacing, which has no flag', () => {
+      processor.onFrame(frame({ dcTractionControl: 3, BrakeABSactive: true }));
+
+      expect(byKey(processor, 'dcTractionControl')).not.toHaveProperty(
+        'active'
+      );
+    });
+
+    it('lights no other row', () => {
+      processor.onFrame(
+        frame({
+          dcBrakeBias: 52,
+          LmuTcSlip: 7,
+          BrakeABSactive: true,
+          LmuTcActive: true,
+        })
+      );
+
+      expect(byKey(processor, 'dcBrakeBias')).not.toHaveProperty('active');
+      expect(byKey(processor, 'LmuTcSlip')).not.toHaveProperty('active');
+    });
+
+    it('republishes when a light comes on, without calling it a dial moved', () => {
+      processor.onFrame(frame({ dcABS: 3, BrakeABSactive: false }));
+      processor.onFrame(frame({ dcABS: 3, BrakeABSactive: false }));
+      const version = processor.snapshot().version;
+
+      processor.onFrame(frame({ dcABS: 3, BrakeABSactive: true }));
+
+      expect(processor.snapshot().version).toBeGreaterThan(version);
+      expect(processor.snapshot().lastChange).toBeNull();
+    });
+
+    it('puts the light out when the car stops being read', () => {
+      processor.onFrame(frame({ dcABS: 3, BrakeABSactive: true }));
+      // Out of the car iRacing stops publishing the dial. The reading is
+      // kept; a light kept with it would stay on for as long as it was.
+      processor.onFrame(frame({ BrakeABSactive: true }, { inCar: false }));
+
+      expect(byKey(processor, 'dcABS')?.value).toBe(3);
+      expect(byKey(processor, 'dcABS')?.active).toBe(false);
+    });
+  });
+
+  describe('a dial the driver moves', () => {
+    it('reports the dial, where it was and where it is now', () => {
+      processor.onFrame(frame({ dcTractionControl: 6 }));
+      processor.onFrame(frame({ dcTractionControl: 7 }));
+
+      expect(processor.snapshot().lastChange).toEqual({
+        key: 'dcTractionControl',
+        from: 6,
+        to: 7,
+        seq: 1,
+      });
+    });
+
+    it('numbers each movement, so the same step twice is two changes', () => {
+      processor.onFrame(frame({ dcTractionControl: 6 }));
+      processor.onFrame(frame({ dcTractionControl: 7 }));
+      processor.onFrame(frame({ dcTractionControl: 8 }));
+
+      expect(processor.snapshot().lastChange).toEqual({
+        key: 'dcTractionControl',
+        from: 7,
+        to: 8,
+        seq: 2,
+      });
+    });
+
+    it('keeps the last movement while nothing else moves', () => {
+      processor.onFrame(frame({ dcTractionControl: 6, dcABS: 2 }));
+      processor.onFrame(frame({ dcTractionControl: 7, dcABS: 2 }));
+      processor.onFrame(frame({ dcTractionControl: 7, dcABS: 2 }));
+
+      expect(processor.snapshot().lastChange?.seq).toBe(1);
+    });
+
+    it('says nothing on the first tick in the car', () => {
+      processor.onFrame(frame({ dcTractionControl: 6, dcABS: 2 }));
+
+      expect(processor.snapshot().lastChange).toBeNull();
+    });
+
+    it('says nothing for a value that differs after time out of the car', () => {
+      // A setup loaded in the garage, or another driver's settings: the
+      // value is different, and nobody turned a dial to make it so.
+      processor.onFrame(frame({ dcTractionControl: 6 }));
+      processor.onFrame(frame({ dcTractionControl: 6 }, { inCar: false }));
+      processor.onFrame(frame({ dcTractionControl: 8 }));
+
+      expect(byKey(processor, 'dcTractionControl')?.value).toBe(8);
+      expect(processor.snapshot().lastChange).toBeNull();
+
+      // From there on a step is a step again.
+      processor.onFrame(frame({ dcTractionControl: 9 }));
+      expect(processor.snapshot().lastChange).toMatchObject({
+        from: 8,
+        to: 9,
+      });
+    });
+
+    it('says nothing for a value that changes at the LMU monitor', () => {
+      processor.onFrame(frame({ dcTractionControl: 6, LmuOutOfCar: false }));
+      // At the monitor with the car in its stall: the pit flag is set, the
+      // dial is still published, and a setup is being loaded.
+      const atMonitor = { PlayerCarInPitStall: true, LmuOutOfCar: true };
+      processor.onFrame(
+        frame({ dcTractionControl: 6, ...atMonitor }, { inCar: false })
+      );
+      processor.onFrame(
+        frame({ dcTractionControl: 9, ...atMonitor }, { inCar: false })
+      );
+      processor.onFrame(frame({ dcTractionControl: 9, LmuOutOfCar: false }));
+
+      expect(byKey(processor, 'dcTractionControl')?.value).toBe(9);
+      expect(processor.snapshot().lastChange).toBeNull();
+    });
+
+    it('says nothing for a dial that starts publishing a tick late', () => {
+      processor.onFrame(frame({ dcBrakeBias: 50 }));
+      processor.onFrame(frame({ dcBrakeBias: 50, dcABS: 3 }));
+
+      expect(processor.snapshot().lastChange).toBeNull();
+    });
+
+    it('says nothing for a value that comes back after a tick without it', () => {
+      processor.onFrame(frame({ dcBrakeBias: 50, dcABS: 3 }));
+      processor.onFrame(frame({ dcBrakeBias: 50 }));
+      processor.onFrame(frame({ dcBrakeBias: 50, dcABS: 4 }));
+
+      expect(processor.snapshot().lastChange).toBeNull();
+    });
+
+    it('says nothing when the session changes under the car', () => {
+      processor.onFrame(frame({ dcTractionControl: 6 }));
+      processor.onFrame(frame({ dcTractionControl: 7 }));
+      expect(processor.snapshot().lastChange).not.toBeNull();
+
+      processor.onLifecycle({ type: 'sessionNumChange' });
+      expect(processor.snapshot().lastChange).toBeNull();
+
+      // The new session opens on a different setup.
+      processor.onFrame(frame({ dcTractionControl: 3 }));
+      expect(processor.snapshot().lastChange).toBeNull();
+    });
+
+    it('forgets the last movement on disconnect and on entering a replay', () => {
+      processor.onFrame(frame({ dcTractionControl: 6 }));
+      processor.onFrame(frame({ dcTractionControl: 7 }));
+      processor.onLifecycle({ type: 'disconnect' });
+      expect(processor.snapshot().lastChange).toBeNull();
+
+      processor.onLifecycle({ type: 'enter', replay: false });
+      processor.onFrame(frame({ dcTractionControl: 6 }));
+      processor.onFrame(frame({ dcTractionControl: 7 }));
+      processor.onLifecycle({ type: 'enter', replay: true });
+      expect(processor.snapshot().lastChange).toBeNull();
+    });
+
+    it('does not reuse a number after the session changes', () => {
+      // The renderer restarts its timer on a new number, and may not have
+      // seen the snapshot in between.
+      processor.onFrame(frame({ dcTractionControl: 6 }));
+      processor.onFrame(frame({ dcTractionControl: 7 }));
+      processor.onLifecycle({ type: 'sessionNumChange' });
+      processor.onFrame(frame({ dcTractionControl: 6 }));
+      processor.onFrame(frame({ dcTractionControl: 7 }));
+
+      expect(processor.snapshot().lastChange?.seq).toBe(2);
+    });
+  });
+
+  describe('the brake bias baseline', () => {
+    const inStall = { PlayerCarInPitStall: true, Speed: 0, SessionState: 4 };
+    const onTrack = { PlayerCarInPitStall: false, SessionState: 4 };
+
+    it('measures the bias from where it stood at rest in the pit stall', () => {
+      processor.onFrame(frame({ dcBrakeBias: 52, ...inStall }));
+      expect(byKey(processor, 'dcBrakeBias')?.baselineDelta).toBe(0);
+
+      processor.onFrame(frame({ dcBrakeBias: 53.5, ...onTrack, Speed: 60 }));
+
+      expect(byKey(processor, 'dcBrakeBias')?.baselineDelta).toBe(1.5);
+    });
+
+    it('does not move the baseline when the car stops out on the track', () => {
+      processor.onFrame(frame({ dcBrakeBias: 52, ...inStall }));
+      processor.onFrame(frame({ dcBrakeBias: 53.5, ...onTrack, Speed: 60 }));
+      processor.onFrame(frame({ dcBrakeBias: 53.5, ...onTrack, Speed: 0 }));
+
+      expect(byKey(processor, 'dcBrakeBias')?.baselineDelta).toBe(1.5);
+    });
+
+    it('takes a new baseline at rest on pit road', () => {
+      processor.onFrame(frame({ dcBrakeBias: 52, ...inStall }));
+      processor.onFrame(frame({ dcBrakeBias: 53.5, ...onTrack, Speed: 60 }));
+      processor.onFrame(
+        frame({ dcBrakeBias: 53.5, ...onTrack, OnPitRoad: true, Speed: 20 })
+      );
+      // Rolling down the pit lane is not at rest.
+      expect(byKey(processor, 'dcBrakeBias')?.baselineDelta).toBe(1.5);
+
+      processor.onFrame(
+        frame({ dcBrakeBias: 53.5, ...onTrack, OnPitRoad: true, Speed: 0 })
+      );
+      expect(byKey(processor, 'dcBrakeBias')?.baselineDelta).toBe(0);
+    });
+
+    it('takes a new baseline at rest before the session has gone green', () => {
+      processor.onFrame(frame({ dcBrakeBias: 52, ...inStall }));
+      processor.onFrame(frame({ dcBrakeBias: 53.5, ...onTrack, Speed: 60 }));
+      // Stopped on the grid, in the parade-laps state.
+      processor.onFrame(
+        frame({ dcBrakeBias: 53.5, ...onTrack, SessionState: 3, Speed: 0 })
+      );
+
+      expect(byKey(processor, 'dcBrakeBias')?.baselineDelta).toBe(0);
+    });
+
+    it('takes the first reading when the car is first seen moving', () => {
+      processor.onFrame(frame({ dcBrakeBias: 51.75, ...onTrack, Speed: 55 }));
+
+      expect(byKey(processor, 'dcBrakeBias')?.baselineDelta).toBe(0);
+    });
+
+    it('publishes a moved baseline without calling it a dial moved', () => {
+      processor.onFrame(frame({ dcBrakeBias: 52, ...inStall }));
+      processor.onFrame(frame({ dcBrakeBias: 53.5, ...onTrack, Speed: 60 }));
+      const { version, lastChange } = processor.snapshot();
+      expect(lastChange).toMatchObject({ key: 'dcBrakeBias', seq: 1 });
+
+      processor.onFrame(
+        frame({ dcBrakeBias: 53.5, ...onTrack, OnPitRoad: true, Speed: 0 })
+      );
+
+      expect(processor.snapshot().version).toBeGreaterThan(version);
+      expect(processor.snapshot().lastChange?.seq).toBe(1);
+    });
+
+    it('starts again from the first reading after the session changes', () => {
+      processor.onFrame(frame({ dcBrakeBias: 52, ...inStall }));
+      processor.onFrame(frame({ dcBrakeBias: 53.5, ...onTrack, Speed: 60 }));
+      processor.onLifecycle({ type: 'sessionNumChange' });
+
+      processor.onFrame(frame({ dcBrakeBias: 54, ...onTrack, Speed: 60 }));
+
+      expect(byKey(processor, 'dcBrakeBias')?.baselineDelta).toBe(0);
+    });
+
+    it('gives no other row a baseline', () => {
+      processor.onFrame(frame({ dcBrakeBias: 52, dcABS: 3, ...inStall }));
+
+      expect(byKey(processor, 'dcABS')).not.toHaveProperty('baselineDelta');
     });
   });
 });

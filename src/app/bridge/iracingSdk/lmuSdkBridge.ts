@@ -48,6 +48,17 @@ import {
   shouldHoldLmuRunningState,
 } from '../../lmu/runningState';
 import { mapLmuTelemetry } from '../../lmu/mapTelemetry';
+import {
+  createLmuOwnEntryState,
+  describeLmuOwnEntry,
+  describeLmuWatchedCar,
+  lmuOwnEntrySlot,
+  lmuWatchedSlot,
+  lmuWatchedSource,
+  observeLmuOwnEntry,
+  resetLmuOwnEntryState,
+  type LmuWatchedSource,
+} from '../../lmu/ownEntry';
 import { lmuRelativePositionsAvailable } from '../../lmu/proximity';
 import {
   createLmuLapDistanceState,
@@ -148,6 +159,18 @@ const SLOW_ITERATION_MS = 12;
  * feels immediate. TinyPedal uses 500 ms for the same state.
  */
 const FROZEN_POLL_INTERVAL = 250;
+
+/**
+ * The least time between two lines about the watched car.
+ *
+ * The line is written when the watched car changes, which is a handful of
+ * times a stint as long as a person is moving the camera. Whether LMU moves
+ * it by itself at the monitor is not known, and a sim cutting between cars
+ * every few seconds for two hours should not fill the log: the changes inside
+ * this window are passed over and the state at the end of it is what is
+ * written.
+ */
+const WATCHED_CAR_LOG_INTERVAL_MS = 2_000;
 
 const perfRunConfig = getPerfRunConfig();
 const perfTelemetryDeliveryEnabled =
@@ -333,6 +356,21 @@ export async function publishLmuSDKEvents(
   // When each car's lap began, so a lap the sim would not time -- a track
   // limit takes the time away -- still has one. See lapStartTiming.ts.
   const lapStartState = createLmuLapStartState();
+  // The car the user is entered in, whoever is driving it. The sim names the
+  // player's vehicle only while the player is in it, so through a team-mate's
+  // stint this is what the overlays fall back to. Observed on each session
+  // poll, the one read that carries entry names; forgotten when LMU goes
+  // away and when the track changes, and kept across a session change, as
+  // practice, qualifying and the race of one event are the same entry. See
+  // ownEntry.ts.
+  const ownEntryState = createLmuOwnEntryState();
+  /** The own-entry line last logged, so each change is one line. */
+  let lastOwnEntryLine: string | null = null;
+  /** The watched car last logged, for the same reason. */
+  let lastWatchedSlot: number | null = null;
+  let lastWatchedSource: LmuWatchedSource | null = null;
+  let lastWatchedFocus: number | undefined;
+  let lastWatchedLog = Number.NEGATIVE_INFINITY;
 
   const telemetryCallbacks = new Set<(value: Telemetry) => void>();
   const sessionCallbacks = new Set<(value: Session) => void>();
@@ -429,6 +467,11 @@ export async function publishLmuSDKEvents(
           resetLmuEnergyState(energyState);
           resetLmuSessionClockState(sessionClockState);
           resetLmuLapStartState(lapStartState);
+          resetLmuOwnEntryState(ownEntryState);
+          // So the next run reports its own entry and watched car afresh.
+          lastOwnEntryLine = null;
+          lastWatchedSlot = null;
+          lastWatchedSource = null;
           rosterGate.reset();
           sessionIdentity.reset();
           dataFreeze.reset();
@@ -476,6 +519,8 @@ export async function publishLmuSDKEvents(
         mapRecorder.reset(activeTrackName);
         // A new event, so its grid's flags are asked for afresh.
         nationalityWatch.reset();
+        // And the entry the user had at the last track is not theirs here.
+        resetLmuOwnEntryState(ownEntryState);
         resetLmuLapDistanceState(lapDistanceState);
         resetLmuOpponentLapDistanceState(opponentLapDistanceState);
         resetLmuEnergyState(energyState);
@@ -620,6 +665,22 @@ export async function publishLmuSDKEvents(
 
       if (rawSession) {
         lastSessionPollTime = tickTime;
+        // Before the frame below is built, which falls back to this slot.
+        // Not held back with the roster: a grid still filling in simply has
+        // no such entry yet, and says so.
+        const ownEntry = observeLmuOwnEntry(ownEntryState, rawSession);
+        const ownEntryLine = describeLmuOwnEntry(
+          ownEntry,
+          rawSession,
+          ownEntryState.rememberedName
+        );
+        // One line per change: the slot, the entry name, how it was found,
+        // and what scoring says of the car and its driver. Through a driver
+        // change these are the facts nothing else records.
+        if (ownEntryLine !== lastOwnEntryLine) {
+          lastOwnEntryLine = ownEntryLine;
+          logger.info(`[lmuSdkBridge] ${ownEntryLine}`);
+        }
         // Flags for an online grid: a burst of teams polls a second after a
         // driver arrives, until every driver on it has one or the burst runs
         // out. Offline, the watch never calls for one.
@@ -703,6 +764,37 @@ export async function publishLmuSDKEvents(
         );
       }
 
+      // The car the overlays are about, by the rule the frame below applies,
+      // for the log: which slot, whether it came from LMU's focus endpoint
+      // or a fallback, and what that endpoint itself said. Primitives
+      // compared on every frame; a line only when one of them has moved.
+      const ownEntrySlot = lmuOwnEntrySlot(ownEntryState);
+      const restFocus = restData.cells.focusCarIdx?.value[0];
+      const playerSlot =
+        raw.playerHasVehicle && raw.playerVehicleIdx >= 0
+          ? raw.playerVehicleIdx
+          : -1;
+      const watchedSlot = lmuWatchedSlot(restFocus, playerSlot, ownEntrySlot);
+      const watchedSource = lmuWatchedSource(
+        restFocus,
+        playerSlot,
+        ownEntrySlot
+      );
+      if (
+        (watchedSlot !== lastWatchedSlot ||
+          watchedSource !== lastWatchedSource ||
+          restFocus !== lastWatchedFocus) &&
+        tickTime - lastWatchedLog >= WATCHED_CAR_LOG_INTERVAL_MS
+      ) {
+        lastWatchedSlot = watchedSlot;
+        lastWatchedSource = watchedSource;
+        lastWatchedFocus = restFocus;
+        lastWatchedLog = tickTime;
+        logger.info(
+          `[lmuSdkBridge] ${describeLmuWatchedCar(watchedSlot, watchedSource, restFocus)}`
+        );
+      }
+
       perfMetrics.markStart('lifecycleTelemetry');
       const telemetry = mapLmuTelemetry(
         raw,
@@ -720,7 +812,8 @@ export async function publishLmuSDKEvents(
         gameState,
         energyState,
         sessionClockState,
-        lapStartState
+        lapStartState,
+        ownEntrySlot
       );
       lifecycle?._onTelemetry(telemetry);
       perfMetrics.markEnd('lifecycleTelemetry');

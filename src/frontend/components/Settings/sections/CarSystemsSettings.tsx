@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { BaseSettingsSection } from '../components/BaseSettingsSection';
 import {
-  CAR_SYSTEM_ADJUSTMENTS,
   CarSystemsWidgetSettings,
+  SIMULATOR_LABELS,
   SettingsTabType,
   carSystemIsRenamedSomewhere,
+  carSystemsForSim,
   getWidgetDefaultConfig,
+  type CarSystemDefinition,
 } from '@irdashies/types';
-import { useDashboard } from '@irdashies/context';
+import { useActiveSimulator, useDashboard } from '@irdashies/context';
 import { TabButton } from '../components/TabButton';
 import { SessionVisibility } from '../components/SessionVisibility';
 import { SettingsSection } from '../components/SettingSection';
@@ -20,16 +22,42 @@ const SettingProp = settingPropFor(SETTING_ID);
 
 const defaultConfig = getWidgetDefaultConfig('carsystems');
 
+type RowsKey = 'rows' | 'lmuRows';
+
 /**
- * Rows offered in settings: every adjustment in the catalogue. `dcPeakBrakeBias`
- * used to be withheld here because it shared the brake bias row, which it no
- * longer does — it is a rear brake valve on one car and brake migration on
- * another, and never a bias split.
+ * Rows offered in settings: every adjustment in the catalogue, in one list
+ * per simulator, each holding the entries that simulator publishes. The two
+ * selections are saved apart, so choosing columns for Le Mans Ultimate leaves
+ * the iRacing strip as it was.
+ *
+ * `dcPeakBrakeBias` used to be withheld here because it shared the brake bias
+ * row, which it no longer does — it is a rear brake valve on one car and brake
+ * migration on another, and never a bias split.
  */
-const SELECTABLE_ROWS = CAR_SYSTEM_ADJUSTMENTS;
+const ROW_LISTS: readonly {
+  rowsKey: RowsKey;
+  title: string;
+  selectable: readonly CarSystemDefinition[];
+  /** iRacing's cars rename channels; LMU's dials are named by the sim. */
+  renames: boolean;
+}[] = [
+  {
+    rowsKey: 'rows',
+    title: `${SIMULATOR_LABELS.iracing} Rows`,
+    selectable: carSystemsForSim('iracing'),
+    renames: true,
+  },
+  {
+    rowsKey: 'lmuRows',
+    title: `${SIMULATOR_LABELS.lmu} Rows`,
+    selectable: carSystemsForSim('lmu'),
+    renames: false,
+  },
+];
 
 export const CarSystemsSettings = () => {
   const { currentDashboard } = useDashboard();
+  const isLmu = useActiveSimulator() === 'lmu';
 
   const savedSettings = currentDashboard?.widgets.find(
     (w) => w.id === SETTING_ID
@@ -72,24 +100,31 @@ export const CarSystemsSettings = () => {
 
   if (!currentDashboard) return <>Loading...</>;
 
-  const rows = settings.config.rows ?? [];
+  // The list for the sim that is running comes first, so its driver does not
+  // scroll past the other one to reach it.
+  const rowLists = isLmu ? [...ROW_LISTS].reverse() : ROW_LISTS;
 
   /**
    * Rows keep catalogue order rather than the order they were toggled on, so
    * the table reads the same however the user arrived at their selection.
    */
   const toggleRow = (
+    rowsKey: RowsKey,
+    selectable: readonly CarSystemDefinition[],
     key: string,
     enabled: boolean,
     handleConfigChange: (change: Partial<typeof settings.config>) => void
   ) => {
+    const rows = settings.config[rowsKey] ?? [];
     const next = enabled
-      ? SELECTABLE_ROWS.filter(
-          (adjustment) =>
-            adjustment.key === key || rows.includes(adjustment.key)
-        ).map((adjustment) => adjustment.key)
+      ? selectable
+          .filter(
+            (adjustment) =>
+              adjustment.key === key || rows.includes(adjustment.key)
+          )
+          .map((adjustment) => adjustment.key)
       : rows.filter((row) => row !== key);
-    handleConfigChange({ rows: next });
+    handleConfigChange({ [rowsKey]: next });
   };
 
   return (
@@ -131,29 +166,51 @@ export const CarSystemsSettings = () => {
                     <SettingProp path="background.opacity" />
                     <SettingProp path="showUnsupportedRows" />
                     <SettingProp path="showOffRows" />
+                    <SettingProp path="highlightActive" />
+                    <SettingProp path="showScale" />
+                    <SettingProp path="showBrakeBiasDelta" />
                   </SettingsSection>
 
-                  <SettingsSection title="Rows">
-                    {SELECTABLE_ROWS.map((adjustment) => (
-                      <SettingToggleRow
-                        key={adjustment.key}
-                        title={adjustment.label}
-                        // Settings configures every car at once, so rows keep
-                        // their catalogue name here. Saying so matters for the
-                        // ones a car renames, otherwise the driver enables "ABS"
-                        // and a column headed MIGR appears.
-                        description={
-                          carSystemIsRenamedSomewhere(adjustment.key)
-                            ? 'Named differently on some cars, which control the widget follows.'
-                            : undefined
-                        }
-                        enabled={rows.includes(adjustment.key)}
-                        onToggle={(v) =>
-                          toggleRow(adjustment.key, v, handleConfigChange)
-                        }
-                      />
-                    ))}
+                  <SettingsSection title="When A Dial Moves">
+                    <SettingProp path="displayMode" />
+                    {settings.config.displayMode === 'onChange' && (
+                      <SettingProp path="changeHoldSeconds" />
+                    )}
+                    <SettingProp path="flashOnChange" />
                   </SettingsSection>
+
+                  {rowLists.map(({ rowsKey, title, selectable, renames }) => (
+                    <SettingsSection key={rowsKey} title={title}>
+                      {selectable.map((adjustment) => (
+                        <SettingToggleRow
+                          key={adjustment.key}
+                          title={adjustment.label}
+                          // Settings configures every car at once, so rows
+                          // keep their catalogue name here. Saying so matters
+                          // for the ones a car renames, otherwise the driver
+                          // enables "ABS" and a column headed MIGR appears.
+                          description={
+                            renames &&
+                            carSystemIsRenamedSomewhere(adjustment.key)
+                              ? 'Named differently on some cars, which control the widget follows.'
+                              : undefined
+                          }
+                          enabled={(settings.config[rowsKey] ?? []).includes(
+                            adjustment.key
+                          )}
+                          onToggle={(v) =>
+                            toggleRow(
+                              rowsKey,
+                              selectable,
+                              adjustment.key,
+                              v,
+                              handleConfigChange
+                            )
+                          }
+                        />
+                      ))}
+                    </SettingsSection>
+                  ))}
                 </>
               )}
 

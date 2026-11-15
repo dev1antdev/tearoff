@@ -35,10 +35,13 @@ const NO_CARS: readonly MinimapCar[] = [];
 export const Minimap = () => {
   const settings = useMinimapSettings();
   const generalSettings = useGeneralSettings();
-  const { isDriving } = useDrivingState();
+  const { isDriving, isWatching } = useDrivingState();
   const isSessionVisible = useSessionVisibility(settings.sessionVisibility);
+  // On track is driving, or watching a car that is out of its garage: the map
+  // is drawn round the focus car, which is then the car being watched.
   const visible =
-    isSessionVisible && !(settings.showOnlyWhenOnTrack && !isDriving);
+    isSessionVisible &&
+    !(settings.showOnlyWhenOnTrack && !(isDriving || isWatching));
 
   const snapshot = useMinimapSnapshot(visible);
   const { geometry } = useSessionTrackGeometry(visible);

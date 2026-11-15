@@ -133,6 +133,7 @@ interface Scene {
   displayUnits?: number;
   sessionType?: string;
   isDriving?: boolean;
+  isWatching?: boolean;
   sessionVisible?: boolean;
   simulator?: 'iracing' | 'lmu' | null;
   classes?: number;
@@ -145,6 +146,7 @@ const show = (
     displayUnits,
     sessionType = 'Race',
     isDriving = true,
+    isWatching = false,
     sessionVisible = true,
     simulator = 'lmu',
     classes = 3,
@@ -157,7 +159,7 @@ const show = (
     },
   } as unknown as ReturnType<typeof useDashboard>);
   vi.mocked(useFlagStateSnapshot).mockReturnValue(snapshot);
-  vi.mocked(useDrivingState).mockReturnValue({ isDriving });
+  vi.mocked(useDrivingState).mockReturnValue({ isDriving, isWatching });
   vi.mocked(useSessionVisibility).mockReturnValue(sessionVisible);
   vi.mocked(useTrackStateSelector).mockImplementation(((selector: unknown) =>
     selector === trackStateSelectors.displayUnits
@@ -661,6 +663,30 @@ describe('FlagPanel', () => {
           isDriving: false,
           config: { showOnlyWhenOnTrack: true },
         }).innerHTML
+      ).toBe('');
+    });
+
+    it('counts watching a car as on track', () => {
+      // A team-mate's stint: out of the car, the team car on the circuit.
+      // The flag channel has no player then, so what it resolves is the
+      // state of the session, and that is what the card shows.
+      const onlyOnTrack = { showOnlyWhenOnTrack: true };
+      const fullCourse = state({
+        kind: 'fullCourseYellow',
+        detail: 'fcyPitsClosed',
+        active: FLAG_ACTIVE_FULL_COURSE_YELLOW,
+        pitLaneClosed: true,
+      });
+      const watching = { isDriving: false, isWatching: true };
+
+      expect(
+        text(show(green, { ...watching, config: onlyOnTrack }), 'flag-title')
+      ).toBe('GREEN FLAG');
+      const container = show(fullCourse, { ...watching, config: onlyOnTrack });
+      expect(text(container, 'flag-title')).toBe('FULL COURSE YELLOW');
+      expect(byTestId(container, 'flag-plate')).toBeNull();
+      expect(
+        show(fullCourse, { isDriving: false, config: onlyOnTrack }).innerHTML
       ).toBe('');
     });
 

@@ -9,6 +9,9 @@ vi.mock('../TelemetryStore/TelemetryStore', () => ({
 }));
 
 vi.mock('../ChannelStore', () => ({
+  trackStateSelectors: {
+    watching: (snapshot: { watching?: boolean }) => snapshot.watching,
+  },
   useTrackStateSelector: vi.fn((selector) =>
     selector({
       isOnTrack: useTelemetryValue('IsOnTrack'),
@@ -20,8 +23,17 @@ vi.mock('../ChannelStore', () => ({
       isReplayPlaying: useTelemetryValue('IsReplayPlaying'),
       dataStale: useTelemetryValue('LmuDataStale'),
       outOfCar: useTelemetryValue('LmuOutOfCar'),
+      watching: useTelemetryValue('LmuWatching'),
     })
   ),
+}));
+
+// The General setting "Keep Widgets On Screen While Watching", as the
+// dashboard holds it. The hook that reads it, and what it makes of a
+// dashboard without one, is covered with the dashboard context.
+const general = vi.hoisted(() => ({ showWhileWatching: true }));
+vi.mock('../DashboardContext/DashboardContext', () => ({
+  useShowWhileWatching: () => general.showWhileWatching,
 }));
 
 describe('useDrivingState', () => {
@@ -311,13 +323,78 @@ describe('useDrivingState', () => {
       expect(useTelemetryValue).toHaveBeenCalledWith('IsInGarage');
       expect(useTelemetryValue).toHaveBeenCalledWith('IsGarageVisible');
       expect(useTelemetryValue).toHaveBeenCalledWith('IsReplayPlaying');
-      // Eight, not six: the frame also carries whether the sim has stopped
+      // Nine, not six: the frame also carries whether the sim has stopped
       // writing it and whether LMU says the player is out of the car, both
-      // checked before anything else.
+      // checked before anything else, and whether the user is watching a
+      // car. The snapshot is selected from twice, once for driving and once
+      // for watching, and this mock builds it afresh each time.
       expect(useTelemetryValue).toHaveBeenCalledWith('LmuDataStale');
       expect(useTelemetryValue).toHaveBeenCalledWith('LmuOutOfCar');
-      expect(useTelemetryValue).toHaveBeenCalledTimes(8);
+      expect(useTelemetryValue).toHaveBeenCalledWith('LmuWatching');
+      expect(useTelemetryValue).toHaveBeenCalledTimes(18);
     });
+  });
+});
+
+describe('useDrivingState while watching a car', () => {
+  const state = (overrides: Record<string, boolean>) => {
+    vi.mocked(useTelemetryValue).mockImplementation(
+      (key: string) => overrides[key] ?? false
+    );
+    return renderHook(() => useDrivingState()).result.current;
+  };
+
+  /** A team-mate's stint: at the monitor, the team car out on the circuit. */
+  const teamMateDriving = { LmuWatching: true, LmuOutOfCar: true };
+
+  beforeEach(() => {
+    general.showWhileWatching = true;
+  });
+
+  it('is watching, and not driving, through a team-mate’s stint', () => {
+    expect(state(teamMateDriving)).toEqual({
+      isDriving: false,
+      isWatching: true,
+    });
+  });
+
+  it('is not watching with the setting switched off', () => {
+    general.showWhileWatching = false;
+
+    expect(state(teamMateDriving)).toEqual({
+      isDriving: false,
+      isWatching: false,
+    });
+  });
+
+  it('is driving, and not watching, at the wheel', () => {
+    expect(state({ IsOnTrack: true })).toEqual({
+      isDriving: true,
+      isWatching: false,
+    });
+  });
+
+  it('is neither at the monitor with nothing to watch', () => {
+    expect(state({ LmuOutOfCar: true })).toEqual({
+      isDriving: false,
+      isWatching: false,
+    });
+  });
+
+  it('does not count watching as driving, whatever the pit flags say', () => {
+    // The watched car in the pit lane: the pit term of the driving gate is
+    // true for the focus car, and the user is still not at the wheel.
+    expect(state({ ...teamMateDriving, CarIdxOnPitRoad: true }).isDriving).toBe(
+      false
+    );
+  });
+
+  it('leaves driving as it was with the setting switched off', () => {
+    general.showWhileWatching = false;
+
+    expect(state({ IsOnTrack: true }).isDriving).toBe(true);
+    expect(state({ CarIdxOnPitRoad: true }).isDriving).toBe(true);
+    expect(state({ IsOnTrack: true, IsInGarage: true }).isDriving).toBe(false);
   });
 });
 

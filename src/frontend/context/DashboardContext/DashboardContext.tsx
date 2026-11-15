@@ -317,3 +317,16 @@ export const useGeneralSettings = (): GeneralSettingsType | undefined => {
   const { currentDashboard } = useDashboard();
   return currentDashboard?.generalSettings;
 };
+
+/**
+ * Whether widgets set to show only on track also stay up while the user
+ * watches a car: the General setting "Keep Widgets On Screen While Watching".
+ *
+ * On unless it has been switched off, so a dashboard saved before the setting
+ * existed gets the widgets back without anything being touched. Does not
+ * require a provider, like `useDashboardBridge`: the driving state reads it,
+ * and that is used in places a dashboard is not.
+ */
+export const useShowWhileWatching = (): boolean =>
+  useContext(DashboardContext)?.currentDashboard?.generalSettings
+    ?.showWhileWatching ?? true;

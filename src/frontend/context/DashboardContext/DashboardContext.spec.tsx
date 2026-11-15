@@ -1,7 +1,11 @@
 import React from 'react';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { DashboardProvider, useDashboard } from './DashboardContext';
+import {
+  DashboardProvider,
+  useDashboard,
+  useShowWhileWatching,
+} from './DashboardContext';
 import type { DashboardBridge, DashboardLayout } from '@irdashies/types';
 
 const mockBridge: DashboardBridge = {
@@ -207,6 +211,61 @@ describe('DashboardContext', () => {
       await act(async () => answer(true));
 
       expect(screen.getByTestId('demo-mode').textContent).toBe('false');
+    });
+  });
+
+  describe('the setting that keeps widgets up while watching', () => {
+    const Probe: React.FC = () => {
+      const show = useShowWhileWatching();
+      return <div data-testid="show-while-watching">{String(show)}</div>;
+    };
+
+    /** What a widget reads with these general settings on the dashboard. */
+    const readWith = async (
+      generalSettings: DashboardLayout['generalSettings']
+    ) => {
+      const dashboard: DashboardLayout = { widgets: [], generalSettings };
+      mockBridge.dashboardUpdated = (callback) => {
+        callback(dashboard, 'default');
+        return undefined;
+      };
+      render(
+        <DashboardProvider bridge={mockBridge}>
+          <Probe />
+          <TestComponent />
+        </DashboardProvider>
+      );
+      // Only once the dashboard itself has arrived.
+      await waitFor(() => {
+        expect(screen.getByTestId('current-dashboard').textContent).toBe(
+          JSON.stringify(dashboard)
+        );
+      });
+      return screen.getByTestId('show-while-watching').textContent;
+    };
+
+    it('is on when it has been switched on', async () => {
+      expect(await readWith({ showWhileWatching: true })).toBe('true');
+    });
+
+    it('is off when it has been switched off', async () => {
+      expect(await readWith({ showWhileWatching: false })).toBe('false');
+    });
+
+    it('is on for a dashboard saved before the setting existed', async () => {
+      expect(await readWith({ fontSize: 'sm' })).toBe('true');
+    });
+
+    it('is on for a dashboard with no general settings', async () => {
+      expect(await readWith(undefined)).toBe('true');
+    });
+
+    it('is on where there is no dashboard at all', () => {
+      render(<Probe />);
+
+      expect(screen.getByTestId('show-while-watching').textContent).toBe(
+        'true'
+      );
     });
   });
 

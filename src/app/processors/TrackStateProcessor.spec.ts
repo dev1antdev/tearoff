@@ -146,4 +146,57 @@ describe('TrackStateProcessor', () => {
     processor.onLifecycle({ type: 'disconnect' });
     expect(processor.snapshot().outOfCar).toBe(false);
   });
+
+  it("carries LMU's watching flag with the car watched, and drops it on disconnect", () => {
+    const processor = new TrackStateProcessor();
+    processor.onFrame(frame({}));
+    expect(processor.snapshot().watching).toBe(false);
+
+    // A team-mate's stint: out of the car, the focus on the team car.
+    processor.onFrame(
+      frame({
+        LmuWatching: [true],
+        LmuOutOfCar: [true],
+        IsOnTrack: [false],
+        CamCarIdx: [7],
+      })
+    );
+    const version = processor.snapshot().version;
+    expect(processor.snapshot()).toMatchObject({
+      watching: true,
+      outOfCar: true,
+      isOnTrack: false,
+      focusCarIdx: 7,
+    });
+
+    // The flag going is a change of its own: the car went into its garage.
+    processor.onFrame(
+      frame({
+        LmuWatching: [false],
+        LmuOutOfCar: [true],
+        IsOnTrack: [false],
+        CamCarIdx: [7],
+      })
+    );
+    expect(processor.snapshot().watching).toBe(false);
+    expect(processor.snapshot().version).toBe(version + 1);
+
+    processor.onFrame(frame({ LmuWatching: [true] }));
+    processor.onLifecycle({ type: 'disconnect' });
+    expect(processor.snapshot().watching).toBe(false);
+  });
+
+  it('is never watching on a frame without the flag, as every iRacing frame is', () => {
+    // Under iRacing nothing sets it yet, whatever the camera is on.
+    const processor = new TrackStateProcessor();
+    processor.onFrame(
+      frame({
+        CamCarIdx: [3],
+        IsOnTrack: [false],
+        CarIdxTrackSurface: [3, 3, 3, 3],
+      })
+    );
+
+    expect(processor.snapshot().watching).toBe(false);
+  });
 });

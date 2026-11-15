@@ -148,6 +148,14 @@ export type Telemetry = {
    */
   LmuOutOfCar?: TelemetryVar<boolean[]>;
   /**
+   * True while the user is in a session, not at the wheel, and the car the
+   * overlays are about (CamCarIdx) is out of its garage on a live frame: a
+   * team-mate's stint, or any car the camera is on. IsOnTrack is false for
+   * as long as this is true; nothing watched ever counts as driving. False
+   * whenever the game state is unknown.
+   */
+  LmuWatching?: TelemetryVar<boolean[]>;
+  /**
    * True while LMU's GetGameState says PAUSED: the player is in the car with
    * a menu open. The widgets keep their state through it, which is why the
    * in-car channels above still read as driving; this is for the one thing
@@ -223,6 +231,34 @@ export type Telemetry = {
   LmuVirtualEnergy?: TelemetryVar<number[]>;
   LmuStateOfCharge?: TelemetryVar<number[]>;
   LmuRegen?: TelemetryVar<number[]>;
+  /**
+   * Whether traction control is cutting power on this frame. iRacing has no
+   * such flag; the brake's counterpart is BrakeABSactive, under both sims.
+   */
+  LmuTcActive?: TelemetryVar<boolean[]>;
+  /**
+   * The player's dials that have no iRacing channel of their own, as the
+   * position the sim states: traction control's slip target and power cut,
+   * brake migration, and the motor or engine map. The traction control level
+   * is dcTractionControl. Each is absent on a car that does not have the dial,
+   * which is one whose scale tops out at 0.
+   */
+  LmuTcSlip?: TelemetryVar<number[]>;
+  LmuTcCut?: TelemetryVar<number[]>;
+  LmuBrakeMigration?: TelemetryVar<number[]>;
+  LmuMotorMap?: TelemetryVar<number[]>;
+  /**
+   * The top of each dial's scale, in the order of LMU_DIAL_KEYS: ABS, TC, TC
+   * slip, TC cut, brake migration, map, front and rear anti-roll bar. 0 for a
+   * dial the car does not have. The same cell from frame to frame until a
+   * maximum changes, which is once per car.
+   */
+  LmuDialMax?: TelemetryVar<number[]>;
+  /**
+   * The wiper state: 0 off, 1 auto, 2 slow, 3 fast by TinyPedal's reading,
+   * which no recording confirms.
+   */
+  LmuWiper?: TelemetryVar<number[]>;
   /**
    * The player's tyres and brakes, Celsius. Wheels are LF, RF, LR, RR.
    *

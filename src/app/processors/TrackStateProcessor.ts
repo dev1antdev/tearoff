@@ -90,6 +90,7 @@ export class TrackStateProcessor implements TelemetryProcessor<TrackStateSnapsho
     dataStale: false,
     notInSession: false,
     outOfCar: false,
+    watching: false,
     playerCarInPitStall: false,
     playerTrackSurface: 0,
     onPitRoad: false,
@@ -151,6 +152,14 @@ export class TrackStateProcessor implements TelemetryProcessor<TrackStateSnapsho
       changed;
     changed =
       this.set('outOfCar', booleanValue(frame, 'LmuOutOfCar')) || changed;
+    // The LMU mapper decides this, because it is the one that knows where
+    // the user is. iRacing frames carry no such key, so under iRacing it is
+    // false for now. A later phase derives it here when the key is absent,
+    // from `!IsOnTrack && !IsGarageVisible && CamCarIdx >= 0` and
+    // `CarIdxTrackSurface[CamCarIdx] > NotInWorld`, once a spectated session
+    // has shown what those keys read.
+    changed =
+      this.set('watching', booleanValue(frame, 'LmuWatching')) || changed;
     changed =
       this.set(
         'playerCarInPitStall',
@@ -229,6 +238,7 @@ export class TrackStateProcessor implements TelemetryProcessor<TrackStateSnapsho
     this.latest.dataStale = false;
     this.latest.notInSession = false;
     this.latest.outOfCar = false;
+    this.latest.watching = false;
     this.latest.playerCarInPitStall = false;
     this.latest.playerTrackSurface = 0;
     this.latest.onPitRoad = false;

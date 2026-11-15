@@ -9,7 +9,7 @@ import { useInformationBarSettings } from '@irdashies/domain';
 export const InformationBar = () => {
   const settings = useInformationBarSettings();
   const generalSettings = useGeneralSettings();
-  const { isDriving } = useDrivingState();
+  const { isDriving, isWatching } = useDrivingState();
   const isSessionVisible = useSessionVisibility(settings?.sessionVisibility);
 
   if (!settings?.enabled) {
@@ -20,8 +20,9 @@ export const InformationBar = () => {
     return null;
   }
 
-  // Show only when on track setting
-  if (settings?.showOnlyWhenOnTrack && !isDriving) {
+  // Show only when on track: driving, or watching a car that is out of its
+  // garage. The bar is about the session, which goes on either way.
+  if (settings?.showOnlyWhenOnTrack && !(isDriving || isWatching)) {
     return null;
   }
 
