@@ -282,6 +282,14 @@ export const sessionsFixture = () => ({
     uiSelectionType: 'Arrow',
     valueType: 'LONG',
   },
+  SESSSET_race_time: {
+    currentValue: 15,
+    numStepsTotal: 2000,
+    settingID: 58,
+    stringValue: '',
+    uiSelectionType: 'Arrow',
+    valueType: 'LONG',
+  },
   SESSSET_race_timescale: {
     currentValue: 1,
     numStepsTotal: 61,

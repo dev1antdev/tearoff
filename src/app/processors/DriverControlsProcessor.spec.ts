@@ -83,6 +83,41 @@ describe('DriverControlsProcessor', () => {
     expect(processor.snapshot().tcActive).toBeUndefined();
   });
 
+  it('carries the lift-and-coast light as the sim states it', () => {
+    const processor = new DriverControlsProcessor();
+    // Byte 128 of 255, as the Le Mans Ultimate mapper publishes it.
+    processor.onFrame(frame({ LmuLiftAndCoast: 128 / 255 }));
+    expect(processor.snapshot().liftAndCoast).toBeCloseTo(0.50196, 5);
+
+    // No target set: a reading of none, not a missing one.
+    processor.onFrame(frame({ LmuLiftAndCoast: 0 }));
+    expect(processor.snapshot().liftAndCoast).toBe(0);
+
+    // An unchanged light publishes nothing.
+    const version = processor.snapshot().version;
+    processor.onFrame(frame({ LmuLiftAndCoast: 0 }));
+    expect(processor.snapshot().version).toBe(version);
+  });
+
+  it('leaves the lift-and-coast light absent under a sim that has none', () => {
+    const processor = new DriverControlsProcessor();
+    processor.onFrame(frame({ Throttle: 0.4, BrakeABSactive: false }));
+
+    expect(processor.snapshot().liftAndCoast).toBeUndefined();
+    expect('liftAndCoast' in processor.snapshot()).toBe(false);
+  });
+
+  it('clears the lift-and-coast light on disconnect', () => {
+    const processor = new DriverControlsProcessor();
+    processor.onFrame(frame({ LmuLiftAndCoast: 0.6, LmuTcActive: true }));
+    processor.onLifecycle({ type: 'disconnect' });
+
+    expect(processor.snapshot()).toMatchObject({
+      liftAndCoast: undefined,
+      tcActive: undefined,
+    });
+  });
+
   it('states the steering range lock to lock in whole degrees', () => {
     const processor = new DriverControlsProcessor();
     // 476 degrees, as the Le Mans Ultimate mapper publishes the recorded

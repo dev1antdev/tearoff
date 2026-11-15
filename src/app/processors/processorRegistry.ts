@@ -14,6 +14,7 @@ import { BlindSpotProcessor } from './BlindSpotProcessor';
 import { DriverControlsProcessor } from './DriverControlsProcessor';
 import { FlagStateProcessor } from './FlagStateProcessor';
 import { FuelProjectionProcessor } from './FuelProjectionProcessor';
+import { HybridProcessor } from './HybridProcessor';
 import { LapDeltaProcessor } from './LapDeltaProcessor';
 import { LapLogProcessor } from './LapLogProcessor';
 import { LapTimesProcessor } from './LapTimesProcessor';
@@ -45,6 +46,7 @@ import { StandingsProcessor } from './StandingsProcessor';
 import { TrackStateProcessor } from './TrackStateProcessor';
 import { TyreStateProcessor } from './TyreStateProcessor';
 import { SystemPerformanceProcessor } from './SystemPerformanceProcessor';
+import { WeatherForecastProcessor } from './WeatherForecastProcessor';
 import type { SystemLoadSource } from '../services/systemLoadSampler';
 import type { PoleSideSettings } from '@irdashies/types';
 
@@ -226,6 +228,15 @@ export const createProcessorDefinitions = ({
     create: () => new CarSystemsProcessor(),
   }),
   defineProcessor({
+    channel: 'hybrid.snapshot',
+    // The lap's totals and the lap the next one is measured against are
+    // built up over laps: the overlay going off the screen for a pause must
+    // not throw them away.
+    processWhileHidden: true,
+    metricsPrefix: 'hybrid',
+    create: () => new HybridProcessor(),
+  }),
+  defineProcessor({
     channel: 'driver-controls.snapshot',
     metricsPrefix: 'driverControls',
     create: () => new DriverControlsProcessor(),
@@ -244,6 +255,17 @@ export const createProcessorDefinitions = ({
     channel: 'system-performance.snapshot',
     metricsPrefix: 'systemPerformance',
     create: () => new SystemPerformanceProcessor(systemLoad),
+  }),
+  defineProcessor({
+    channel: 'weather-forecast.snapshot',
+    // The session bar measures how fast the in-game day runs, which turns
+    // the minutes to a forecast point into the clock time it starts at.
+    dependencies: ['session-bar.snapshot'],
+    metricsPrefix: 'weatherForecast',
+    create: ({ snapshot }) =>
+      new WeatherForecastProcessor(
+        () => snapshot('session-bar.snapshot')?.timeScale
+      ),
   }),
   defineProcessor({
     channel: 'minimap.snapshot',

@@ -103,6 +103,21 @@ describe('writeLmuHybrid', () => {
     expect(frame.LmuMotorCoolantTemp).toBeUndefined();
   });
 
+  it('publishes a charge above 0 for a car that states no motor state', () => {
+    // TinyPedal allows for a car like this and infers the motor state from
+    // the charge moving, which takes the charge being on the frame.
+    const frame = write({
+      ...noHybrid(),
+      batteryChargeFraction: 0.41,
+    });
+
+    expect(frame.LmuMotorState.value).toEqual([0]);
+    expect(frame.LmuBatteryCharge.value).toEqual([0.41]);
+    // The motor's readings are still nothing to go by.
+    expect(frame.LmuMotorTorque).toBeUndefined();
+    expect(frame.LmuMotorTemp).toBeUndefined();
+  });
+
   it('publishes lift and coast as a fraction, whatever the car', () => {
     expect(
       write({ ...deploying(), liftAndCoastProgress: 102 }).LmuLiftAndCoast.value

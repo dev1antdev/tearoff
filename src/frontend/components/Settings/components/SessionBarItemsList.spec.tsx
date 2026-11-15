@@ -219,4 +219,63 @@ describe('session bar secondary options', () => {
     fireEvent.click(screen.getByRole('switch', { name: 'Session Time' }));
     expect(update).toHaveBeenLastCalledWith('sessionTime', { enabled: true });
   });
+  it('offers the in-game clock a format and a time scale, with today’s behaviour as the default', () => {
+    const update = vi.fn();
+    const { rerender } = render(
+      <SessionBarItemsList
+        items={['sessionClockTime']}
+        onReorder={vi.fn()}
+        getItemConfig={() => ({ enabled: true })}
+        updateItemConfig={update}
+      />
+    );
+    const format = screen.getByRole('combobox', {
+      name: 'Session Clock Time format',
+    });
+    const timeScale = screen.getByRole('combobox', {
+      name: 'Session Clock Time time scale',
+    });
+    expect(format).toHaveValue('locale');
+    expect(format.closest('label')).toHaveTextContent('Format');
+    expect(timeScale).toHaveValue('whenScaled');
+    expect(timeScale.closest('label')).toHaveTextContent('Time scale');
+
+    fireEvent.change(format, { target: { value: '24h' } });
+    expect(update).toHaveBeenLastCalledWith('sessionClockTime', {
+      format: '24h',
+    });
+    fireEvent.change(timeScale, { target: { value: 'always' } });
+    expect(update).toHaveBeenLastCalledWith('sessionClockTime', {
+      timeScale: 'always',
+    });
+
+    rerender(
+      <SessionBarItemsList
+        items={['sessionClockTime']}
+        onReorder={vi.fn()}
+        getItemConfig={() => ({
+          enabled: true,
+          format: '12h',
+          timeScale: 'never',
+        })}
+        updateItemConfig={update}
+      />
+    );
+    expect(
+      screen.getByRole('combobox', { name: 'Session Clock Time format' })
+    ).toHaveValue('12h');
+    expect(
+      screen.getByRole('combobox', { name: 'Session Clock Time time scale' })
+    ).toHaveValue('never');
+
+    rerender(
+      <SessionBarItemsList
+        items={['sessionClockTime']}
+        onReorder={vi.fn()}
+        getItemConfig={() => ({ enabled: false })}
+        updateItemConfig={update}
+      />
+    );
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  });
 });

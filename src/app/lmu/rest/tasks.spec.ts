@@ -870,6 +870,26 @@ describe('sessions task', () => {
 
     expect(data.session.timeScale).toBe(1);
     expect(data.session.privateQualifying).toBe(true);
+    // Fifteen minutes, which the sim holds as 15.
+    expect(data.session.raceTime).toBe(900);
+  });
+
+  it('reads the race length in seconds, and none from a length of nothing', () => {
+    const sixHours = apply('sessions', {
+      ...sessionsFixture(),
+      SESSSET_race_time: { currentValue: 360 },
+    });
+    expect(sixHours.data.session.raceTime).toBe(21_600);
+
+    const none = apply('sessions', {
+      ...sessionsFixture(),
+      SESSSET_race_time: { currentValue: 0 },
+    });
+    expect(none.data.session.raceTime).toBeUndefined();
+
+    const without: Record<string, unknown> = { ...sessionsFixture() };
+    delete without.SESSSET_race_time;
+    expect(apply('sessions', without).data.session.raceTime).toBeUndefined();
   });
 
   it('reads a scaled race as its multiplier', () => {

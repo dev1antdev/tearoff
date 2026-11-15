@@ -1137,6 +1137,11 @@ export const LMU_REST_TASKS: readonly LmuRestTask[] = [
       sessionSetting('timeScale', 'SESSSET_race_timescale', (data, value) => {
         data.session.timeScale = value;
       }),
+      // Minutes in the sim, seconds here like every other time. Nothing is a
+      // race of no length, so 0 is the sim stating none.
+      sessionSetting('raceTime', 'SESSSET_race_time', (data, value) => {
+        data.session.raceTime = value > 0 ? value * 60 : undefined;
+      }),
       sessionSetting(
         'privateQualifying',
         'SESSSET_private_qual',

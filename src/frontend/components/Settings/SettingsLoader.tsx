@@ -5,6 +5,7 @@ import type { WidgetId } from '@irdashies/types';
 import { StandingsSettings } from './sections/StandingsSettings';
 import { RelativeSettings } from './sections/RelativeSettings';
 import { WeatherSettings } from './sections/WeatherSettings';
+import { WeatherForecastSettings } from './sections/WeatherForecastSettings';
 import { WindSettings } from './sections/WindSettings';
 import { TrackMapSettings } from './sections/TrackMapSettings';
 import { FlatTrackMapSettings } from './sections/FlatTrackMapSettings';
@@ -38,6 +39,8 @@ import { SectorDeltaSettings } from './sections/SectorDeltaSettings';
 import { DeltaSpeedSettings } from './sections/DeltaSpeedSettings';
 import { CarSystemsSettings } from './sections/CarSystemsSettings';
 import { TyresSettings } from './sections/TyresSettings';
+import { LiftCoastSettings } from './sections/LiftCoastSettings';
+import { HybridSettings } from './sections/HybridSettings';
 import { SystemPerformanceSettings } from './sections/SystemPerformanceSettings';
 import { LapDeltaSettings } from './sections/LapDeltaSettings';
 import { CornerDeltaSettings } from './sections/CornerDeltaSettings';
@@ -66,6 +69,7 @@ export const WIDGET_SETTINGS: Record<
   standings: StandingsSettings,
   relative: RelativeSettings,
   weather: WeatherSettings,
+  weatherforecast: WeatherForecastSettings,
   wind: WindSettings,
   fuel: FuelSettings,
   map: TrackMapSettings,
@@ -89,6 +93,8 @@ export const WIDGET_SETTINGS: Record<
   deltaspeed: DeltaSpeedSettings,
   carsystems: CarSystemsSettings,
   tyres: TyresSettings,
+  liftcoast: LiftCoastSettings,
+  hybrid: HybridSettings,
   systemperformance: SystemPerformanceSettings,
   lapdelta: LapDeltaSettings,
   cornerdelta: CornerDeltaSettings,
