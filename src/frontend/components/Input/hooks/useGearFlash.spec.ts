@@ -92,4 +92,33 @@ describe('useGearFlash', () => {
     rerender({ g: 4, e: false });
     expect(result.current).toBeUndefined();
   });
+
+  it('follows the gear while switched off, so a shift made unseen does not flash on coming back', () => {
+    // How the widget rests it while the overlay is hidden.
+    const { result, rerender } = setup(3);
+    rerender({ g: 3, e: false });
+    rerender({ g: 4, e: false });
+    rerender({ g: 5, e: false });
+    expect(result.current).toBeUndefined();
+    expect(vi.getTimerCount()).toBe(0);
+
+    rerender({ g: 5, e: true });
+    expect(result.current).toBeUndefined();
+    expect(vi.getTimerCount()).toBe(0);
+
+    // The next shift flashes as ever.
+    rerender({ g: 6, e: true });
+    expect(result.current).toBe(UP);
+  });
+
+  it('drops a flash in progress, and its timer, when switched off', () => {
+    const { result, rerender } = setup(3);
+    rerender({ g: 4, e: true });
+    expect(result.current).toBe(UP);
+    expect(vi.getTimerCount()).toBe(1);
+
+    rerender({ g: 4, e: false });
+    expect(result.current).toBeUndefined();
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });

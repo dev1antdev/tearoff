@@ -1,6 +1,7 @@
 import { act, cleanup, render } from '@testing-library/react';
 import { pathRound } from 'd3';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { OverlayHiddenContext } from '@irdashies/context';
 import { WidgetScale } from '@irdashies/domain/widgetPresentation/WidgetScale';
 import { InputTrace, type InputTraceProps } from './InputTrace';
 
@@ -174,6 +175,7 @@ describe('InputTrace Canvas', () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     delete window.rendererPerfBridge;
+    delete window.windowVisibilityBridge;
   });
 
   it('retains history until samples leave the circular buffer', () => {
@@ -474,5 +476,186 @@ describe('InputTrace Canvas', () => {
     act(() => window.dispatchEvent(new Event('resize')));
     expect(canvas.width).toBe(800);
     expect(canvas.height).toBe(200);
+  });
+
+  describe('while painting is paused', () => {
+    // One settings object, so that a render with the same input is not a
+    // new sample: only the pause changes.
+    const steady = { ...settings, maxSamples: 40 };
+    const Trace = ({
+      hidden,
+      input,
+      traceSettings = steady,
+    }: {
+      hidden: boolean;
+      input: InputTraceProps['input'];
+      traceSettings?: InputTraceProps['settings'];
+    }) => (
+      <OverlayHiddenContext.Provider value={hidden}>
+        <InputTrace input={input} settings={traceSettings} />
+      </OverlayHiddenContext.Provider>
+    );
+    /** Every paint begins by setting the transform. */
+    const paints = (container: HTMLElement) =>
+      contextFor(canvasFor(container)).ctx.setTransform.mock.calls.length;
+
+    it('asks for no frame and makes no canvas call, from mount on', () => {
+      const view = render(<Trace hidden input={activeInput} />);
+      expect(callbacks.size).toBe(0);
+
+      for (let index = 0; index < 10; index++) {
+        view.rerender(<Trace hidden input={{ ...idleInput }} />);
+        expect(callbacks.size).toBe(0);
+      }
+      drawFrame();
+
+      expect(recordMeasure).not.toHaveBeenCalled();
+      expect(paints(view.container)).toBe(0);
+      expect(paths(view.container)).toHaveLength(0);
+    });
+
+    it('keeps sampling, and paints the whole history exactly once when the pause ends', () => {
+      const paused = render(<Trace hidden input={activeInput} />);
+      const seen = render(<Trace hidden={false} input={activeInput} />);
+      let last: InputTraceProps['input'] = activeInput;
+      for (let index = 0; index < 25; index++) {
+        last = index % 3 === 0 ? { ...activeInput } : { ...idleInput };
+        paused.rerender(<Trace hidden input={last} />);
+        seen.rerender(<Trace hidden={false} input={last} />);
+      }
+      drawFrame();
+      expect(paints(paused.container)).toBe(0);
+      recordMeasure.mockClear();
+
+      paused.rerender(<Trace hidden={false} input={last} />);
+
+      // At once, and with no frame asked for: there is no sample to wait on.
+      expect(paints(paused.container)).toBe(1);
+      expect(recordMeasure).toHaveBeenCalledExactlyOnceWith(
+        'inputTraceFrame',
+        expect.any(Number)
+      );
+      expect(callbacks.size).toBe(0);
+      // Everything that arrived while it was paused is there, once each.
+      expect(paths(paused.container)).toEqual(paths(seen.container));
+      expect(paths(paused.container).length).toBeGreaterThan(1);
+
+      // A second pause with nothing new is another single paint of the same.
+      paused.rerender(<Trace hidden input={last} />);
+      paused.rerender(<Trace hidden={false} input={last} />);
+      expect(paints(paused.container)).toBe(2);
+      expect(paths(paused.container)).toEqual(paths(seen.container));
+
+      // And it is back to a frame for each sample.
+      paused.rerender(<Trace hidden={false} input={{ ...activeInput }} />);
+      expect(callbacks.size).toBe(1);
+    });
+
+    it('lets the frame of a sample that arrives with the end of the pause be the one paint', () => {
+      const paused = render(<Trace hidden input={activeInput} />);
+      const seen = render(<Trace hidden={false} input={activeInput} />);
+      const next = { ...idleInput };
+      seen.rerender(<Trace hidden={false} input={next} />);
+      drawFrame();
+
+      paused.rerender(<Trace hidden={false} input={next} />);
+      expect(paints(paused.container)).toBe(0);
+      expect(callbacks.size).toBe(1);
+      drawFrame();
+
+      expect(paints(paused.container)).toBe(1);
+      // The sample is in the history once, not once for the input and once
+      // more for the pause ending.
+      expect(paths(paused.container)).toEqual(paths(seen.container));
+    });
+
+    it('drops a frame already asked for when the pause begins', () => {
+      const view = render(<Trace hidden={false} input={activeInput} />);
+      expect(callbacks.size).toBe(1);
+      const before = paints(view.container);
+
+      view.rerender(<Trace hidden input={activeInput} />);
+      expect(callbacks.size).toBe(0);
+      drawFrame();
+
+      expect(paints(view.container)).toBe(before);
+    });
+
+    it('keeps the buffer sized without painting it, and fills it when the pause ends', () => {
+      const view = render(<Trace hidden input={activeInput} />);
+      const canvas = canvasFor(view.container);
+
+      resize(canvas, 500, 120);
+      act(() => window.dispatchEvent(new Event('resize')));
+      expect(canvas.width).toBe(500);
+      expect(canvas.height).toBe(120);
+      expect(paints(view.container)).toBe(0);
+
+      view.rerender(<Trace hidden={false} input={activeInput} />);
+      expect(paints(view.container)).toBe(1);
+      expect(contextFor(canvas).ctx.setTransform).toHaveBeenLastCalledWith(
+        1.25,
+        0,
+        0,
+        1.2,
+        0,
+        0
+      );
+    });
+
+    it('rests while the window is hidden or minimised, and paints once when it is back', () => {
+      let notify: ((visible: boolean) => void) | undefined;
+      window.windowVisibilityBridge = {
+        onVisibilityChanged: (callback) => {
+          notify = callback;
+          return () => undefined;
+        },
+      };
+      const view = render(<InputTrace input={activeInput} settings={steady} />);
+      drawFrame();
+      const before = paints(view.container);
+
+      act(() => notify?.(false));
+      view.rerender(<InputTrace input={{ ...idleInput }} settings={steady} />);
+      expect(callbacks.size).toBe(0);
+      drawFrame();
+      expect(paints(view.container)).toBe(before);
+
+      act(() => notify?.(true));
+      expect(paints(view.container)).toBe(before + 1);
+    });
+
+    it('still bounds the history that builds up unseen', () => {
+      // An absurd capacity is capped at 1000 samples whether or not anything
+      // is painted, and a pause longer than the history only keeps the end.
+      const capped = { ...settings, maxSamples: Number.MAX_VALUE };
+      const reference = { ...settings, maxSamples: 1000 };
+      const paused = render(
+        <Trace hidden input={activeInput} traceSettings={capped} />
+      );
+      const seen = render(
+        <Trace hidden={false} input={activeInput} traceSettings={reference} />
+      );
+      let last: InputTraceProps['input'] = activeInput;
+      for (let index = 0; index < 1100; index++) {
+        last = index % 7 < 3 ? { ...activeInput } : { ...idleInput };
+        paused.rerender(<Trace hidden input={last} traceSettings={capped} />);
+        seen.rerender(
+          <Trace hidden={false} input={last} traceSettings={reference} />
+        );
+      }
+      drawFrame();
+      expect(callbacks.size).toBe(0);
+
+      paused.rerender(
+        <Trace hidden={false} input={last} traceSettings={capped} />
+      );
+
+      expect(paints(paused.container)).toBe(1);
+      expect(paths(paused.container)).toEqual(paths(seen.container));
+      expect(JSON.stringify(paths(paused.container))).not.toMatch(
+        /NaN|Infinity/
+      );
+    });
   });
 });

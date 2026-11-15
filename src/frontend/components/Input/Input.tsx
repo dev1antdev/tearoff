@@ -3,7 +3,11 @@ import { InputContainer } from './InputContainer/InputContainer';
 import { isInputConfig, useInputSettings } from './hooks/useInputSettings';
 import { useGearFlash } from './hooks/useGearFlash';
 import { useInputs } from './hooks/useInputs';
-import { useDrivingState, useSessionVisibility } from '@irdashies/context';
+import {
+  useDrivingState,
+  usePaintingPaused,
+  useSessionVisibility,
+} from '@irdashies/context';
 import { useBlink, useShiftFlashActive } from '@irdashies/domain/shiftLight';
 import type { InputConfig } from '@irdashies/types';
 
@@ -33,14 +37,19 @@ export const Input = (props: InputWidgetProps) => {
 const VisibleInput = memo(({ settings }: VisibleInputProps) => {
   const inputs = useInputs(settings);
   const { shiftFlash, gearFlash } = settings;
+  // The two flashes run on timers of their own. Neither runs while the
+  // widget cannot be seen: the overlay hidden, or its window.
+  const paintingPaused = usePaintingPaused();
   const flashActive = useShiftFlashActive(
     !!shiftFlash?.enabled,
     shiftFlash?.source ?? 'redline'
   );
-  const flashOn = useBlink(flashActive);
+  const flashOn = useBlink(flashActive && !paintingPaused);
+  // Off rather than frozen: the hook goes on following the gear, so a shift
+  // made unseen does not flash when the widget is back.
   const gearFlashColor = useGearFlash(
     inputs.gear,
-    !!gearFlash?.enabled,
+    !!gearFlash?.enabled && !paintingPaused,
     gearFlash?.upColor ?? '#22c55e',
     gearFlash?.downColor ?? '#ef4444'
   );
