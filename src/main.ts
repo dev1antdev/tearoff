@@ -9,6 +9,7 @@ import {
   getCurrentBridge,
   getIsDemoMode,
   getSessionLifecycle,
+  onActiveSimulatorChanged,
   onBridgeChanged,
   onConnectedSimulatorChanged,
 } from './app/bridge/iracingSdk/setup';
@@ -63,6 +64,7 @@ import {
   startLapLibrary,
 } from './app/storage/lapLibrary';
 import { PlayerLapRecorder } from './app/processors/PlayerLapRecorder';
+import { wirePlayerLapRecording } from './app/playerLapRecording';
 import { setupLapLibraryBridge } from './app/bridge/lapLibraryBridge';
 import { flushLapTracesOnShutdown } from './app/storage/lapTraces';
 import { flushPitLaneDataOnShutdown } from './app/storage/pitLaneData';
@@ -285,36 +287,26 @@ function setupLapLibraryRecording(replayContext: ReplayContextRuntime): void {
     );
   };
 
-  let unsubscribeSession: (() => void) | undefined;
-  let unsubscribeTelemetry: (() => void) | undefined;
-  const wireToTelemetryBridge = () => {
-    unsubscribeSession?.();
-    unsubscribeTelemetry?.();
-    unsubscribeSession = undefined;
-    unsubscribeTelemetry = undefined;
-    const bridge = getCurrentBridge();
-    const simulator = getActiveSimulator();
-    if (!bridge || !simulator) {
-      recorder = undefined;
-      return;
-    }
-    // A new recorder per bridge: the simulator is part of what a lap is
-    // filed under, and a half-driven lap does not carry over to another sim.
-    const current = new PlayerLapRecorder(
-      { record: (session, lap) => library.recordLap(session, lap) },
-      { simulator, bootId, now: () => Date.now() }
-    );
-    recorder = current;
-    applyEnabled();
-    unsubscribeSession =
-      bridge.onSessionData((session) => current.onSession(session)) ??
-      undefined;
-    unsubscribeTelemetry =
-      bridge.onTelemetry((telemetry) => current.onFrame(telemetry)) ??
-      undefined;
-  };
-  wireToTelemetryBridge();
-  const unsubscribeBridgeChanged = onBridgeChanged(wireToTelemetryBridge);
+  // The simulator as well as the bridge: left on auto-detect, the bridge is
+  // there before any game is found, and the recorder can only be made once
+  // the simulator has a name.
+  const disposeWiring = wirePlayerLapRecording({
+    getBridge: getCurrentBridge,
+    getSimulator: getActiveSimulator,
+    onBridgeChanged,
+    onSimulatorChanged: onActiveSimulatorChanged,
+    createRecorder: (simulator) => {
+      log.info(`[LapLibrary] Recording the player's laps for ${simulator}`);
+      return new PlayerLapRecorder(
+        { record: (session, lap) => library.recordLap(session, lap) },
+        { simulator, bootId, now: () => Date.now() }
+      );
+    },
+    onRecorderChanged: (next) => {
+      recorder = next;
+      applyEnabled();
+    },
+  });
   const unsubscribeEnter = lifecycle.onEnter(({ replay }) => {
     replaySource = replay;
     recorder?.onEnter();
@@ -326,9 +318,7 @@ function setupLapLibraryRecording(replayContext: ReplayContextRuntime): void {
   const unsubscribeReplayContext = replayContext.onChange(applyEnabled);
 
   disposeLapLibraryRecording = () => {
-    unsubscribeSession?.();
-    unsubscribeTelemetry?.();
-    unsubscribeBridgeChanged?.();
+    disposeWiring();
     unsubscribeEnter();
     unsubscribeDisconnect();
     unsubscribeReplayContext();
