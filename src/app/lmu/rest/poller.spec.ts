@@ -289,6 +289,76 @@ describe('createLmuRestPoller', () => {
     expect(calls).toHaveLength(afterGivingUp);
   });
 
+  it('keeps asking a path that has answered, and only asks less often', async () => {
+    // The refuel target and the pit estimate, mid-stint: three bad requests
+    // used to lose them until the next session. A path that has answered is
+    // there, so it is asked again, backed off, until it answers.
+    const logger = { info: vi.fn(), warn: vi.fn() };
+    let failing = false;
+    let total = 30;
+    const { transport, calls } = makeTransport(() =>
+      failing ? fail('timeout') : ok(JSON.stringify({ total: (total += 1) }))
+    );
+    const data = createLmuRestData();
+    const poller = createLmuRestPoller({
+      data,
+      transport,
+      logger,
+      tasks: [repeatTask],
+    });
+
+    poller.setActive(true);
+    await advance(0);
+    expect(data.cells.pitStopTime).toBeDefined();
+
+    failing = true;
+    const before = calls.length;
+    await advance(10 * 60_000);
+    const during = calls.length - before;
+    // Never given up on, and never hammered: within ten minutes it is down
+    // to one request per ceiling.
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(during).toBeGreaterThan(REST_RETRY_LIMIT);
+    expect(during).toBeLessThan((10 * 60_000) / REST_MAX_INTERVAL_MS + 12);
+    // What it last said stands through the gap.
+    expect(data.cells.pitStopTime).toBeDefined();
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('is not answering (timeout)')
+    );
+
+    failing = false;
+    await advance(REST_MAX_INTERVAL_MS);
+    expect(logger.info).toHaveBeenCalledWith(
+      '[lmuRest] /rest/strategy/pitstop-estimate is answering'
+    );
+  });
+
+  it('still gives up on a path that stops answering in a new session', async () => {
+    // Answered last session, never in this one: the menus, or a build
+    // without it. A session's first three failures are still the limit.
+    const logger = { info: vi.fn(), warn: vi.fn() };
+    let failing = false;
+    const { transport, calls } = makeTransport(() =>
+      failing ? fail('timeout') : ok('{"total":30}')
+    );
+    const poller = createLmuRestPoller({
+      data: createLmuRestData(),
+      transport,
+      logger,
+      tasks: [repeatTask],
+    });
+    poller.setActive(true);
+    await advance(0);
+
+    failing = true;
+    poller.beginSession();
+    const before = calls.length;
+    await advance(0);
+    await advance(60_000);
+    expect(calls.length - before).toBe(REST_RETRY_LIMIT);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+  });
+
   it('logs what an output reports, once per changed response', async () => {
     // A parser's report goes through the poller's logger, so parsers stay
     // free of IO; and only a body that changed is parsed at all, so an

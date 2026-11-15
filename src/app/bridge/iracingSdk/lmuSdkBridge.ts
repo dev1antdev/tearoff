@@ -24,6 +24,10 @@ import {
   createLmuSessionClockState,
   resetLmuSessionClockState,
 } from '../../lmu/sessionClock';
+import {
+  createLmuLapStartState,
+  resetLmuLapStartState,
+} from '../../lmu/lapStartTiming';
 import { createLmuDataFreeze } from '../../lmu/dataFreeze';
 import {
   createLmuEnergyState,
@@ -322,6 +326,9 @@ export async function publishLmuSDKEvents(
   // stops it stepping back when that happens, which every processor reads
   // as a restarted session. See sessionClock.ts.
   const sessionClockState = createLmuSessionClockState();
+  // When each car's lap began, so a lap the sim would not time -- a track
+  // limit takes the time away -- still has one. See lapStartTiming.ts.
+  const lapStartState = createLmuLapStartState();
 
   const telemetryCallbacks = new Set<(value: Telemetry) => void>();
   const sessionCallbacks = new Set<(value: Session) => void>();
@@ -417,6 +424,7 @@ export async function publishLmuSDKEvents(
           resetLmuOpponentLapDistanceState(opponentLapDistanceState);
           resetLmuEnergyState(energyState);
           resetLmuSessionClockState(sessionClockState);
+          resetLmuLapStartState(lapStartState);
           rosterGate.reset();
           sessionIdentity.reset();
           dataFreeze.reset();
@@ -579,8 +587,9 @@ export async function publishLmuSDKEvents(
         // A new session can put a different car in the same slot.
         resetLmuEnergyState(energyState);
         // And its clock starts from wherever it starts: nothing is held
-        // over from the session before.
+        // over from the session before, nor any lap begun in it.
         resetLmuSessionClockState(sessionClockState);
+        resetLmuLapStartState(lapStartState);
         // And what REST last said is the old session's too: the refuel
         // target, the pit estimate, the damage and the capacities describe
         // the car that was in it. Forgotten and asked for afresh, the tasks
@@ -706,7 +715,8 @@ export async function publishLmuSDKEvents(
         penaltyChannels,
         gameState,
         energyState,
-        sessionClockState
+        sessionClockState,
+        lapStartState
       );
       lifecycle?._onTelemetry(telemetry);
       perfMetrics.markEnd('lifecycleTelemetry');

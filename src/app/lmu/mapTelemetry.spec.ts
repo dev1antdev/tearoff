@@ -10,6 +10,7 @@ import { fixture } from './rawFixture';
 import { createLmuEnergyState } from './fuelEnergy';
 import { createLmuLapDistanceState } from './lapDistance';
 import { createLmuSessionClockState } from './sessionClock';
+import { createLmuLapStartState } from './lapStartTiming';
 
 describe('mapLmuTelemetry', () => {
   it('maps session scalars', () => {
@@ -1376,5 +1377,64 @@ describe('the session clock, the length of a race and the pit limiter', () => {
     expect(off.EngineWarnings?.value?.[0]).toBe(0);
     // EngineWarnings.PitSpeedLimiter.
     expect(on.EngineWarnings?.value?.[0]).toBe(0x10);
+  });
+});
+
+describe('the last lap of a car whose lap did not count', () => {
+  const withLapStarts = (
+    raw: LmuRawTelemetry,
+    lapStartState: ReturnType<typeof createLmuLapStartState>
+  ) =>
+    mapLmuTelemetry(
+      raw,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      lapStartState
+    );
+
+  it('is timed from the lap’s start to the next one’s', () => {
+    // The player, in slot 1, cuts the track: the sim gives the lap no time.
+    // It still took 93.4 s, and that is the last lap in the standings and in
+    // the pace of the laps before.
+    const lapStartState = createLmuLapStartState();
+    const raw = fixture();
+    withLapStarts(
+      { ...raw, vehLapStartET: new Float64Array([1100, 1101, 1102]) },
+      lapStartState
+    );
+    const after = withLapStarts(
+      {
+        ...raw,
+        vehLapStartET: new Float64Array([1100, 1194.4, 1102]),
+        vehLastLapTime: new Float64Array([133.4, -1, 138.9]),
+      },
+      lapStartState
+    );
+
+    const lastLaps = after.CarIdxLastLapTime?.value as number[];
+    expect(lastLaps[1]).toBeCloseTo(93.4, 9);
+    expect(after.LapLastLapTime?.value[0]).toBeCloseTo(93.4, 9);
+    // A lap the sim did time keeps the sim's figure.
+    expect(lastLaps[0]).toBe(133.4);
+    expect(lastLaps[2]).toBe(138.9);
+  });
+
+  it('is left without a time where there is nothing to measure it by', () => {
+    const raw = {
+      ...fixture(),
+      vehLastLapTime: new Float64Array([133.4, -1, 0]),
+    };
+    expect(mapLmuTelemetry(raw).CarIdxLastLapTime?.value).toEqual([
+      133.4, -1, -1,
+    ]);
+    const first = withLapStarts(raw, createLmuLapStartState());
+    expect(first.CarIdxLastLapTime?.value).toEqual([133.4, -1, -1]);
   });
 });

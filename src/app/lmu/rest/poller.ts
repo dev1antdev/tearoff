@@ -167,6 +167,13 @@ interface TaskState {
    */
   missing: boolean;
   /**
+   * Whether the path has answered since the task was last started afresh.
+   * A path that has is there, and a failure after that is a hiccup or a
+   * screen it is not served on, not an endpoint this build lacks: it is
+   * never given up on, only asked less often.
+   */
+  answered: boolean;
+  /**
    * Whether the task's absence has been reported: an optional task not
    * answering, or any other being given up on.
    *
@@ -202,6 +209,7 @@ export function createLmuRestPoller({
         hash: undefined,
         failures: 0,
         missing: false,
+        answered: false,
         reportedAbsent: false,
         satisfied: false,
         burst: undefined,
@@ -493,6 +501,23 @@ export function createLmuRestPoller({
       }
 
       state.failures += 1;
+      // It has answered since the session began, so it is there. Giving it
+      // up now would lose the refuel target and the pit estimate for the
+      // rest of a stint over three bad requests; asked less often instead,
+      // one probe per ceiling at worst, until it answers or a session
+      // begins.
+      if (state.answered) {
+        if (!state.reportedAbsent && state.failures >= REST_RETRY_LIMIT) {
+          state.reportedAbsent = true;
+          logger?.info(
+            `[lmuRest] ${task.path} is not answering (${response.reason}); ` +
+              'probing while the session runs'
+          );
+        }
+        state.intervalMs = backedOff(task, state.intervalMs);
+        schedule(task, state.intervalMs);
+        return;
+      }
       if (state.failures >= REST_RETRY_LIMIT) {
         state.missing = true;
         // Its return is logged too, by the same flag an optional task uses.
@@ -510,6 +535,7 @@ export function createLmuRestPoller({
     }
 
     state.failures = 0;
+    state.answered = true;
     if (state.reportedAbsent) {
       state.reportedAbsent = false;
       logger?.info(`[lmuRest] ${task.path} is answering`);
@@ -572,6 +598,7 @@ export function createLmuRestPoller({
           state.hash = undefined;
           state.failures = 0;
           state.missing = false;
+          state.answered = false;
           state.satisfied = false;
           state.burst = undefined;
           state.lastParsed.clear();
@@ -605,6 +632,9 @@ export function createLmuRestPoller({
         state.hash = undefined;
         state.failures = 0;
         state.missing = false;
+        // A new session is a new question: the path may not be served in
+        // it at all, and has to answer again to be counted on.
+        state.answered = false;
         state.satisfied = false;
         schedule(task, 0);
       });

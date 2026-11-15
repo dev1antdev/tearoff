@@ -17,6 +17,7 @@ import { createLmuOpponentLapDistanceState } from '../app/lmu/opponentLapDistanc
 import { createLmuEnergyState } from '../app/lmu/fuelEnergy';
 import { createLmuSessionIdentity } from '../app/lmu/sessionIdentity';
 import { createLmuSessionClockState } from '../app/lmu/sessionClock';
+import { createLmuLapStartState } from '../app/lmu/lapStartTiming';
 import { lmuSessionSignature } from '../app/lmu/sessionSignature';
 
 export const LMU_TAPE_ADDON_PATH = path.resolve(
@@ -98,6 +99,7 @@ export const playLmuTape = async ({
   const energyState = createLmuEnergyState();
   const sessionIdentity = createLmuSessionIdentity();
   const clockState = createLmuSessionClockState();
+  const lapStartState = createLmuLapStartState();
 
   let frames = 0;
   let lastClock = Number.NaN;
@@ -177,7 +179,8 @@ export const playLmuTape = async ({
         undefined,
         undefined,
         energyState,
-        clockState
+        clockState,
+        lapStartState
       );
       const sessionTime = telemetry.SessionTime
         ?.value?.[0] as unknown as number;

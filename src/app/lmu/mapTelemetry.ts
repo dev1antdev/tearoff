@@ -45,6 +45,11 @@ import {
   lmuSessionClock,
   type LmuSessionClockState,
 } from './sessionClock';
+import {
+  lmuLastLapTimes,
+  observeLmuLapStarts,
+  type LmuLapStartState,
+} from './lapStartTiming';
 
 type Raw = import('./native').LmuRawTelemetry;
 
@@ -339,7 +344,14 @@ export function mapLmuTelemetry(
    * leaves the car, and a race's length is its end time. See
    * sessionClock.ts.
    */
-  clockState?: LmuSessionClockState
+  clockState?: LmuSessionClockState,
+  /**
+   * When each car's lap began, kept between frames so a lap the sim did not
+   * time can be timed from its two starts. Omitted -- as most specs do -- a
+   * lap the sim gives no time for has none, as before. See
+   * lapStartTiming.ts.
+   */
+  lapStartState?: LmuLapStartState
 ): Telemetry {
   // Boundary note: a handful of generated Telemetry keys (e.g. SessionTime) are
   // typed with an `undefined[]` value shape although the iRacing native layer
@@ -598,7 +610,17 @@ export function mapLmuTelemetry(
       }
     : numArr(raw.vehTimeBehindLeader);
   t.CarIdxEstTime = numArr(raw.vehTimeIntoLap);
-  t.CarIdxLastLapTime = lapTimeArr(raw.vehLastLapTime);
+  // The sim's time for each car's last lap, and where it has none -- the
+  // lap did not count -- the lap timed from its start to the next one's.
+  if (lapStartState) {
+    observeLmuLapStarts(lapStartState, {
+      lapStartETs: raw.vehLapStartET,
+      lapDistPcts: raw.vehLapDistPct,
+      estimatedLapTimes: raw.vehEstimatedLapTime,
+    });
+  }
+  const lastLapTimes = lmuLastLapTimes(lapStartState, raw.vehLastLapTime);
+  t.CarIdxLastLapTime = { value: lastLapTimes };
   t.CarIdxBestLapTime = lapTimeArr(raw.vehBestLapTime);
   t.CarIdxGear = numArr(undefined);
   // The front-left of each car, which is all a one-value-per-car channel can
@@ -730,7 +752,7 @@ export function mapLmuTelemetry(
   t.LapCompleted = num(lapsCompleted);
   t.LapDistPct = num(lapDistPct);
   t.LapBestLapTime = lapTime(raw.vehBestLapTime[playerIdx]);
-  t.LapLastLapTime = lapTime(raw.vehLastLapTime[playerIdx]);
+  t.LapLastLapTime = lapTime(lastLapTimes[playerIdx]);
   // LMU's own delta to the player's best lap, negative when ahead -- what
   // iRacing calls the delta to the session best. Only meaningful once there is
   // a best lap: until then LMU reports 0, which would read as dead level.
@@ -982,8 +1004,16 @@ export function mapLmuTelemetry(
   // top of it for as long as it was open. A block that has stopped being
   // written is also what the end of a session looks like, which is why the
   // sim still has to say driving: at the end of a session it does not.
+  //
+  // With no word from the sim at all -- its REST API not answering -- a
+  // stopped block is all there is to go on, and it hides the overlay too.
+  // It cannot tell a pause from the end of a session, and does not need
+  // to: neither has anything live to show. TinyPedal hides on the same
+  // evidence.
   const stoppedUnderDriver =
-    gameState === 'driving' && dataFrozen === true && playerIdx >= 0;
+    (gameState === 'driving' || gameState === undefined) &&
+    dataFrozen === true &&
+    playerIdx >= 0;
   t.LmuGamePaused = bool(gameState === 'paused' || stoppedUnderDriver);
   // Reported as the snapshot has them, frozen or not. Falsifying these while
   // frozen was a mistake: isDriving reads them as `!isInGarage`, so clearing

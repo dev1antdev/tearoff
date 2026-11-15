@@ -247,9 +247,17 @@ describe('mapLmuTelemetry with a game state', () => {
     ] as const) {
       expect(map(fixture(), state).LmuGamePaused?.value[0]).toBe(false);
     }
-    // A block that has stopped being written is also what the end of a
-    // session looks like, so by itself it is not taken for a pause.
-    expect(map(fixture(), undefined, true).LmuGamePaused?.value[0]).toBe(false);
+  });
+
+  it('hides on a stopped block alone when the sim says nothing', () => {
+    // No answer from the sim's REST API at all. A block that has stopped
+    // being written is then a pause or the end of a session, and nothing
+    // can say which; neither has anything live to show, and TinyPedal
+    // hides its overlay on the same evidence.
+    expect(map(fixture(), undefined, true).LmuGamePaused?.value[0]).toBe(true);
+    expect(map(fixture(), undefined, false).LmuGamePaused?.value[0]).toBe(
+      false
+    );
   });
 
   it('takes a sim that says driving and has stopped writing for paused', () => {
