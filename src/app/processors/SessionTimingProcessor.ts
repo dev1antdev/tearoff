@@ -9,6 +9,12 @@ import type { TelemetryProcessor } from './TelemetryProcessor';
 
 const UPDATE_INTERVAL_SECONDS = 0.2;
 const TIME_EPSILON = 1e-6;
+/**
+ * The sim whose time remaining in a race is the race's own countdown from
+ * the green flag. iRacing's is left as it was: nothing here has measured
+ * what its figure does before and after the green.
+ */
+const SIM_COUNTING_RACE_DOWN = 'Le Mans Ultimate';
 
 const numberValue = (frame: Telemetry, key: keyof Telemetry): number | null => {
   const value = frame[key]?.value?.[0];
@@ -38,6 +44,8 @@ export class SessionTimingProcessor implements TelemetryProcessor<SessionTimingS
   private greenFlagTimestamp: number | null = null;
   private checkeredLap: number | null = null;
   private lateJoin = false;
+  /** Whether the sim's own time remaining is the race's countdown. */
+  private simCountsRaceDown = false;
   private enabled = true;
   private latest = this.emptySnapshot();
 
@@ -45,6 +53,8 @@ export class SessionTimingProcessor implements TelemetryProcessor<SessionTimingS
 
   init(session: Session): void {
     this.session = session;
+    this.simCountsRaceDown =
+      session.WeekendInfo?.SimMode === SIM_COUNTING_RACE_DOWN;
     const carIdx = session.DriverInfo?.DriverCarIdx;
     this.driverCarIdx =
       typeof carIdx === 'number' && carIdx >= 0 ? carIdx : null;
@@ -88,12 +98,16 @@ export class SessionTimingProcessor implements TelemetryProcessor<SessionTimingS
     const leaderLap = finiteAt(laps, leaderCarIdx);
     const leaderLapDistPct = finiteAt(lapDistPcts, leaderCarIdx);
 
+    const timeTotal = numberValue(frame, 'SessionTimeTotal') ?? 0;
+    const rawTimeRemaining = numberValue(frame, 'SessionTimeRemain') ?? 0;
     this.updateGreenFlag(
       sessionType,
       state,
       sessionTime,
       leaderCarIdx,
-      leaderLap
+      leaderLap,
+      timeTotal,
+      rawTimeRemaining
     );
     if (state >= SessionState.Checkered) {
       if (this.checkeredLap === null && currentLap > 0) {
@@ -103,8 +117,6 @@ export class SessionTimingProcessor implements TelemetryProcessor<SessionTimingS
       this.checkeredLap = null;
     }
 
-    const timeTotal = numberValue(frame, 'SessionTimeTotal') ?? 0;
-    const rawTimeRemaining = numberValue(frame, 'SessionTimeRemain') ?? 0;
     const timeRemaining =
       sessionType === 'Race' &&
       state === SessionState.GetInCar &&
@@ -179,8 +191,35 @@ export class SessionTimingProcessor implements TelemetryProcessor<SessionTimingS
     state: number,
     sessionTime: number,
     leaderCarIdx: number,
-    leaderLap: number
+    leaderLap: number,
+    timeTotal: number,
+    timeRemaining: number
   ): void {
+    // Le Mans Ultimate counts a timed race down itself, so the green flag is
+    // where that count puts it: the race's length less what is left, back
+    // from now. Kept to on every update rather than worked out once, so the
+    // time remaining the widgets take from it is the sim's own figure whatever
+    // happened to this processor in between.
+    //
+    // What it replaces is a guess. A processor that first sees a race already
+    // under way puts the green flag a number of laps back at an assumed lap
+    // time, and under LMU that happened over and over: each pause used to
+    // hide the overlay and destroy this processor, each trip out of the car
+    // reset it, and the lap time it then fell back on is the sim's one
+    // reference lap for every class. In a four-hour race the clock on the
+    // overlay ran out many minutes before the race did.
+    if (
+      this.simCountsRaceDown &&
+      sessionType === 'Race' &&
+      state === SessionState.Racing &&
+      timeTotal > 0 &&
+      timeRemaining > 0 &&
+      timeRemaining <= timeTotal
+    ) {
+      this.greenFlagTimestamp = sessionTime - (timeTotal - timeRemaining);
+      this.lateJoin = false;
+      return;
+    }
     if (
       sessionType === 'Race' &&
       this.greenFlagTimestamp === null &&

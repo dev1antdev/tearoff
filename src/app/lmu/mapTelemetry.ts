@@ -974,10 +974,17 @@ export function mapLmuTelemetry(
   // Falsifying the pit flags instead would misreport the car to everything
   // else that reads them.
   t.LmuOutOfCar = bool(gameState !== undefined && !lmuInCar(gameState));
-  // Paused in the car with a menu open. Only the sim's own word, like the two
-  // above: it takes the whole overlay off the screen, and a block that has
-  // merely stopped being written is also what the end of a session looks like.
-  t.LmuGamePaused = bool(gameState === 'paused');
+  // Paused in the car with a menu open, which takes the whole overlay off
+  // the screen. The sim's own word for it, or the next thing to it: the sim
+  // saying the player is driving while it has stopped writing the block.
+  // That is a menu over the car that the sim does not call a pause -- the
+  // pit stop screen in a race against the AI is one, and the overlay sat on
+  // top of it for as long as it was open. A block that has stopped being
+  // written is also what the end of a session looks like, which is why the
+  // sim still has to say driving: at the end of a session it does not.
+  const stoppedUnderDriver =
+    gameState === 'driving' && dataFrozen === true && playerIdx >= 0;
+  t.LmuGamePaused = bool(gameState === 'paused' || stoppedUnderDriver);
   // Reported as the snapshot has them, frozen or not. Falsifying these while
   // frozen was a mistake: isDriving reads them as `!isInGarage`, so clearing
   // them removed the one term that would have excluded a parked player.

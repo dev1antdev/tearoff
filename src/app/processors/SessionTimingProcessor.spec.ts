@@ -95,6 +95,94 @@ describe('SessionTimingProcessor', () => {
     expect(processor.snapshot().greenFlagTimestamp).toBe(520 - 3 * 60);
   });
 
+  describe('a timed race under Le Mans Ultimate', () => {
+    // Four hours, green 150 s into the session. The sim counts the race
+    // down itself: its time remaining is the race's.
+    const GREEN = 150;
+    const LENGTH = 4 * 3600;
+    const lmuSession = {
+      ...session,
+      WeekendInfo: { SimMode: 'Le Mans Ultimate' },
+      SessionInfo: {
+        Sessions: [
+          { SessionNum: 0, SessionType: 'Race', SessionLaps: 'unlimited' },
+        ],
+      },
+    } as unknown as Session;
+    const raceFrame = (
+      sessionTime: number,
+      overrides: Record<string, unknown> = {}
+    ) =>
+      frame({
+        SessionTime: sessionTime,
+        SessionTimeTotal: LENGTH,
+        SessionTimeRemain: LENGTH - (sessionTime - GREEN),
+        ...overrides,
+      });
+    /** What the header shows: the length less the time since the flag. */
+    const remaining = (processor: SessionTimingProcessor) => {
+      const { timeTotal, time, greenFlagTimestamp } = processor.snapshot();
+      return timeTotal - (time - greenFlagTimestamp);
+    };
+
+    it('has the sim’s own time remaining from its first frame of a race under way', () => {
+      // Two hours in, with nothing seen of the start: after a pause used to
+      // destroy the processor, or a trip out of the car reset it. The guess
+      // it then made put the flag laps back at an assumed lap time, and the
+      // overlay's clock ran out many minutes before the race.
+      const processor = new SessionTimingProcessor(() => [117, 118]);
+      processor.init(lmuSession);
+      const now = GREEN + 2 * 3600;
+      processor.onFrame(raceFrame(now, { CarIdxLap: [66, 60] }));
+      expect(processor.snapshot().greenFlagTimestamp).toBeCloseTo(GREEN, 6);
+      expect(remaining(processor)).toBeCloseTo(2 * 3600, 6);
+
+      // And a lap later it is still the sim's figure, not a new guess.
+      processor.onFrame(raceFrame(now + 110, { CarIdxLap: [67, 60] }));
+      expect(remaining(processor)).toBeCloseTo(2 * 3600 - 110, 6);
+    });
+
+    it('follows the sim when the length it is given changes', () => {
+      // The bridge knows the race's length only if it saw the green flag;
+      // after a restart of the app it gives the end time instead. Either
+      // way what is left is what the sim says is left.
+      const processor = new SessionTimingProcessor();
+      processor.init(lmuSession);
+      const now = GREEN + 3600;
+      processor.onFrame(raceFrame(now));
+      expect(remaining(processor)).toBeCloseTo(3 * 3600, 6);
+      processor.onFrame(
+        raceFrame(now + 1, { SessionTimeTotal: LENGTH + GREEN })
+      );
+      expect(remaining(processor)).toBeCloseTo(3 * 3600 - 1, 6);
+    });
+
+    it('keeps the flag it had once the time has run out', () => {
+      const processor = new SessionTimingProcessor();
+      processor.init(lmuSession);
+      processor.onFrame(raceFrame(GREEN + LENGTH - 1));
+      processor.onFrame(
+        raceFrame(GREEN + LENGTH + 30, { SessionTimeRemain: 0 })
+      );
+      expect(processor.snapshot().greenFlagTimestamp).toBeCloseTo(GREEN, 6);
+    });
+
+    it('leaves iRacing to work its green flag out as before', () => {
+      const processor = new SessionTimingProcessor(() => [60, 61]);
+      processor.init(session);
+      processor.onFrame(
+        frame({
+          SessionTime: 500,
+          SessionTimeTotal: LENGTH,
+          SessionTimeRemain: LENGTH - 350,
+          CarIdxLap: [3, 3],
+        })
+      );
+      // Seen first with the race on: no flag until the leader starts a lap.
+      expect(processor.snapshot().greenFlagTimestamp).toBe(0);
+    });
+  });
+
   it('resets on session changes and ignores replay scrubbing', () => {
     const processor = new SessionTimingProcessor();
     processor.init(session);
