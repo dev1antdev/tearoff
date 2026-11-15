@@ -4,6 +4,17 @@ import { perfMetrics } from '@irdashies/utils/perfMetrics';
 export const TRACK_POSITION_INTERVAL_MS = 1000 / 25;
 const MIN_POSITION_INTERVAL_MS = 1000 / 60;
 const MAX_POSITION_INTERVAL_MS = 100;
+/**
+ * How far ahead of its slot a capped frame may still be drawn.
+ *
+ * Display refreshes are never exactly an interval apart: the timestamps are
+ * rounded, and a display is 59.94 or 60.02 Hz rather than 60. A cap that asks
+ * for a full interval since the last draw therefore turns away every refresh
+ * that lands a hair early, and a 60 fps cap on a 60 Hz display draws at 30 to
+ * 40. Slots are kept on a fixed beat instead, and a frame this close to its
+ * slot is taken. The rate still cannot pass the cap: each draw uses a slot up.
+ */
+const EARLY_FRAME_TOLERANCE_MS = 1;
 
 type ProgressSource = readonly {
   progress: number;
@@ -175,7 +186,8 @@ export const useProgressAnimation = (
   const interpolatorRef = useRef<ProgressInterpolator | null>(null);
   const drawRef = useRef(draw);
   const frameRef = useRef(0);
-  const lastDrawRef = useRef(0);
+  /** When the next capped frame is due; unused without a cap. */
+  const nextDrawAtRef = useRef(0);
   const previousDriversRef = useRef<ProgressSource | null>(null);
   const scheduleRef = useRef<() => void>(() => undefined);
   const wasPausedRef = useRef(false);
@@ -198,12 +210,19 @@ export const useProgressAnimation = (
     };
     const frame = (now: number) => {
       frameRef.current = 0;
-      if (minFrameMs > 0 && now - lastDrawRef.current < minFrameMs) {
-        scheduleRef.current();
-        return;
+      if (minFrameMs > 0) {
+        const late = now - nextDrawAtRef.current;
+        if (late < -EARLY_FRAME_TOLERANCE_MS) {
+          scheduleRef.current();
+          return;
+        }
+        // The next slot is counted from this one's deadline, not from `now`:
+        // see EARLY_FRAME_TOLERANCE_MS. Slots a stalled frame went past are
+        // skipped rather than drawn in a burst.
+        nextDrawAtRef.current +=
+          Math.max(1, Math.floor(late / minFrameMs) + 1) * minFrameMs;
       }
       frameTime = now;
-      lastDrawRef.current = now;
       if (
         perfMetrics.measure(
           'trackMapAnimationFrame',
@@ -256,7 +275,7 @@ export const useProgressAnimation = (
       // The cap applies to animation, never to restoring a cleared canvas or
       // changing appearance while idle (including simultaneous new targets).
       if (canvasInvalidatedRef) canvasInvalidatedRef.current = false;
-      lastDrawRef.current = now;
+      nextDrawAtRef.current = now + minFrameMs;
       perfMetrics.measure(
         'trackMapAnimationFrame',
         () => draw(interpolator.getValues(), interpolator.getCount()),

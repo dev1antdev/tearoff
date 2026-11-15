@@ -202,6 +202,103 @@ describe('useProgressAnimation', () => {
     expect(callbacks.size).toBe(1);
   });
 
+  describe('a frame cap on a moving field', () => {
+    const draw = vi.fn();
+    const Harness = ({
+      source,
+      cap,
+    }: {
+      source: ReturnType<typeof drivers>;
+      cap: number;
+    }) => {
+      useProgressAnimation(source, draw, cap);
+      return null;
+    };
+    /**
+     * A second of driving: a snapshot every 40 ms keeps the cars moving, and
+     * the display refreshes `hz` times, each `jitter(index)` ms off the beat.
+     * Returns the draws made, the one at mount not counted.
+     */
+    const drawsInOneSecond = (
+      cap: number,
+      hz: number,
+      jitter: (index: number) => number = () => 0
+    ) => {
+      const view = render(<Harness source={drivers(0)} cap={cap} />);
+      view.rerender(<Harness source={drivers(0.0005)} cap={cap} />);
+      draw.mockClear();
+      let snapshots = 0;
+      for (let index = 1; index <= hz; index++) {
+        const time = (index * 1000) / hz + jitter(index);
+        while ((snapshots + 1) * 40 <= time) {
+          snapshots++;
+          commitAt(snapshots * 40);
+          view.rerender(
+            <Harness source={drivers(0.0005 + snapshots * 0.001)} cap={cap} />
+          );
+        }
+        frame(time);
+      }
+      view.unmount();
+      return draw.mock.calls.length;
+    };
+
+    it.each([60, 120, 144, 240])(
+      'draws about 60 times a second at a cap of 60 on a %i Hz display',
+      (hz) => {
+        const draws = drawsInOneSecond(60, hz);
+        expect(draws).toBeGreaterThanOrEqual(59);
+        expect(draws).toBeLessThanOrEqual(60);
+      }
+    );
+
+    it.each([59.94, 60])(
+      'draws on every refresh of a %s Hz display at a cap of 60, however the timestamps wobble',
+      (hz) => {
+        // Refresh times are never exactly an interval apart. Measured from
+        // the last draw, half of them fall a hair short of the cap and the
+        // map drops to every other frame.
+        const draws = drawsInOneSecond(60, hz, (index) =>
+          index % 2 ? 0.2 : -0.2
+        );
+        expect(draws).toBeGreaterThanOrEqual(58);
+        expect(draws).toBeLessThanOrEqual(60);
+      }
+    );
+
+    it.each([60, 144])(
+      'draws about 30 times a second at a cap of 30 on a %i Hz display',
+      (hz) => {
+        const draws = drawsInOneSecond(30, hz, (index) =>
+          index % 2 ? 0.2 : -0.2
+        );
+        expect(draws).toBeGreaterThanOrEqual(29);
+        expect(draws).toBeLessThanOrEqual(30);
+      }
+    );
+
+    it('draws every frame of a display slower than the cap', () => {
+      expect(drawsInOneSecond(60, 30)).toBe(30);
+    });
+
+    it('skips the slots a stall went past, with no burst to catch up', () => {
+      const view = render(<Harness source={drivers(0)} cap={60} />);
+      commitAt(40);
+      view.rerender(<Harness source={drivers(0.1)} cap={60} />);
+      draw.mockClear();
+      // Half a second with no frame at all, then the display catches up.
+      frame(540);
+      expect(draw).toHaveBeenCalledTimes(1);
+      commitAt(541);
+      view.rerender(<Harness source={drivers(0.2)} cap={60} />);
+      frame(540 + 1000 / 240);
+      frame(540 + 2000 / 240);
+      expect(draw).toHaveBeenCalledTimes(1);
+      frame(540 + 4000 / 240);
+      expect(draw).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it('uses the latest committed appearance in an already pending frame', () => {
     const oldDraw = vi.fn();
     const latestDraw = vi.fn();
