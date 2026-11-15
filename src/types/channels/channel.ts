@@ -80,6 +80,13 @@ export interface TrackStateSnapshot {
    * the pit flags say. Always false under iRacing.
    */
   outOfCar: boolean;
+  /**
+   * True while the user is watching a car that is out of its garage rather
+   * than driving one: a team-mate's stint, or the car the camera is on.
+   * `focusCarIdx` is that car. Never true together with `isOnTrack`. Always
+   * false under iRacing for now.
+   */
+  watching: boolean;
   playerCarInPitStall: boolean;
   playerTrackSurface: number;
   onPitRoad: boolean;
@@ -306,12 +313,40 @@ export interface CarSystemAdjustment {
    */
   label: string;
   value: number;
-  /** True only when the car's scale is unsigned and the value is 0. */
+  /**
+   * True only when the value is 0 on a scale where 0 means off: one that is
+   * unsigned, and whose catalogue entry does not say 0 is a position.
+   */
   isOff: boolean;
   /** Decimal places this value is meaningful to. Brake bias needs one. */
   precision: number;
   /** Appended on display, e.g. '%' for brake bias. */
   unit?: string;
+  /** Top of the dial's scale where the sim states it (LMU). */
+  max?: number;
+  /**
+   * The system is intervening right now. ABS under both sims, traction
+   * control under LMU; absent on every other row.
+   */
+  active?: boolean;
+  /**
+   * Brake bias only: the value minus the baseline taken at rest in the pits,
+   * in the value's own unit.
+   */
+  baselineDelta?: number;
+}
+
+/** A dial the driver moved from inside the car. */
+export interface CarSystemChange {
+  key: string;
+  from: number;
+  to: number;
+  /**
+   * Increments on every change, so the renderer can restart its timer. Never
+   * restarts while the processor lives, so a change after a session change
+   * cannot repeat a number the renderer has already acted on.
+   */
+  seq: number;
 }
 
 /**
@@ -327,6 +362,12 @@ export interface CarSystemsSnapshot {
   adjustments: readonly CarSystemAdjustment[];
   /** False before any in-car frame has been seen, when the set is unknown. */
   discovered: boolean;
+  /**
+   * The latest dial movement made from inside the car in this session, or
+   * null when there has been none. Loading a setup, joining a session and
+   * getting back into the car are not movements.
+   */
+  lastChange: CarSystemChange | null;
   sessionNum: number | null;
   version: number;
 }

@@ -19,6 +19,14 @@ import { createLmuSessionIdentity } from '../app/lmu/sessionIdentity';
 import { createLmuSessionClockState } from '../app/lmu/sessionClock';
 import { createLmuLapStartState } from '../app/lmu/lapStartTiming';
 import { lmuSessionSignature } from '../app/lmu/sessionSignature';
+import type { LmuGameState } from '../app/lmu/gameState';
+import {
+  createLmuOwnEntryState,
+  lmuOwnEntrySlot,
+  observeLmuOwnEntry,
+  type LmuOwnEntry,
+} from '../app/lmu/ownEntry';
+import type { LmuRestCells } from '../app/lmu/rest/state';
 
 export const LMU_TAPE_ADDON_PATH = path.resolve(
   'build/Release/lmu_tape_node.node'
@@ -51,6 +59,11 @@ export interface LmuTapeFrame {
   /** True on the frame a rebuilt session was first published with. */
   sessionChanged: boolean;
   sessionTime: number;
+  /**
+   * The user's own entry as the bridge would have it: observed on each
+   * session snapshot and handed to the frame mapping as its fallback focus.
+   */
+  ownEntry: LmuOwnEntry;
 }
 
 export interface PlayLmuTapeOptions {
@@ -64,9 +77,99 @@ export interface PlayLmuTapeOptions {
    * rather than a race, say. Applied to the session snapshot as well.
    */
   transformRaw?: <T extends LmuRawTelemetry>(raw: T) => T;
+  /**
+   * Where the sim says the player is, for each frame, as the bridge takes it
+   * from GetGameState. Called with the frame after `transformRaw`. Omitted,
+   * or returning undefined, the frame is mapped as when LMU's REST API is
+   * not answering, which is how every tape was played before this existed.
+   */
+  gameState?: (raw: LmuRawTelemetry) => LmuGameState | undefined;
+  /**
+   * The REST cells for each frame, as the bridge's poller would hold them:
+   * the camera focus, the pit menu and the rest. Called with the frame after
+   * `transformRaw`. Omitted, the channels they feed are absent.
+   */
+  restCells?: (raw: LmuRawTelemetry) => LmuRestCells | undefined;
   /** Called for every frame. Returning false stops the replay. */
   onFrame: (frame: LmuTapeFrame) => unknown;
 }
+
+/**
+ * The session-wide fields of a snapshot, which the sim writes with or
+ * without a player vehicle. With the per-car arrays, which all begin `veh`
+ * and a capital, they are everything it writes at LMU's monitor.
+ */
+const SESSION_WIDE_FIELDS: ReadonlySet<string> = new Set([
+  'running',
+  'gameVersion',
+  'trackName',
+  'playerName',
+  'serverName',
+  'session',
+  'currentET',
+  'endET',
+  'maxLaps',
+  'lapDist',
+  'numVehicles',
+  'gamePhase',
+  'yellowFlagState',
+  'sectorFlags',
+  'inRealtime',
+  'gameMode',
+  'isFixedSetup',
+  'maxPlayers',
+  'sessionTimeRemaining',
+  'timeOfDay',
+  'sessionStartEvents',
+  'sessionEndEvents',
+  'scoringUpdates',
+  'trackGripLevel',
+  'trackLimitsStepsPerPoint',
+  'trackLimitsStepsPerPenalty',
+  'cloudCoverage',
+  'raining',
+  'darkCloud',
+  'ambientTemp',
+  'trackTemp',
+  'minPathWetness',
+  'maxPathWetness',
+  'avgPathWetness',
+  'wind',
+  'startLight',
+  'numRedLights',
+  'ffbTorque',
+  'playerVehicleIdx',
+  'playerHasVehicle',
+  'activeVehicles',
+  'classes',
+  'drivers',
+]);
+
+/**
+ * A snapshot as the sim writes it when it names no player vehicle: at the
+ * monitor while a team-mate drives the car, or spectating.
+ *
+ * Staged, not recorded. The addon writes every single-car field -- gear,
+ * pedals, fuel, the wheels, the player's clock -- only inside its "there is
+ * a player vehicle" branch, so those are removed, the slot becomes -1, and
+ * the session-wide fields and every per-car array are left as they were.
+ * The car that was the player's goes on lapping in its slot, which is what
+ * stands in for a team-mate driving it. Scoring's player flags are left
+ * alone; a spec that wants them cleared does that itself.
+ */
+export const lmuRawWithoutPlayerVehicle = <T extends LmuRawTelemetry>(
+  raw: T
+): T => {
+  const staged: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (SESSION_WIDE_FIELDS.has(key) || /^veh[A-Z]/.test(key)) {
+      staged[key] = value;
+    }
+  }
+  staged.playerHasVehicle = false;
+  staged.playerVehicleIdx = -1;
+  return staged as T;
+};
 
 /** Seconds of session time between session snapshots, as in the bridge. */
 const SESSION_POLL_SECONDS = 0.5;
@@ -76,15 +179,18 @@ const SESSION_POLL_SECONDS = 0.5;
  * bridge does: one session identity, lap-distance and energy state for the
  * whole run, and a session rebuilt whenever its signature moves.
  *
- * Without the REST answers and the UI websocket, which need the bridge's
+ * Without the REST poller and the UI websocket, which need the bridge's
  * timers; the channels they feed are absent, as in a session where LMU's
- * REST API is not answering.
+ * REST API is not answering, unless the caller supplies a game state or
+ * REST cells of its own.
  */
 export const playLmuTape = async ({
   tapePath,
   addonPath = LMU_TAPE_ADDON_PATH,
   speed = 20,
   transformRaw = (raw) => raw,
+  gameState,
+  restCells,
   onFrame,
 }: PlayLmuTapeOptions): Promise<{ frames: number }> => {
   process.env.IRDASHIES_LMU_REPLAY = path.resolve(tapePath);
@@ -100,6 +206,7 @@ export const playLmuTape = async ({
   const sessionIdentity = createLmuSessionIdentity();
   const clockState = createLmuSessionClockState();
   const lapStartState = createLmuLapStartState();
+  const ownEntryState = createLmuOwnEntryState();
 
   let frames = 0;
   let lastClock = Number.NaN;
@@ -154,6 +261,8 @@ export const playLmuTape = async ({
       ) {
         lastSessionAt = clock;
         const rawSession = transformRaw(sdk.readSession());
+        // On every session read, as in the bridge, and before the frame.
+        observeLmuOwnEntry(ownEntryState, rawSession);
         const signature = lmuSessionSignature(rawSession);
         if (signature !== lastSignature) {
           lastSignature = signature;
@@ -173,20 +282,27 @@ export const playLmuTape = async ({
         raw,
         lapDistanceState,
         opponentState,
-        undefined,
+        restCells?.(raw),
         sessionIdentity,
         undefined,
         undefined,
-        undefined,
+        gameState?.(raw),
         energyState,
         clockState,
-        lapStartState
+        lapStartState,
+        lmuOwnEntrySlot(ownEntryState)
       );
       const sessionTime = telemetry.SessionTime
         ?.value?.[0] as unknown as number;
       if (
-        onFrame({ raw, telemetry, session, sessionChanged, sessionTime }) ===
-        false
+        onFrame({
+          raw,
+          telemetry,
+          session,
+          sessionChanged,
+          sessionTime,
+          ownEntry: ownEntryState.current,
+        }) === false
       )
         ended = true;
     }

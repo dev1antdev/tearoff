@@ -56,7 +56,7 @@ export const Relative = () => {
     [simulator]
   );
   const buffer = settings?.buffer ?? 3;
-  const { isDriving } = useDrivingState();
+  const { isDriving, isWatching } = useDrivingState();
   const standings = useDriverRelatives({
     buffer,
     hideDriversInPitStall: settings?.hideDriversInPitStall ?? false,
@@ -382,8 +382,9 @@ export const Relative = () => {
 
   if (!isSessionVisible) return <></>;
 
-  // Show only when on track setting
-  if (settings?.showOnlyWhenOnTrack && !isDriving) {
+  // Show only when on track: driving, or watching a car that is out of its
+  // garage. The relative is about the focus car, which is then that car.
+  if (settings?.showOnlyWhenOnTrack && !(isDriving || isWatching)) {
     return <></>;
   }
 

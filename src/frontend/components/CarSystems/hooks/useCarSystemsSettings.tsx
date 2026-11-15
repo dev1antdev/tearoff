@@ -1,11 +1,19 @@
 import { useDashboard } from '@irdashies/context';
 import {
   DEFAULT_CAR_SYSTEM_ROWS,
+  DEFAULT_LMU_CAR_SYSTEM_ROWS,
   type CarSystemsConfig,
 } from '@irdashies/types';
 
 const FALLBACK: CarSystemsConfig = {
   rows: [...DEFAULT_CAR_SYSTEM_ROWS],
+  lmuRows: [...DEFAULT_LMU_CAR_SYSTEM_ROWS],
+  displayMode: 'always',
+  changeHoldSeconds: 4,
+  flashOnChange: true,
+  highlightActive: true,
+  showScale: false,
+  showBrakeBiasDelta: false,
   showUnsupportedRows: true,
   showOffRows: true,
   background: { opacity: 80 },
@@ -30,6 +38,8 @@ export const useCarSystemsSettings = (): CarSystemsConfig => {
     const config = settings as unknown as CarSystemsConfig;
     // A config saved before a row was added to the catalogue simply omits it,
     // so the stored list is used as-is rather than merged with the defaults.
+    // One saved before Le Mans Ultimate had a list of its own has no
+    // `lmuRows` at all, and takes the default for it here.
     return { ...FALLBACK, ...config };
   }
 

@@ -2,6 +2,7 @@ import {
   useDashboard,
   sessionBarSelectors,
   trackStateSelectors,
+  useDrivingState,
   useSessionBarSelector,
   useTrackStateSelector,
   useSessionVisibility,
@@ -35,6 +36,7 @@ export const Weather = () => {
   const settings = useWeatherSettings();
   const displayUnits = useSessionBarSelector(sessionBarSelectors.displayUnits);
   const isOnTrack = useTrackStateSelector(trackStateSelectors.isOnTrack);
+  const { isWatching } = useDrivingState();
   const isSessionVisible = useSessionVisibility(settings?.sessionVisibility);
   // LMU simulates no wind: its wind vector is always zero, so the cell could
   // only ever show 0 with the arrow fixed on a headwind.
@@ -189,8 +191,9 @@ export const Weather = () => {
     }
   };
 
-  // Hide if showOnlyWhenOnTrack is enabled and player is not on track
-  if (settings?.showOnlyWhenOnTrack && !isOnTrack) {
+  // Show only when on track: at the wheel, or watching a car that is out of
+  // its garage. The weather is the session's and the same either way.
+  if (settings?.showOnlyWhenOnTrack && !(isOnTrack || isWatching)) {
     return null;
   }
 

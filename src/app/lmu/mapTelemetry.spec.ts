@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CarLeftRight,
   GlobalFlags,
+  LMU_DIAL_KEYS,
   TIMED_SESSION_LAPS,
 } from '@irdashies/types';
 import type { LmuRawTelemetry } from './native';
@@ -938,9 +939,11 @@ describe('mapLmuTelemetry brake bias', () => {
   });
 
   it('reports no bias when the sim omits it', () => {
+    // Absent, not 0: with no player car the sim writes no bias, and Car
+    // Systems keeps the last reading of a value that stops being published.
     const t = mapLmuTelemetry({ ...fixture(), rearBrakeBias: undefined });
 
-    expect(t.dcBrakeBias.value[0]).toBe(0);
+    expect(t.dcBrakeBias).toBeUndefined();
   });
 });
 
@@ -1158,9 +1161,18 @@ describe('mapLmuTelemetry adjustable dials', () => {
     });
 
     expect(dial(t, 'dcABS')?.value[0]).toBe(4);
-    expect(dial(t, 'dcEnginePower')?.value[0]).toBe(3);
+    expect(dial(t, 'LmuMotorMap')?.value[0]).toBe(3);
     expect(dial(t, 'dcAntiRollFront')?.value[0]).toBe(2);
     expect(dial(t, 'dcAntiRollRear')?.value[0]).toBe(1);
+  });
+
+  it('publishes the map under its own key, not as engine power', () => {
+    // The recorded LMGT3: two positions, so a maximum of 1. It used to be
+    // dcEnginePower, which the catalogue calls Engine Power.
+    const t = mapLmuTelemetry({ ...fixture(), motorMap: 1, motorMapMax: 1 });
+
+    expect(dial(t, 'LmuMotorMap')?.value[0]).toBe(1);
+    expect(dial(t, 'dcEnginePower')).toBeUndefined();
   });
 
   it('omits a dial the car does not have', () => {
@@ -1178,22 +1190,28 @@ describe('mapLmuTelemetry adjustable dials', () => {
     expect(dial(t, 'dcABS')?.value[0]).toBe(0);
   });
 
-  it('fills the traction slots in order', () => {
+  it('gives each of the three traction dials a key of its own', () => {
+    // The recorded LMGT3 has all three, each topping out at 11. Packed into
+    // iRacing's two generic slots, its power cut was dropped.
     const t = mapLmuTelemetry({
       ...fixture(),
-      tc: 5,
+      tc: 6,
       tcMax: 11,
-      tcSlip: 3,
-      tcSlipMax: 6,
+      tcSlip: 7,
+      tcSlipMax: 11,
+      tcCut: 5,
+      tcCutMax: 11,
     });
 
-    expect(dial(t, 'dcTractionControl')?.value[0]).toBe(5);
-    expect(dial(t, 'dcTractionControl2')?.value[0]).toBe(3);
+    expect(dial(t, 'dcTractionControl')?.value[0]).toBe(6);
+    expect(dial(t, 'LmuTcSlip')?.value[0]).toBe(7);
+    expect(dial(t, 'LmuTcCut')?.value[0]).toBe(5);
+    expect(dial(t, 'dcTractionControl2')).toBeUndefined();
   });
 
-  it('starts at the first traction slot when the car has no overall level', () => {
-    // A car offering only slip and cut would otherwise leave the TC column
-    // blank and show its first dial under TC2.
+  it('does not show a slip dial as the traction control level', () => {
+    // A car offering only slip and cut used to have its slip dial published
+    // as dcTractionControl, the first free slot.
     const t = mapLmuTelemetry({
       ...fixture(),
       tcSlip: 3,
@@ -1202,30 +1220,101 @@ describe('mapLmuTelemetry adjustable dials', () => {
       tcCutMax: 6,
     });
 
-    expect(dial(t, 'dcTractionControl')?.value[0]).toBe(3);
-    expect(dial(t, 'dcTractionControl2')?.value[0]).toBe(2);
-  });
-
-  it('drops the third traction dial rather than inventing a slot', () => {
-    const t = mapLmuTelemetry({
-      ...fixture(),
-      tc: 5,
-      tcMax: 11,
-      tcSlip: 3,
-      tcSlipMax: 6,
-      tcCut: 2,
-      tcCutMax: 6,
-    });
-
-    expect(dial(t, 'dcTractionControl')?.value[0]).toBe(5);
-    expect(dial(t, 'dcTractionControl2')?.value[0]).toBe(3);
+    expect(dial(t, 'LmuTcSlip')?.value[0]).toBe(3);
+    expect(dial(t, 'LmuTcCut')?.value[0]).toBe(2);
+    expect(dial(t, 'dcTractionControl')).toBeUndefined();
+    expect(dial(t, 'dcTractionControl2')).toBeUndefined();
   });
 
   it('publishes no traction row for a car with no traction control', () => {
-    const t = mapLmuTelemetry(fixture());
+    const t = mapLmuTelemetry({ ...fixture(), tcMax: 0 });
 
     expect(dial(t, 'dcTractionControl')).toBeUndefined();
     expect(dial(t, 'dcTractionControl2')).toBeUndefined();
+    expect(dial(t, 'LmuTcSlip')).toBeUndefined();
+    expect(dial(t, 'LmuTcCut')).toBeUndefined();
+  });
+
+  it('publishes brake migration only on a car that has the dial', () => {
+    const without = mapLmuTelemetry({
+      ...fixture(),
+      migration: 0,
+      migrationMax: 0,
+    });
+    expect(dial(without, 'LmuBrakeMigration')).toBeUndefined();
+
+    // Position 0 of a dial the car has is a reading, and is published as one.
+    const atZero = mapLmuTelemetry({
+      ...fixture(),
+      migration: 0,
+      migrationMax: 8,
+    });
+    expect(dial(atZero, 'LmuBrakeMigration')?.value).toEqual([0]);
+  });
+
+  it('states the top of every scale, in the order of LMU_DIAL_KEYS', () => {
+    const t = mapLmuTelemetry({
+      ...fixture(),
+      absMax: 9,
+      tcMax: 11,
+      tcSlipMax: 11,
+      tcCutMax: 11,
+      migrationMax: 0,
+      motorMapMax: 1,
+      frontAntiSwayMax: 7,
+      rearAntiSwayMax: 7,
+    });
+
+    expect(LMU_DIAL_KEYS).toEqual([
+      'dcABS',
+      'dcTractionControl',
+      'LmuTcSlip',
+      'LmuTcCut',
+      'LmuBrakeMigration',
+      'LmuMotorMap',
+      'dcAntiRollFront',
+      'dcAntiRollRear',
+    ]);
+    expect(t.LmuDialMax?.value).toEqual([9, 11, 11, 11, 0, 1, 7, 7]);
+  });
+
+  it('keeps one cell for the maxima until one of them changes', () => {
+    // Fixed per car, so a frame allocates nothing for them.
+    const car = { ...fixture(), absMax: 9, tcMax: 11, motorMapMax: 1 };
+    const first = mapLmuTelemetry({ ...car, abs: 9 });
+    const second = mapLmuTelemetry({ ...car, abs: 8 });
+
+    expect(second.LmuDialMax).toBe(first.LmuDialMax);
+
+    const otherCar = mapLmuTelemetry({ ...car, absMax: 0 });
+    expect(otherCar.LmuDialMax).not.toBe(first.LmuDialMax);
+    expect(otherCar.LmuDialMax?.value[0]).toBe(0);
+    // The cell already handed out is left as it was.
+    expect(first.LmuDialMax?.value[0]).toBe(9);
+  });
+
+  it('publishes no dials, maxima or lights without a player car', () => {
+    // The sim writes none of the fields then, and absent is not zero.
+    const t = mapLmuTelemetry({
+      ...fixture(),
+      wiperState: undefined,
+      tcActive: undefined,
+    });
+
+    expect(t.LmuDialMax).toBeUndefined();
+    expect(t.LmuWiper).toBeUndefined();
+    expect(t.LmuTcActive).toBeUndefined();
+    expect(dial(t, 'dcABS')).toBeUndefined();
+  });
+
+  it('publishes the wiper state and the traction control light', () => {
+    const t = mapLmuTelemetry({ ...fixture(), wiperState: 1, tcActive: true });
+
+    expect(t.LmuWiper?.value).toEqual([1]);
+    expect(t.LmuTcActive?.value).toEqual([true]);
+    expect(
+      mapLmuTelemetry({ ...fixture(), tcActive: false }).LmuTcActive?.value
+    ).toEqual([false]);
   });
 });
 

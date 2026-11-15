@@ -5,20 +5,51 @@ import type {
   SessionLifecycleEvent,
   Telemetry,
 } from '@irdashies/types';
-import { CAR_SYSTEM_ADJUSTMENTS } from '@irdashies/types';
+import {
+  CAR_SYSTEM_ADJUSTMENTS,
+  LMU_DIAL_KEYS,
+  SessionState,
+} from '@irdashies/types';
 import type { TelemetryProcessor } from './TelemetryProcessor';
 
+type Cell = { value?: unknown[] } | undefined;
+
+const cell = (frame: Telemetry, key: string): Cell =>
+  (frame as Record<string, Cell>)[key];
+
 const number = (frame: Telemetry, key: string): number | undefined => {
-  const value = (frame as Record<string, { value?: unknown[] } | undefined>)[
-    key
-  ]?.value?.[0];
+  const value = cell(frame, key)?.value?.[0];
   return typeof value === 'number' && Number.isFinite(value)
     ? value
     : undefined;
 };
 
-const boolean = (frame: Telemetry, key: keyof Telemetry): boolean =>
-  (frame[key] as { value?: unknown[] } | undefined)?.value?.[0] === true;
+const boolean = (frame: Telemetry, key: string): boolean =>
+  cell(frame, key)?.value?.[0] === true;
+
+/** True or false as the frame states it, or undefined when it does not. */
+const flag = (frame: Telemetry, key: string): boolean | undefined => {
+  const value = cell(frame, key)?.value?.[0];
+  return typeof value === 'boolean' ? value : undefined;
+};
+
+/** The row whose light each "intervening now" flag drives. */
+const ACTIVE_FLAG: Readonly<Record<string, string>> = {
+  // Published by both sims.
+  dcABS: 'BrakeABSactive',
+  // LMU alone; iRacing has no traction-control-active flag.
+  dcTractionControl: 'LmuTcActive',
+};
+
+/** Where each dial's maximum sits in LmuDialMax. */
+const DIAL_MAX_INDEX: ReadonlyMap<string, number> = new Map(
+  LMU_DIAL_KEYS.map((key, index) => [key, index])
+);
+
+const BRAKE_BIAS = 'dcBrakeBias';
+
+/** Below this the car is at rest, m/s. */
+const AT_REST_MS = 0.1;
 
 /**
  * Publishes the player car's adjustable systems.
@@ -45,6 +76,12 @@ const boolean = (frame: Telemetry, key: keyof Telemetry): boolean =>
  * negative, and a session spent entirely in the middle of the range would never
  * correct itself. Those carry `signed: true` in the catalogue and are trusted
  * from the first frame.
+ *
+ * **A dial the driver moves is told apart from a value that merely differs.**
+ * `lastChange` is set only when a row reads differently on two consecutive
+ * ticks in the car. The first tick in the car re-baselines without a word, so
+ * a setup loaded in the garage, a new session and getting back in from the
+ * monitor are not reported as the driver turning something.
  */
 export class CarSystemsProcessor implements TelemetryProcessor<CarSystemsSnapshot> {
   readonly channel = 'car-systems.snapshot';
@@ -57,11 +94,22 @@ export class CarSystemsProcessor implements TelemetryProcessor<CarSystemsSnapsho
   private discoveredKeys: string[] = [];
   /** Variables observed negative at any point: their scale is signed. */
   private readonly signedKeys = new Set<string>();
+  /**
+   * What each row read on the tick before this one, kept only while that tick
+   * was in the car. Empty after any tick out of it, which is what makes the
+   * next tick in the car a silent one.
+   */
+  private readonly lastInCarValues = new Map<string, number>();
+  /** The brake bias the car last had at rest in the pits. */
+  private brakeBiasBaseline: number | null = null;
+  /** Counts dial movements. Never reset, see CarSystemChange.seq. */
+  private changeSeq = 0;
   private readonly latest: CarSystemsSnapshot & {
     adjustments: CarSystemAdjustment[];
   } = {
     adjustments: [],
     discovered: false,
+    lastChange: null,
     sessionNum: null,
     version: 0,
   };
@@ -99,13 +147,16 @@ export class CarSystemsProcessor implements TelemetryProcessor<CarSystemsSnapsho
     }
 
     // Being in the car is what makes the full set visible. The pit box counts;
-    // the garage and replay playback do not, matching useDrivingState.
+    // the garage and replay playback do not, matching useDrivingState. Nor does
+    // LMU's monitor: a car left in the pit lane or stall keeps its pit flags
+    // set while the player sits there, which is why LmuOutOfCar exists.
     const inCar =
       (boolean(frame, 'IsOnTrack') ||
         boolean(frame, 'PlayerCarInPitStall') ||
         boolean(frame, 'OnPitRoad')) &&
       !boolean(frame, 'IsInGarage') &&
-      !boolean(frame, 'IsReplayPlaying');
+      !boolean(frame, 'IsReplayPlaying') &&
+      !boolean(frame, 'LmuOutOfCar');
 
     if (inCar) {
       const present = CAR_SYSTEM_ADJUSTMENTS.filter(
@@ -117,41 +168,105 @@ export class CarSystemsProcessor implements TelemetryProcessor<CarSystemsSnapsho
         if (!this.discoveredKeys.includes(key)) this.discoveredKeys.push(key);
       }
       if (present.length > 0) this.latest.discovered = true;
+    } else {
+      this.lastInCarValues.clear();
     }
 
     if (!this.latest.discovered) return;
 
+    this.updateBrakeBiasBaseline(frame);
+    const dialMax = cell(frame, 'LmuDialMax')?.value;
+
+    let changed = false;
     const next: CarSystemAdjustment[] = [];
     for (const definition of CAR_SYSTEM_ADJUSTMENTS) {
-      if (!this.discoveredKeys.includes(definition.key)) continue;
-      const value = number(frame, definition.key);
+      const { key } = definition;
+      if (!this.discoveredKeys.includes(key)) continue;
+      const value = number(frame, key);
       if (value === undefined) {
         // Out of the car the value stops being published. Keep the last known
         // reading rather than dropping the row.
-        const previous = this.latest.adjustments.find(
-          (a) => a.key === definition.key
-        );
-        if (previous) next.push(previous);
+        const previous = this.latest.adjustments.find((a) => a.key === key);
+        // A system cannot be intervening in a car nobody is reading, so the
+        // light does not stay on with the reading.
+        if (previous) {
+          next.push(
+            previous.active ? { ...previous, active: false } : previous
+          );
+        }
+        this.lastInCarValues.delete(key);
         continue;
       }
-      if (value < 0) this.signedKeys.add(definition.key);
+      if (value < 0) this.signedKeys.add(key);
       // A declared signed scale is trusted from the first frame; observing a
       // negative is the fallback for the ones not known in advance.
-      const isSigned =
-        definition.signed === true || this.signedKeys.has(definition.key);
-      next.push({
-        key: definition.key,
+      const isSigned = definition.signed === true || this.signedKeys.has(key);
+      const adjustment: CarSystemAdjustment = {
+        key,
         label: definition.label,
         value,
-        isOff: value === 0 && !isSigned,
+        isOff: value === 0 && !isSigned && definition.offAtZero !== false,
         precision: definition.precision,
         unit: definition.unit,
-      });
+      };
+
+      // Members are added only where they apply, so a row that has none of
+      // them is the same object it always was.
+      const maxIndex = DIAL_MAX_INDEX.get(key);
+      const max = maxIndex === undefined ? undefined : dialMax?.[maxIndex];
+      if (typeof max === 'number' && max > 0) adjustment.max = max;
+      const activeFlag = ACTIVE_FLAG[key];
+      const active = activeFlag ? flag(frame, activeFlag) : undefined;
+      if (active !== undefined) adjustment.active = active;
+      if (key === BRAKE_BIAS && this.brakeBiasBaseline !== null) {
+        adjustment.baselineDelta = value - this.brakeBiasBaseline;
+      }
+      next.push(adjustment);
+
+      if (inCar) {
+        const before = this.lastInCarValues.get(key);
+        if (before !== undefined && before !== value) {
+          this.changeSeq += 1;
+          this.latest.lastChange = {
+            key,
+            from: before,
+            to: value,
+            seq: this.changeSeq,
+          };
+          changed = true;
+        }
+        this.lastInCarValues.set(key, value);
+      }
     }
 
-    if (this.changed(next)) {
+    if (changed || this.changed(next)) {
       this.latest.adjustments = next;
       this.latest.version += 1;
+    }
+  }
+
+  /**
+   * The bias the car has standing still in the pits, which is the one its
+   * setup gave it: taken at the first reading, and again whenever the car is
+   * at rest on pit road, in its stall or before the session has gone green.
+   * Stopping out on the track does not move it.
+   */
+  private updateBrakeBiasBaseline(frame: Telemetry): void {
+    const bias = number(frame, BRAKE_BIAS);
+    if (bias === undefined) return;
+    if (this.brakeBiasBaseline === null) {
+      this.brakeBiasBaseline = bias;
+      return;
+    }
+    const speed = number(frame, 'Speed');
+    if (speed === undefined || Math.abs(speed) >= AT_REST_MS) return;
+    const sessionState = number(frame, 'SessionState');
+    if (
+      boolean(frame, 'OnPitRoad') ||
+      boolean(frame, 'PlayerCarInPitStall') ||
+      (sessionState !== undefined && sessionState < SessionState.Racing)
+    ) {
+      this.brakeBiasBaseline = bias;
     }
   }
 
@@ -161,7 +276,14 @@ export class CarSystemsProcessor implements TelemetryProcessor<CarSystemsSnapsho
     for (let i = 0; i < next.length; i += 1) {
       const a = current[i];
       const b = next[i];
-      if (a.key !== b.key || a.value !== b.value || a.isOff !== b.isOff) {
+      if (
+        a.key !== b.key ||
+        a.value !== b.value ||
+        a.isOff !== b.isOff ||
+        a.max !== b.max ||
+        a.active !== b.active ||
+        a.baselineDelta !== b.baselineDelta
+      ) {
         return true;
       }
     }
@@ -171,8 +293,11 @@ export class CarSystemsProcessor implements TelemetryProcessor<CarSystemsSnapsho
   private reset(sessionNum: number | null): void {
     this.discoveredKeys = [];
     this.signedKeys.clear();
+    this.lastInCarValues.clear();
+    this.brakeBiasBaseline = null;
     this.latest.adjustments = [];
     this.latest.discovered = false;
+    this.latest.lastChange = null;
     this.latest.sessionNum = sessionNum;
     this.latest.version += 1;
   }

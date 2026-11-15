@@ -813,7 +813,8 @@ const compoundCatalogue: LmuRestOutput = {
  * string table rather than a schema, and a bare number is accepted too.
  *
  * -1 is a value, not a failure: it means nothing is focused, and the mapper
- * falls back to the player. Anything unrecognised returns undefined so the
+ * falls back to the player, or with no player vehicle to the user's own
+ * entry (see ../ownEntry.ts). Anything unrecognised returns undefined so the
  * previous value stands, which is the contract every parser here follows --
  * a hiccup must not drop the camera back to the player's empty slot mid-lap.
  */
@@ -1265,9 +1266,15 @@ export const LMU_REST_TASKS: readonly LmuRestTask[] = [
     // whole feature, and taking five seconds to follow the camera would read
     // as not following it.
     maxIntervalMs: 1000,
-    // LMU answers this only from the spectator view. Without this the task
-    // would be given up on three seconds into every session, long before
-    // anyone starts watching, and not asked again until the next one.
+    // LMU answers this in every in-session state -- driving, paused and at
+    // the monitor alike -- and with an HTTP error outside a session: through
+    // an eight-hour race with two long spells at the monitor it never once
+    // stopped, and it stopped the moment the session was left. It is not a
+    // spectator-view endpoint, as this comment used to say. Optional all the
+    // same: the app runs in the menus too, where failing is the ordinary
+    // state and not a fault to give up over, and only an optional task
+    // drops its value when the path stops answering. What it answers in
+    // each state has not been recorded; the bridge logs it when it changes.
     optional: true,
     outputs: [
       {
@@ -1279,9 +1286,9 @@ export const LMU_REST_TASKS: readonly LmuRestTask[] = [
         apply: (data, value) => {
           data.cells.focusCarIdx = { value: [value as number] };
         },
-        // The path stops answering when the viewer leaves the spectator view,
-        // and the last slot it named is not theirs. Keeping it would hold
-        // every overlay on that car while the player drives their own.
+        // The path stops answering when the session is left, and the last
+        // slot it named belongs to that session. Kept, it would put every
+        // overlay on whatever car holds that slot in the next one.
         clear: (data) => {
           delete data.cells.focusCarIdx;
         },

@@ -1,3 +1,5 @@
+import type { ActiveSimulator } from './simulators';
+
 /**
  * The driver-adjustable systems the overlay knows how to display.
  *
@@ -12,6 +14,12 @@
  * dcTractionControlToggle, despite the name: recorded sessions show it reading
  * false continuously while traction control is set to 1..5, so treating it as
  * an on/off state would misreport every car that has it.
+ *
+ * Le Mans Ultimate's dials are here too. Five of them mean under LMU what
+ * iRacing's channel of the same name means (brake bias, ABS, the traction
+ * control level, the two anti-roll bars) and share its entry. The rest have
+ * no iRacing channel that is theirs on every car, so each has an entry of its
+ * own under an `Lmu` key and is offered under LMU alone.
  */
 export interface CarSystemDefinition {
   /** Telemetry variable name, e.g. 'dcABS'. Stable identity for the column. */
@@ -47,7 +55,29 @@ export interface CarSystemDefinition {
    * is why brake bias takes it.
    */
   chip: string;
+  /**
+   * The simulators that publish this adjustment. Absent means iRacing alone,
+   * which is what every entry was before LMU had any.
+   *
+   * The widget draws a column only under a simulator its entry is marked
+   * for, and settings offers it in that simulator's list.
+   */
+  sims?: readonly ActiveSimulator[];
+  /**
+   * Set to false for a dial whose 0 is an ordinary position rather than the
+   * system switched off: an engine map, a brake migration step. Unlike
+   * `signed` it says nothing about the scale having a negative side.
+   */
+  offAtZero?: false;
+  /**
+   * Names for the positions of a dial that is a mode rather than a level, by
+   * value from 0. The widget shows the name in place of the number.
+   */
+  valueLabels?: readonly string[];
 }
+
+const BOTH_SIMS: readonly ActiveSimulator[] = ['iracing', 'lmu'];
+const LMU_ONLY: readonly ActiveSimulator[] = ['lmu'];
 
 export const CAR_SYSTEM_ADJUSTMENTS: readonly CarSystemDefinition[] = [
   {
@@ -57,6 +87,7 @@ export const CAR_SYSTEM_ADJUSTMENTS: readonly CarSystemDefinition[] = [
     precision: 1,
     unit: '%',
     chip: 'bg-red-600',
+    sims: BOTH_SIMS,
   },
   // The W13's fine bias trim, beside the coarse dcBrakeBias: -1..1 in 21 steps,
   // so 0.1 a click and one decimal.
@@ -109,6 +140,7 @@ export const CAR_SYSTEM_ADJUSTMENTS: readonly CarSystemDefinition[] = [
     short: 'ABS',
     precision: 0,
     chip: 'bg-green-600',
+    sims: BOTH_SIMS,
   },
   {
     key: 'dcTractionControl',
@@ -116,6 +148,7 @@ export const CAR_SYSTEM_ADJUSTMENTS: readonly CarSystemDefinition[] = [
     short: 'TC',
     precision: 0,
     chip: 'bg-blue-700',
+    sims: BOTH_SIMS,
   },
   {
     key: 'dcTractionControl2',
@@ -123,6 +156,68 @@ export const CAR_SYSTEM_ADJUSTMENTS: readonly CarSystemDefinition[] = [
     short: 'TC2',
     precision: 0,
     chip: 'bg-sky-600',
+  },
+  // Le Mans Ultimate's own dials. The sim states what each one is, the same on
+  // every car, so these names are fixed here and never looked up by car: the
+  // override table below is keyed by iRacing car paths and is not consulted
+  // under LMU.
+  //
+  // They sit here, after the traction level, so that the LMU strip reads in
+  // the order the settings list is in: bias, ABS, TC, slip, cut, migration,
+  // map. A chip repeats the colour of the iRacing channel that carries the
+  // same kind of control (slip is TC2's sky, the map is engine power's
+  // violet); the two are never on screen together.
+  {
+    key: 'LmuTcSlip',
+    label: 'TC Slip',
+    short: 'SLIP',
+    precision: 0,
+    chip: 'bg-sky-600',
+    sims: LMU_ONLY,
+  },
+  {
+    key: 'LmuTcCut',
+    label: 'TC Cut',
+    short: 'CUT',
+    precision: 0,
+    chip: 'bg-cyan-700',
+    sims: LMU_ONLY,
+  },
+  // Shown as the dial position, as the sim publishes it. Position 0 is a
+  // setting like any other.
+  {
+    key: 'LmuBrakeMigration',
+    label: 'Brake Migration',
+    short: 'MIGR',
+    precision: 0,
+    chip: 'bg-rose-700',
+    sims: LMU_ONLY,
+    offAtZero: false,
+  },
+  // The motor or engine map. On the recorded LMGT3 it follows the garage's
+  // engine mixture, with two positions.
+  {
+    key: 'LmuMotorMap',
+    label: 'Map',
+    short: 'MAP',
+    precision: 0,
+    chip: 'bg-violet-700',
+    sims: LMU_ONLY,
+    offAtZero: false,
+  },
+  // Not a telemetry channel: the garage's regeneration level, which LMU
+  // serves over its REST API alone. The widget draws it from the session, so
+  // the processor never discovers it and it never counts as a dial that
+  // moved. "(setup)" because nothing shows that it follows a change made on
+  // track.
+  {
+    key: 'LmuRegenLevel',
+    label: 'Regen Level (setup)',
+    short: 'REGEN',
+    precision: 0,
+    unit: '%',
+    chip: 'bg-emerald-600',
+    sims: LMU_ONLY,
   },
   {
     key: 'dcThrottleShape',
@@ -169,6 +264,7 @@ export const CAR_SYSTEM_ADJUSTMENTS: readonly CarSystemDefinition[] = [
     short: 'ARBF',
     precision: 0,
     chip: 'bg-teal-600',
+    sims: BOTH_SIMS,
   },
   {
     key: 'dcAntiRollRear',
@@ -176,6 +272,7 @@ export const CAR_SYSTEM_ADJUSTMENTS: readonly CarSystemDefinition[] = [
     short: 'ARBR',
     precision: 0,
     chip: 'bg-teal-700',
+    sims: BOTH_SIMS,
   },
   {
     key: 'dcDiffEntry',
@@ -261,6 +358,19 @@ export const CAR_SYSTEM_ADJUSTMENTS: readonly CarSystemDefinition[] = [
     signed: true,
     chip: 'bg-stone-700',
   },
+  // LMU's wiper state, a mode rather than a level. The names are the reading
+  // TinyPedal gives the four values and are not confirmed: the one recording
+  // holds 1 on every frame of a dry race.
+  {
+    key: 'LmuWiper',
+    label: 'Wipers',
+    short: 'WIPE',
+    precision: 0,
+    chip: 'bg-zinc-700',
+    sims: LMU_ONLY,
+    offAtZero: false,
+    valueLabels: ['OFF', 'AUTO', 'SLOW', 'FAST'],
+  },
 ];
 
 /**
@@ -275,6 +385,54 @@ export const DEFAULT_CAR_SYSTEM_ROWS: readonly string[] = [
   'dcTractionControl2',
   'dcThrottleShape',
 ];
+
+/**
+ * Rows shown by default under Le Mans Ultimate. A list of its own, so the
+ * selection a driver saved for iRacing is left exactly as it was.
+ *
+ * The anti-roll bars, the wipers and the garage's regeneration level are
+ * offered in settings and off here.
+ */
+export const DEFAULT_LMU_CAR_SYSTEM_ROWS: readonly string[] = [
+  'dcBrakeBias',
+  'dcABS',
+  'dcTractionControl',
+  'LmuTcSlip',
+  'LmuTcCut',
+  'LmuBrakeMigration',
+  'LmuMotorMap',
+];
+
+/**
+ * The LMU dials that state the top of their scale, in the order
+ * `LmuDialMax` on the telemetry frame carries the eight maxima.
+ *
+ * Brake bias is not among them: it is a split, not a dial with positions.
+ */
+export const LMU_DIAL_KEYS = [
+  'dcABS',
+  'dcTractionControl',
+  'LmuTcSlip',
+  'LmuTcCut',
+  'LmuBrakeMigration',
+  'LmuMotorMap',
+  'dcAntiRollFront',
+  'dcAntiRollRear',
+] as const;
+
+/** Whether an adjustment is published under a simulator. */
+export const carSystemSupportsSim = (
+  definition: CarSystemDefinition,
+  simulator: ActiveSimulator
+): boolean => (definition.sims ?? ['iracing']).includes(simulator);
+
+/** The catalogue entries a simulator publishes, in catalogue order. */
+export const carSystemsForSim = (
+  simulator: ActiveSimulator
+): readonly CarSystemDefinition[] =>
+  CAR_SYSTEM_ADJUSTMENTS.filter((definition) =>
+    carSystemSupportsSim(definition, simulator)
+  );
 
 /**
  * A car-specific name for an adjustment, replacing the catalogue's generic one.

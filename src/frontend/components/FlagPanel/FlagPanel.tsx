@@ -156,7 +156,7 @@ FlagPair.displayName = 'FlagPair';
 export const FlagPanel = () => {
   const settings = useFlagPanelSettings();
   const snapshot = useFlagStateSnapshot() ?? EMPTY_FLAG_STATE;
-  const { isDriving } = useDrivingState();
+  const { isDriving, isWatching } = useDrivingState();
   const isSessionVisible = useSessionVisibility(settings.sessionVisibility);
   const displayUnits = useTrackStateSelector(trackStateSelectors.displayUnits);
   const isRace = useCurrentSessionType() === 'Race';
@@ -166,7 +166,13 @@ export const FlagPanel = () => {
   const isIRacing = useActiveSimulator() === 'iracing';
 
   if (!isSessionVisible) return <></>;
-  if (settings.showOnlyWhenOnTrack && !isDriving) return <></>;
+  // On track is driving, or watching a car that is out of its garage. What
+  // the panel then shows is whatever the flag channel resolves with no
+  // player on track: the states of the session, and nothing that is only
+  // the player's.
+  if (settings.showOnlyWhenOnTrack && !(isDriving || isWatching)) {
+    return <></>;
+  }
 
   const { kind, detail } = resolveFlagState(snapshot, {
     showStart: settings.showStartLights,

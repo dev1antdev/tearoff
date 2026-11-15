@@ -106,6 +106,8 @@ export const GeneralSettings = ({ previewMode }: GeneralSettingsProps = {}) => {
     enableNetworkAccess:
       currentDashboard?.generalSettings?.enableNetworkAccess ?? false,
     enableWebServer: currentDashboard?.generalSettings?.enableWebServer ?? true,
+    showWhileWatching:
+      currentDashboard?.generalSettings?.showWhileWatching ?? true,
     editMode: {
       pixelDistances:
         currentDashboard?.generalSettings?.editMode?.pixelDistances ?? false,
@@ -288,6 +290,12 @@ export const GeneralSettings = ({ previewMode }: GeneralSettingsProps = {}) => {
 
   const handleOverlayAlwaysOnTopChange = (enabled: boolean) => {
     const newSettings = { ...settings, overlayAlwaysOnTop: enabled };
+    setSettings(newSettings);
+    updateDashboard(newSettings);
+  };
+
+  const handleShowWhileWatchingChange = (enabled: boolean) => {
+    const newSettings = { ...settings, showWhileWatching: enabled };
     setSettings(newSettings);
     updateDashboard(newSettings);
   };
@@ -595,6 +603,31 @@ export const GeneralSettings = ({ previewMode }: GeneralSettingsProps = {}) => {
               Application &amp; connectivity
             </h3>
             <OverlayPauseSetting />
+            <div className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h4
+                    id="show-while-watching-label"
+                    className="text-md font-medium text-slate-200"
+                  >
+                    Keep Widgets On Screen While Watching
+                  </h4>
+                  <p className="text-sm text-slate-400">
+                    Widgets set to show only when on track stay up while you
+                    watch a car on track from outside it, such as a
+                    team-mate&apos;s stint, and follow that car. This applies to
+                    the widgets that have something to show for a watched car.
+                    Turn off to hide them whenever you are out of the car. Works
+                    in Le Mans Ultimate.
+                  </p>
+                </div>
+                <ToggleSwitch
+                  enabled={settings.showWhileWatching ?? true}
+                  onToggle={handleShowWhileWatchingChange}
+                  ariaLabelledBy="show-while-watching-label"
+                />
+              </div>
+            </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between gap-4">
                 <div>

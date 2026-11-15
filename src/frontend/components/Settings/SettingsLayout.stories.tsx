@@ -6,6 +6,8 @@ import type {
   ActiveSimulator,
   DashboardBridge,
   DriverTagSettings,
+  OverlayVisibilityBridge,
+  OverlayVisibilityState,
   PitLaneBridge,
   IrSdkBridge,
   ReleaseNotesBridge,
@@ -311,6 +313,61 @@ export const OverlaysActivatedFirst: Story = {
 
 export const GeneralSettings: Story = {
   args: { initialPath: '/settings/general' },
+};
+
+// The desktop app's overlay switch, which Storybook has no main process for.
+// Without it the pause setting is not drawn at all.
+const withOverlayVisibility = () => {
+  const previous = window.overlayVisibilityBridge;
+  let state: OverlayVisibilityState = {
+    userHidden: false,
+    gamePaused: false,
+    hideWhenPaused: true,
+    hidden: false,
+  };
+  const apply = (change: Partial<OverlayVisibilityState>) => {
+    const next = { ...state, ...change };
+    state = {
+      ...next,
+      hidden: next.userHidden || (next.hideWhenPaused && next.gamePaused),
+    };
+    return state;
+  };
+  const bridge: OverlayVisibilityBridge = {
+    getState: async () => state,
+    setUserHidden: async (userHidden) => apply({ userHidden }),
+    setHideWhenPaused: async (hideWhenPaused) => apply({ hideWhenPaused }),
+    onChanged: (callback) => {
+      callback(state);
+      return () => undefined;
+    },
+  };
+  window.overlayVisibilityBridge = bridge;
+  return () => {
+    window.overlayVisibilityBridge = previous;
+  };
+};
+
+/**
+ * The General page at the two settings for when the overlay is on screen:
+ * hidden while the game is paused, and kept up while watching a car.
+ */
+export const GeneralOverlayOnScreen: Story = {
+  args: { initialPath: '/settings/general' },
+  beforeEach: withOverlayVisibility,
+  render: () => {
+    useEffect(() => {
+      // The page waits for its dashboard, so the row is not there at mount.
+      const timer = window.setInterval(() => {
+        const label = document.getElementById('show-while-watching-label');
+        if (!label) return;
+        window.clearInterval(timer);
+        label.scrollIntoView({ block: 'center' });
+      }, 50);
+      return () => window.clearInterval(timer);
+    }, []);
+    return <SettingsLayout />;
+  },
 };
 
 /** The About page, with what usage analytics collects. */

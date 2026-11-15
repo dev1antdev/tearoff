@@ -2,6 +2,7 @@ import { render } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   useDashboard,
+  useDrivingState,
   useFlagStateSnapshot,
   useGeneralSettings,
   useSessionVisibility,
@@ -21,6 +22,7 @@ import { Flag } from './Flag';
 vi.mock('@irdashies/context', () => ({
   trackStateSelectors: { isOnTrack: 'isOnTrack' },
   useDashboard: vi.fn(),
+  useDrivingState: vi.fn(),
   useFlagStateSnapshot: vi.fn(),
   useGeneralSettings: vi.fn(),
   useSessionVisibility: vi.fn(),
@@ -57,7 +59,8 @@ const clearTrack = state({
 const drawn = (
   snapshot: FlagStateSnapshot | undefined,
   config: Partial<FlagConfig> = {},
-  isOnTrack = true
+  isOnTrack = true,
+  isWatching = false
 ): string | null => {
   vi.mocked(useDashboard).mockReturnValue({
     currentDashboard: {
@@ -75,6 +78,10 @@ const drawn = (
   vi.mocked(useFlagStateSnapshot).mockReturnValue(snapshot);
   vi.mocked(useSessionVisibility).mockReturnValue(true);
   vi.mocked(useTrackStateSelector).mockReturnValue(isOnTrack);
+  vi.mocked(useDrivingState).mockReturnValue({
+    isDriving: isOnTrack,
+    isWatching,
+  });
   const { container } = render(<Flag />);
   return container.querySelector('span')?.textContent ?? null;
 };
@@ -147,5 +154,16 @@ describe('Flag', () => {
   it('hides when not on track only if asked to', () => {
     expect(drawn(clearTrack, {}, false)).toBe('GREEN');
     expect(drawn(clearTrack, { showOnlyWhenOnTrack: true }, false)).toBeNull();
+  });
+
+  it('counts watching a car as on track', () => {
+    // A team-mate's stint: not at the wheel, the team car out on the
+    // circuit. The flags of the session are drawn as they stand.
+    const onlyOnTrack = { showOnlyWhenOnTrack: true };
+    const fullCourse = state({ kind: 'fullCourseYellow', detail: 'fcy' });
+
+    expect(drawn(clearTrack, onlyOnTrack, false, true)).toBe('GREEN');
+    expect(drawn(fullCourse, onlyOnTrack, false, true)).toBe('YELLOW');
+    expect(drawn(fullCourse, onlyOnTrack, false, false)).toBeNull();
   });
 });

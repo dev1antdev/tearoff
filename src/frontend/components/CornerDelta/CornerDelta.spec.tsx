@@ -241,7 +241,10 @@ describe('CornerDelta', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     dashboard();
-    vi.mocked(useDrivingState).mockReturnValue({ isDriving: true });
+    vi.mocked(useDrivingState).mockReturnValue({
+      isDriving: true,
+      isWatching: false,
+    });
     vi.mocked(useSessionVisibility).mockReturnValue(true);
     // Metric display units.
     vi.mocked(useTrackStateSelector).mockReturnValue(1);
@@ -281,11 +284,25 @@ describe('CornerDelta', () => {
   });
 
   it('is hidden while not driving, unless told to stay', () => {
-    vi.mocked(useDrivingState).mockReturnValue({ isDriving: false });
+    vi.mocked(useDrivingState).mockReturnValue({
+      isDriving: false,
+      isWatching: false,
+    });
     expect(render(<CornerDelta />).container.textContent).toBe('');
 
     dashboard({ showOnlyWhenOnTrack: false });
     expect(value(render(<CornerDelta />).container).textContent).toBe('-0.08');
+  });
+
+  it('stays hidden while watching a car: the corners it times are the user’s own', () => {
+    // A team-mate's stint. Nothing true to show for a watched car yet, so
+    // watching does not count as on track here.
+    vi.mocked(useDrivingState).mockReturnValue({
+      isDriving: false,
+      isWatching: true,
+    });
+
+    expect(render(<CornerDelta />).container.textContent).toBe('');
   });
 
   it('is hidden and stops timing in a session it is switched off for', () => {
@@ -298,7 +315,10 @@ describe('CornerDelta', () => {
 
   it('shows an example in demo mode, whatever the session says', () => {
     dashboard({}, true);
-    vi.mocked(useDrivingState).mockReturnValue({ isDriving: false });
+    vi.mocked(useDrivingState).mockReturnValue({
+      isDriving: false,
+      isWatching: false,
+    });
     vi.mocked(useSessionVisibility).mockReturnValue(false);
     vi.mocked(useCornerResults).mockReturnValue({
       hasCorners: undefined,

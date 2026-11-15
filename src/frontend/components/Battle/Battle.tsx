@@ -276,7 +276,7 @@ BattleRow.displayName = 'BattleRow';
 export const Battle = () => {
   const settings = useBattleSettings();
   const generalSettings = useGeneralSettings();
-  const { isDriving } = useDrivingState();
+  const { isDriving, isWatching } = useDrivingState();
   const isSessionVisible = useSessionVisibility(settings?.sessionVisibility);
   const focusCarIdx = useFocusCarIdx();
   const highlightColor = useHighlightColor();
@@ -438,7 +438,11 @@ export const Battle = () => {
     : 'border-spacing-y-0.5';
 
   if (!isSessionVisible) return <></>;
-  if (settings?.showOnlyWhenOnTrack && !isDriving) return <></>;
+  // On track is driving, or watching a car that is out of its garage: the
+  // battle is the focus car's, which is then the car being watched.
+  if (settings?.showOnlyWhenOnTrack && !(isDriving || isWatching)) {
+    return <></>;
+  }
   if (!playerEntry && focusCarIdx === undefined) return <></>;
 
   return (

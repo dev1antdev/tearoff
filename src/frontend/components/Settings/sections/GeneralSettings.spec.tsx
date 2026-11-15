@@ -87,6 +87,45 @@ describe('individual window setting', () => {
     ).toHaveAttribute('aria-checked', 'true');
   });
 
+  it('keeps widgets up while watching unless switched off, and saves the choice', () => {
+    // A profile saved before the setting existed has no value for it.
+    render(<GeneralSettings />);
+    const toggle = screen.getByRole('switch', {
+      name: 'Keep Widgets On Screen While Watching',
+    });
+    expect(toggle).toHaveAttribute('aria-checked', 'true');
+    expect(mocks.update).not.toHaveBeenCalled();
+
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+    expect(mocks.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        widgets: mocks.dashboard.widgets,
+        generalSettings: expect.objectContaining({
+          fontSize: 'md',
+          showWhileWatching: false,
+        }),
+      })
+    );
+
+    fireEvent.click(toggle);
+    expect(mocks.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        generalSettings: expect.objectContaining({ showWhileWatching: true }),
+      })
+    );
+  });
+
+  it('reads the choice to hide widgets while watching', () => {
+    mocks.dashboard.generalSettings = { showWhileWatching: false };
+    render(<GeneralSettings />);
+    expect(
+      screen.getByRole('switch', {
+        name: 'Keep Widgets On Screen While Watching',
+      })
+    ).toHaveAttribute('aria-checked', 'false');
+  });
+
   it('shows the selected overlay font configuration without saving on mount', () => {
     render(<GeneralSettings />);
     const sample = screen.getByRole('figure', { name: 'Overlay font sample' });

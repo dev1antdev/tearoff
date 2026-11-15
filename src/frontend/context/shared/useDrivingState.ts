@@ -1,5 +1,6 @@
 import type { TrackStateSnapshot } from '@irdashies/types';
-import { useTrackStateSelector } from '../ChannelStore';
+import { trackStateSelectors, useTrackStateSelector } from '../ChannelStore';
+import { useShowWhileWatching } from '../DashboardContext/DashboardContext';
 
 const selectIsDriving = (snapshot: TrackStateSnapshot): boolean => {
   // A frame the sim has stopped writing cannot say the player is driving,
@@ -23,10 +24,27 @@ const selectIsDriving = (snapshot: TrackStateSnapshot): boolean => {
   );
 };
 
+/**
+ * Where the user is, for the widgets that show only on track.
+ *
+ * `isDriving` is the user at the wheel, as it has always been. `isWatching`
+ * is the other way to be on track: in a session, out of the car, with the car
+ * the overlays are about out of its garage -- a team-mate's stint, or a car
+ * the camera is on. It is false when the General setting that keeps widgets
+ * up while watching is switched off, so a widget never has to read the
+ * setting itself.
+ *
+ * A widget that has something true to show for a watched car hides on
+ * `!(isDriving || isWatching)`. One that describes the user's own driving --
+ * the pedals, the driver's aids -- hides on `!isDriving` alone.
+ */
 export const useDrivingState = () => {
   const isDriving = useTrackStateSelector(selectIsDriving) ?? false;
+  const watching = useTrackStateSelector(trackStateSelectors.watching) ?? false;
+  const showWhileWatching = useShowWhileWatching();
 
   return {
     isDriving,
+    isWatching: watching && showWhileWatching,
   };
 };

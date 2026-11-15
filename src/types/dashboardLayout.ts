@@ -110,6 +110,12 @@ export interface GeneralSettingsType {
     'light' | 'normal' | 'medium' | 'semibold' | 'bold' | 'extrabold';
   colorPalette?: 'default' | 'black' | 'zinc' | 'stone';
   showOnlyWhenOnTrack?: boolean;
+  /**
+   * Whether a widget set to show only on track also stays up while the user
+   * watches a car that is out of its garage: a team-mate's stint, or a car
+   * the camera is on. On when unset; off restores hiding on leaving the car.
+   */
+  showWhileWatching?: boolean;
   highlightColor?: number;
   skipTaskbar?: boolean;
   disableHardwareAcceleration?: boolean;
