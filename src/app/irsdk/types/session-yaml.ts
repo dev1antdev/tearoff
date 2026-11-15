@@ -119,6 +119,14 @@ export interface LmuRestSession {
   timeScale?: number;
   privateQualifying?: boolean;
   /**
+   * How long the race is set to run, in seconds, from `SESSSET_race_time`,
+   * which the sim holds in minutes. Not the session clock's end time, which
+   * also holds whatever ran before the race's own time: 900 against 1035 on
+   * a recorded fifteen-minute race with a rolling start. Absent when the sim
+   * states none.
+   */
+  raceTime?: number;
+  /**
    * The car's virtual-energy budget. Hypercars, LMDh and LMGT3 are
    * energy-limited rather than fuel-limited, so this is the denominator that
    * matters; the numerator is mVirtualEnergy from shared memory.

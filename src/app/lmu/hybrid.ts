@@ -56,6 +56,12 @@ export const lmuLiftAndCoast = (raw: number | undefined): number | undefined =>
  * be drawn as a flat battery and a motor at freezing point on a car that has
  * neither. With no player car the sim writes none of this and nothing is
  * published.
+ *
+ * A charge above 0 is published whatever the motor state says. TinyPedal
+ * allows for a car whose charge moves while the sim states no motor state,
+ * and infers the state from the charge; HybridProcessor does the same, and
+ * could not if the charge were held back here. Whether such a charge is a
+ * battery is left to it: it waits to see the charge move.
  */
 export function writeLmuHybrid(
   frame: Record<string, { value: unknown[] }>,
@@ -64,10 +70,14 @@ export function writeLmuHybrid(
   const state = raw.electricBoostMotorState;
   if (isReading(state)) {
     frame.LmuMotorState = { value: [state] };
+    const charge = raw.batteryChargeFraction;
+    if (
+      isReading(charge) &&
+      (state !== LMU_MOTOR_NOT_AVAILABLE || charge > 0)
+    ) {
+      frame.LmuBatteryCharge = { value: [charge] };
+    }
     if (state !== LMU_MOTOR_NOT_AVAILABLE) {
-      if (isReading(raw.batteryChargeFraction)) {
-        frame.LmuBatteryCharge = { value: [raw.batteryChargeFraction] };
-      }
       if (isReading(raw.electricBoostMotorTorque)) {
         frame.LmuMotorTorque = { value: [raw.electricBoostMotorTorque] };
       }

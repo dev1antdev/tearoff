@@ -6,6 +6,7 @@ import type {
 } from '@irdashies/types';
 import type { TelemetryProcessor } from './TelemetryProcessor';
 import { isWatchingAnotherCar } from './watchedCar';
+import { createTimeScaleEstimator } from './timeScaleEstimator';
 
 type MutableSessionBarSnapshot = Omit<
   SessionBarSnapshot,
@@ -65,6 +66,8 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
   private lastLapTopSpeed: number | null = null;
   private sessionBestTopSpeed: number | null = null;
   private enabled = true;
+  // The in-game clock against the session clock. See timeScaleEstimator.ts.
+  private readonly timeScale = createTimeScaleEstimator();
   private readonly latest = this.empty();
 
   init(session: Session): void {
@@ -80,6 +83,11 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
       sessionNum !== this.latest.sessionNum
     )
       this.reset(sessionNum);
+    // On every frame, ahead of the 5 Hz gate below: the estimator wants the
+    // reading on which the time of day moves, and Le Mans Ultimate moves it
+    // between two of this processor's publications as often as not.
+    const timeOfDay = n(frame, 'SessionTimeOfDay');
+    if (timeOfDay !== undefined) this.timeScale.update(time, timeOfDay);
     // The figures of the user's own car are the team car's through a
     // team-mate's stint, whatever the camera is on. With the camera on a
     // rival they are still true and are not what is on screen, so they are
@@ -138,6 +146,7 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
       )
         sessionBest = value;
     const isClio = player?.CarID === 162;
+    const solarAltitude = n(frame, 'SolarAltitude');
     Object.assign(this.latest, {
       sessionName: info?.SessionType,
       trackDisplayName: this.session?.WeekendInfo?.TrackDisplayName,
@@ -180,7 +189,11 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
       lastLapTopSpeed: ownCar ? this.lastLapTopSpeed : null,
       sessionBestTopSpeed: ownCar ? this.sessionBestTopSpeed : null,
       sessionBestLap: sessionBest,
-      sessionTimeOfDay: n(frame, 'SessionTimeOfDay'),
+      sessionTimeOfDay: timeOfDay,
+      // Measured, and until the first window has passed, what the session
+      // states where it states it.
+      timeScale: this.timeScale.value() ?? this.statedTimeScale(),
+      isDaylight: solarAltitude === undefined ? undefined : solarAltitude > 0,
       playerCarIdx,
       playerCarId: player?.CarID,
       playerClassified: Boolean(
@@ -215,9 +228,22 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
   snapshotVersion(): number {
     return this.latest.version;
   }
+  /**
+   * The scale the session itself states, for the seconds before one has been
+   * measured. iRacing's speed-up factor only: Le Mans Ultimate states one for
+   * the race alone, and its mapper leaves this at 0.
+   */
+  private statedTimeScale(): number | undefined {
+    const stated =
+      this.session?.WeekendInfo?.WeekendOptions?.EarthRotationSpeedupFactor;
+    return typeof stated === 'number' && Number.isFinite(stated) && stated > 0
+      ? stated
+      : undefined;
+  }
   private reset(sessionNum: number | null): void {
     const version = this.latest.version + 1;
     Object.assign(this.latest, this.empty(), { sessionNum, version });
+    this.timeScale.reset();
     this.lastTime = -Infinity;
     this.lap = -1;
     this.lapTop = 0;
@@ -251,6 +277,8 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
       bestLapTime: undefined,
       sessionBestLap: undefined,
       sessionTimeOfDay: undefined,
+      timeScale: undefined,
+      isDaylight: undefined,
       playerCarIdx: null,
       playerCarId: undefined,
       playerClassified: false,

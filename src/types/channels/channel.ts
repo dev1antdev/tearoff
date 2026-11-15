@@ -8,7 +8,9 @@ import type {
 } from '../streamChat';
 import type { ReplayContextSnapshot } from './replayContext';
 import type { FlagStateSnapshot } from './flagState';
+import type { HybridSnapshot } from './hybrid';
 import type { SystemPerformanceSnapshot } from './systemPerformance';
+import type { WeatherForecastSnapshot } from './weatherForecast';
 import type { RacePlanProgressSnapshot } from './racePlanProgress';
 import type { PitStopsSnapshot } from './pitStops';
 import type { PitLaneCalibration } from '../pitLane';
@@ -26,6 +28,7 @@ export interface ChannelPayloads {
   'driver-controls.snapshot': DriverControlsSnapshot;
   'flag-state.snapshot': FlagStateSnapshot;
   'fuel.projection': FuelProjectionSnapshot;
+  'hybrid.snapshot': HybridSnapshot;
   'lap-times.snapshot': LapTimesSnapshot;
   'lap-log.snapshot': LapLogSnapshot;
   'lap-history.snapshot': LapHistorySnapshot;
@@ -40,6 +43,7 @@ export interface ChannelPayloads {
   'track-state.snapshot': TrackStateSnapshot;
   'tyre-state.snapshot': TyreStateSnapshot;
   'system-performance.snapshot': SystemPerformanceSnapshot;
+  'weather-forecast.snapshot': WeatherForecastSnapshot;
   'minimap.snapshot': MinimapSnapshot;
   'lap-delta.snapshot': LapDeltaSnapshot;
   'lap-trace.sample': LapTraceSampleSnapshot;
@@ -457,6 +461,20 @@ export interface DriverControlsSnapshot {
    * iRacing publishes the dial and its switch, but no flag for the cut.
    */
   tcActive?: boolean;
+  /**
+   * Le Mans Ultimate only. The sim's own lift-and-coast light, 0..1: the
+   * byte it writes, over 255. It follows the energy-saving target the driver
+   * sets in the car and reads 0 without one. How it rises through a braking
+   * approach is unconfirmed: it is 0 throughout the one recording.
+   */
+  liftAndCoast?: number;
+  /**
+   * Smallest and largest wheel slip ratio of the four, 2 decimals: negative
+   * is a wheel turning slower than the road passes, a lock at -1. Written by
+   * no processor yet; they arrive with the shared slip-ratio helper.
+   */
+  slipRatioMin?: number;
+  slipRatioMax?: number;
   /** Lock-to-lock rotation the angle was scaled by, whole degrees. */
   steeringRangeDeg?: number;
   /**
@@ -520,7 +538,19 @@ export interface SessionBarSnapshot {
   lastLapTime?: number;
   bestLapTime?: number;
   sessionBestLap?: number;
+  /** The in-game clock, seconds since midnight of the in-game day. */
   sessionTimeOfDay?: number;
+  /**
+   * In-game seconds per second of the session clock, a whole number 0..60,
+   * measured from the two clocks; 0 is a time of day that stands still.
+   * Undefined until it has been measured, which takes five seconds.
+   */
+  timeScale?: number;
+  /**
+   * The sun is above the horizon, where the sim says so (iRacing). Undefined
+   * under Le Mans Ultimate, which publishes nothing to read it from.
+   */
+  isDaylight?: boolean;
   playerCarIdx: number | null;
   playerCarId?: number;
   playerClassified: boolean;
@@ -992,6 +1022,13 @@ export const channelRegistry = {
     defaultRateHz: 2,
     maxRateHz: 10,
   },
+  // A charge to read, not a needle to follow: 10 Hz keeps the tenths legible
+  // while the processor accounts for the lap at 25.
+  'hybrid.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 10,
+    maxRateHz: 25,
+  },
   // Publishes on version change, roughly 0.6 times a second in a 60-car field.
   // The rate cap only bounds the worst case; it is not a sampling rate.
   'lap-history.snapshot': {
@@ -1052,6 +1089,13 @@ export const channelRegistry = {
   },
   // The machine is read once a second; nothing here moves faster than that.
   'system-performance.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 1,
+    maxRateHz: 2,
+  },
+  // Minutes to a change in the weather: in steady weather about one
+  // publication a minute, and never a figure that moves within a second.
+  'weather-forecast.snapshot': {
     kind: 'snapshot',
     defaultRateHz: 1,
     maxRateHz: 2,

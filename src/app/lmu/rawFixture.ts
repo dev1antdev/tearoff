@@ -83,7 +83,10 @@ export function fixture(): LmuRawTelemetry {
     maxGears: 6,
     visualSteeringWheelRange: 480,
     deltaBest: 0.2,
-    batteryChargeFraction: 1,
+    // 0, as the recorded LMGT3 reads on every frame: no battery. This said
+    // 1 before anything read it, and a charge above 0 is now published
+    // whatever the motor state says.
+    batteryChargeFraction: 0,
     turboBoostPressure: 0,
     frontTireCompoundName: 'Dry',
     vehicleName: 'Ferrari 296 GT3',
