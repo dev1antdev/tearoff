@@ -97,6 +97,8 @@ describe('per-simulator widget support', () => {
     expect(isWidgetDisabledForSim(config, 'tyres', 'iracing')).toBe(true);
     expect(isWidgetDisabledForSim(config, 'damage', 'iracing')).toBe(true);
     expect(isWidgetDisabledForSim(config, 'damage', 'lmu')).toBe(false);
+    expect(isWidgetDisabledForSim(config, 'wear', 'iracing')).toBe(true);
+    expect(isWidgetDisabledForSim(config, 'wear', 'lmu')).toBe(false);
     expect(isWidgetDisabledForSim(config, 'standings', 'iracing')).toBe(false);
   });
 
@@ -104,6 +106,15 @@ describe('per-simulator widget support', () => {
     // Both read the car's acceleration, pedal and speed, which each sim
     // publishes under the same names.
     for (const id of ['frictioncircle', 'brakeperformance']) {
+      expect(isWidgetDisabledForSim(config, id, 'iracing')).toBe(false);
+      expect(isWidgetDisabledForSim(config, id, 'lmu')).toBe(false);
+    }
+  });
+
+  it('shows the lap timer and the stint history under both sims', () => {
+    // Both are read from the player's ledger, which follows every lap and
+    // stint under either sim; iRacing only leaves some of their cells empty.
+    for (const id of ['laptimelog', 'stinthistory']) {
       expect(isWidgetDisabledForSim(config, id, 'iracing')).toBe(false);
       expect(isWidgetDisabledForSim(config, id, 'lmu')).toBe(false);
     }

@@ -7,15 +7,26 @@ import type {
 } from '@irdashies/types';
 import type {
   PlayerReferenceLapSource,
+  PlayerStintSource,
   ReferenceLapPersistence,
 } from './ReferenceLapProcessor';
+import type { SectorBestsOptions } from './SectorTimingProcessor';
 import { CarSpeedsProcessor } from './CarSpeedsProcessor';
 import { BlindSpotProcessor } from './BlindSpotProcessor';
 import { CarPitProcessor } from './CarPitProcessor';
 import {
+  createMemoryPitLaneModelStore,
+  PitStopEstimateProcessor,
+  type PitLaneModelStore,
+} from './PitStopEstimateProcessor';
+import {
   TrackProfileProcessor,
   type TrackProfileSource,
 } from './TrackProfileProcessor';
+import {
+  CruiseProcessor,
+  type DrivingTotalsPersistence,
+} from './CruiseProcessor';
 import { DriverControlsProcessor } from './DriverControlsProcessor';
 import { FlagStateProcessor } from './FlagStateProcessor';
 import { FuelProjectionProcessor } from './FuelProjectionProcessor';
@@ -67,6 +78,16 @@ interface ProcessorRegistryOptions {
    * reference at all.
    */
   playerReferenceLaps?: PlayerReferenceLapSource;
+  /**
+   * Which of the player's stints is under way, from the ledger. Without it
+   * the best lap of a stint ends when the car stops in the pits.
+   */
+  playerStints?: PlayerStintSource;
+  /**
+   * Where the player's all-time sector bests are kept and which simulator
+   * they are filed under. Without it there are none.
+   */
+  sectorBests?: SectorBestsOptions;
   /** The radar's dev tuning from the current dashboard; defaults without. */
   radarTuning?: () => RadarProcessorTuning;
   /** The player's own pole side per track; the table's without. */
@@ -86,6 +107,17 @@ interface ProcessorRegistryOptions {
    * without them the track profile channel names no track.
    */
   trackProfiles?: { source: TrackProfileSource; simulator: string };
+  /**
+   * Where the metres and seconds driven on each track in each car are kept,
+   * and the simulator they are filed under; without it the cruise block's
+   * all-time totals are those of the run.
+   */
+  drivingTotals?: { persistence: DrivingTotalsPersistence; simulator: string };
+  /**
+   * Where each track's pit lane model is kept; without it the model lasts
+   * as long as the app runs and no longer.
+   */
+  pitLaneModel?: PitLaneModelStore;
   /** The race plan in use and its history; without it there is no plan. */
   racePlan?: {
     getPlan: () => RacePlanSelection | null;
@@ -127,11 +159,15 @@ const defineProcessor = <K extends AnyProcessorDefinition['channel']>(
 export const createProcessorDefinitions = ({
   referenceLapPersistence,
   playerReferenceLaps,
+  playerStints,
+  sectorBests,
   radarTuning,
   radarPoleSides,
   flagTuning,
   systemLoad,
   trackProfiles,
+  drivingTotals,
+  pitLaneModel = createMemoryPitLaneModelStore(),
   racePlan,
 }: ProcessorRegistryOptions): readonly AnyProcessorDefinition[] => [
   defineProcessor({
@@ -165,12 +201,50 @@ export const createProcessorDefinitions = ({
     create: () => new CarPitProcessor(),
   }),
   defineProcessor({
+    channel: 'pit-stop.snapshot',
+    // What a lap costs, every car's pace, and their best laps to read a
+    // stretch of track off.
+    dependencies: [
+      'fuel.projection',
+      'lap-times.snapshot',
+      'reference-laps.snapshot',
+    ],
+    // A stop is timed from an entry line that a hidden overlay must not
+    // miss, and the sim's own pit stop screen is what hides it.
+    processWhileHidden: true,
+    // Not 'pitStop', which is the record of every car's stops.
+    metricsPrefix: 'pitStopEstimate',
+    create: ({ snapshot, sourceReplay }) =>
+      new PitStopEstimateProcessor({
+        store: pitLaneModel,
+        fuel: () => snapshot('fuel.projection'),
+        lapTimes: () => snapshot('lap-times.snapshot'),
+        referenceLaps: () => snapshot('reference-laps.snapshot'),
+        sourceReplay,
+      }),
+  }),
+  defineProcessor({
     channel: 'track-profile.snapshot',
     metricsPrefix: 'trackProfile',
     create: () =>
       new TrackProfileProcessor(
         trackProfiles?.source,
         trackProfiles?.simulator
+      ),
+  }),
+  defineProcessor({
+    channel: 'cruise.snapshot',
+    // The odometer counts what is driven while the overlay is hidden too,
+    // and the session's figures outlast a widget being switched off.
+    processWhileHidden: true,
+    retainWhenInactive: true,
+    metricsPrefix: 'cruise',
+    create: ({ aggregateReplay }) =>
+      new CruiseProcessor(
+        // A replayed tape is somebody's old session: its metres are not the
+        // player's to keep.
+        aggregateReplay ? undefined : drivingTotals?.persistence,
+        drivingTotals?.simulator
       ),
   }),
   defineProcessor({
@@ -197,7 +271,8 @@ export const createProcessorDefinitions = ({
           : referenceLapPersistence,
         // A replayed tape is somebody's old session: the player's laps are
         // not its to be measured by.
-        aggregateReplay ? undefined : playerReferenceLaps
+        aggregateReplay ? undefined : playerReferenceLaps,
+        playerStints
       ),
   }),
   defineProcessor({
@@ -221,7 +296,10 @@ export const createProcessorDefinitions = ({
   defineProcessor({
     channel: 'sector-timing.snapshot',
     metricsPrefix: 'sectorTiming',
-    create: () => new SectorTimingProcessor(),
+    // A replayed tape is somebody's old session: its sectors are not the
+    // player's to keep.
+    create: ({ aggregateReplay }) =>
+      new SectorTimingProcessor(aggregateReplay ? undefined : sectorBests),
   }),
   defineProcessor({
     channel: 'standings.snapshot',

@@ -1085,7 +1085,23 @@ export interface LapTimeLogConfig {
     hidePittedLaps?: boolean;
     /** Leave laps driven under full-course cautions out of the history. */
     hideCautionLaps?: boolean;
+    /** A cell for the lap's number within its stint, as `S5`. */
+    showStintLap?: boolean;
+    /** A cell for the fuel the lap used, or the virtual energy. */
+    showFuel?: boolean;
+    /** A cell for the tread the lap wore. Le Mans Ultimate only. */
+    showWear?: boolean;
+    /** The wear cell: the mean of the four wheels, or the worst of them. */
+    wearMode?: 'average' | 'highest';
+    /** Marks for a pit lap, a voided lap, a yellow, a wet lap. */
+    showFlags?: boolean;
+    /** A first row for the lap under way. */
+    showCurrentRow?: boolean;
+    /** Only the laps of the stint under way. */
+    thisStintOnly?: boolean;
   };
+  /** The unit fuel is shown in; virtual energy is always percent. */
+  fuelUnits?: 'L' | 'gal';
   scale: number;
   alignment: 'top' | 'bottom';
   reverse: boolean;
@@ -1093,6 +1109,48 @@ export interface LapTimeLogConfig {
   foreground: { opacity: number };
   sessionVisibility: SessionVisibilitySettings;
   showOnlyWhenOnTrack: boolean;
+}
+
+/**
+ * Stint history: the stint under way and the last few that are over, one
+ * row each, from the player's ledger.
+ */
+export interface StintHistoryConfig {
+  background: { opacity: number };
+  /** How many finished stints are listed, 1 to 10. */
+  historyCount: number;
+  /** A row for the stint under way. */
+  showCurrent: boolean;
+  /** Leave out the stints of earlier sessions of the event. */
+  thisSessionOnly: boolean;
+  /** Finished stints with fewer laps than this are left out. */
+  minLaps: number;
+  /** The newest stint at the top, or at the bottom. */
+  newestFirst: boolean;
+  showLaps: boolean;
+  showTime: boolean;
+  /** Fuel used, or virtual energy for a car that runs on it. */
+  showFuel: boolean;
+  /** Under the fuel used, the mean per lap. */
+  showFuelPerLap: boolean;
+  showTyres: boolean;
+  showWear: boolean;
+  /** The wear cell: the mean of the four wheels, or the worst of them. */
+  wearMode: 'average' | 'highest';
+  /** Brake disc worn, millimetres. Le Mans Ultimate only. */
+  showBrakes: boolean;
+  /** The stint's best lap. */
+  showPace: boolean;
+  /** Under the best lap, the best over the mean of the other clean laps. */
+  showConsistency: boolean;
+  /** The stop that ended the stint. */
+  showStop: boolean;
+  /** The driver's surname after the stint's number. */
+  showDriver: boolean;
+  /** The unit fuel is shown in; virtual energy is always percent. */
+  fuelUnits: 'L' | 'gal';
+  showOnlyWhenOnTrack: boolean;
+  sessionVisibility: SessionVisibilitySettings;
 }
 
 export interface SlowCarAheadConfig {
@@ -1108,13 +1166,32 @@ export interface SectorDeltaConfig {
   background: { opacity: number };
   timeFormat: TimeFormat;
   /**
-   * Whether to compare against the ghost lap (when loaded) or always use
-   * session best.
+   * What each sector is compared with. Where the chosen one does not exist
+   * yet a card shows the sector's time and no delta.
    *
    * 'prefer-ghost'      – use ghost lap when available, fall back to session best
    * 'session-best-only' – always compare against session best
+   * 'session-best-lap'  – the sectors of the best whole lap of the session
+   * 'all-time-best'     – the best of each sector kept for the track and car,
+   *                       whose sum is the theoretical best lap
+   * 'all-time-best-lap' – the sectors of the best whole lap kept for them
    */
-  ghostComparison: 'prefer-ghost' | 'session-best-only';
+  ghostComparison:
+    | 'prefer-ghost'
+    | 'session-best-only'
+    | 'session-best-lap'
+    | 'all-time-best'
+    | 'all-time-best-lap';
+  /**
+   * A row above the cards with the time the comparison adds up to as far as
+   * the sector being driven, and the running lap time beside it.
+   */
+  showTargetLap?: boolean;
+  /**
+   * How long, in seconds, the gap to that target at the end of a sector
+   * stays in the row; never more than half the sector just entered.
+   */
+  targetFreezeSeconds?: number;
   /**
    * Whether to record and display sectors that contained an incident (x).
    * true  – record the sector time and show a warning icon
@@ -1247,6 +1324,67 @@ export interface TyresConfig {
   liftOffThreshold: number;
   showBrakes: boolean;
   showWear: boolean;
+  showCompound: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
+ * How long the tyres and the brake discs of the player's car will last:
+ * what is left on each wheel, how fast it is going and the laps that makes.
+ * Two sections, each with a switch. Le Mans Ultimate only.
+ *
+ * The sim states neither the tread at which a tyre is finished nor the
+ * thickness at which a disc fails, so `tyres.floorPct` and the two failure
+ * thicknesses are the driver's to set. They are read by the forecast in the
+ * main process as well as here.
+ */
+export interface WearConfig {
+  background: { opacity: number };
+  tyres: {
+    /** The tyre section. */
+    show: boolean;
+    /** Wear per lap under the tread. */
+    showPerLap: boolean;
+    /**
+     * Which wear per lap is written: the one the forecast uses, from the
+     * laps driven, or what the lap under way is heading for.
+     */
+    perLapSource: 'average' | 'thisLap';
+    showLapsLeft: boolean;
+    showMinutesLeft: boolean;
+    /** Tread expected when the fuel or energy runs out. */
+    showEndOfStint: boolean;
+    /** Tread, percent, at which the tyre is finished. */
+    floorPct: number;
+    /** Tread at or below this is amber; at or below half of it, red. */
+    warnPct: number;
+    /** Laps left at or below this are red. */
+    warnLaps: number;
+    /** Wear per lap, percent, above this is amber. */
+    warnPerLapPct: number;
+  };
+  brakes: {
+    /** The brake section. */
+    show: boolean;
+    /** The large figure: millimetres of disc, or percent of usable disc. */
+    primary: 'thickness' | 'life';
+    showPerLap: boolean;
+    showLapsLeft: boolean;
+    showMinutesLeft: boolean;
+    /**
+     * Front failure thickness, millimetres. 0 leaves it to a thickness
+     * learned from a failed brake, then to the figure for the class.
+     */
+    failureFrontMm: number;
+    /** The same for the rear discs. */
+    failureRearMm: number;
+    /** Life at or below this is amber; at or below half of it, red. */
+    warnLifePct: number;
+    /** Laps left at or below this are red. */
+    warnLaps: number;
+  };
+  /** The compound fitted to each axle, between its two tyres. */
   showCompound: boolean;
   sessionVisibility: SessionVisibilitySettings;
   showOnlyWhenOnTrack: boolean;
@@ -1449,11 +1587,27 @@ export interface LapDeltaConfig {
   background: { opacity: number };
   /**
    * Which lap the delta is measured against: the best clean lap of this
-   * session, or the best one kept for this track and car across sessions.
+   * session, the best one kept for this track and car across sessions, the
+   * best clean lap of the stint under way, or the lap before this one.
    * Where the chosen one does not exist yet the widget shows dashes rather
-   * than falling back to the other.
+   * than falling back to another.
    */
-  reference: 'sessionBest' | 'allTime';
+  reference: 'sessionBest' | 'allTime' | 'stintBest' | 'lastLap';
+  /**
+   * Which of the other references are shown in a strip under the main
+   * figure. The one chosen as `reference` is never repeated there.
+   */
+  secondary: {
+    sessionBest: boolean;
+    allTime: boolean;
+    stintBest: boolean;
+    lastLap: boolean;
+  };
+  /**
+   * For how many seconds after the line the gap the finished lap ended on
+   * replaces the live delta; 0 switches it off.
+   */
+  freezeSeconds: number;
   /** Decimal places on the delta. */
   decimals: 2 | 3;
   /** The bar showing whether time is being gained or lost right now. */
@@ -1526,16 +1680,16 @@ export interface TimingConfig {
     sessionBest: boolean;
     /** The best lap kept for this track and car across sessions. */
     allTimeBest: boolean;
-    /** The best lap since the car last stood in the pits. */
+    /** The best clean lap of the stint under way. */
     stintBest: boolean;
     /** The player's recent pace. */
     pace: boolean;
   };
   /**
-   * Which lap the delta and the predicted lap are measured against. Where
-   * the chosen one does not exist the tiles show dashes rather than another
-   * lap's figures. The delta channel carries the first two today; a stored
-   * `stintBest` or `lastLap` reads dashes until it carries those as well.
+   * Which lap the delta and the predicted lap are measured against: the best
+   * of the session, of all time or of the stint, or the last lap. Where the
+   * chosen one does not exist the tiles show dashes rather than another
+   * lap's figures.
    */
   deltaReference: 'sessionBest' | 'allTime' | 'stintBest' | 'lastLap';
   deltaDecimals: 2 | 3;
@@ -1585,6 +1739,92 @@ export interface MinimapConfig {
   useClassColors: boolean;
   showStartFinish: boolean;
   dimCarsInPits: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
+ * The height of the track along the lap, with the car's place on it. The
+ * profile is recorded by driving one clean lap and kept per track.
+ */
+export interface ElevationConfig {
+  background: { opacity: number };
+  /** Tint the part of the lap already driven. */
+  showProgress: boolean;
+  /** Lines where the sectors start. */
+  showSectors: boolean;
+  /** The height where the car is, top left. */
+  showReading: boolean;
+  /** The lap's height range, top right. */
+  showRange: boolean;
+  /**
+   * What the reading is measured from: the lowest point of the lap, or the
+   * start/finish line, and then it is signed.
+   */
+  zero: 'lowest' | 'line';
+  /** 'auto' follows the sim's display units. */
+  unit: 'auto' | 'm' | 'ft';
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/** One cell of the cruise block. */
+export type CruiseCellId =
+  'compass' | 'elevation' | 'odometer' | 'timeOnTrack' | 'lapDistance';
+
+/** Whether a total is of every session on this track in this car, or of this one. */
+export type CruiseScope = 'allTime' | 'session';
+
+/**
+ * The cruise block: compass heading, elevation, distance and time driven
+ * and the distance into the lap, with an optional compass dial.
+ */
+export interface CruiseConfig {
+  background: { opacity: number };
+  /** Three cells over two, or one strip. */
+  layout: 'grid' | 'row';
+  /** The order the cells are drawn in, as CruiseCellId. */
+  displayOrder: string[];
+  compass: {
+    enabled: boolean;
+    /** The compass dial with the drift needle, beside the cells. */
+    dial: boolean;
+  };
+  /** Never drawn under iRacing, which states no height. */
+  elevation: { enabled: boolean };
+  odometer: { enabled: boolean; scope: CruiseScope };
+  timeOnTrack: { enabled: boolean; scope: CruiseScope };
+  lapDistance: { enabled: boolean };
+  /** Metres and kilometres, or feet and miles. 'auto' follows the sim. */
+  units: 'auto' | 'Metric' | 'Imperial';
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
+ * The driver's own notes for the track, shown where each was written for:
+ * track notes say where the car is, pace notes what is coming.
+ */
+export interface TrackNotesConfig {
+  background: { opacity: number };
+  showPaceNotes: boolean;
+  showTrackNotes: boolean;
+  /** The comment of the note on the first visible line. */
+  showComment: boolean;
+  /** Metres to the next note of the first visible line. */
+  showNextDistance: boolean;
+  /** Draw note text in capitals. */
+  uppercase: boolean;
+  /** Pace notes appear this many metres early, -500 to 500. */
+  paceLeadMeters: number;
+  /** And this many seconds early at the current speed, 0 to 10. */
+  paceLeadSeconds: number;
+  /** Hide a note this long after it appeared; 0 keeps it until the next. */
+  displaySeconds: number;
+  /** On pit road, show the notes written for it. */
+  showPitNotes: boolean;
+  /** Hide the widget on a track with no notes. */
+  hideWhenNoNotes: boolean;
   sessionVisibility: SessionVisibilitySettings;
   showOnlyWhenOnTrack: boolean;
 }
@@ -2139,6 +2379,70 @@ export interface BrakePerformanceConfig {
   showOnlyWhenOnTrack: boolean;
 }
 
+/**
+ * The pit stop estimate: how long the next stop stands, what it is made of,
+ * what the visit costs against staying out, where the car rejoins, and a
+ * timer while it is under way.
+ */
+export interface PitStopConfig {
+  background: { opacity: number };
+  /** Seconds added to every stop that stands, for reaction and the crew. */
+  extraTime: number;
+  /** The standing time turns red at or above this, seconds. */
+  longStopThreshold: number;
+  /** Chips for what the stop is made of. */
+  showBreakdown: boolean;
+  /** What the stop adds, and what the race still needs. */
+  showRefuel: boolean;
+  /** Laps and minutes the level set lasts. */
+  showRunLength: boolean;
+  /** Position and gaps after the stop. */
+  showRejoin: boolean;
+  /** Which cars the rejoin position counts. */
+  rejoinScope: 'class' | 'overall';
+  /** Cars in the pit lane and stops asked for. */
+  showOccupancy: boolean;
+  /** How long the finished stop stays on screen, seconds. */
+  resultHold: number;
+  /**
+   * `whenPitting` shows the widget only with a stop requested (Le Mans
+   * Ultimate), in the pit lane, and while the finished stop is held.
+   */
+  showMode: 'always' | 'whenPitting';
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
+ * The fuel saver: what a lap may cost for the fuel or the energy to last
+ * one lap longer, and what it would take to drop a stop.
+ */
+export interface FuelSaverConfig {
+  background: { opacity: number };
+  /** The consumption the targets are compared with. */
+  basis: 'projected' | 'last' | 'average';
+  /** Laps in the average, 2 to 10. */
+  averageLaps: number;
+  /** Kept back, in the unit shown: litres, gallons or percent. */
+  reserve: number;
+  /** Columns for one lap more each, 1 to 5. */
+  moreLaps: number;
+  /** Columns for one lap fewer each, 0 to 3. */
+  fewerLaps: number;
+  /** The last lap's consumption. */
+  showLast: boolean;
+  /** The "one stop fewer" line, in races. */
+  showStopTarget: boolean;
+  /** Count the stint's last lap only as far as pit entry. */
+  pitEntryAllowance: boolean;
+  /** Savings above this per cent of current use are drawn as out of reach. */
+  reachShare: number;
+  /** Fuel unit; energy is always percent. */
+  fuelUnits: 'L' | 'gal';
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
 export interface WidgetConfigMap {
   standings: StandingsConfig;
   relative: RelativeConfig;
@@ -2160,14 +2464,18 @@ export interface WidgetConfigMap {
   telemetryinspector: TelemetryInspectorConfig;
   fastercarsfrombehind: FasterCarsFromBehindConfig;
   pitlanehelper: PitlaneHelperConfig;
+  pitstop: PitStopConfig;
+  fuelsaver: FuelSaverConfig;
   streamchat: StreamChatConfig;
   laptimelog: LapTimeLogConfig;
+  stinthistory: StintHistoryConfig;
   infobar: InformationBarConfig;
   slowcarahead: SlowCarAheadConfig;
   sectordelta: SectorDeltaConfig;
   deltaspeed: DeltaSpeedConfig;
   carsystems: CarSystemsConfig;
   tyres: TyresConfig;
+  wear: WearConfig;
   chassis: ChassisConfig;
   damage: DamageConfig;
   liftcoast: LiftCoastConfig;
@@ -2176,6 +2484,9 @@ export interface WidgetConfigMap {
   frictioncircle: FrictionCircleConfig;
   brakeperformance: BrakePerformanceConfig;
   minimap: MinimapConfig;
+  elevation: ElevationConfig;
+  cruise: CruiseConfig;
+  tracknotes: TrackNotesConfig;
   lapdelta: LapDeltaConfig;
   cornerdelta: CornerDeltaConfig;
   timing: TimingConfig;
@@ -2300,8 +2611,11 @@ export type FasterCarsFromBehindWidgetSettings =
   BaseWidgetSettings<FasterCarsFromBehindConfig>;
 export type PitlaneHelperWidgetSettings =
   BaseWidgetSettings<PitlaneHelperConfig>;
+export type PitStopWidgetSettings = BaseWidgetSettings<PitStopConfig>;
+export type FuelSaverWidgetSettings = BaseWidgetSettings<FuelSaverConfig>;
 export type StreamChatWidgetSettings = BaseWidgetSettings<StreamChatConfig>;
 export type LapTimeLogWidgetSettings = BaseWidgetSettings<LapTimeLogConfig>;
+export type StintHistoryWidgetSettings = BaseWidgetSettings<StintHistoryConfig>;
 export type InformationBarWidgetSettings =
   BaseWidgetSettings<InformationBarConfig>;
 export type SlowCarAheadWidgetSettings = BaseWidgetSettings<SlowCarAheadConfig>;
@@ -2309,6 +2623,7 @@ export type SectorDeltaWidgetSettings = BaseWidgetSettings<SectorDeltaConfig>;
 export type DeltaSpeedWidgetSettings = BaseWidgetSettings<DeltaSpeedConfig>;
 export type CarSystemsWidgetSettings = BaseWidgetSettings<CarSystemsConfig>;
 export type TyresWidgetSettings = BaseWidgetSettings<TyresConfig>;
+export type WearWidgetSettings = BaseWidgetSettings<WearConfig>;
 export type ChassisWidgetSettings = BaseWidgetSettings<ChassisConfig>;
 export type DamageWidgetSettings = BaseWidgetSettings<DamageConfig>;
 export type LiftCoastWidgetSettings = BaseWidgetSettings<LiftCoastConfig>;
@@ -2320,6 +2635,9 @@ export type FrictionCircleWidgetSettings =
 export type BrakePerformanceWidgetSettings =
   BaseWidgetSettings<BrakePerformanceConfig>;
 export type MinimapWidgetSettings = BaseWidgetSettings<MinimapConfig>;
+export type ElevationWidgetSettings = BaseWidgetSettings<ElevationConfig>;
+export type CruiseWidgetSettings = BaseWidgetSettings<CruiseConfig>;
+export type TrackNotesWidgetSettings = BaseWidgetSettings<TrackNotesConfig>;
 export type LapDeltaWidgetSettings = BaseWidgetSettings<LapDeltaConfig>;
 export type CornerDeltaWidgetSettings = BaseWidgetSettings<CornerDeltaConfig>;
 export type TimingWidgetSettings = BaseWidgetSettings<TimingConfig>;

@@ -115,9 +115,42 @@ export const LapTimeLogSettings = () => {
 
                         <SettingProp path="history.hidePittedLaps" />
                         <SettingProp path="history.hideCautionLaps" />
+                        <SettingProp path="history.thisStintOnly" />
                       </SettingsSection>
                     )}
                   </SettingsSection>
+
+                  {/* What each row of the list shows beside the lap time. */}
+                  {settings.config.history?.enabled &&
+                    settings.config.history?.style !== 'chart' && (
+                      <SettingsSection title="Lap History Columns">
+                        <p className="text-sm text-slate-400">
+                          Each lap is listed with what it cost, from the record
+                          Tearoff keeps of every lap you drive. With every
+                          column on, the list wants a widget about 320 px wide.
+                        </p>
+
+                        <SettingProp path="history.showFlags" />
+                        <SettingProp path="history.showStintLap" />
+                        <SettingProp path="history.showFuel" />
+
+                        {settings.config.history?.showFuel && (
+                          <SettingsSection>
+                            <SettingProp path="fuelUnits" />
+                          </SettingsSection>
+                        )}
+
+                        <SettingProp path="history.showWear" />
+
+                        {settings.config.history?.showWear && (
+                          <SettingsSection>
+                            <SettingProp path="history.wearMode" />
+                          </SettingsSection>
+                        )}
+
+                        <SettingProp path="history.showCurrentRow" />
+                      </SettingsSection>
+                    )}
                 </>
               )}
 

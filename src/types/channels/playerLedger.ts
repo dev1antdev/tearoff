@@ -50,6 +50,12 @@ export interface PlayerStintSnapshot {
     /** Litres and energy fraction burned so far this lap. */
     fuelUsed: number | null;
     energyUsed: number | null;
+    /**
+     * Tread worn on track so far this lap, LF, RF, LR, RR, 0..1, rounded to
+     * 0.001; null for a wheel without a live reading, which is every wheel
+     * under iRacing. Absent from a snapshot with no lap under way.
+     */
+    treadUsed?: readonly (number | null)[];
     /** LEDGER_LAP_* bits so far. */
     flags: number;
   };

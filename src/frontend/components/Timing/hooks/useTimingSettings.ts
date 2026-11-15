@@ -44,8 +44,8 @@ export const resolveTimingSettings = (saved: unknown): TimingConfig => {
       opacity: within(background.opacity, 0, 100, DEFAULTS.background.opacity),
     },
     tiles: tileSwitches(saved.tiles),
-    // All four are kept: a reference the delta channel does not carry yet
-    // reads dashes in the widget rather than being swapped for another.
+    // The lap chosen and only that one: where it does not exist yet the
+    // widget reads dashes rather than being given another.
     deltaReference: oneOf(
       saved.deltaReference,
       ['sessionBest', 'allTime', 'stintBest', 'lastLap'],

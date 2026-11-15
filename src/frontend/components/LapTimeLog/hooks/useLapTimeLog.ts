@@ -2,65 +2,24 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   useLapLogSnapshot,
   usePersonalBestStore,
+  usePlayerLedgerSnapshot,
+  usePlayerStintSnapshot,
   useSessionStore,
   useDriverCarIdx,
 } from '@irdashies/context';
-import { TrackLocation } from '@irdashies/types';
-import type { LapEntry } from '../demoData';
+import { LEDGER_LAP_INCIDENT, LEDGER_LAP_VOIDED } from '@irdashies/types';
+import {
+  lapEntries,
+  listedStintId,
+  liveLapEntry,
+} from '@irdashies/domain/ledger';
 import { useLapTimeLogSettings } from './useLapTimeLogSettings';
 
-/**
- * A lap counts as pitted if the car was in the pit lane or its box at any point
- * during it. That covers the in-lap and the out-lap without special-casing
- * either: an out-lap starts in the stall, so the surface already reads
- * InPitStall when it begins.
- */
-const PIT_SURFACES: readonly number[] = [
-  TrackLocation.InPitStall,
-  TrackLocation.ApproachingPits,
-];
-
-/**
- * Exported so the mapping onto TrackLocation is testable. It is worth pinning:
- * this file previously compared the surface against a hardcoded 4, which is not
- * a value the enum can take, so the off-track check never fired.
- */
-/** Where a lap is far enough from the line that LMU's void flag is its own. */
-const LMU_INVALIDATION_START_PCT = 0.05;
-
-export const isPitSurface = (surface: number): boolean =>
-  PIT_SURFACES.includes(surface);
-
-export const isOffTrackSurface = (surface: number): boolean =>
-  surface === TrackLocation.OffTrack;
-/**
- * The retained history has to outrun the display, not match it. "Number Of Laps
- * To Show" goes up to 20, and with pitted laps hidden the display filters this
- * list before taking that many — so a cap of 20 made the setting unsatisfiable
- * the moment a stop happened: the clean laps that could have filled the gap had
- * already been dropped here. 60 covers the maximum display count even on short
- * fuel runs where two laps in three are in-laps or out-laps, and the entries are
- * five numbers each.
- */
-const MAX_HISTORY_ENTRIES = 60;
 const FREEZE_TIME = 5;
+/** The lap under way no longer counts: the sim voided it, or an incident. */
+const DIRTY_LAP_FLAGS = LEDGER_LAP_VOIDED | LEDGER_LAP_INCIDENT;
 
 export const useLapTimeLog = () => {
-  // reset functions
-  const resetSessionState = () => {
-    setHistory([]);
-    setSavedDelta(0);
-    setIsDirty(false);
-    setIsPitted(false);
-    setDisplayTime(undefined);
-  };
-
-  const resetLapState = () => {
-    setIsDirty(false);
-    setIsPitted(false);
-    setSavedDelta(0);
-  };
-
   // Get settings
   const settings = useLapTimeLogSettings();
 
@@ -83,9 +42,6 @@ export const useLapTimeLog = () => {
   }, [playerCarIdx, drivers]);
 
   // States
-  const [history, setHistory] = useState<LapEntry[]>([]);
-  const [isDirty, setIsDirty] = useState<boolean>(false);
-  const [isPitted, setIsPitted] = useState<boolean>(false);
   const [displayTime, setDisplayTime] = useState<number | undefined>(0);
   const [savedDelta, setSavedDelta] = useState<number>(0);
 
@@ -99,19 +55,20 @@ export const useLapTimeLog = () => {
   const carIdxBestLapTime = snapshot?.carIdxBestLapTime;
   const sessionNum = snapshot?.sessionNum ?? 0;
   const sessionTime = snapshot?.sessionTime ?? 0;
-  const playerTrackSurface = snapshot?.playerTrackSurface ?? 0;
-  const incidentCount = snapshot?.incidentCount ?? 0;
   const lapDistPct = snapshot?.lapDistPct ?? 0;
-  const lapInvalidated = snapshot?.lapInvalidated ?? false;
-  const lastLapUnderCaution = snapshot?.lastLapUnderCaution ?? false;
+
+  // The player's ledger: every lap driven and what it cost, kept in the main
+  // process whether or not this widget was on screen. The history is read
+  // from it, so it survives a reload and has the laps driven while hidden.
+  const historyEnabled = settings?.history?.enabled ?? true;
+  const ledger = usePlayerLedgerSnapshot(historyEnabled);
+  const stint = usePlayerStintSnapshot();
 
   // Refs
   const lastLoggedLap = useRef<number>(lapCompleted);
   const lastLoggedTime = useRef<number>(0);
   const prevSessionNum = useRef<number>(sessionNum);
   const prevSessionTime = useRef<number>(sessionTime);
-  const referenceAtStartOfLap = useRef<number>(0);
-  const incidentsAtLapStart = useRef<number>(incidentCount);
   const lastDeltaUpdate = useRef<number>(0);
   const prevLapDistPct = useRef<number>(0);
   const isTransitioning = useRef<boolean>(false);
@@ -157,15 +114,14 @@ export const useLapTimeLog = () => {
     if (sessionChanged || sessionRestarted) {
       lastLoggedLap.current = lapCompleted;
       lastLoggedTime.current = lastLapTime;
-      incidentsAtLapStart.current = incidentCount;
-      referenceAtStartOfLap.current = 0;
       lastDeltaUpdate.current = 0;
       isTransitioning.current = false;
-      resetSessionState();
+      setSavedDelta(0);
+      setDisplayTime(undefined);
     }
     prevSessionNum.current = sessionNum;
     prevSessionTime.current = sessionTime;
-  }, [sessionNum, sessionTime, lapCompleted, incidentCount, lastLapTime]);
+  }, [sessionNum, sessionTime, lapCompleted, lastLapTime]);
 
   // 2. check for new lap (use dist method instead of delayed lapCompleted)
   useEffect(() => {
@@ -200,40 +156,9 @@ export const useLapTimeLog = () => {
         return prev;
       });
     }
-    // 3c. incident/dirty lap logic
-    setIsDirty((prev) => {
-      if (!prev) {
-        // Was TRACK_SURFACE_OFF_TRACK = 4, which is not a value TrackLocation
-        // can take, so this never fired and only the incident half of the
-        // check worked.
-        const offTrack = isOffTrackSurface(playerTrackSurface);
-        const incidentOccurred = incidentCount > incidentsAtLapStart.current;
-        // LMU's void flag (a track cut with no incident or off-track surface
-        // to show for it). Latched like the rest; ignored in the first stretch
-        // of the lap, where it may still be the previous lap's -- LMU keeps it
-        // set for the rest of a voided lap, so an early cut is still caught.
-        const voided =
-          lapInvalidated && lapDistPct >= LMU_INVALIDATION_START_PCT;
-        return offTrack || incidentOccurred || voided;
-      }
-      return prev;
-    });
+  }, [currentLapTime, liveDelta, deltaCheck, referenceTime, lapDistPct]);
 
-    // Latched for the lap: the surface reads OnTrack again long before the lap
-    // is scored, so sampling it at the crossing would miss the stop entirely.
-    setIsPitted((prev) => prev || isPitSurface(playerTrackSurface));
-  }, [
-    currentLapTime,
-    liveDelta,
-    deltaCheck,
-    referenceTime,
-    incidentCount,
-    playerTrackSurface,
-    lapInvalidated,
-    lapDistPct,
-  ]);
-
-  // 4. log lap history and reset
+  // 4. a lap was scored: the prediction starts over for the new one
   useEffect(() => {
     // wait for new last lap time
     const isNewLapScored =
@@ -241,38 +166,11 @@ export const useLapTimeLog = () => {
     const isValidTime =
       lastLapTime > 0 && lastLapTime !== lastLoggedTime.current;
     if (!isNewLapScored || !isValidTime) return;
-    // prevent duplicates
-    if (history.some((entry) => entry.lap === lapCompleted)) return;
-    // add new entry
-    const newEntry: LapEntry = {
-      lap: lapCompleted,
-      time: lastLapTime,
-      delta:
-        referenceAtStartOfLap.current > 0
-          ? lastLapTime - referenceAtStartOfLap.current
-          : 0,
-      dirty: isDirty,
-      pitted: isPitted,
-      caution: lastLapUnderCaution,
-    };
-    setHistory((prev) => [newEntry, ...prev].slice(0, MAX_HISTORY_ENTRIES));
-    // reset for new lap
     lastLoggedLap.current = lapCompleted;
     lastLoggedTime.current = lastLapTime;
-    referenceAtStartOfLap.current = referenceTime ?? 0;
-    incidentsAtLapStart.current = incidentCount;
     isTransitioning.current = false;
-    resetLapState();
-  }, [
-    lapCompleted,
-    lastLapTime,
-    isDirty,
-    isPitted,
-    lastLapUnderCaution,
-    incidentCount,
-    referenceTime,
-    history,
-  ]);
+    setSavedDelta(0);
+  }, [lapCompleted, lastLapTime]);
 
   // 5. check personal best
   //
@@ -297,6 +195,36 @@ export const useLapTimeLog = () => {
     }
   }, [ownBestLapTime, setPersonalBest]);
 
+  // 6. the history, from the ledger's rows of this session
+  const wearMode = settings?.history?.wearMode ?? 'average';
+  const ledgerLaps = ledger?.laps;
+  const ledgerSessionNum = ledger?.sessionNum ?? null;
+  // Named before the rows are built, so that the stint under way moving
+  // five times a second does not rebuild them.
+  const onlyStintId =
+    settings?.history?.thisStintOnly && ledgerLaps
+      ? listedStintId(ledgerLaps, stint, ledgerSessionNum)
+      : undefined;
+  const history = useMemo(
+    () =>
+      ledgerLaps
+        ? lapEntries(ledgerLaps, {
+            sessionNum: ledgerSessionNum,
+            deltaMethod,
+            wearMode,
+            stintId: onlyStintId,
+          })
+        : [],
+    [ledgerLaps, ledgerSessionNum, deltaMethod, wearMode, onlyStintId]
+  );
+
+  // 7. the lap under way, as the ledger has it so far
+  const currentRow = useMemo(
+    () => (stint?.available ? liveLapEntry(stint, wearMode) : undefined),
+    [stint, wearMode]
+  );
+  const isDirty = ((stint?.lap.flags ?? 0) & DIRTY_LAP_FLAGS) !== 0;
+
   return {
     current: displayTime,
     lastlap: lastLapTime,
@@ -307,6 +235,7 @@ export const useLapTimeLog = () => {
     overall: sessionBestOverall,
     dirty: isDirty,
     history: history,
+    currentRow: currentRow,
     settings: settings,
   };
 };

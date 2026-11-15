@@ -717,6 +717,35 @@ describe('PlayerLedgerRuntime', () => {
       expect(snapshot.lap.energyUsed).toBeCloseTo(0.02 * 0.25, 4);
     });
 
+    it('carries the tread the lap under way has worn so far', () => {
+      const harness = createLedgerHarness({ treadPerLap: 0.02 });
+      const { sim, runtime } = harness;
+      sim.emit();
+      // Joined half-way round: no lap is open until the line is crossed.
+      expect(runtime.stintSnapshot().lap.treadUsed).toBeUndefined();
+
+      sim.driveLaps(1.75);
+
+      // A quarter of a lap in, a quarter of a lap's wear on each wheel.
+      expect(runtime.stintSnapshot().lap.treadUsed).toEqual([
+        0.005, 0.005, 0.005, 0.005,
+      ]);
+    });
+
+    it('has no tread figure for the lap where tread is only read in the pits', () => {
+      const harness = createLedgerHarness({ simulator: 'iracing' });
+      const { sim, runtime } = harness;
+      sim.emit();
+      sim.driveLaps(1.75);
+
+      expect(runtime.stintSnapshot().lap.treadUsed).toEqual([
+        null,
+        null,
+        null,
+        null,
+      ]);
+    });
+
     it('takes its rates from the stint and says how long the budget lasts', () => {
       const harness = createLedgerHarness();
       const { sim, runtime } = harness;

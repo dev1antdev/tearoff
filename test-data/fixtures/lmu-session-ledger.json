@@ -1,0 +1,142 @@
+{
+  "ledger": {
+    "laps": [
+      {
+        "id": 0,
+        "stintId": "tape:2:1",
+        "sessionNum": 10,
+        "lapNumber": 2,
+        "stintLap": 2,
+        "startTime": 232.8322791579685,
+        "endTime": 319.50356582673504,
+        "lapTime": 86.67128666876656,
+        "simLapTime": 86.66023254394531,
+        "flags": 0,
+        "incidents": null,
+        "fuelAtLine": 40.285493416732514,
+        "fuelUsed": 2.303345179472636,
+        "fuelAdded": 0,
+        "energyAtLine": 0.40433424711227417,
+        "energyUsed": 0.02328011393547058,
+        "energyAdded": 0,
+        "treadAtLine": [
+          0.9762176871299744, 0.9745278358459473, 0.9731461405754089,
+          0.9722497463226318
+        ],
+        "treadUsed": [
+          0.004920303821563721, 0.005340874195098877, 0.0050154924392700195,
+          0.004819154739379883
+        ],
+        "brakeAtLine": [null, null, null, null],
+        "brakeUsed": [null, null, null, null],
+        "batteryDrainPct": null,
+        "batteryRegenPct": null,
+        "compounds": ["Medium", "Medium", "Medium", "Medium"],
+        "sectors": [32.73887634277344, 35.070098876953125, 18.85125732421875],
+        "wetness": 1,
+        "rain": 0,
+        "airTemp": 16.17459231788706,
+        "trackTemp": 41.4147124798597,
+        "position": 26,
+        "classPosition": 2
+      },
+      {
+        "id": 0,
+        "stintId": "tape:2:1",
+        "sessionNum": 10,
+        "lapNumber": 1,
+        "stintLap": 1,
+        "startTime": 143.0025,
+        "endTime": 232.8322791579685,
+        "lapTime": 89.82977915796849,
+        "simLapTime": 97.82322692871094,
+        "flags": 512,
+        "incidents": null,
+        "fuelAtLine": 42.58883859620515,
+        "fuelUsed": 2.2144758811818477,
+        "fuelAdded": 0,
+        "energyAtLine": 0.42761436104774475,
+        "energyUsed": 0.022368282079696655,
+        "energyAdded": 0,
+        "treadAtLine": [
+          0.9811379909515381, 0.9798687100410461, 0.978161633014679,
+          0.9770689010620117
+        ],
+        "treadUsed": [
+          0.002691507339477539, 0.003803730010986328, 0.004723787307739258,
+          0.005967915058135986
+        ],
+        "brakeAtLine": [null, null, null, null],
+        "brakeUsed": [null, null, null, null],
+        "batteryDrainPct": null,
+        "batteryRegenPct": null,
+        "compounds": ["Medium", "Medium", "Medium", "Medium"],
+        "sectors": [43.45890808105469, 35.35700988769531, 19.007308959960938],
+        "wetness": 1,
+        "rain": 0,
+        "airTemp": 16.792441973856853,
+        "trackTemp": 41.46535406127094,
+        "position": 28,
+        "classPosition": 4
+      }
+    ],
+    "stints": [],
+    "sessionNum": 10,
+    "version": 5
+  },
+  "stint": {
+    "available": true,
+    "state": "running",
+    "budget": "virtualEnergy",
+    "stint": {
+      "id": "tape:2:1",
+      "ordinal": 1,
+      "sessionNum": 10,
+      "driver": "Valtteri Bottas",
+      "own": true,
+      "openedBy": "joined",
+      "closedBy": null,
+      "startTime": 139.9425,
+      "endTime": 379,
+      "startLap": 0,
+      "endLap": 2,
+      "laps": 2,
+      "startFuel": 44.91880249086867,
+      "endFuel": 38.62,
+      "startEnergy": 0.44999998807907104,
+      "endEnergy": 0.3875,
+      "startTread": [
+        0.9838294982910156, 0.9836724400520325, 0.9828877449035645,
+        0.9830401539802551
+      ],
+      "endTread": [0.974, 0.971, 0.97, 0.969],
+      "startBrake": [null, null, null, null],
+      "endBrake": [null, null, null, null],
+      "compounds": ["Medium", "Medium", "Medium", "Medium"],
+      "bestLap": 86.67128666876656,
+      "avgLap": 86.67128666876656,
+      "cleanLaps": 1,
+      "paceDelta": null,
+      "consistency": null,
+      "passes": [],
+      "stop": null
+    },
+    "lap": {
+      "lapNumber": 3,
+      "stintLap": 3,
+      "fuelUsed": 1.66,
+      "energyUsed": 0.0169,
+      "treadUsed": [0.003, 0.003, 0.004, 0.004],
+      "flags": 0
+    },
+    "rates": {
+      "fuel": 2.303,
+      "energy": 0.02328,
+      "lapTime": 86.671,
+      "source": "stint"
+    },
+    "budgetLapsLeft": 16.6,
+    "sessionNum": 10,
+    "version": 1
+  }
+}

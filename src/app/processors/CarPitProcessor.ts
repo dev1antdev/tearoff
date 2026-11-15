@@ -11,13 +11,8 @@ import {
   TrackLocation,
 } from '@irdashies/types';
 import type { TelemetryProcessor } from './TelemetryProcessor';
+import { isStandingStill, PIT_LAP_SECONDS, STOP_SECONDS } from './pitVisit';
 
-/** A visit to the pit lane longer than this makes the lap a pit lap. */
-const PIT_LAP_SECONDS = 2;
-/** Standing for longer than this makes the visit a stop. */
-const STOP_SECONDS = 1;
-/** The player's car stands when it is slower than this, m/s. */
-const STANDING_SPEED_MS = 0.1;
 /**
  * Two frames further apart than this are not neighbours: the session was
  * paused, or frames stopped arriving. Nothing is added to a standing time
@@ -177,8 +172,9 @@ const resize = <T>(target: T[], length: number, fill: T): boolean => {
  *
  * A car stands when LMU's pit state says it is stopped, or under iRacing
  * when its track surface is the pit stall; the player's own car, whose speed
- * is known, when it is slower than 0.1 m/s. Standing for more than a second
- * is a stop and restarts the stint. Frames in which a car is not in the
+ * is known, from below half a metre per second until it is above one again
+ * (`pitVisit.ts`, the definition the stint record and the pit stop timer
+ * share). Standing for more than a second is a stop and restarts the stint. Frames in which a car is not in the
  * world are skipped, so a driver change is one stop and not two.
  *
  * Energy is sampled from one lap completion to the next, each reading taken
@@ -367,7 +363,7 @@ export class CarPitProcessor implements TelemetryProcessor<
           : CAR_PIT_ON_TRACK;
       const standing =
         carIdx === playerCarIdx && playerSpeed !== null
-          ? playerSpeed < STANDING_SPEED_MS
+          ? isStandingStill(car.standing, playerSpeed)
           : pitStates
             ? numberAt(pitStates, carIdx, 0) === PIT_STATE_STOPPED
             : surface === TrackLocation.InPitStall;

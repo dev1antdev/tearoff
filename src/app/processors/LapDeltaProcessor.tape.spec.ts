@@ -37,6 +37,8 @@ interface Sample {
   sessionTime: number;
   delta: number | null;
   allTimeDelta: number | null;
+  stintBestDelta: number | null;
+  lastLapDelta: number | null;
   simDelta: number | null;
 }
 
@@ -100,6 +102,7 @@ const playTape = async () => {
   /** When the player's session best first appeared, and each time it moved. */
   const bestLapEvents: { sessionTime: number; lapTime: number }[] = [];
   let simBestLap = -1;
+  let playerCarIdx = -1;
   let lastElapsed = -1;
   let lastSessionAt = Number.NEGATIVE_INFINITY;
   let lastTick = Number.NEGATIVE_INFINITY;
@@ -129,6 +132,7 @@ const playTape = async () => {
       }
       const telemetry = mapLmuTelemetry(raw, lapDistanceState, opponentState);
       const playerIdx = telemetry.PlayerCarIdx?.value?.[0] as number;
+      playerCarIdx = playerIdx;
       const versionBefore = reference.snapshot().version;
       recorder.onFrame(telemetry);
       reference.onFrame(telemetry);
@@ -155,6 +159,8 @@ const playTape = async () => {
         sessionTime,
         delta: snapshot.sessionBest.delta,
         allTimeDelta: snapshot.allTime.delta,
+        stintBestDelta: snapshot.stintBest.delta,
+        lastLapDelta: snapshot.lastLap.delta,
         simDelta: telemetry.LapDeltaToSessionBestLap_OK?.value?.[0]
           ? (telemetry.LapDeltaToSessionBestLap?.value?.[0] as number)
           : null,
@@ -164,13 +170,30 @@ const playTape = async () => {
     sdk.stop();
     vi.unstubAllEnvs();
   }
-  return { frames, samples, bestLapEvents, recorded, simBestLap, delta };
+  return {
+    frames,
+    samples,
+    bestLapEvents,
+    recorded,
+    simBestLap,
+    playerCarIdx,
+    delta,
+    reference,
+  };
 };
 
 describe.skipIf(!available)('lap delta on a recorded LMU session', () => {
   it('times laps from the line and agrees with the delta the sim reports', async () => {
-    const { frames, samples, bestLapEvents, recorded, simBestLap, delta } =
-      await playTape();
+    const {
+      frames,
+      samples,
+      bestLapEvents,
+      recorded,
+      simBestLap,
+      playerCarIdx,
+      delta,
+      reference,
+    } = await playTape();
 
     // The whole recording was read, not a prefix of it.
     expect(frames).toBeGreaterThan(10_000);
@@ -265,5 +288,47 @@ describe.skipIf(!available)('lap delta on a recorded LMU session', () => {
     const last = compared.at(-1);
     expect(last?.delta).toBeCloseTo(last?.simDelta ?? 0, 1);
     expect(delta.snapshot().sessionBest.lapTime).toBeCloseTo(86.671, 2);
+
+    // That one flying lap is the last lap and the best of the stint as well
+    // as of the session: the same lap, held once. The lap from the rolling
+    // start is none of them, and with no stop in the recording the stint is
+    // still the first.
+    const laps = reference.snapshot();
+    const sessionBest = laps.bestLaps.find(
+      ([carIdx]) => carIdx === playerCarIdx
+    )?.[1];
+    expect(sessionBest).toBeDefined();
+    expect(laps.playerLastLap).toBe(sessionBest);
+    expect(laps.playerStintBestLap).toBe(sessionBest);
+    expect(laps.playerStintId).toBe(0);
+
+    // So on the third lap the delta to the stint best and to the last lap
+    // are the delta to the session best, frame for frame, and before the
+    // second crossing there is none to either.
+    const timed = samples.filter((sample) => sample.delta !== null);
+    expect(timed.length).toBeGreaterThan(1000);
+    for (const sample of samples) {
+      expect(sample.stintBestDelta).toBe(sample.delta);
+      expect(sample.lastLapDelta).toBe(sample.delta);
+    }
+    const snapshot = delta.snapshot();
+    expect(snapshot.stintBest.lapTime).toBe(snapshot.sessionBest.lapTime);
+    expect(snapshot.lastLap.lapTime).toBe(snapshot.sessionBest.lapTime);
+    expect(snapshot.stintId).toBe(0);
+
+    // The result of that lap at the line: its time by this clock, and no
+    // gap to anything, because no reference existed before the crossing --
+    // not even the lap itself, which the recorder held from that frame on.
+    const final = snapshot.lastLapFinal;
+    expect(final?.lapTime).toBeCloseTo(86.671, 2);
+    expect(final?.lapTime).toBe(snapshot.sessionBest.lapTime);
+    expect(final?.completedAt).toBeGreaterThan(319);
+    expect(final?.completedAt).toBeLessThan(320);
+    expect(final).toMatchObject({
+      sessionBest: null,
+      allTime: null,
+      stintBest: null,
+      lastLap: null,
+    });
   }, 90_000);
 });

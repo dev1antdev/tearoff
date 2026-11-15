@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { DashboardProvider } from '@irdashies/context';
 import { mockDashboardBridge } from '@irdashies/storybook';
+import { getWidgetDefaultConfig } from '@irdashies/types';
 import { TimingSettings } from './TimingSettings';
+import { dashboardBridgeWith, ShowSection } from './settingsStory';
 
 const meta = {
   title: 'components/Settings/TimingSettings',
@@ -28,6 +30,36 @@ export const Options: Story = {
       return <Story />;
     },
   ],
+};
+
+/**
+ * Further down the page: the stint best among the optional tiles, and the
+ * stint best chosen as the lap the delta is measured against.
+ */
+export const StintBest: Story = {
+  decorators: [
+    (Story) => {
+      localStorage.setItem('timingTab', 'options');
+      return (
+        <ShowSection title="More Tiles">
+          <Story />
+        </ShowSection>
+      );
+    },
+  ],
+  render: () => (
+    <DashboardProvider
+      bridge={dashboardBridgeWith('timing', {
+        deltaReference: 'stintBest',
+        tiles: {
+          ...getWidgetDefaultConfig('timing').tiles,
+          stintBest: true,
+        },
+      })}
+    >
+      <TimingSettings />
+    </DashboardProvider>
+  ),
 };
 
 /** The sessions the widget shows in, and whether it hides off track. */

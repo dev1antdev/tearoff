@@ -17,6 +17,13 @@ interface CompoundProps {
    * is a real LMU strategy (a car can run a wet front and a dry rear).
    */
   wheelCompounds?: readonly number[];
+  /**
+   * The four wheels by compound name, FL, FR, RL, RR, for a caller that
+   * holds names and not the session's indices: the player's ledger records
+   * the name, so a stint stays readable once its session's tyre list is
+   * gone. A wheel with no reading is null. Takes the place of the indices.
+   */
+  compoundNames?: readonly (string | null)[];
   mockTires?: Tire[];
 }
 
@@ -68,11 +75,10 @@ const colorForName = (name: string | undefined): string => {
  * labelled as such -- which is how iRacing presents it and what the colour
  * table's `Dry` entry is for.
  */
-const nameFor = (
+const labelFor = (
   tires: Tire[] | undefined,
-  index: number
+  raw: string | undefined
 ): string | undefined => {
-  const raw = tires?.find((tire) => tire.TireIndex === index)?.TireCompoundType;
   if (!tires || tires.length !== 2) return raw;
   const types = tires.map((tire) => tire.TireCompoundType);
   if (types.includes('Hard') && types.includes('Wet') && raw === 'Hard') {
@@ -80,6 +86,15 @@ const nameFor = (
   }
   return raw;
 };
+
+const nameFor = (
+  tires: Tire[] | undefined,
+  index: number
+): string | undefined =>
+  labelFor(
+    tires,
+    tires?.find((tire) => tire.TireIndex === index)?.TireCompoundType
+  );
 
 const Tyre = ({ color }: { color: string }) => (
   <svg
@@ -149,9 +164,28 @@ const WheelDots = ({ colors }: { colors: readonly string[] }) => (
 );
 
 export const Compound = memo(
-  ({ tireCompound, wheelCompounds, mockTires }: CompoundProps) => {
+  ({
+    tireCompound,
+    wheelCompounds,
+    compoundNames,
+    mockTires,
+  }: CompoundProps) => {
     const sessionDriverTires = useDriverTires();
     const tires = mockTires || sessionDriverTires;
+
+    if (compoundNames?.length === 4) {
+      // The same two views as for indices: one glyph for a set that agrees,
+      // four dots for a mixed one, nothing with no compound at all.
+      if (compoundNames.every((name) => name === null)) return null;
+      const colors = compoundNames.map((name) =>
+        name === null ? NO_DATA : colorForName(labelFor(tires, name))
+      );
+      return compoundNames.every((name) => name === compoundNames[0]) ? (
+        <Tyre color={colors[0]} />
+      ) : (
+        <WheelDots colors={colors} />
+      );
+    }
 
     const wheels = wheelCompounds?.length === 4 ? wheelCompounds : undefined;
     const uniform =

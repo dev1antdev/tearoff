@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   useDashboard,
@@ -48,8 +48,44 @@ const withSettings = (showOnlyWhenOnTrack: boolean) =>
     overall: 103.6,
     dirty: false,
     history: [],
+    currentRow: undefined,
     settings: { ...defaults, showOnlyWhenOnTrack },
   });
+
+/**
+ * Two laps the user drove and the third under way, with the row for the lap
+ * under way switched on.
+ */
+const withHistory = () =>
+  vi.mocked(useLapTimeLog).mockReturnValue({
+    current: 52.3,
+    lastlap: 104.53,
+    bestlap: 104.054,
+    alltimelap: 103.87,
+    reference: 104.054,
+    delta: 0.1,
+    overall: 103.6,
+    dirty: false,
+    history: [
+      { lap: 2, time: 104.53, delta: 0.476 },
+      { lap: 1, time: 104.054, delta: 0 },
+    ],
+    currentRow: { lap: 3, stintLap: 3, fuelUsed: 1.2, energyUsed: null },
+    settings: {
+      ...defaults,
+      showOnlyWhenOnTrack: true,
+      history: { ...defaults.history, showCurrentRow: true },
+    },
+  });
+
+/** The labels of the history's rows, top to bottom. */
+const lapLabels = (container: HTMLElement) =>
+  within(container)
+    .queryAllByText(/^LAP \d+$/)
+    .map((label) => label.textContent);
+
+const historyNote = (container: HTMLElement) =>
+  container.querySelector('[data-testid="lap-history-note"]')?.textContent;
 
 const currentLap = (container: HTMLElement) =>
   container.querySelector('#current-lap')?.textContent;
@@ -111,5 +147,41 @@ describe('LapTimeLog on and off the track', () => {
     );
 
     expect(currentLap(render(<LapTimeLog />).container)).toBe('');
+  });
+
+  describe('the lap history', () => {
+    it('leads with the lap under way while the user drives', () => {
+      withHistory();
+      vi.mocked(useDrivingState).mockReturnValue(where({ isDriving: true }));
+
+      const { container } = render(<LapTimeLog />);
+
+      expect(lapLabels(container)).toEqual(['LAP 3', 'LAP 2', 'LAP 1']);
+      expect(historyNote(container)).toBeUndefined();
+    });
+
+    it('is the user’s laps so far while a team-mate drives, and says so', () => {
+      // The ledger records the laps the user drives. The lap a team-mate is
+      // on is timed above; it is no row of the list, which stands still.
+      withHistory();
+      vi.mocked(useDrivingState).mockReturnValue(
+        where({ isWatching: true, isWatchingOwnCar: true })
+      );
+
+      const { container } = render(<LapTimeLog />);
+
+      expect(currentLap(container)).toBe('0:52.300');
+      expect(lapLabels(container)).toEqual(['LAP 2', 'LAP 1']);
+      expect(historyNote(container)).toBe('Team-mate driving · your laps');
+    });
+
+    it('is hidden with the rest while the camera is on another car', () => {
+      withHistory();
+      vi.mocked(useDrivingState).mockReturnValue(
+        where({ isWatching: true, isWatchingOtherCar: true })
+      );
+
+      expect(render(<LapTimeLog />).container.firstChild).toBeNull();
+    });
   });
 });

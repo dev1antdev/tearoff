@@ -1,60 +1,170 @@
-import { describe, it, expect } from 'vitest';
-import { TrackLocation } from '@irdashies/types';
-import { isPitSurface, isOffTrackSurface } from './useLapTimeLog';
+import { renderHook } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  EMPTY_PLAYER_LEDGER,
+  EMPTY_PLAYER_STINT,
+  LEDGER_LAP_INCIDENT,
+  LEDGER_LAP_IN_LAP,
+  LEDGER_LAP_VOIDED,
+  LEDGER_LAP_YELLOW,
+  TrackLocation,
+} from '@irdashies/types';
+import type { LapLogSnapshot, PlayerStintSnapshot } from '@irdashies/types';
+
+let snapshot: LapLogSnapshot;
+let stint: PlayerStintSnapshot | undefined;
+
+vi.mock('@irdashies/context', () => ({
+  useLapLogSnapshot: () => snapshot,
+  usePlayerLedgerSnapshot: () => EMPTY_PLAYER_LEDGER,
+  usePlayerStintSnapshot: () => stint,
+  useDriverCarIdx: () => 0,
+  useSessionStore: (selector: (state: unknown) => unknown) =>
+    selector({
+      session: {
+        WeekendInfo: { TrackID: 1 },
+        DriverInfo: { Drivers: [{ CarIdx: 0, CarPath: 'testcar' }] },
+      },
+    }),
+  usePersonalBestStore: (selector: (state: unknown) => unknown) =>
+    selector({
+      getPersonalBest: () => undefined,
+      setPersonalBest: () => undefined,
+    }),
+  useGeneralSettings: () => undefined,
+}));
+
+vi.mock('./useLapTimeLogSettings', () => ({
+  useLapTimeLogSettings: () => undefined,
+}));
+
+import { useLapTimeLog } from './useLapTimeLog';
+
+const lapLog: LapLogSnapshot = {
+  lapCompleted: 4,
+  currentLapTime: 30,
+  lastLapTime: 91,
+  bestLapTime: 90,
+  ownBestLapTime: 90,
+  carIdxBestLapTime: [],
+  sessionNum: 0,
+  sessionTime: 400,
+  playerTrackSurface: TrackLocation.OnTrack,
+  incidentCount: 0,
+  lapDistPct: 0.5,
+  deltaToSessionLastLap: 0,
+  deltaToSessionLastLapOk: false,
+  deltaToSessionBestLap: 0,
+  deltaToSessionBestLapOk: false,
+  lapInvalidated: false,
+  lastLapInvalid: false,
+  lastLapUnderCaution: false,
+  version: 0,
+};
+
+/** The stint under way, with the lap being driven as the ledger has it. */
+const driving = (
+  lap: Partial<PlayerStintSnapshot['lap']> = {}
+): PlayerStintSnapshot => ({
+  ...EMPTY_PLAYER_STINT,
+  available: true,
+  state: 'running',
+  sessionNum: 0,
+  lap: {
+    lapNumber: 5,
+    stintLap: 3,
+    fuelUsed: 0.8,
+    energyUsed: null,
+    treadUsed: [0.002, 0.002, 0.001, 0.001],
+    flags: 0,
+    ...lap,
+  },
+});
 
 /**
- * These map `PlayerTrackSurface` onto `TrackLocation`, and getting that mapping
- * wrong is silent: the value simply never matches and the check quietly does
- * nothing. That is exactly what happened before — off-track was compared
- * against a hardcoded 4, which `TrackLocation` cannot produce, so no lap was
- * ever marked dirty for going off. Every enum member is asserted so a future
- * edit has to be deliberate.
+ * What the hook says of the lap under way. It no longer watches the track
+ * surface, the incident count and the sim's void flag itself: the ledger in
+ * the main process does, for every lap whether or not this widget is on
+ * screen, and publishes what it has seen so far with the stint under way.
  */
-describe('track surface predicates', () => {
-  const everySurface = [
-    TrackLocation.NotInWorld,
-    TrackLocation.OffTrack,
-    TrackLocation.InPitStall,
-    TrackLocation.ApproachingPits,
-    TrackLocation.OnTrack,
-  ];
+describe('the lap under way', () => {
+  beforeEach(() => {
+    snapshot = { ...lapLog };
+    stint = driving();
+  });
 
-  describe('isPitSurface', () => {
-    it('is true in the pit box and in the pit lane', () => {
-      expect(isPitSurface(TrackLocation.InPitStall)).toBe(true);
-      expect(isPitSurface(TrackLocation.ApproachingPits)).toBe(true);
-    });
+  const dirtyWith = (flags: number) => {
+    stint = driving({ flags });
+    return renderHook(() => useLapTimeLog()).result.current.dirty;
+  };
 
-    it('is false everywhere else', () => {
-      expect(isPitSurface(TrackLocation.OnTrack)).toBe(false);
-      expect(isPitSurface(TrackLocation.OffTrack)).toBe(false);
-      expect(isPitSurface(TrackLocation.NotInWorld)).toBe(false);
-    });
+  it('is clean until the ledger says otherwise', () => {
+    expect(dirtyWith(0)).toBe(false);
+  });
 
-    it('matches exactly two of the five surfaces', () => {
-      // Guards against a predicate that is accidentally always true or false.
-      expect(everySurface.filter(isPitSurface)).toEqual([
-        TrackLocation.InPitStall,
-        TrackLocation.ApproachingPits,
-      ]);
+  it('is dirty once the sim has voided it', () => {
+    expect(dirtyWith(LEDGER_LAP_VOIDED)).toBe(true);
+  });
+
+  it('is dirty after an incident or an off-track', () => {
+    expect(dirtyWith(LEDGER_LAP_INCIDENT)).toBe(true);
+  });
+
+  it('is not dirty for a yellow flag or a visit to the pit lane', () => {
+    expect(dirtyWith(LEDGER_LAP_YELLOW | LEDGER_LAP_IN_LAP)).toBe(false);
+  });
+
+  it('follows the ledger, not the void flag the lap log still carries', () => {
+    // The sim's flag lingers past the line; the ledger knows whose it is.
+    snapshot = { ...snapshot, lapInvalidated: true, incidentCount: 4 };
+
+    expect(dirtyWith(0)).toBe(false);
+  });
+
+  it('is clean while the ledger has not been heard from', () => {
+    stint = undefined;
+
+    const { result } = renderHook(() => useLapTimeLog());
+
+    expect(result.current.dirty).toBe(false);
+    expect(result.current.currentRow).toBeUndefined();
+  });
+
+  it('is a row of the history, with what it has used so far', () => {
+    stint = driving({ flags: LEDGER_LAP_YELLOW });
+
+    const { result } = renderHook(() => useLapTimeLog());
+
+    expect(result.current.currentRow).toMatchObject({
+      lap: 5,
+      stintLap: 3,
+      fuelUsed: 0.8,
+      energyUsed: null,
+      wear: expect.closeTo(0.0015, 6),
+      yellow: true,
+      dirty: false,
     });
   });
 
-  describe('isOffTrackSurface', () => {
-    it('is true off track', () => {
-      expect(isOffTrackSurface(TrackLocation.OffTrack)).toBe(true);
-    });
+  it('is no row with no player car', () => {
+    stint = { ...driving(), available: false };
 
-    it('is not true for a value the enum cannot take', () => {
-      // The original bug: 4 is outside TrackLocation, so the comparison could
-      // never succeed and going off never marked a lap dirty.
-      expect(isOffTrackSurface(4)).toBe(false);
-    });
+    expect(
+      renderHook(() => useLapTimeLog()).result.current.currentRow
+    ).toBeUndefined();
+  });
 
-    it('matches exactly one of the five surfaces', () => {
-      expect(everySurface.filter(isOffTrackSurface)).toEqual([
-        TrackLocation.OffTrack,
-      ]);
+  it('is still timed from the lap log', () => {
+    const { result, rerender } = renderHook(() => useLapTimeLog());
+    expect(result.current.current).toBe(30);
+
+    snapshot = { ...snapshot, currentLapTime: 31.5 };
+    rerender();
+
+    expect(result.current).toMatchObject({
+      current: 31.5,
+      lastlap: 91,
+      bestlap: 90,
     });
   });
 });

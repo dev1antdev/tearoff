@@ -13,7 +13,6 @@ import {
 } from '@irdashies/domain/lapTiming/sectorTiles';
 import { sessionBestLapTime } from '@irdashies/domain/lapTiming/sessionBest';
 import type {
-  LapDeltaReference,
   LapDeltaSnapshot,
   LapLogSnapshot,
   LapTimesSnapshot,
@@ -25,32 +24,9 @@ import type { TimingReadings } from '../timingReadings';
 /** Where a lap is far enough from the line that LMU's void flag is its own. */
 const LAP_VOID_START_PCT = 0.05;
 
-const NO_REFERENCE: LapDeltaReference = {
-  lapTime: null,
-  delta: null,
-  trend: null,
-};
-
 /** A time in seconds, or null for the sims' ways of saying there is none. */
 const timeOrNull = (seconds: number | null | undefined): number | null =>
   typeof seconds === 'number' && seconds > 0 ? seconds : null;
-
-/**
- * One reference of the lap delta channel.
- *
- * The channel carries the session best and the all-time best. `stintBest`
- * and `lastLap` arrive with the extended delta; until then they are absent
- * and read as no reference at all, which the tiles draw as dashes.
- */
-const referenceOf = (
-  snapshot: LapDeltaSnapshot,
-  reference: TimingConfig['deltaReference']
-): LapDeltaReference =>
-  (
-    snapshot as Partial<
-      Record<TimingConfig['deltaReference'], LapDeltaReference>
-    >
-  )[reference] ?? NO_REFERENCE;
 
 const selectCurrentLap = (snapshot: SessionTimingSnapshot): number =>
   snapshot.currentLap;
@@ -141,7 +117,11 @@ export const useTimingReadings = (
 
   const selectLapDelta = useCallback(
     (snapshot: LapDeltaSnapshot) => {
-      const reference = referenceOf(snapshot, deltaReference);
+      // The lap the settings choose and only that one: the best of the
+      // session, of all time or of the stint, or the last lap. Each is the
+      // user's own, and one that does not exist yet has no time and no
+      // delta, which the tiles draw as dashes.
+      const reference = snapshot[deltaReference];
       return {
         // Thousandths are all a tile can show.
         delta:
@@ -149,12 +129,8 @@ export const useTimingReadings = (
             ? null
             : Math.round(reference.delta * 1000) / 1000,
         referenceLapTime: timeOrNull(reference.lapTime),
-        allTimeBestLapTime: timeOrNull(
-          referenceOf(snapshot, 'allTime').lapTime
-        ),
-        stintBestLapTime: timeOrNull(
-          referenceOf(snapshot, 'stintBest').lapTime
-        ),
+        allTimeBestLapTime: timeOrNull(snapshot.allTime.lapTime),
+        stintBestLapTime: timeOrNull(snapshot.stintBest.lapTime),
       };
     },
     [deltaReference]

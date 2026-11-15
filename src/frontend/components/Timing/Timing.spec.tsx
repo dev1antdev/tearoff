@@ -558,8 +558,7 @@ describe('resolveTimingSettings', () => {
     expect(resolved.background.opacity).toBe(100);
   });
 
-  it('keeps a reference the delta channel does not carry yet', () => {
-    // Saved by a build that offers it: not swapped for another lap.
+  it('keeps a stored stint-best or last-lap reference', () => {
     expect(
       resolveTimingSettings({ deltaReference: 'stintBest' }).deltaReference
     ).toBe('stintBest');
@@ -627,9 +626,17 @@ describe('Timing', () => {
     ...overrides,
   });
 
+  const noReference = { lapTime: null, delta: null, trend: null };
+
+  // Three laps into a stint: its best a little off the session's, and the
+  // last lap a little off that.
   const lapDelta: LapDeltaSnapshot = {
     sessionBest: { lapTime: 104.054, delta: 0.0841, trend: 0.02 },
     allTime: { lapTime: 103.87, delta: 0.268, trend: 0.02 },
+    stintBest: { lapTime: 104.312, delta: -0.1739, trend: 0.02 },
+    lastLap: { lapTime: 104.53, delta: -0.3919, trend: 0.02 },
+    lastLapFinal: null,
+    stintId: 2,
     sessionNum: 0,
     version: 1,
   };
@@ -643,6 +650,8 @@ describe('Timing', () => {
     previousLapSectorUnclean: [false, false, false],
     sessionBestSectorTimes: [31.204, 40.112, 32.738],
     previousSessionBestSectorTimes: [31.48, 40.312, 32.738],
+    sessionBestLapSectorTimes: [31.48, 40.312, 32.738],
+    finishedLapSectorTimes: [31.48, 40.312, 32.738],
     ...overrides,
   });
 
@@ -659,6 +668,7 @@ describe('Timing', () => {
     sectorEntryValid: true,
     inclusive: sectorResult(),
     clean: sectorResult(),
+    allTime: null,
     sessionNum: 0,
     version: 1,
     ...overrides,
@@ -762,10 +772,42 @@ describe('Timing', () => {
     expect(value(container, 'predicted-lap').textContent).toBe('1:44.138');
   });
 
-  it.each(['stintBest', 'lastLap'])(
-    'shows dashes for the stored reference %s, which the channel does not carry',
+  it('measures against the best lap of the stint when set to', () => {
+    withConfig({
+      deltaReference: 'stintBest',
+      tiles: { predictedLap: true, stintBest: true },
+    });
+
+    const { container } = render(<Timing />);
+
+    expect(value(container, 'delta').textContent).toBe('-0.174');
+    expect(tone(container, 'delta')).toContain('text-green-400');
+    // The stint best plus the delta to it: the same lap as by any reference.
+    expect(value(container, 'predicted-lap').textContent).toBe('1:44.138');
+    expect(value(container, 'stint-best').textContent).toBe('1:44.312');
+  });
+
+  it('measures against the last lap when set to', () => {
+    withConfig({ deltaReference: 'lastLap', tiles: { predictedLap: true } });
+
+    const { container } = render(<Timing />);
+
+    expect(value(container, 'delta').textContent).toBe('-0.392');
+    expect(value(container, 'predicted-lap').textContent).toBe('1:44.138');
+  });
+
+  it.each(['stintBest', 'lastLap'] as const)(
+    'shows dashes for %s before that lap exists, and no other lap in its place',
     (deltaReference) => {
-      withConfig({ deltaReference, tiles: { predictedLap: true } });
+      // The first lap of a stint, or of a session: the others stand.
+      withConfig({
+        deltaReference,
+        tiles: { predictedLap: true, stintBest: true },
+      });
+      withChannels({
+        ...midLapChannels,
+        'lap-delta.snapshot': { ...lapDelta, [deltaReference]: noReference },
+      });
 
       const { container } = render(<Timing />);
 
@@ -773,21 +815,52 @@ describe('Timing', () => {
       expect(value(container, 'predicted-lap').textContent).toBe('-:--.---');
       // The rest of the panel carries on.
       expect(value(container, 'last-lap').textContent).toBe('1:44.530');
+      expect(value(container, 'stint-best').textContent).toBe(
+        deltaReference === 'stintBest' ? '-:--.---' : '1:44.312'
+      );
     }
   );
 
   it('does not fall back to the other reference when the chosen one is missing', () => {
     withChannels({
       ...midLapChannels,
-      'lap-delta.snapshot': {
-        ...lapDelta,
-        sessionBest: { lapTime: null, delta: null, trend: null },
-      },
+      'lap-delta.snapshot': { ...lapDelta, sessionBest: noReference },
     });
 
     const { container } = render(<Timing />);
 
     expect(value(container, 'delta').textContent).toBe('-.---');
+  });
+
+  it('keeps the stint best the user’s own through a team-mate’s stint', () => {
+    // The lap being timed is the team-mate's; the references are the laps
+    // the user drove, which the recorder takes none of a team-mate's for.
+    withConfig({ deltaReference: 'stintBest', tiles: { stintBest: true } });
+    vi.mocked(useDrivingState).mockReturnValue(
+      where({ isWatching: true, isWatchingOwnCar: true })
+    );
+
+    const { container } = render(<Timing />);
+
+    expect(value(container, 'delta').textContent).toBe('-0.174');
+    expect(value(container, 'stint-best').textContent).toBe('1:44.312');
+  });
+
+  it('shows no delta to the stint best with the camera on another car', () => {
+    withConfig({
+      deltaReference: 'stintBest',
+      tiles: { stintBest: true },
+      showOnlyWhenOnTrack: false,
+    });
+    vi.mocked(useDrivingState).mockReturnValue(
+      where({ isWatching: true, isWatchingOtherCar: true })
+    );
+
+    const { container } = render(<Timing />);
+
+    expect(value(container, 'delta').textContent).toBe('-.---');
+    // The lap itself is the user's own and is still shown.
+    expect(value(container, 'stint-best').textContent).toBe('1:44.312');
   });
 
   it('marks a last lap the sim gave no time', () => {

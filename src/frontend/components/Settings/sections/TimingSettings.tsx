@@ -69,6 +69,7 @@ export const TimingSettings = () => {
     tiles.predictedLap ||
     tiles.sessionBest ||
     tiles.allTimeBest ||
+    tiles.stintBest ||
     tiles.pace;
 
   return (
@@ -114,12 +115,6 @@ export const TimingSettings = () => {
                     <SettingProp path="tiles.sectors" />
                   </SettingsSection>
 
-                  {/*
-                    The stint best has no switch here yet, and the reference
-                    below offers two laps of the four the setting can hold:
-                    the stint best and the last lap both arrive with the
-                    extended lap delta, and until then could only show dashes.
-                  */}
                   <SettingsSection title="More Tiles">
                     <SettingProp path="tiles.currentLap" />
                     <SettingProp path="tiles.predictedLap" />
@@ -127,6 +122,7 @@ export const TimingSettings = () => {
                     <SettingProp path="tiles.sessionBest" />
                     <SettingProp path="tiles.allTimeBest" />
                     <SettingDivider />
+                    <SettingProp path="tiles.stintBest" />
                     <SettingProp path="tiles.pace" />
                   </SettingsSection>
 

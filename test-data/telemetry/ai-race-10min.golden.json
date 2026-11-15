@@ -4334,7 +4334,7 @@
       "name": "sector-timing-state",
       "schemaVersion": 1,
       "frameCount": 36000,
-      "rollingHash": "7ef8dc1c26c495f8b218a5575807d879fe079c1d4f4786eea3ecb747a31e7b34",
+      "rollingHash": "7f2ea9fa58ac708304b7a8e54122cd69f80a78d4fc525cc9313e8c314718be69",
       "checkpoints": {
         "firstFrame": {
           "sectors": [],
@@ -4347,7 +4347,9 @@
             "currentLapSectorUnclean": [],
             "previousLapSectorUnclean": [],
             "sessionBestSectorTimes": [],
-            "previousSessionBestSectorTimes": []
+            "previousSessionBestSectorTimes": [],
+            "sessionBestLapSectorTimes": [],
+            "finishedLapSectorTimes": []
           },
           "clean": {
             "currentLapSectorTimes": [],
@@ -4355,8 +4357,11 @@
             "currentLapSectorUnclean": [],
             "previousLapSectorUnclean": [],
             "sessionBestSectorTimes": [],
-            "previousSessionBestSectorTimes": []
+            "previousSessionBestSectorTimes": [],
+            "sessionBestLapSectorTimes": [],
+            "finishedLapSectorTimes": []
           },
+          "allTime": null,
           "sessionNum": null,
           "version": 0
         },
@@ -4438,6 +4443,22 @@
               37.023387669347784,
               15.399739000557474,
               17.494046900362548
+            ],
+            "sessionBestLapSectorTimes": [
+              16.24835648800149,
+              21.952445664117818,
+              23.68826531787778,
+              34.827038985087654,
+              15.399739000557474,
+              17.151754535557757
+            ],
+            "finishedLapSectorTimes": [
+              16.24835648800149,
+              21.952445664117818,
+              23.68826531787778,
+              34.827038985087654,
+              15.399739000557474,
+              17.151754535557757
             ]
           },
           "clean": {
@@ -4488,8 +4509,25 @@
               37.023387669347784,
               15.399739000557474,
               17.494046900362548
+            ],
+            "sessionBestLapSectorTimes": [
+              16.24835648800149,
+              21.952445664117818,
+              23.68826531787778,
+              34.827038985087654,
+              15.399739000557474,
+              17.151754535557757
+            ],
+            "finishedLapSectorTimes": [
+              16.24835648800149,
+              21.952445664117818,
+              23.68826531787778,
+              34.827038985087654,
+              15.399739000557474,
+              17.151754535557757
             ]
           },
+          "allTime": null,
           "sessionNum": 0,
           "version": 28
         },
@@ -4576,6 +4614,22 @@
               null,
               null,
               null
+            ],
+            "sessionBestLapSectorTimes": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            "finishedLapSectorTimes": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
             ]
           },
           "clean": {
@@ -4626,8 +4680,25 @@
               null,
               null,
               null
+            ],
+            "sessionBestLapSectorTimes": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
+            ],
+            "finishedLapSectorTimes": [
+              null,
+              null,
+              null,
+              null,
+              null,
+              null
             ]
           },
+          "allTime": null,
           "sessionNum": 0,
           "version": 4
         },

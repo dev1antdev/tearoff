@@ -1,4 +1,5 @@
 import type {
+  LapDeltaFinal,
   LapDeltaReference,
   LapDeltaSnapshot,
   ReferenceLap,
@@ -40,8 +41,9 @@ const numericValue = (
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
 };
 
+/** To thousandths, and never the negative zero a small loss rounds to. */
 const round3 = (value: number | null): number | null =>
-  value === null ? null : Math.round(value * 1000) / 1000;
+  value === null ? null : Math.round(value * 1000) / 1000 + 0;
 
 /**
  * The slope of the delta over the last second, by least squares.
@@ -109,8 +111,21 @@ const emptyReference = (): LapDeltaReference => ({
   trend: null,
 });
 
+/** The laps a lap is measured against, under the names the snapshot uses. */
+const REFERENCES = ['sessionBest', 'allTime', 'stintBest', 'lastLap'] as const;
+type ReferenceKey = (typeof REFERENCES)[number];
+
+const perReference = <T>(make: () => T): Record<ReferenceKey, T> => ({
+  sessionBest: make(),
+  allTime: make(),
+  stintBest: make(),
+  lastLap: make(),
+});
+
 /**
- * The player's current lap against their reference laps.
+ * The player's current lap against their reference laps: the best of the
+ * session, the best ever kept for the track and car, the best of the stint
+ * and the lap before this one.
  *
  * The lap is timed from the point the lap fraction wraps, which is where the
  * reference recorder starts and stops its laps, so the two clocks agree. The
@@ -123,6 +138,14 @@ const emptyReference = (): LapDeltaReference => ({
  * lane counts as off the track for this: on most circuits it runs past the
  * line, and a clock started there would set the whole out-lap, pit exit and
  * all, against a flying lap.
+ *
+ * When a timed lap ends at the line, how it compared with each reference is
+ * kept as `lastLapFinal`, for a widget to hold on screen while the next lap
+ * is still too young to say anything.
+ *
+ * Through a team-mate's stint the lap being timed is theirs, in the user's
+ * car, and the references are still the user's own: the recorder that keeps
+ * them takes none of a team-mate's laps.
  */
 export class LapDeltaProcessor implements TelemetryProcessor<LapDeltaSnapshot> {
   readonly channel = 'lap-delta.snapshot';
@@ -135,10 +158,9 @@ export class LapDeltaProcessor implements TelemetryProcessor<LapDeltaSnapshot> {
   private prevPct: number | null = null;
   private prevTime: number | null = null;
   private referenceVersion = -1;
-  private sessionBestLap: ReferenceLap | null = null;
-  private allTimeLap: ReferenceLap | null = null;
-  private readonly sessionBestTrend = new DeltaTrend();
-  private readonly allTimeTrend = new DeltaTrend();
+  private readonly laps = perReference<ReferenceLap | null>(() => null);
+  private readonly trends = perReference(() => new DeltaTrend());
+  private stintId = 0;
   private latest: LapDeltaSnapshot = this.emptySnapshot();
 
   constructor(private readonly referenceLaps: LapDeltaReferenceSource) {}
@@ -171,30 +193,32 @@ export class LapDeltaProcessor implements TelemetryProcessor<LapDeltaSnapshot> {
       this.reset(sessionNum);
     }
 
-    this.refreshReferences();
     const trackPct = this.playerPct(frame);
-    this.advanceLapClock(trackPct, sessionTime);
+    // The clock before the references: on the frame of a crossing the
+    // recorder may already hold the lap just finished as the last lap or a
+    // best, and a lap measured against itself would always read level. The
+    // result at the line is taken against the laps held up to now.
+    let changed = this.advanceLapClock(trackPct, sessionTime);
+    this.refreshReferences();
 
     const elapsed = this.lapStart === null ? null : sessionTime - this.lapStart;
     // Written into the snapshot in place, and the version moved only when a
     // figure the widget shows has: a parked car publishes nothing.
-    let changed = this.measure(
-      this.sessionBestLap,
-      this.sessionBestTrend,
-      this.latest.sessionBest,
-      trackPct,
-      elapsed,
-      sessionTime
-    );
-    changed =
-      this.measure(
-        this.allTimeLap,
-        this.allTimeTrend,
-        this.latest.allTime,
-        trackPct,
-        elapsed,
-        sessionTime
-      ) || changed;
+    for (const key of REFERENCES) {
+      changed =
+        this.measure(
+          this.laps[key],
+          this.trends[key],
+          this.latest[key],
+          trackPct,
+          elapsed,
+          sessionTime
+        ) || changed;
+    }
+    if (this.stintId !== this.latest.stintId) {
+      this.latest.stintId = this.stintId;
+      changed = true;
+    }
     if (sessionNum !== this.latest.sessionNum) {
       this.latest.sessionNum = sessionNum;
       changed = true;
@@ -235,53 +259,95 @@ export class LapDeltaProcessor implements TelemetryProcessor<LapDeltaSnapshot> {
     const snapshot = this.referenceLaps.snapshot();
     if (snapshot.version === this.referenceVersion) return;
     this.referenceVersion = snapshot.version;
-    const sessionBest =
-      snapshot.bestLaps.find(([carIdx]) => carIdx === this.playerCarIdx)?.[1] ??
-      null;
-    const allTime = snapshot.playerAllTimeLap ?? null;
-    // A new reference is a different curve: a slope taken across the change
-    // would be the gap between the two laps, not anything the car did.
-    if (sessionBest !== this.sessionBestLap) this.sessionBestTrend.reset();
-    if (allTime !== this.allTimeLap) this.allTimeTrend.reset();
-    this.sessionBestLap = sessionBest;
-    this.allTimeLap = allTime;
+    this.take(
+      'sessionBest',
+      snapshot.bestLaps.find(([carIdx]) => carIdx === this.playerCarIdx)?.[1]
+    );
+    this.take('allTime', snapshot.playerAllTimeLap);
+    this.take('stintBest', snapshot.playerStintBestLap);
+    this.take('lastLap', snapshot.playerLastLap);
+    this.stintId = snapshot.playerStintId ?? 0;
   }
 
-  /** Starts, keeps or abandons the timing of the lap being driven. */
-  private advanceLapClock(trackPct: number | null, sessionTime: number): void {
+  private take(key: ReferenceKey, lap: ReferenceLap | null | undefined): void {
+    const next = lap ?? null;
+    // A new reference is a different curve: a slope taken across the change
+    // would be the gap between the two laps, not anything the car did.
+    if (next !== this.laps[key]) this.trends[key].reset();
+    this.laps[key] = next;
+  }
+
+  /**
+   * Starts, keeps or abandons the timing of the lap being driven. Returns
+   * whether a timed lap ended on this frame and its result was written.
+   */
+  private advanceLapClock(
+    trackPct: number | null,
+    sessionTime: number
+  ): boolean {
     const prevPct = this.prevPct;
     const prevTime = this.prevTime;
     this.prevPct = trackPct;
     this.prevTime = sessionTime;
     if (trackPct === null) {
       this.stopTiming();
-      return;
+      return false;
     }
-    if (prevPct === null || prevTime === null) return;
+    if (prevPct === null || prevTime === null) return false;
     // The clock ran backwards: a restart, or a replay being scrubbed.
     if (sessionTime < prevTime) {
       this.stopTiming();
-      return;
+      return false;
     }
     if (isLineCrossing(prevPct, trackPct)) {
       // Placed exactly as the recorders place it, so this clock and the
       // curve it is read against start at the same instant.
-      this.lapStart = crossingTime(prevPct, trackPct, prevTime, sessionTime);
-      this.sessionBestTrend.reset();
-      this.allTimeTrend.reset();
-      return;
+      const crossedAt = crossingTime(prevPct, trackPct, prevTime, sessionTime);
+      const finished =
+        this.lapStart !== null && this.finishLap(this.lapStart, crossedAt);
+      this.lapStart = crossedAt;
+      this.resetTrends();
+      return finished;
     }
     const moved = trackPct - prevPct;
     if (moved < -this.backwardJumpPct || moved > FORWARD_JUMP_PCT) {
       this.stopTiming();
     }
+    return false;
+  }
+
+  /**
+   * Writes the result of the lap that has just ended: its time, and how far
+   * it was from each reference as that reference stood while it was driven.
+   */
+  private finishLap(lapStart: number, crossedAt: number): boolean {
+    const lapTime = crossedAt - lapStart;
+    if (!(lapTime > 0)) return false;
+    const gap = (key: ReferenceKey): number | null => {
+      const lap = this.laps[key];
+      const reference = lap ? referenceLapTime(lap) : null;
+      return reference === null ? null : round3(lapTime - reference);
+    };
+    const final: LapDeltaFinal = {
+      lapTime: round3(lapTime) as number,
+      completedAt: round3(crossedAt) as number,
+      sessionBest: gap('sessionBest'),
+      allTime: gap('allTime'),
+      stintBest: gap('stintBest'),
+      lastLap: gap('lastLap'),
+    };
+    this.latest.lastLapFinal = final;
+    return true;
+  }
+
+  private resetTrends(): void {
+    for (const key of REFERENCES) this.trends[key].reset();
   }
 
   private stopTiming(): void {
     this.lapStart = null;
     this.prevPct = null;
-    this.sessionBestTrend.reset();
-    this.allTimeTrend.reset();
+    this.resetTrends();
   }
 
   /**
@@ -325,8 +391,8 @@ export class LapDeltaProcessor implements TelemetryProcessor<LapDeltaSnapshot> {
 
   private reset(sessionNum: number | null): void {
     this.referenceVersion = -1;
-    this.sessionBestLap = null;
-    this.allTimeLap = null;
+    for (const key of REFERENCES) this.laps[key] = null;
+    this.stintId = 0;
     this.prevTime = null;
     this.stopTiming();
     this.latest = {
@@ -338,8 +404,9 @@ export class LapDeltaProcessor implements TelemetryProcessor<LapDeltaSnapshot> {
 
   private emptySnapshot(): LapDeltaSnapshot {
     return {
-      sessionBest: emptyReference(),
-      allTime: emptyReference(),
+      ...perReference(emptyReference),
+      lastLapFinal: null,
+      stintId: 0,
       sessionNum: null,
       version: 0,
     };

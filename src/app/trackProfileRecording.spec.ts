@@ -19,6 +19,7 @@ vi.mock('./storage/trackProfiles', () => ({
 }));
 
 import {
+  getSessionTrackKey,
   getTrackProfileSource,
   setupTrackProfileRecording,
   startTrackProfiles,
@@ -413,6 +414,38 @@ describe('track profile recording', () => {
     expect(entered.size()).toBe(0);
     expect(disconnected.size()).toBe(0);
     expect(liveChanged.size()).toBe(0);
+  });
+
+  describe('the track of the running session', () => {
+    it('is named as a profile is filed under it, once a session is on', () => {
+      expect(getSessionTrackKey()).toBeNull();
+      const { bridge, dispose } = setup();
+      // A recorder, and no session yet.
+      expect(getSessionTrackKey()).toBeNull();
+
+      bridge.session(session());
+      expect(getSessionTrackKey()).toEqual({
+        simulator: 'lmu',
+        trackId: TRACK_ID,
+        trackName: 'WeatherTech Raceway Laguna Seca',
+        trackLengthM: TRACK_LENGTH_M,
+        pointsCount: 360,
+      });
+
+      bridge.session(session(42));
+      expect(getSessionTrackKey()?.trackId).toBe(42);
+
+      dispose();
+      expect(getSessionTrackKey()).toBeNull();
+    });
+
+    it('is named from a tape too, where nothing is recorded', () => {
+      const { bridge, dispose } = setup({ live: false });
+      bridge.session(session());
+
+      expect(getSessionTrackKey()?.trackId).toBe(TRACK_ID);
+      dispose();
+    });
   });
 
   describe('what the channel reads', () => {

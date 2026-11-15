@@ -43,11 +43,22 @@ vi.mock('../../storage/referenceLaps', () => ({
   saveReferenceLap: vi.fn(),
 }));
 vi.mock('../../storage/lapLibrary', () => ({ getLapLibrary: () => null }));
+vi.mock('../../storage/sectorBestsStore', () => ({
+  getSectorBestsStore: () => null,
+}));
+vi.mock('../../storage/drivingTotals', () => ({
+  getDrivingTotalsStore: () => null,
+}));
 vi.mock('../../storage/radarTuning', () => ({ getRadarTuning: vi.fn() }));
 vi.mock('../../storage/flagTuning', () => ({ getFlagTuning: vi.fn() }));
 vi.mock('../../storage/radarPoleSideOverrides', () => ({
   radarPoleSideOverrides: {},
   loadRadarPoleSideOverrides: mocks.loadRadarPoleSideOverrides,
+}));
+vi.mock('../../storage/pitLaneData', () => ({
+  peekPitLaneDataForTrack: vi.fn(() => null),
+  savePitLaneModelForTrack: vi.fn(),
+  pitLaneDataRevision: () => 0,
 }));
 vi.mock('../../storage/racePlanHistory', () => ({
   getRacePlanHistoryStore: () => ({

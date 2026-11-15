@@ -19,6 +19,8 @@ const result = (
   previousLapSectorUnclean: Array<boolean>(count).fill(false),
   sessionBestSectorTimes: Array<number | null>(count).fill(null),
   previousSessionBestSectorTimes: Array<number | null>(count).fill(null),
+  sessionBestLapSectorTimes: Array<number | null>(count).fill(null),
+  finishedLapSectorTimes: Array<number | null>(count).fill(null),
   ...overrides,
 });
 
@@ -35,6 +37,7 @@ const snapshot = (
   sectorEntryValid: true,
   inclusive: result({}, count),
   clean: result({}, count),
+  allTime: null,
   sessionNum: 0,
   version: 1,
   ...overrides,

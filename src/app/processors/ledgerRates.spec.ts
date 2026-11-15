@@ -128,6 +128,67 @@ describe('ledger rates', () => {
     ]);
   });
 
+  it('says where each wheel got its tread from', () => {
+    const book = new LedgerRateBook();
+    const driven = lap({ treadUsed: [0.006, 0.006, 0.004, 0.004] });
+    book.noteLap(driven);
+    book.setBaseline(baselineFrom([stored(2.5, 90)]));
+
+    expect(book.rates([driven], 'run:1:1', 1, MEDIUMS).treadSource).toEqual([
+      'tyre',
+      'tyre',
+      'tyre',
+      'tyre',
+    ]);
+
+    // New fronts: the session's laps, which were driven on the old set.
+    book.noteTyreChange(0b0011);
+    expect(book.rates([driven], 'run:1:2', 1, MEDIUMS).treadSource).toEqual([
+      'session',
+      'session',
+      'tyre',
+      'tyre',
+    ]);
+    // Without those either, what the compound cost before.
+    const rates = book.rates([], 'run:1:2', 1, MEDIUMS);
+    expect(rates.treadSource).toEqual(['baseline', 'baseline', 'tyre', 'tyre']);
+    expect(rates.tread).toEqual([0.004, 0.004, 0.004, 0.004]);
+    // And a wheel with nothing to go by says so.
+    book.setBaseline(null);
+    expect(book.rates([], 'run:1:2', 1, MEDIUMS)).toMatchObject({
+      tread: [null, null, 0.004, 0.004],
+      treadSource: [null, null, 'tyre', 'tyre'],
+    });
+  });
+
+  it('does not forecast a new compound at the rate of the one it replaced', () => {
+    const book = new LedgerRateBook();
+    const onMediums = lap({
+      treadUsed: [0.006, 0.006, 0.004, 0.004],
+      compounds: MEDIUMS,
+    });
+    book.noteLap(onMediums);
+    book.setBaseline(
+      baselineFrom([
+        stored(2.5, 90, ['Soft', 'Soft', 'Soft', 'Soft'], [0.009, 0.009, 0, 0]),
+      ])
+    );
+
+    // Softs on the front: the laps on mediums say nothing about them, and
+    // the baseline for softs does.
+    book.noteTyreChange(0b0011);
+    const softFronts = ['Soft', 'Soft', 'Medium', 'Medium'];
+    expect(book.rates([onMediums], 'run:1:2', 1, softFronts)).toMatchObject({
+      tread: [0.009, 0.009, 0.004, 0.004],
+      treadSource: ['baseline', 'baseline', 'tyre', 'tyre'],
+    });
+    // Another set of mediums is forecast at what the first one wore.
+    expect(book.rates([onMediums], 'run:1:2', 1, MEDIUMS)).toMatchObject({
+      tread: [0.006, 0.006, 0.004, 0.004],
+      treadSource: ['session', 'session', 'tyre', 'tyre'],
+    });
+  });
+
   it('keeps a baseline of tread for each compound by name', () => {
     const hards = ['Hard', 'Hard', 'Medium', 'Medium'];
     const baseline = baselineFrom([

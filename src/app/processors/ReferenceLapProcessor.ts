@@ -62,6 +62,32 @@ const noPlayerLaps: PlayerReferenceLapSource = {
   revision: () => 0,
 };
 
+/**
+ * Which of the player's stints is under way, from the player's ledger, so
+ * that the best lap of a stint ends where the stint does and there is one
+ * answer to where that is: a service, the garage, another driver or the
+ * session, and not a drive-through.
+ */
+export interface PlayerStintSource {
+  /** The stint under way, or '' with none. Another value is another stint. */
+  stintId(): string;
+  /** Its ordinal in the session, from 1; 0 with none. */
+  stintOrdinal(): number;
+}
+
+/**
+ * Below this, in metres per second, a car in the pits has stopped. Without
+ * a ledger to say where a stint ends, that is where one does: a car that
+ * drives through the pit lane has not started another.
+ */
+const STINT_STOP_SPEED_MS = 0.1;
+
+/** Whether a lap was begun at a line crossing that was seen. */
+const isTimed = (lap: ReferenceLap): boolean =>
+  lap.startTime !== Number.MAX_SAFE_INTEGER;
+
+const lapTimeOf = (lap: ReferenceLap): number => lap.finishTime - lap.startTime;
+
 const numericValue = (
   frame: Telemetry,
   key: keyof Telemetry
@@ -217,11 +243,35 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
    * the line with the user at the wheel.
    */
   private playerLapWatched = true;
+  /**
+   * Whether the lap the player's car is on still has every point of its
+   * curve: begun at a crossing, never on pit road, no stretch skipped. Not
+   * the same as clean: a lap the sim has voided is sampled to its end, to
+   * be the last lap, and is no best of anything.
+   */
+  private playerLapSampled = false;
+  /** The player's last whole lap, voided or not. */
+  private playerLastLap: ReferenceLap | null = null;
+  /** The car the last lap and the stint's best were driven in. */
+  private playerLapsCarIdx = -1;
+  private playerLapsCarKey = '';
+  /** The player's best clean lap of the stint under way. */
+  private playerStintBest: ReferenceLap | null = null;
+  private playerStintId = 0;
+  /** The ledger's stint the stint best is kept for; undefined until asked. */
+  private stintKey: string | undefined;
+  /** Without a ledger: the car has stood in the pits and not left them yet. */
+  private stoppedInPits = false;
   private latest: ReferenceLapsSnapshot = this.emptySnapshot();
 
   constructor(
     private readonly persistence: ReferenceLapPersistence,
-    private readonly playerLaps: PlayerReferenceLapSource = noPlayerLaps
+    private readonly playerLaps: PlayerReferenceLapSource = noPlayerLaps,
+    /**
+     * Where the player's stints begin. Without it a stint ends when the car
+     * stops in the pits.
+     */
+    private readonly stints?: PlayerStintSource
   ) {}
 
   init(session: Session): void {
@@ -235,22 +285,38 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
     this.drivers = drivers;
     this.classReferences = hasClassReferences(session);
     const playerCarIdx = session.DriverInfo?.DriverCarIdx ?? -1;
-    // Another car's lap in progress says nothing of who is driving it.
-    if (playerCarIdx !== this.playerCarIdx) this.playerLapWatched = true;
-    this.playerCarIdx = playerCarIdx;
-    const player = drivers.find(
-      (driver) => driver?.CarIdx === this.playerCarIdx
-    );
+    const player = drivers.find((driver) => driver?.CarIdx === playerCarIdx);
     // LMU's CarPath is the livery file, so two entries of one car differ
     // there; it names the model separately. iRacing's CarPath is the model.
     const playerCarKey = player?.CarModel ?? player?.CarPath ?? '';
-    if (trackId <= 0 || trackLength <= 0) return;
+    // Another car's lap in progress says nothing of who is driving it.
+    if (playerCarIdx !== this.playerCarIdx) this.playerLapWatched = true;
+    this.playerCarIdx = playerCarIdx;
+    // The last lap and the stint's best were driven in the car they were
+    // driven in. A session that for a moment names no player, or no car for
+    // them, says nothing about that: only another car does.
+    const anotherCar =
+      (playerCarIdx >= 0 &&
+        this.playerLapsCarIdx >= 0 &&
+        playerCarIdx !== this.playerLapsCarIdx) ||
+      (playerCarKey !== '' &&
+        this.playerLapsCarKey !== '' &&
+        playerCarKey !== this.playerLapsCarKey);
+    if (playerCarIdx >= 0) this.playerLapsCarIdx = playerCarIdx;
+    if (playerCarKey !== '') this.playerLapsCarKey = playerCarKey;
+    const playerLapsDropped = anotherCar && this.dropPlayerLaps();
+    if (trackId <= 0 || trackLength <= 0) {
+      if (playerLapsDropped) this.publish();
+      return;
+    }
     if (sessionIdentity === this.sessionIdentity) {
       const classLapsLoaded = this.loadPersistedForDrivers(
         session.DriverInfo?.PaceCarIdx ?? -1
       );
       const playerLapChanged = this.loadPlayerAllTime(playerCarKey);
-      if (classLapsLoaded || playerLapChanged) this.publish();
+      if (classLapsLoaded || playerLapChanged || playerLapsDropped) {
+        this.publish();
+      }
       return;
     }
     this.seriesId = seriesId;
@@ -266,6 +332,7 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
     this.prevFrameTime = null;
     // A different track: whatever was held belongs to the last one.
     this.playerAllTime = null;
+    this.dropPlayerLaps();
     this.loadPersistedForDrivers(session.DriverInfo?.PaceCarIdx ?? -1);
     this.loadPlayerAllTime(playerCarKey);
     this.publish();
@@ -309,6 +376,7 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
     ) {
       return;
     }
+    if (this.followStint(frame, playerSpeedMs)) this.publish();
 
     for (const driver of this.drivers) {
       if (!driver) continue;
@@ -331,12 +399,16 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
         carIdx === this.playerCarIdx &&
         playerLapInvalidated &&
         trackPct >= INVALIDATION_START_PCT;
-      const clean = !pitRoad?.[carIdx] && !invalidated;
+      const onPitRoad = Boolean(pitRoad?.[carIdx]);
+      const clean = !onPitRoad && !invalidated;
       const isPlayer = carIdx === this.playerCarIdx;
       const active = this.activeLaps.get(carIdx);
       if (!active) {
         // First sight of the car: its lap began before anything was seen.
-        if (isPlayer) this.playerLapWatched = true;
+        if (isPlayer) {
+          this.playerLapWatched = true;
+          this.playerLapSampled = false;
+        }
         this.activeLaps.set(
           carIdx,
           createLap(this.pointsCount, this.interval, null, trackPct, clean)
@@ -351,23 +423,43 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
           sessionTime
         );
         active.finishTime = crossedAt;
-        if (!(isPlayer && (this.playerLapWatched || playerAway))) {
-          this.promote(driver, active);
-        }
+        // One snapshot for all a crossing changes: the session best, and for
+        // the player the last lap and the stint's best with it.
+        const changed = isPlayer
+          ? this.completePlayerLap(
+              driver,
+              active,
+              !(this.playerLapWatched || playerAway)
+            )
+          : this.promote(driver, active);
+        if (changed) this.publish();
         // The frame that crosses the line is the new lap's first.
-        if (isPlayer) this.playerLapWatched = playerAway;
-        this.activeLaps.set(
-          carIdx,
-          createLap(this.pointsCount, this.interval, crossedAt, trackPct, clean)
+        const next = createLap(
+          this.pointsCount,
+          this.interval,
+          crossedAt,
+          trackPct,
+          clean
         );
+        if (isPlayer) {
+          this.playerLapWatched = playerAway;
+          this.playerLapSampled = isTimed(next) && !onPitRoad;
+        }
+        this.activeLaps.set(carIdx, next);
         continue;
       }
       if (isPlayer && playerAway) this.playerLapWatched = true;
       if (!clean) active.isCleanLap = false;
+      // The pit lane ends the player's curve. A lap the sim has voided is
+      // sampled on: it is still what was just driven.
+      if (isPlayer && onPitRoad) this.playerLapSampled = false;
       const key = bucketIndex(trackPct, this.pointsCount);
       if (active.pointPos[key] !== -1) continue;
-      if (key > 0 && active.pointPos[key - 1] === -1) active.isCleanLap = false;
-      if (active.isCleanLap) {
+      if (key > 0 && active.pointPos[key - 1] === -1) {
+        active.isCleanLap = false;
+        if (isPlayer) this.playerLapSampled = false;
+      }
+      if (isPlayer ? this.playerLapSampled : active.isCleanLap) {
         active.times[key] = sessionTime - active.startTime;
         active.pointPos[key] = trackPct;
 
@@ -404,29 +496,141 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
   /** Discards an incomplete lap when processing demand is paused. */
   pause(): void {
     this.playerLapWatched = true;
+    this.playerLapSampled = false;
     this.activeLaps.clear();
     this.prevPcts.length = 0;
     this.prevFrameTime = null;
   }
 
-  private promote(driver: Driver, lap: ReferenceLap): void {
-    const lapTime = lap.finishTime - lap.startTime;
+  /**
+   * Notices a new stint of the player's and drops the best lap of the one
+   * before. Returns whether anything published has changed.
+   */
+  private followStint(frame: Telemetry, speedMs: number | null): boolean {
+    if (this.stints) {
+      const id = this.stints.stintId();
+      if (id === this.stintKey) return false;
+      this.stintKey = id;
+      // Between two stints the best of the one just ended stays on show.
+      if (id === '') return false;
+      return this.beginStint(this.stints.stintOrdinal());
+    }
+    if (this.playerCarIdx < 0) return false;
+    const cells = frame as unknown as Record<
+      string,
+      { value?: readonly unknown[] } | undefined
+    >;
+    const inPits =
+      cells.CarIdxOnPitRoad?.value?.[this.playerCarIdx] === true ||
+      cells.IsInGarage?.value?.[0] === true ||
+      cells.LmuCarIdxInGarage?.value?.[this.playerCarIdx] === true;
+    if (!inPits) {
+      this.stoppedInPits = false;
+      return false;
+    }
+    // One stint for one stop, however long the car creeps about its box.
+    if (this.stoppedInPits || speedMs === null) return false;
+    if (Math.abs(speedMs) >= STINT_STOP_SPEED_MS) return false;
+    this.stoppedInPits = true;
+    return this.beginStint(this.playerStintId + 1);
+  }
+
+  private beginStint(stintId: number): boolean {
+    const changed =
+      stintId !== this.playerStintId || this.playerStintBest !== null;
+    this.playerStintId = stintId;
+    this.playerStintBest = null;
+    return changed;
+  }
+
+  /** Forgets the player's last lap and stint. Returns whether any was held. */
+  private dropPlayerLaps(): boolean {
+    const held =
+      this.playerLastLap !== null ||
+      this.playerStintBest !== null ||
+      this.playerStintId !== 0;
+    this.playerLastLap = null;
+    this.playerStintBest = null;
+    this.playerStintId = 0;
+    this.stintKey = undefined;
+    this.stoppedInPits = false;
+    return held;
+  }
+
+  /**
+   * The player's car has finished a lap. Returns whether anything published
+   * has changed.
+   *
+   * A lap somebody else drove any of is the car's and not the user's: it is
+   * no best of theirs and not their last lap either. Nor is a lap that was
+   * not seen from the line -- the one that opens a race under Le Mans
+   * Ultimate among them -- or one that touched pit road: neither has a
+   * whole curve.
+   */
+  private completePlayerLap(
+    driver: Driver,
+    lap: ReferenceLap,
+    own: boolean
+  ): boolean {
+    if (!own) return false;
+    const sessionBest = this.promote(driver, lap);
+    const lapTime = lapTimeOf(lap);
+    if (!this.playerLapSampled || lap.pointPos.includes(-1) || lapTime <= 0) {
+      return sessionBest;
+    }
+    if (!sessionBest) {
+      precomputeTangents(lap);
+      // Only the session best feeds the speed delta; on any other lap the
+      // speeds would be a quarter of the curve sent to every window for
+      // nothing to read.
+      delete lap.speedsKph;
+    }
+    this.playerLastLap = lap;
+    const stintBest = this.playerStintBest;
+    if (
+      this.isFitForBest(driver, lap) &&
+      (stintBest === null || lapTime < lapTimeOf(stintBest))
+    ) {
+      this.playerStintBest = lap;
+    }
+    return true;
+  }
+
+  /**
+   * Whether a finished lap can be a best at all: clean, with its whole
+   * curve, and not so far off the class reference that it was not a racing
+   * lap.
+   */
+  private isFitForBest(driver: Driver, lap: ReferenceLap): boolean {
+    const lapTime = lapTimeOf(lap);
+    if (!lap.isCleanLap || lap.pointPos.includes(-1) || lapTime <= 0) {
+      return false;
+    }
+    const classId = driver.CarClassID;
+    const persisted = classId > 0 ? this.persistedLaps.get(classId) : undefined;
+    const persistedTime = persisted ? lapTimeOf(persisted) : null;
+    return !(persistedTime && persistedTime / lapTime < VALID_PACE_RATIO);
+  }
+
+  /**
+   * Offers a finished lap as its car's best of the session. Returns whether
+   * it was taken; the caller publishes.
+   */
+  private promote(driver: Driver, lap: ReferenceLap): boolean {
+    const lapTime = lapTimeOf(lap);
     // Deliberately not gated on CarClassID: bestLaps is keyed by CarIdx and
     // nothing on this path needs a class. iRacing reports CarClassID 0 in test
     // sessions, which is a real session rather than missing data — gating
     // promotion on it silently disabled every bestLaps consumer there (Delta
     // Speed, SectorDelta's ghost). The class is still required for
     // *persistence*, which is keyed by it.
-    if (!lap.isCleanLap || lap.pointPos.includes(-1) || lapTime <= 0) return;
+    if (!this.isFitForBest(driver, lap)) return false;
     const classId = driver.CarClassID;
     const persisted = classId > 0 ? this.persistedLaps.get(classId) : undefined;
-    const persistedTime = persisted
-      ? persisted.finishTime - persisted.startTime
-      : null;
-    if (persistedTime && persistedTime / lapTime < VALID_PACE_RATIO) return;
+    const persistedTime = persisted ? lapTimeOf(persisted) : null;
     const best = this.bestLaps.get(driver.CarIdx);
-    const bestTime = best ? best.finishTime - best.startTime : null;
-    if (bestTime && lapTime >= bestTime) return;
+    const bestTime = best ? lapTimeOf(best) : null;
+    if (bestTime && lapTime >= bestTime) return false;
     precomputeTangents(lap);
     this.bestLaps.set(driver.CarIdx, lap);
     // classId > 0 guards persistence only. The disk key is
@@ -458,7 +662,7 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
         );
       }
     }
-    this.publish();
+    return true;
   }
 
   /**
@@ -515,8 +719,11 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
 
   private resetSession(sessionNum: number | null): void {
     this.playerLapWatched = true;
+    this.playerLapSampled = false;
     this.activeLaps.clear();
     this.bestLaps.clear();
+    // The last lap and the stint belong to the session that has ended.
+    this.dropPlayerLaps();
     this.prevPcts.length = 0;
     this.prevFrameTime = null;
     this.sessionNum = sessionNum;
@@ -528,6 +735,11 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
       bestLaps: [...this.bestLaps],
       persistedLaps: [...this.persistedLaps],
       playerAllTimeLap: this.playerAllTime,
+      // The same object as the session best where they are the same lap, so
+      // a window is sent that curve once.
+      playerLastLap: this.playerLastLap,
+      playerStintBestLap: this.playerStintBest,
+      playerStintId: this.playerStintId,
       sessionNum: this.sessionNum,
       version: this.latest.version + 1,
     };
@@ -538,6 +750,9 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
       bestLaps: [],
       persistedLaps: [],
       playerAllTimeLap: null,
+      playerLastLap: null,
+      playerStintBestLap: null,
+      playerStintId: 0,
       sessionNum: null,
       version: 0,
     };

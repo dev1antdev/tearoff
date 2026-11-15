@@ -1,9 +1,37 @@
 import { create, useStore } from 'zustand';
 import { useStoreWithEqualityFn } from 'zustand/traditional';
 import { shallow } from 'zustand/shallow';
-import type { Sector, SectorTimingSnapshot } from '@irdashies/types';
+import type {
+  Sector,
+  SectorAllTimeBestsSnapshot,
+  SectorTimingSnapshot,
+} from '@irdashies/types';
+import { sectorSum } from '@irdashies/shared';
 
 export type SectorColor = 'purple' | 'green' | 'yellow' | 'red' | 'default';
+
+/**
+ * What the last sector to end left behind: the lap up to there, and what it
+ * could be compared with as that stood while the sector was being driven. A
+ * sector that sets a best is then shown against the best it replaced, and a
+ * lap that becomes the best lap against the one before it.
+ */
+export interface SectorEndEvent {
+  /** The sector that ended. */
+  sectorIdx: number;
+  /** SessionTime at which it ended and the next began, s. */
+  at: number;
+  /**
+   * The sector times of the lap up to and including it, in the view in use;
+   * the whole lap where the sector ended at the line.
+   */
+  lapSectorTimes: readonly (number | null)[];
+  before: {
+    sessionBestSectorTimes: readonly (number | null)[];
+    sessionBestLapSectorTimes: readonly (number | null)[];
+    allTime: SectorAllTimeBestsSnapshot | null;
+  };
+}
 
 export const DEFAULT_GREEN_THRESHOLD = 0.005;
 export const DEFAULT_YELLOW_THRESHOLD = 0.01;
@@ -31,6 +59,19 @@ interface SectorTimingState {
   previousLapSectorTimes: (number | null)[];
   sessionBestSectorTimes: (number | null)[];
   previousSessionBestSectorTimes: (number | null)[];
+  /** The sectors of the quickest whole lap of the session, in the view. */
+  sessionBestLapSectorTimes: (number | null)[];
+  /**
+   * The player's best sectors on this track in this car, kept between
+   * sessions; null until the store that keeps them has answered.
+   */
+  allTime: SectorAllTimeBestsSnapshot | null;
+  /**
+   * SessionTime at which the lap under way began, s; null where the lap was
+   * not followed from the line.
+   */
+  lapStartTime: number | null;
+  sectorEvent: SectorEndEvent | null;
   currentLapSectorUnclean: boolean[];
   previousLapSectorUnclean: boolean[];
   sectorColors: SectorColor[];
@@ -52,10 +93,29 @@ const emptyState = () => ({
   previousLapSectorTimes: [] as (number | null)[],
   sessionBestSectorTimes: [] as (number | null)[],
   previousSessionBestSectorTimes: [] as (number | null)[],
+  sessionBestLapSectorTimes: [] as (number | null)[],
+  allTime: null as SectorAllTimeBestsSnapshot | null,
+  lapStartTime: null as number | null,
+  sectorEvent: null as SectorEndEvent | null,
   currentLapSectorUnclean: [] as boolean[],
   previousLapSectorUnclean: [] as boolean[],
   sectorColors: [] as SectorColor[],
 });
+
+/**
+ * When the lap under way began: the entry to the sector being driven, less
+ * the sectors of the lap before it. From the view that keeps every sector,
+ * so a sector with an incident in it does not stop the lap's clock.
+ */
+const lapStartTimeOf = (snapshot: SectorTimingSnapshot): number | null => {
+  if (!snapshot.sectorEntryValid) return null;
+  if (snapshot.currentSectorIdx === 0) return snapshot.sectorEntryTime;
+  const elapsed = sectorSum(
+    snapshot.inclusive.currentLapSectorTimes,
+    snapshot.currentSectorIdx - 1
+  );
+  return elapsed === null ? null : snapshot.sectorEntryTime - elapsed;
+};
 
 const colorsFor = (
   current: readonly (number | null)[],
@@ -82,6 +142,34 @@ export const useSectorTimingStore = create<SectorTimingState>((set, get) => ({
     const timing = state.trackIncidentSectors
       ? snapshot.inclusive
       : snapshot.clean;
+    const sectorCount = snapshot.sectors.length;
+    // The car has driven out of one sector and into the next, on the same
+    // lap layout as before: an event to hold on screen for a moment.
+    const sectorEnded =
+      sectorCount > 0 &&
+      state.sectors.length === sectorCount &&
+      snapshot.sectorEntryValid &&
+      snapshot.sectorEntryTime !== state.sectorEntryTime &&
+      snapshot.currentSectorIdx === (state.currentSectorIdx + 1) % sectorCount;
+    const sectorEvent: SectorEndEvent | null = sectorEnded
+      ? {
+          sectorIdx: state.currentSectorIdx,
+          at: snapshot.sectorEntryTime,
+          lapSectorTimes:
+            snapshot.currentSectorIdx === 0
+              ? [...timing.finishedLapSectorTimes]
+              : [...timing.currentLapSectorTimes],
+          before: {
+            sessionBestSectorTimes: state.sessionBestSectorTimes,
+            sessionBestLapSectorTimes: state.sessionBestLapSectorTimes,
+            allTime: state.allTime,
+          },
+        }
+      : // Kept for as long as the sector it opened is the one being driven.
+        snapshot.sectorEntryValid &&
+          state.sectorEvent?.at === snapshot.sectorEntryTime
+        ? state.sectorEvent
+        : null;
     set({
       sectors: [...snapshot.sectors],
       currentSectorIdx: snapshot.currentSectorIdx,
@@ -95,6 +183,10 @@ export const useSectorTimingStore = create<SectorTimingState>((set, get) => ({
       previousSessionBestSectorTimes: [
         ...timing.previousSessionBestSectorTimes,
       ],
+      sessionBestLapSectorTimes: [...timing.sessionBestLapSectorTimes],
+      allTime: snapshot.allTime,
+      lapStartTime: lapStartTimeOf(snapshot),
+      sectorEvent,
       sectorColors: colorsFor(
         timing.currentLapSectorTimes,
         timing.previousLapSectorTimes,
@@ -150,6 +242,10 @@ export const useSectorDeltas = () =>
       previousLapSectorUnclean: state.previousLapSectorUnclean,
       sessionBestSectorTimes: state.sessionBestSectorTimes,
       previousSessionBestSectorTimes: state.previousSessionBestSectorTimes,
+      sessionBestLapSectorTimes: state.sessionBestLapSectorTimes,
+      allTime: state.allTime,
+      lapStartTime: state.lapStartTime,
+      sectorEvent: state.sectorEvent,
       currentSectorIdx: state.currentSectorIdx,
     }),
     shallow

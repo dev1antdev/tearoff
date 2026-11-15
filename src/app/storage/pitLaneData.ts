@@ -1,7 +1,11 @@
 import { app } from 'electron';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
-import type { PitLaneTrackData } from '@irdashies/types';
+import type { PitLaneTiming, PitLaneTrackData } from '@irdashies/types';
+import {
+  PIT_LANE_TIMING_CARS,
+  PIT_LANE_TIMING_SAMPLES,
+} from '@irdashies/types';
 import logger from '../logger';
 
 const MAX_CALIBRATION_TRACKS = 10000;
@@ -20,6 +24,39 @@ const isPct = (value: unknown): value is number | null =>
     value >= 0 &&
     value <= 1);
 
+const isSeconds = (value: unknown): value is number =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0;
+
+const isSecondsList = (value: unknown): value is number[] =>
+  Array.isArray(value) &&
+  value.length <= PIT_LANE_TIMING_SAMPLES &&
+  value.every(isSeconds);
+
+/**
+ * The measured timings, of exactly the shape `PitLaneTiming` gives: the
+ * three keys and nothing else, a limit that is a speed or null, and lists no
+ * longer than they are ever written.
+ */
+const isTiming = (value: unknown): value is PitLaneTiming => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  if (
+    Object.keys(record).length !== 3 ||
+    !Object.hasOwn(record, 'speedLimitMs') ||
+    !Object.hasOwn(record, 'driveS') ||
+    !Object.hasOwn(record, 'standingS')
+  )
+    return false;
+  const limit = record.speedLimitMs;
+  if (limit !== null && !(isSeconds(limit) && limit > 0)) return false;
+  if (!isSecondsList(record.driveS)) return false;
+  const standing = record.standingS;
+  if (!standing || typeof standing !== 'object' || Array.isArray(standing))
+    return false;
+  const cars = Object.values(standing);
+  return cars.length <= PIT_LANE_TIMING_CARS && cars.every(isSecondsList);
+};
+
 const isTrackData = (
   trackId: string,
   value: unknown
@@ -32,14 +69,31 @@ const isTrackData = (
   )
     return false;
   const record = value as Record<string, unknown>;
+  const hasTiming = Object.hasOwn(record, 'timing');
   return (
-    Object.keys(record).length === 2 &&
+    Object.keys(record).length === (hasTiming ? 3 : 2) &&
     Object.hasOwn(record, 'pitEntryPct') &&
     Object.hasOwn(record, 'pitExitPct') &&
     isPct(record.pitEntryPct) &&
-    isPct(record.pitExitPct)
+    isPct(record.pitExitPct) &&
+    (!hasTiming || isTiming(record.timing))
   );
 };
+
+/** A copy, so nothing handed out or read in shares a list with the cache. */
+const copyTiming = (timing: PitLaneTiming): PitLaneTiming => ({
+  speedLimitMs: timing.speedLimitMs,
+  driveS: [...timing.driveS],
+  standingS: Object.fromEntries(
+    Object.entries(timing.standingS).map(([car, list]) => [car, [...list]])
+  ),
+});
+
+const copyTrackData = (value: PitLaneTrackData): PitLaneTrackData => ({
+  pitEntryPct: value.pitEntryPct,
+  pitExitPct: value.pitExitPct,
+  ...(value.timing ? { timing: copyTiming(value.timing) } : {}),
+});
 
 interface LoadedPitLaneData {
   data: Map<string, PitLaneTrackData>;
@@ -54,6 +108,10 @@ export class PitLaneDataStore {
   private dirty = false;
   private editing = false;
   private readonly incompleteReadTracks = new Set<string>();
+  /** What the last finished read holds, for a reader that cannot wait. */
+  private loaded?: LoadedPitLaneData;
+  /** Moves whenever `peek` may answer differently. */
+  private cacheRevision = 0;
 
   constructor(private readonly filePath: string) {}
 
@@ -71,12 +129,8 @@ export class PitLaneDataStore {
         const entries = Object.entries(parsed);
         let writable = entries.length <= MAX_CALIBRATION_TRACKS;
         for (const [key, value] of entries) {
-          if (isTrackData(key, value)) {
-            data.set(key, {
-              pitEntryPct: value.pitEntryPct,
-              pitExitPct: value.pitExitPct,
-            });
-          } else writable = false;
+          if (isTrackData(key, value)) data.set(key, copyTrackData(value));
+          else writable = false;
         }
         if (!writable)
           logger.warn(
@@ -102,6 +156,10 @@ export class PitLaneDataStore {
     // Failed or partial reads may be displayed, but never become the basis of
     // a write. Retry the real file before any later read or mutation.
     void loading.then((result) => {
+      if (this.loading === loading) {
+        this.loaded = result;
+        this.cacheRevision += 1;
+      }
       if (!result.writable) {
         // A renderer may have displayed valid entries from this incomplete
         // file. A later repair/reload must invalidate those old revisions too.
@@ -117,6 +175,24 @@ export class PitLaneDataStore {
 
   async get(trackId: string): Promise<PitLaneTrackData | null> {
     return (await this.load()).data.get(trackId) ?? null;
+  }
+
+  /**
+   * The record as last read, without waiting: null for a track with none
+   * and before the file has been read, which this starts. `revision` moves
+   * when the answer may have changed. For the main process's own readers,
+   * which run on a telemetry frame.
+   */
+  peek(trackId: string): PitLaneTrackData | null {
+    if (!this.loaded) {
+      void this.load();
+      return null;
+    }
+    return this.loaded.data.get(trackId) ?? null;
+  }
+
+  revision(): number {
+    return this.cacheRevision;
   }
 
   async update(
@@ -137,6 +213,7 @@ export class PitLaneDataStore {
       ...(data.get(trackId) ?? { pitEntryPct: null, pitExitPct: null }),
       ...update,
     });
+    this.cacheRevision += 1;
     this.dirty = true;
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
@@ -164,12 +241,14 @@ export class PitLaneDataStore {
       );
     const existing = data.get(trackId);
     data.delete(trackId);
+    this.cacheRevision += 1;
     this.dirty = true;
     try {
       // Queue behind old writes; a reset only completes once disk is cleared.
       await this.flush();
     } catch (error) {
       if (existing) data.set(trackId, existing);
+      this.cacheRevision += 1;
       throw error;
     }
   }
@@ -272,13 +351,10 @@ export class PitLaneDataStore {
     for (const [trackId, value] of entries) {
       if (!isTrackData(trackId, value)) {
         throw new Error(
-          'Each track must contain only pitEntryPct and pitExitPct, with numbers from 0 to 1 or null.'
+          'Each track must contain pitEntryPct and pitExitPct, with numbers from 0 to 1 or null, and nothing else but the timing the app measured, left as it was written.'
         );
       }
-      next.set(trackId, {
-        pitEntryPct: value.pitEntryPct,
-        pitExitPct: value.pitExitPct,
-      });
+      next.set(trackId, copyTrackData(value));
     }
     const changes: { trackId: string; data: PitLaneTrackData | null }[] = [];
     for (const trackId of new Set([...previous.keys(), ...next.keys()])) {
@@ -298,7 +374,10 @@ export class PitLaneDataStore {
         changes.push({ trackId, data: next.get(trackId) ?? null });
     }
     this.incompleteReadTracks.clear();
-    this.loading = Promise.resolve({ data: next, writable: true });
+    const reloaded: LoadedPitLaneData = { data: next, writable: true };
+    this.loading = Promise.resolve(reloaded);
+    this.loaded = reloaded;
+    this.cacheRevision += 1;
     this.editing = false;
     return changes;
   }
@@ -319,3 +398,25 @@ export const preparePitLaneDataFile = () => store.prepareFile();
 export const reloadPitLaneDataFile = () => store.reload();
 export const isPitLaneDataEditing = () => store.isEditing();
 export const resumePitLaneDataLearning = () => store.resumeLearning();
+
+/**
+ * The three below are the main process's own way in, for the pit stop
+ * channel: a record read without waiting, a counter that says when to read
+ * it again, and a save that never throws. The renderer's calibration goes
+ * through the bridge above, which is as strict as it was and takes no
+ * timings.
+ */
+export const peekPitLaneDataForTrack = (trackId: string) => store.peek(trackId);
+export const pitLaneDataRevision = () => store.revision();
+export const savePitLaneModelForTrack = (
+  trackId: string,
+  data: Partial<PitLaneTrackData>
+): void => {
+  // While the file is open in an editor the store takes nothing, and says so
+  // by answering false: what was measured is measured again at the next stop.
+  store
+    .update(trackId, data)
+    .catch((error: unknown) =>
+      logger.warn('Could not save the pit lane model', safeReadError(error))
+    );
+};

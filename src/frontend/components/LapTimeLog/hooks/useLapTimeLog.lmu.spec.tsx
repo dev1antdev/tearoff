@@ -1,9 +1,24 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TrackLocation } from '@irdashies/types';
-import type { LapLogSnapshot } from '@irdashies/types';
+import {
+  EMPTY_PLAYER_STINT,
+  LEDGER_LAP_IN_LAP,
+  LEDGER_LAP_OUT_LAP,
+  LEDGER_LAP_SERVICED,
+  LEDGER_LAP_VOIDED,
+  TrackLocation,
+} from '@irdashies/types';
+import type {
+  LapLogSnapshot,
+  LedgerLap,
+  PlayerLedgerSnapshot,
+  PlayerStintSnapshot,
+} from '@irdashies/types';
+import { sampleLedger } from '@irdashies/domain/ledger/ledgerSample';
 
 let snapshot: LapLogSnapshot;
+let ledger: PlayerLedgerSnapshot | undefined;
+let stint: PlayerStintSnapshot | undefined;
 let drivers: { CarIdx: number; CarPath: string; CarModel?: string }[];
 const getPersonalBest = vi.fn<(track: string, car: string) => undefined>();
 const setPersonalBest =
@@ -11,6 +26,8 @@ const setPersonalBest =
 
 vi.mock('@irdashies/context', () => ({
   useLapLogSnapshot: () => snapshot,
+  usePlayerLedgerSnapshot: () => ledger,
+  usePlayerStintSnapshot: () => stint,
   useDriverCarIdx: () => 0,
   useSessionStore: (selector: (state: unknown) => unknown) =>
     selector({
@@ -54,6 +71,8 @@ const emptySnapshot: LapLogSnapshot = {
 
 beforeEach(() => {
   snapshot = { ...emptySnapshot };
+  ledger = undefined;
+  stint = undefined;
   getPersonalBest.mockClear();
   setPersonalBest.mockClear();
 });
@@ -119,73 +138,102 @@ describe('Lap Timer personal-best key', () => {
   });
 });
 
-describe('Lap Timer under an LMU lap void', () => {
-  /** Runs one lap: `during` mid-lap, then the crossing and scoring. */
-  const driveLap = (
-    rerender: () => void,
-    lap: number,
-    during: Partial<LapLogSnapshot>,
-    atLine: Partial<LapLogSnapshot> = {}
-  ) => {
-    snapshot = { ...snapshot, lapDistPct: 0.5, ...during };
-    rerender();
-    snapshot = { ...snapshot, lapDistPct: 0.97, ...during };
-    rerender();
-    snapshot = {
-      ...snapshot,
-      lapDistPct: 0.01,
-      lapCompleted: lap,
-      lastLapTime: 90 + lap,
-      ...atLine,
-    };
-    rerender();
-    snapshot = { ...snapshot, lapDistPct: 0.1, lapInvalidated: false };
-    rerender();
-  };
+/**
+ * Three laps of an LMU stint as the ledger rows them, newest first, each
+ * with the flags the ledger gathered for it.
+ */
+const rowsOf = (flags: readonly [number, number, number]): LedgerLap[] => {
+  const { laps } = sampleLedger({
+    stints: [{ laps: 3 }],
+    sessionNum: 0,
+    fromStart: false,
+  }).ledger;
+  return laps.map((lap, index) => ({ ...lap, flags: flags[index] }));
+};
 
+const withRows = (flags: readonly [number, number, number]) => {
+  ledger = { laps: rowsOf(flags), stints: [], sessionNum: 0, version: 1 };
+};
+
+describe('Lap Timer under an LMU lap void', () => {
   beforeEach(() => {
     drivers = [{ CarIdx: 0, CarPath: 'testcar' }];
   });
 
   it('marks a lap LMU voided as not clean', () => {
-    // A track cut: no incident and no off-track surface to show for it.
-    const { result, rerender } = renderHook(() => useLapTimeLog());
-    driveLap(rerender, 1, { lapInvalidated: true });
+    // A track cut: no incident and no off-track surface to show for it. The
+    // ledger has the sim's word for the lap, and the row carries it.
+    withRows([0, LEDGER_LAP_VOIDED, 0]);
 
-    expect(result.current.history[0]).toMatchObject({ lap: 1, dirty: true });
-  });
-
-  it('does not carry a void still set after the line into the next lap', () => {
-    const { result, rerender } = renderHook(() => useLapTimeLog());
-    snapshot = { ...snapshot, lapDistPct: 0.5, lapInvalidated: true };
-    rerender();
-    snapshot = { ...snapshot, lapDistPct: 0.97 };
-    rerender();
-    // Lap 1 is scored at the line, and the sim's flag is still the old lap's
-    // for a few frames into lap 2.
-    snapshot = {
-      ...snapshot,
-      lapDistPct: 0.01,
-      lapCompleted: 1,
-      lastLapTime: 91,
-    };
-    rerender();
-    snapshot = { ...snapshot, lapDistPct: 0.02, currentLapTime: 1 };
-    rerender();
-    snapshot = { ...snapshot, lapDistPct: 0.1, lapInvalidated: false };
-    rerender();
-    driveLap(rerender, 2, {});
+    const { result } = renderHook(() => useLapTimeLog());
 
     expect(result.current.history.map((entry) => entry.dirty)).toEqual([
       false,
       true,
+      false,
     ]);
+    expect(result.current.history[1]).toMatchObject({ lap: 2, dirty: true });
+  });
+
+  it('does not carry a void still set after the line into the next lap', () => {
+    // The sim's flag is still the old lap's for a few frames into the new
+    // one. The ledger gave it to the lap it belonged to, so the lap under
+    // way is clean whatever the lap log's own flag still says.
+    withRows([LEDGER_LAP_VOIDED, 0, 0]);
+    snapshot = { ...snapshot, lapInvalidated: true, lapDistPct: 0.02 };
+    stint = { ...EMPTY_PLAYER_STINT, available: true, sessionNum: 0 };
+
+    const { result } = renderHook(() => useLapTimeLog());
+
+    expect(result.current.history[0]).toMatchObject({ lap: 3, dirty: true });
+    expect(result.current.dirty).toBe(false);
   });
 
   it('leaves a clean lap clean', () => {
-    const { result, rerender } = renderHook(() => useLapTimeLog());
-    driveLap(rerender, 1, {});
+    withRows([0, 0, 0]);
 
-    expect(result.current.history[0]).toMatchObject({ lap: 1, dirty: false });
+    const { result } = renderHook(() => useLapTimeLog());
+
+    expect(result.current.history.map((entry) => entry.dirty)).toEqual([
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it('is not measured against when it was the quickest', () => {
+    // The voided lap is the quickest of the three, and is no best lap.
+    withRows([0, LEDGER_LAP_VOIDED, 0]);
+    const rows = (ledger as PlayerLedgerSnapshot).laps;
+    ledger = {
+      ...(ledger as PlayerLedgerSnapshot),
+      laps: [rows[0], { ...rows[1], simLapTime: 80, lapTime: 80 }, rows[2]],
+    };
+
+    const [newest, voided, oldest] = renderHook(() => useLapTimeLog()).result
+      .current.history;
+
+    expect(voided.delta).toBeCloseTo(80 - oldest.time, 6);
+    expect(newest.delta).toBeCloseTo(newest.time - oldest.time, 6);
+  });
+});
+
+describe('Lap Timer pit laps', () => {
+  beforeEach(() => {
+    drivers = [{ CarIdx: 0, CarPath: 'testcar' }];
+  });
+
+  it('marks the lap into the pit lane and the lap out of it', () => {
+    withRows([LEDGER_LAP_OUT_LAP | LEDGER_LAP_SERVICED, LEDGER_LAP_IN_LAP, 0]);
+
+    const { result } = renderHook(() => useLapTimeLog());
+
+    expect(result.current.history.map((entry) => entry.pitted)).toEqual([
+      true,
+      true,
+      false,
+    ]);
+    // A stop is not a dirty lap.
+    expect(result.current.history.some((entry) => entry.dirty)).toBe(false);
   });
 });

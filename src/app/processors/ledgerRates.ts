@@ -18,7 +18,9 @@ import { isCleanLap } from '../../shared/lapValidity';
  *
  * Tread is the exception: it is taken per wheel from the laps on the tyre
  * that is on the car now, which may be older than the stint, and a tyre
- * change empties that wheel's laps.
+ * change empties that wheel's laps. Until the new tyre has a lap, the
+ * session's laps on the same compound stand in, then the baseline for the
+ * compound; each wheel says which it was.
  */
 
 /** How many clean laps a rate is the median of. */
@@ -97,6 +99,13 @@ export const baselineFrom = (
   };
 };
 
+/**
+ * Where a wheel's tread per lap was taken from: laps on the tyre now fitted,
+ * the session's laps on an earlier set of the same compound, or what the
+ * compound cost in earlier sessions.
+ */
+export type TreadRateSource = 'tyre' | 'session' | 'baseline';
+
 /** Per-lap rates and where they were taken from. */
 export interface LedgerRates {
   /** Litres a lap. */
@@ -109,6 +118,8 @@ export interface LedgerRates {
   brake: (number | null)[];
   /** Tread a lap, per wheel. */
   tread: (number | null)[];
+  /** Where each wheel's tread was taken from; null beside a null rate. */
+  treadSource: (TreadRateSource | null)[];
   /** Where fuel, energy, lap time and the discs were taken from. */
   source: LedgerRateSource | null;
 }
@@ -119,6 +130,7 @@ export const EMPTY_LEDGER_RATES: LedgerRates = {
   lapTime: null,
   brake: [null, null, null, null],
   tread: [null, null, null, null],
+  treadSource: [null, null, null, null],
   source: null,
 };
 
@@ -188,16 +200,42 @@ export class LedgerRateBook {
     const rows = ofStint.length > 0 ? ofStint : ofSession;
     const baseline = this.baseline;
 
-    const tread = Array.from({ length: WHEELS }, (_, wheel) => {
-      const fitted = medianOf(this.onTyre[wheel]);
-      if (fitted !== null) return fitted;
-      const session = medianOf(
-        readings(ofSession.map((lap) => lap.treadUsed[wheel] ?? null))
-      );
-      if (session !== null) return session;
+    const tread: (number | null)[] = [];
+    const treadSource: (TreadRateSource | null)[] = [];
+    for (let wheel = 0; wheel < WHEELS; wheel += 1) {
       const name = compounds[wheel];
-      return name ? (baseline?.treadByCompound[name]?.[wheel] ?? null) : null;
-    });
+      const fitted = medianOf(this.onTyre[wheel]);
+      // The session's laps on another set stand in only for the same
+      // compound: a fresh soft does not wear as the worn medium did. A lap
+      // or a wheel that names no compound is taken as it comes.
+      const session =
+        fitted !== null
+          ? null
+          : medianOf(
+              readings(
+                ofSession
+                  .filter((lap) => {
+                    const driven = lap.compounds?.[wheel];
+                    return !name || !driven || driven === name;
+                  })
+                  .map((lap) => lap.treadUsed[wheel] ?? null)
+              )
+            );
+      const stored =
+        fitted === null && session === null && name
+          ? (baseline?.treadByCompound[name]?.[wheel] ?? null)
+          : null;
+      tread.push(fitted ?? session ?? stored);
+      treadSource.push(
+        fitted !== null
+          ? 'tyre'
+          : session !== null
+            ? 'session'
+            : stored !== null
+              ? 'baseline'
+              : null
+      );
+    }
 
     if (rows.length > 0) {
       return {
@@ -208,6 +246,7 @@ export class LedgerRateBook {
           medianOf(readings(rows.map((lap) => lap.brakeUsed[wheel] ?? null)))
         ),
         tread,
+        treadSource,
         source: ofStint.length > 0 ? 'stint' : 'session',
       };
     }
@@ -218,9 +257,10 @@ export class LedgerRateBook {
         lapTime: baseline.lapTime,
         brake: [...baseline.brake],
         tread,
+        treadSource,
         source: 'baseline',
       };
     }
-    return { ...EMPTY_LEDGER_RATES, tread };
+    return { ...EMPTY_LEDGER_RATES, tread, treadSource };
   }
 }

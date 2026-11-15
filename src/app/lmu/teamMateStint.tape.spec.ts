@@ -14,8 +14,10 @@ import { LapLogProcessor } from '../processors/LapLogProcessor';
 import { LapTraceSampleProcessor } from '../processors/LapTraceSampleProcessor';
 import { PlayerLapRecorder } from '../processors/PlayerLapRecorder';
 import { ReferenceLapProcessor } from '../processors/ReferenceLapProcessor';
+import { SectorTimingProcessor } from '../processors/SectorTimingProcessor';
 import { TrackStateProcessor } from '../processors/TrackStateProcessor';
 import { TyreStateProcessor } from '../processors/TyreStateProcessor';
+import { sectorSum, type SectorBests } from '../../shared/sectorBests';
 import { isEligibleLap } from '../storage/lapLibrary/LapLibraryDatabase';
 
 /**
@@ -163,6 +165,20 @@ const playStint = async ({
   const controls = new DriverControlsProcessor();
   const tyres = new TyreStateProcessor();
   const lapTrace = new LapTraceSampleProcessor();
+  // The store of all-time sector bests, empty and already read.
+  const sectorBestsKept = new Map<string, SectorBests>();
+  let sectorBestsRevision = 1;
+  const sectorTiming = new SectorTimingProcessor({
+    simulator: 'lmu',
+    store: {
+      load: (key) => sectorBestsKept.get(key) ?? null,
+      save: (key, bests) => {
+        sectorBestsKept.set(key, bests);
+        sectorBestsRevision += 1;
+      },
+      revision: () => sectorBestsRevision,
+    },
+  });
   const processors = [
     fuel,
     trackState,
@@ -172,6 +188,7 @@ const playStint = async ({
     controls,
     tyres,
     lapTrace,
+    sectorTiming,
   ];
   for (const processor of processors) {
     processor.onLifecycle({ type: 'enter', replay: false });
@@ -544,6 +561,10 @@ const playStint = async ({
     lapLog: lapLog.snapshot(),
     lapDelta: lapDelta.snapshot(),
     sessionBests: references.snapshot().bestLaps,
+    references: references.snapshot(),
+    sectorTiming: sectorTiming.snapshot(),
+    /** What the store of all-time sector bests was left holding, by key. */
+    sectorBestsKept,
   };
 };
 
@@ -668,6 +689,40 @@ describe.skipIf(!lmuTapeAvailable())(
         ).toBe(false);
         expect(stint.sessionBests.length).toBeGreaterThan(5);
         expect(stint.lapDelta.sessionBest.lapTime).toBeNull();
+
+        // Nor a last lap or a best of the stint: the lap the team-mate
+        // drove from line to line is the car's, not the user's.
+        expect(stint.references.playerLastLap).toBeNull();
+        expect(stint.references.playerStintBestLap).toBeNull();
+        expect(stint.lapDelta.lastLap.lapTime).toBeNull();
+        expect(stint.lapDelta.stintBest.lapTime).toBeNull();
+        // That lap was timed as it ended, and had nothing of the user's to
+        // be measured against.
+        expect(stint.lapDelta.lastLapFinal?.lapTime).toBeCloseTo(
+          SECOND_LAP_SECONDS,
+          1
+        );
+        expect(stint.lapDelta.lastLapFinal).toMatchObject({
+          sessionBest: null,
+          allTime: null,
+          stintBest: null,
+          lastLap: null,
+        });
+
+        // And no sector of it: none for the session, none kept for the
+        // track and car, and nothing written to the store. The one sector
+        // the user did finish at the wheel began before the recording.
+        const empty = [null, null, null];
+        const { sectorTiming } = stint;
+        expect(sectorTiming.inclusive.sessionBestSectorTimes).toEqual(empty);
+        expect(sectorTiming.clean.sessionBestSectorTimes).toEqual(empty);
+        expect(sectorTiming.inclusive.sessionBestLapSectorTimes).toEqual(empty);
+        expect(sectorTiming.allTime).toEqual({
+          bestSectorTimes: empty,
+          previousBestSectorTimes: empty,
+          bestLapSectorTimes: empty,
+        });
+        expect(stint.sectorBestsKept.size).toBe(0);
 
         // The lap library has both laps the car completed, and neither as
         // the user's own, so neither can ever be a reference.
@@ -855,6 +910,41 @@ describe.skipIf(!lmuTapeAvailable())(
         SECOND_LAP_SECONDS,
         0
       );
+      // That lap is the user's last lap and the best of their stint too,
+      // and the one before it, which the team-mate had a part of, is not.
+      expect(stint.references.playerLastLap).toBe(sessionBest);
+      expect(stint.references.playerStintBestLap).toBe(sessionBest);
+      expect(stint.lapDelta.lastLap.lapTime).toBeCloseTo(SECOND_LAP_SECONDS, 0);
+      expect(stint.lapDelta.stintBest.lapTime).toBeCloseTo(
+        SECOND_LAP_SECONDS,
+        0
+      );
+
+      // The sectors the user drove from their start count, and only those:
+      // of the lap the team-mate had part of, the last one alone; then the
+      // whole of the lap after it, which is the best lap, and the first
+      // sector of the third. They are what is kept for the track and car.
+      const { sectorTiming } = stint;
+      const bestLap = sectorTiming.clean.sessionBestLapSectorTimes;
+      expect(sectorSum(bestLap)).toBeCloseTo(SECOND_LAP_SECONDS, 1);
+      expect(sectorTiming.allTime?.bestLapSectorTimes).toEqual(bestLap);
+      expect(sectorTiming.allTime?.bestSectorTimes).toEqual(
+        sectorTiming.clean.sessionBestSectorTimes
+      );
+      // The second sector of the first lap, which the user came back into
+      // the car part-way through, is nobody's best: the only second sector
+      // there is to have been improved on would have been that one.
+      expect(sectorTiming.allTime?.previousBestSectorTimes[1]).toBeNull();
+      expect(sectorTiming.allTime?.previousBestSectorTimes[2]).toBeCloseTo(
+        FIRST_LAP_SECONDS - 78.816,
+        1
+      );
+      expect([...stint.sectorBestsKept.values()]).toEqual([
+        {
+          bestSectorTimes: sectorTiming.allTime?.bestSectorTimes,
+          bestLapSectorTimes: bestLap,
+        },
+      ]);
       // The library has both laps. The one from the rolling start is not
       // the user's own, the team-mate having had the car for forty seconds
       // of it, and has no curve. The one after it is the user's from the

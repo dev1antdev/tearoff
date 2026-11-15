@@ -31,7 +31,18 @@ export default defineWidgetManifest({
       style: 'list',
       hidePittedLaps: false,
       hideCautionLaps: false,
+      // The cells below are off so that a saved dashboard keeps its look and
+      // the default width still fits; with all of them on the list wants
+      // about 320 px.
+      showStintLap: false,
+      showFuel: false,
+      showWear: false,
+      wearMode: 'average',
+      showFlags: true,
+      showCurrentRow: false,
+      thisStintOnly: false,
     },
+    fuelUnits: 'L',
     background: {
       opacity: 80,
     },
@@ -120,6 +131,59 @@ export default defineWidgetManifest({
       label: 'Hide Caution Laps',
       description:
         'Leave out laps driven under full-course cautions, keeping the graph scale and average focused on green-flag pace. Local yellows are kept.',
+    },
+    'history.thisStintOnly': {
+      type: 'boolean',
+      label: 'This Stint Only',
+      description:
+        'List only the laps of the stint you are driving. Back in the garage, the stint you last drove.',
+    },
+    'history.showCurrentRow': {
+      type: 'boolean',
+      label: 'Show The Lap Under Way',
+      description:
+        'A first row for the lap you are on: its running time and what it has used so far.',
+    },
+    'history.showFlags': {
+      type: 'boolean',
+      label: 'Show Lap Marks',
+      description:
+        'Marks beside the lap number: a garage for an in-lap or an out-lap, a cross for a lap the sim voided or one with an incident, a yellow flag for a yellow (with FCY for a full-course caution), a drop for a wet lap and a green flag for the first lap of a race, which is timed from the green.',
+    },
+    'history.showStintLap': {
+      type: 'boolean',
+      label: 'Show Stint Lap',
+      description: "The lap's number within its stint, as S5.",
+    },
+    'history.showFuel': {
+      type: 'boolean',
+      label: 'Show Fuel Used',
+      description:
+        'What the lap burned. A car that runs on virtual energy shows percent of its energy; any other shows fuel.',
+    },
+    'history.showWear': {
+      type: 'boolean',
+      label: 'Show Tyre Wear',
+      description:
+        'Tread the lap wore, in percent, amber when well above the other laps shown. Le Mans Ultimate only: iRacing reads tread in the pits, not lap by lap.',
+    },
+    'history.wearMode': {
+      type: 'enum',
+      label: 'Tyre Wear Of',
+      description: 'The average of the four tyres, or the one that wore most.',
+      options: [
+        { value: 'average', label: 'Average' },
+        { value: 'highest', label: 'Highest' },
+      ],
+    },
+    fuelUnits: {
+      type: 'enum',
+      label: 'Fuel Units',
+      description: 'Virtual energy is always shown in percent.',
+      options: [
+        { value: 'L', label: 'Litres' },
+        { value: 'gal', label: 'Gallons' },
+      ],
     },
     'background.opacity': {
       type: 'number',
