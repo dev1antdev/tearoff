@@ -304,6 +304,123 @@ describe('useProgressAnimation', () => {
     expect(callbacks.size).toBe(0);
   });
 
+  describe('paused, as while the overlay is hidden', () => {
+    const draw = vi.fn();
+    const Harness = ({
+      source,
+      paused,
+      appearance = 'plain',
+    }: {
+      source: ReturnType<typeof drivers>;
+      paused: boolean;
+      appearance?: string;
+    }) => {
+      useProgressAnimation(
+        source,
+        (values, count) => draw(appearance, values[0], count),
+        undefined,
+        undefined,
+        paused
+      );
+      return null;
+    };
+
+    beforeEach(() => draw.mockClear());
+
+    it('draws nothing and asks for no frame, whatever arrives', () => {
+      const view = render(<Harness source={drivers(0.1)} paused={false} />);
+      commitAt(5);
+      view.rerender(<Harness source={drivers(0.3)} paused={false} />);
+      expect(callbacks.size).toBe(1);
+      draw.mockClear();
+
+      // The pending frame goes with the pause.
+      view.rerender(<Harness source={drivers(0.3)} paused />);
+      expect(callbacks.size).toBe(0);
+
+      // New positions, the same positions restyled, and time passing.
+      commitAt(45);
+      view.rerender(<Harness source={drivers(0.5)} paused />);
+      view.rerender(
+        <Harness source={drivers(0.5)} paused appearance="restyled" />
+      );
+      frame(60);
+      frame(200);
+
+      expect(draw).not.toHaveBeenCalled();
+      expect(callbacks.size).toBe(0);
+    });
+
+    it('paints once when the pause ends, where the cars are by then', () => {
+      const view = render(<Harness source={drivers(0.1)} paused={false} />);
+      view.rerender(<Harness source={drivers(0.1)} paused />);
+      commitAt(40);
+      view.rerender(<Harness source={drivers(0.3)} paused />);
+      commitAt(80);
+      const latest = drivers(0.5);
+      view.rerender(<Harness source={latest} paused appearance="restyled" />);
+      draw.mockClear();
+
+      commitAt(400);
+      view.rerender(
+        <Harness source={latest} paused={false} appearance="restyled" />
+      );
+
+      // In the commit itself, not a frame later, and not eased in from where
+      // the cars were when the overlay went away.
+      expect(draw).toHaveBeenCalledTimes(1);
+      expect(draw.mock.calls[0][0]).toBe('restyled');
+      expect(draw.mock.calls[0][1]).toBeCloseTo(0.5);
+      expect(callbacks.size).toBe(0);
+    });
+
+    it('paints and animates on when positions arrive with the end of the pause', () => {
+      const view = render(<Harness source={drivers(0.1)} paused />);
+      expect(draw).not.toHaveBeenCalled();
+
+      commitAt(40);
+      view.rerender(<Harness source={drivers(0.3)} paused={false} />);
+      expect(draw).toHaveBeenCalledTimes(1);
+      expect(callbacks.size).toBe(1);
+      frame(80);
+      expect(draw.mock.calls.at(-1)?.[1]).toBeCloseTo(0.3);
+      expect(callbacks.size).toBe(0);
+    });
+
+    it('restores a canvas that was cleared while paused', () => {
+      let canvas = 'cars';
+      const Canvas = ({
+        paused,
+        revision,
+      }: {
+        paused: boolean;
+        revision: number;
+      }) => {
+        const invalidated = useRef(false);
+        useLayoutEffect(() => {
+          canvas = '';
+          invalidated.current = true;
+        }, [revision]);
+        useProgressAnimation(
+          source,
+          () => {
+            canvas = `cars:${revision}`;
+          },
+          30,
+          invalidated,
+          paused
+        );
+        return null;
+      };
+      const source = drivers(0.1);
+      const view = render(<Canvas paused={false} revision={0} />);
+      view.rerender(<Canvas paused revision={1} />);
+      expect(canvas).toBe('');
+      view.rerender(<Canvas paused={false} revision={1} />);
+      expect(canvas).toBe('cars:1');
+    });
+  });
+
   it('records draw work and cancels pending work on unmount including StrictMode', () => {
     const recordMeasure = vi.fn();
     window.rendererPerfBridge = { recordMeasure };

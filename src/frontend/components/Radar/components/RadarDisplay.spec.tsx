@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RadarDisplay, type RadarDisplayProps } from './RadarDisplay';
 import { radarStyleFrom } from '../radarStyle';
 import { getWidgetDefaultConfig } from '@irdashies/types';
+import { OverlayHiddenContext } from '@irdashies/context';
 
 const draw = vi.hoisted(() => vi.fn());
 vi.mock('../radarDraw', async (original) => ({
@@ -185,6 +186,38 @@ describe('Radar painting cadence', () => {
     expect(pending.size).toBe(1);
     view.unmount();
     expect(unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it('stops painting while the overlay is hidden in a window that stays visible, and resumes with the latest frame', () => {
+    // The overlay is hidden with CSS: the window never is, the radar stays
+    // mounted and `active`, and the native signal above never fires.
+    const Harness = ({
+      hidden,
+      playerPct = 0,
+    }: {
+      hidden: boolean;
+      playerPct?: number;
+    }) => (
+      <OverlayHiddenContext.Provider value={hidden}>
+        <RadarDisplay {...props} frame={{ ...props.frame, playerPct }} />
+      </OverlayHiddenContext.Provider>
+    );
+    const view = render(<Harness hidden={false} />);
+    expect(pending.size).toBe(1);
+    const before = draw.mock.calls.length;
+
+    view.rerender(<Harness hidden />);
+    expect(pending.size).toBe(0);
+    refresh(1000);
+    view.rerender(<Harness hidden playerPct={0.5} />);
+    refresh(2000);
+    expect(draw).toHaveBeenCalledTimes(before);
+    expect(pending.size).toBe(0);
+
+    view.rerender(<Harness hidden={false} playerPct={0.5} />);
+    expect(draw).toHaveBeenCalledTimes(before + 1);
+    expect(draw.mock.calls.at(-1)?.[1].playerPct).toBeCloseTo(0.5);
+    expect(pending.size).toBe(1);
   });
 
   it('draws the latest snapshot on the next due paint without resetting the clock', () => {

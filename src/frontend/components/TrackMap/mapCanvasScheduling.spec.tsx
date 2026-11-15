@@ -33,10 +33,13 @@ const turnLabels = {
   labelFontSize: 100,
 } as const;
 
+const overlay = vi.hoisted(() => ({ hidden: false }));
+
 vi.mock('@irdashies/domain/track', () => ({ useTrackDrawing: () => drawing }));
 vi.mock('@irdashies/context', () => ({
   useTrackStateSnapshot: () => ({ carIdxOnPitRoad: pitState }),
   useCarIdxOffTrack: () => offTrack,
+  usePaintingPaused: () => overlay.hidden,
 }));
 
 const drivers = (progress: number): TrackDriver[] => [
@@ -72,6 +75,7 @@ beforeEach(() => {
   resizeCallbacks = [];
   width = 640;
   now = 0;
+  overlay.hidden = false;
   let frameId = 0;
   vi.spyOn(performance, 'now').mockImplementation(() => now);
   vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
@@ -251,6 +255,42 @@ describe.each(['track', 'flat', 'both'] as const)(
       for (const canvas of view.container.querySelectorAll('canvas'))
         expect(events(canvas).at(-1)).toBe('text:7');
       view.unmount();
+      expect(callbacks.size).toBe(0);
+    });
+
+    it('paints nothing while the overlay is hidden, whatever changes, and once when it is back', () => {
+      const view = render(<Harness source={drivers(0.1)} />);
+      const canvases = [...view.container.querySelectorAll('canvas')];
+      now = 10;
+      view.rerender(<Harness source={drivers(0.2)} />);
+      expect(callbacks.size).toBe(canvases.length);
+      for (const canvas of canvases) events(canvas).length = 0;
+
+      // Hiding drops the frame that was waiting.
+      overlay.hidden = true;
+      view.rerender(<Harness source={drivers(0.2)} />);
+      expect(callbacks.size).toBe(0);
+
+      // Positions, then the track's own appearance: the static layer is not
+      // rebuilt for nobody either.
+      now = 50;
+      view.rerender(<Harness source={drivers(0.3)} />);
+      now = 90;
+      const latest = drivers(0.5);
+      view.rerender(<Harness source={latest} inverted />);
+      frame(130);
+      expect(callbacks.size).toBe(0);
+      for (const canvas of canvases) expect(events(canvas)).toEqual([]);
+
+      overlay.hidden = false;
+      now = 400;
+      view.rerender(<Harness source={latest} inverted />);
+      for (const canvas of canvases) {
+        expect(
+          events(canvas).filter((event) => event === 'text:7')
+        ).toHaveLength(1);
+        expect(events(canvas).at(-1)).toBe('text:7');
+      }
       expect(callbacks.size).toBe(0);
     });
   }

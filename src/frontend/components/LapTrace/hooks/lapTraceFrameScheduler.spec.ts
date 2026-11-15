@@ -86,6 +86,58 @@ describe('scheduleLapTraceFrames', () => {
     scheduler.dispose();
   });
 
+  it('draws nothing while paused, and once when resumed', () => {
+    const draw = vi.fn();
+    const scheduler = scheduleLapTraceFrames(
+      'lapTraceFrame',
+      draw,
+      (state, prev) => state.trackLengthM !== prev.trackLengthM
+    );
+    runFrames();
+    expect(draw).toHaveBeenCalledTimes(1);
+
+    // A frame already waiting is dropped with the pause.
+    scheduler.request();
+    scheduler.setPaused(true);
+    expect(callbacks).toHaveLength(0);
+
+    // Telemetry and the lap store go on asking; nothing is scheduled.
+    scheduler.request();
+    useLapTraceStore.setState({ trackLengthM: 4321 });
+    scheduler.request();
+    expect(callbacks).toHaveLength(0);
+    runFrames();
+    expect(draw).toHaveBeenCalledTimes(1);
+
+    scheduler.setPaused(false);
+    expect(callbacks).toHaveLength(1);
+    runFrames();
+    expect(draw).toHaveBeenCalledTimes(2);
+    expect(callbacks).toHaveLength(0);
+
+    scheduler.dispose();
+  });
+
+  it('started paused, holds its first frame until resumed', () => {
+    const draw = vi.fn();
+    const scheduler = scheduleLapTraceFrames(
+      'lapTraceFrame',
+      draw,
+      () => false,
+      true
+    );
+    expect(callbacks).toHaveLength(0);
+
+    // Resuming twice asks for one frame, not two.
+    scheduler.setPaused(false);
+    scheduler.setPaused(false);
+    expect(callbacks).toHaveLength(1);
+    runFrames();
+    expect(draw).toHaveBeenCalledTimes(1);
+
+    scheduler.dispose();
+  });
+
   it('draws nothing once disposed', () => {
     const draw = vi.fn();
     const scheduler = scheduleLapTraceFrames('lapTraceFrame', draw, () => true);

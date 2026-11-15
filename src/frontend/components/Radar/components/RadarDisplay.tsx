@@ -1,5 +1,5 @@
 import { RadarRingsLayer } from '../radarDrawRings';
-import { useNativeWindowVisibility } from '@irdashies/context';
+import { usePaintingPaused } from '@irdashies/context';
 import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { perfMetrics } from '@irdashies/utils/perfMetrics';
 import { useWidgetScale } from '@irdashies/domain/widgetPresentation/WidgetScale';
@@ -113,7 +113,9 @@ export const RadarDisplay = memo(
     dive = NO_DIVES,
   }: RadarDisplayProps) => {
     const widgetScale = useWidgetScale();
-    const nativeVisible = useNativeWindowVisibility();
+    // The window hidden or minimised, or the overlay hidden inside it: that
+    // one keeps the radar mounted, so `active` alone would go on painting.
+    const paintingPaused = usePaintingPaused();
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [size, setSize] = useState(0);
@@ -153,7 +155,7 @@ export const RadarDisplay = memo(
     }, []);
 
     useEffect(() => {
-      if (!nativeVisible) return;
+      if (paintingPaused) return;
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d');
       if (!canvas || !ctx || size <= 0) return;
@@ -319,7 +321,7 @@ export const RadarDisplay = memo(
         cancelAnimationFrame(handle);
         ringsLayer.dispose();
       };
-    }, [size, active, widgetScale, nativeVisible]);
+    }, [size, active, widgetScale, paintingPaused]);
 
     return (
       <div

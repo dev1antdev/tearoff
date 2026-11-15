@@ -1,6 +1,6 @@
 import { render, waitFor, cleanup } from '@testing-library/react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { useLapTraceStore } from '@irdashies/context';
+import { OverlayHiddenContext, useLapTraceStore } from '@irdashies/context';
 import {
   DEFAULT_LAP_TRACE_COLORS,
   type ChannelBridge,
@@ -930,6 +930,68 @@ describe('LapTracePlot', () => {
       seedReference();
 
       await waitFor(() => expect(referenceThrottle(container)).not.toBe(''));
+    });
+
+    it('asks for no frames and writes nothing while the overlay is hidden, then draws where the car is', async () => {
+      await useLapTraceStore
+        .getState()
+        .initialize(undefined, 1, '', 'car', TRACK_LENGTH_M);
+      seedReference();
+      pushGhost(everyMetres(1000, 1, () => ({ throttle: 1 })));
+      const moveTo = sampleBridge();
+      const Plot = ({ hidden }: { hidden: boolean }) => (
+        <OverlayHiddenContext.Provider value={hidden}>
+          <LapTracePlot {...defaultProps} />
+        </OverlayHiddenContext.Provider>
+      );
+      const { container, rerender } = render(<Plot hidden={false} />);
+      const ghostThrottle = () =>
+        tilesOf(container, 'ghost', 'throttle').map((t) => t.d);
+      const referenceTransforms = () =>
+        tilesOf(container, 'reference', 'throttle').map(
+          (t) => t.svg.style.transform
+        );
+      moveTo(1000 / TRACK_LENGTH_M);
+      await waitFor(() =>
+        expect(ghostThrottle().some((d) => d !== '')).toBe(true)
+      );
+      // Let the frame that prepares the next span go by.
+      await nextFrames(3);
+      const transforms = referenceTransforms();
+      const ghost = ghostThrottle();
+
+      rerender(<Plot hidden />);
+      const raf = vi.spyOn(window, 'requestAnimationFrame');
+      const mutations: MutationRecord[] = [];
+      const observer = new MutationObserver((records) =>
+        mutations.push(...records)
+      );
+      observer.observe(container, {
+        subtree: true,
+        childList: true,
+        attributes: true,
+        characterData: true,
+      });
+      // The recorder goes on and the car drives on, with nobody watching.
+      pushGhost(everyMetres(1010, 1, () => ({ throttle: 0.5 }), 1001));
+      moveTo(1005 / TRACK_LENGTH_M);
+      moveTo(1010 / TRACK_LENGTH_M);
+      await nextFrames(5);
+      mutations.push(...observer.takeRecords());
+      observer.disconnect();
+
+      expect(raf).not.toHaveBeenCalled();
+      expect(mutations).toEqual([]);
+
+      rerender(<Plot hidden={false} />);
+      await waitFor(() =>
+        expect(referenceTransforms()).not.toEqual(transforms)
+      );
+      // The lap driven while hidden is there: the recorder never stopped.
+      expect(ghostThrottle()).not.toEqual(ghost);
+      // One frame brought it all back; a still car asks for no more.
+      await nextFrames(3);
+      expect(raf).toHaveBeenCalledTimes(1);
     });
 
     it('writes no gear label as the car moves past them', async () => {

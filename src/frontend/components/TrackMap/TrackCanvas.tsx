@@ -27,7 +27,11 @@ import {
 const EMPTY_PIT_STATE: readonly boolean[] = [];
 import type { SectorColor } from '@irdashies/context';
 import type { Sector } from '@irdashies/types';
-import { useTrackStateSnapshot, useCarIdxOffTrack } from '@irdashies/context';
+import {
+  useTrackStateSnapshot,
+  useCarIdxOffTrack,
+  usePaintingPaused,
+} from '@irdashies/context';
 
 export interface DriverIdentity {
   driver: Driver;
@@ -129,6 +133,7 @@ const LoadedTrackCanvas = ({
     [rawPlayerIconDataUrl]
   );
   const widgetScale = useWidgetScale();
+  const paintingPaused = usePaintingPaused();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const canvasInvalidatedRef = useRef(false);
   const cacheCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -299,6 +304,9 @@ const LoadedTrackCanvas = ({
 
   // Static layer — redraws only when track settings, size, or appearance change
   useLayoutEffect(() => {
+    // Not while nobody can see it: sector colours change it several times a
+    // lap. The pause ending runs this again, with whatever is current by then.
+    if (paintingPaused) return;
     const canvas = canvasRef.current;
     if (!canvas || !path2DObjects) return;
     if (canvasSize.width === 0 || canvasSize.height === 0) return;
@@ -403,6 +411,7 @@ const LoadedTrackCanvas = ({
     totalLength,
     sfDirection,
     sfIntersectionLength,
+    paintingPaused,
   ]);
 
   // Dynamic layer — interpolates and paints imperatively between 25 Hz snapshots.
@@ -515,7 +524,8 @@ const LoadedTrackCanvas = ({
       }
     },
     maxFps,
-    canvasInvalidatedRef
+    canvasInvalidatedRef,
+    paintingPaused
   );
 
   const renderIconOverlay = () =>

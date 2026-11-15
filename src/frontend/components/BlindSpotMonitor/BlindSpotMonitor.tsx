@@ -2,7 +2,11 @@ import { useBlindSpotMonitor } from './hooks/useBlindSpotMonitor';
 import { useBlindSpotMonitorSettings } from './hooks/useBlindSpotMonitorSettings';
 import { BlindSpotMonitorIndicator } from './components/BlindSpotMonitorIndicator';
 import { BlindSpotMonitorSimpleIndicator } from './components/BlindSpotMonitorSimpleIndicator';
-import { useDashboard, useSessionVisibility } from '@irdashies/context';
+import {
+  useDashboard,
+  usePaintingPaused,
+  useSessionVisibility,
+} from '@irdashies/context';
 import { CarLeftRight } from '@irdashies/types';
 
 export interface BlindSpotMonitorDisplayProps {
@@ -134,11 +138,17 @@ export const BlindSpotMonitor = () => {
   const { isDemoMode } = useDashboard();
 
   const sessionVisible = useSessionVisibility(settings?.sessionVisibility);
+  const paintingPaused = usePaintingPaused();
   const activeState = isDemoMode ? DEMO_STATE_SIMPLE : state;
 
   if (!isDemoMode && !sessionVisible) return <></>;
   if (!isDemoMode && settings?.showOnlyWhenOnTrack && !state.isOnTrack)
     return <></>;
+  // Nobody can see the bars: do not move them from one tick to the next, nor
+  // run their transitions. The hook above keeps following the car alongside,
+  // so the bars come back where that car is, placed at once as on any first
+  // appearance.
+  if (paintingPaused) return <></>;
 
   return (
     <BlindSpotMonitorDisplay

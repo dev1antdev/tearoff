@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { usePaintingPaused } from '@irdashies/context';
 import { useWidgetScale } from '@irdashies/domain/widgetPresentation/WidgetScale';
 import {
   pointAtProgress,
@@ -89,6 +90,7 @@ export const MinimapCanvas = ({
   emptyMessage,
 }: MinimapCanvasProps) => {
   const widgetScale = useWidgetScale();
+  const paintingPaused = usePaintingPaused();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Set when a resize clears the canvas, so the next commit repaints at once
   // even if new positions arrive with it; otherwise the disc blinks.
@@ -254,7 +256,13 @@ export const MinimapCanvas = ({
     context.stroke();
   };
 
-  useProgressAnimation(cars, draw, undefined, canvasInvalidatedRef);
+  useProgressAnimation(
+    cars,
+    draw,
+    undefined,
+    canvasInvalidatedRef,
+    paintingPaused
+  );
 
   return <canvas ref={canvasRef} className="h-full w-full" />;
 };

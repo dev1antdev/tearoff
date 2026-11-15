@@ -160,12 +160,17 @@ export class ProgressInterpolator {
  * Coalesce positional snapshots into RAF draws. Canvas owners mark invalidation
  * before this hook's layout effect when a resize/static rebuild clears pixels;
  * those commits and appearance-only commits must repaint before presentation.
+ *
+ * `paused` is for a canvas nobody can see (`usePaintingPaused`). Nothing is
+ * drawn and no frame is requested while it is true; positions are still taken
+ * in, so the commit that ends the pause paints where the cars are by then.
  */
 export const useProgressAnimation = (
   drivers: ProgressSource,
   draw: DrawProgress,
   maxFps?: number,
-  canvasInvalidatedRef?: RefObject<boolean>
+  canvasInvalidatedRef?: RefObject<boolean>,
+  paused = false
 ) => {
   const interpolatorRef = useRef<ProgressInterpolator | null>(null);
   const drawRef = useRef(draw);
@@ -173,6 +178,7 @@ export const useProgressAnimation = (
   const lastDrawRef = useRef(0);
   const previousDriversRef = useRef<ProgressSource | null>(null);
   const scheduleRef = useRef<() => void>(() => undefined);
+  const wasPausedRef = useRef(false);
   const minFrameMs = maxFps && maxFps > 0 ? 1000 / maxFps : 0;
 
   if (!interpolatorRef.current) {
@@ -234,7 +240,19 @@ export const useProgressAnimation = (
       : interpolator.advance(now);
     previousDriversRef.current = drivers;
 
-    if (firstCommit || !changed || canvasInvalidatedRef?.current) {
+    if (paused) {
+      // A cleared canvas stays marked, and the next commit that may draw does.
+      wasPausedRef.current = true;
+      if (frameRef.current !== 0) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = 0;
+      }
+      return;
+    }
+    const resumed = wasPausedRef.current;
+    wasPausedRef.current = false;
+
+    if (firstCommit || !changed || resumed || canvasInvalidatedRef?.current) {
       // The cap applies to animation, never to restoring a cleared canvas or
       // changing appearance while idle (including simultaneous new targets).
       if (canvasInvalidatedRef) canvasInvalidatedRef.current = false;

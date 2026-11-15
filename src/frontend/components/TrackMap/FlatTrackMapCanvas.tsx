@@ -2,7 +2,7 @@ import { useWidgetScale } from '@irdashies/domain/widgetPresentation/WidgetScale
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TrackDriver, TrackDrawing } from './TrackCanvas';
 import { getColor, getTailwindStyle } from '@irdashies/utils/colors';
-import { useCarIdxOffTrack } from '@irdashies/context';
+import { useCarIdxOffTrack, usePaintingPaused } from '@irdashies/context';
 import {
   progressToFlatX,
   useProgressAnimation,
@@ -47,6 +47,7 @@ export const FlatTrackMapCanvas = ({
   maxFps,
 }: FlatTrackMapCanvasProps) => {
   const widgetScale = useWidgetScale();
+  const paintingPaused = usePaintingPaused();
   const canvasInvalidatedRef = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
@@ -299,7 +300,13 @@ export const FlatTrackMapCanvas = ({
       }
     }
   };
-  useProgressAnimation(drivers, drawFrame, maxFps, canvasInvalidatedRef);
+  useProgressAnimation(
+    drivers,
+    drawFrame,
+    maxFps,
+    canvasInvalidatedRef,
+    paintingPaused
+  );
 
   return (
     <div className="w-full h-full">
