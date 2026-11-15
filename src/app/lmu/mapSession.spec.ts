@@ -506,6 +506,31 @@ describe('mapLmuSession REST session values', () => {
     });
   });
 
+  it('carries the pit service, setup and forecast values as they are', () => {
+    const rest = {
+      pitService: { fuelFillRate: 3.4, fourTireChange: 12 },
+      brakeDiscNewMm: [36, 36, 32, 32],
+      garage: { regenLevel: { text: '3', value: 3, positions: 6 } },
+      forecast: {
+        race: [
+          {
+            start: 0,
+            skyType: 0,
+            temperature: 18,
+            rainChance: 0,
+            humidity: 0.56,
+            windSpeed: 17,
+            windDirection: 6,
+          },
+        ],
+      },
+    };
+
+    const s = mapLmuSession(fixture(), null, rest);
+
+    expect(s.LmuRest).toEqual(rest);
+  });
+
   it('coexists with a track map, the other out-of-band source', () => {
     const trackMap = {
       active: {

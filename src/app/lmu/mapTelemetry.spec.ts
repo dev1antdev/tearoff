@@ -983,6 +983,56 @@ describe('mapLmuTelemetry REST channels', () => {
     expect(t.LmuPitStopTime).toBeUndefined();
     expect(t.LmuRepairTime?.value[0]).toBe(5);
   });
+
+  it('publishes the pit stop, wear and setup cells under their frame keys', () => {
+    const cells = {
+      pitStopParts: { value: [4.27, 2.5, 0, 0, 0, 0, 0, 0] },
+      refuelRatio: { value: [1.03] },
+      repairChoice: { value: ['Repair Body'] },
+      brakeThickness: { value: [35.99, 35.99, 31.99, 31.99] },
+      wearablesSeq: { value: [12] },
+      steerLockDeg: { value: [476] },
+    } as const;
+
+    const t = mapLmuTelemetry(fixture(), undefined, undefined, cells);
+
+    // By reference, like every REST cell.
+    expect(t.LmuPitStopParts).toBe(cells.pitStopParts);
+    expect(t.LmuRefuelRatio).toBe(cells.refuelRatio);
+    expect(t.LmuRepairChoice).toBe(cells.repairChoice);
+    expect(t.LmuBrakeThickness).toBe(cells.brakeThickness);
+    expect(t.LmuRestWearablesSeq).toBe(cells.wearablesSeq);
+    expect(t.LmuSteerLockDeg).toBe(cells.steerLockDeg);
+  });
+
+  it('leaves those keys absent without their cells', () => {
+    const t = mapLmuTelemetry(fixture(), undefined, undefined, {});
+
+    expect(t.LmuPitStopParts).toBeUndefined();
+    expect(t.LmuRefuelRatio).toBeUndefined();
+    expect(t.LmuRepairChoice).toBeUndefined();
+    expect(t.LmuBrakeThickness).toBeUndefined();
+    expect(t.LmuRestWearablesSeq).toBeUndefined();
+    expect(t.LmuSteerLockDeg).toBeUndefined();
+  });
+
+  it('falls back to the repair screen for the stop time, and only then', () => {
+    // The estimate path's total is the figure; the repair screen states the
+    // same stop and stands in while the estimate has not answered.
+    const length = { value: [2.4207] } as const;
+    const total = { value: [2.4206] } as const;
+
+    const fallback = mapLmuTelemetry(fixture(), undefined, undefined, {
+      pitStopLength: length,
+    });
+    const both = mapLmuTelemetry(fixture(), undefined, undefined, {
+      pitStopTime: total,
+      pitStopLength: length,
+    });
+
+    expect(fallback.LmuPitStopTime).toBe(length);
+    expect(both.LmuPitStopTime).toBe(total);
+  });
 });
 
 describe('mapLmuTelemetry virtual energy', () => {
@@ -1436,5 +1486,163 @@ describe('the last lap of a car whose lap did not count', () => {
     ]);
     const first = withLapStarts(raw, createLmuLapStartState());
     expect(first.CarIdxLastLapTime?.value).toEqual([133.4, -1, -1]);
+  });
+
+  it('is marked as a lap that did not count, for as long as it is the last', () => {
+    const lapStartState = createLmuLapStartState();
+    const raw = fixture();
+    const before = withLapStarts(
+      { ...raw, vehLapStartET: new Float64Array([1100, 1101, 1102]) },
+      lapStartState
+    );
+    // Every car has a time from the sim: nothing is marked.
+    expect(before.LmuCarIdxLastLapInvalid?.value).toEqual([
+      false,
+      false,
+      false,
+    ]);
+
+    // The player, in slot 1, cuts the track. The sim's time is not above 0
+    // and the measured lap stands in its place.
+    const cut = {
+      ...raw,
+      vehLapStartET: new Float64Array([1100, 1194.4, 1102]),
+      vehLastLapTime: new Float64Array([133.4, -1, 138.9]),
+    };
+    const after = withLapStarts(cut, lapStartState);
+    expect(after.LmuCarIdxLastLapInvalid?.value).toEqual([false, true, false]);
+    // Still the last lap a frame later.
+    expect(
+      withLapStarts(cut, lapStartState).LmuCarIdxLastLapInvalid?.value?.[1]
+    ).toBe(true);
+
+    // The next lap is timed by the sim, and the mark goes with the old one.
+    const clean = withLapStarts(
+      {
+        ...raw,
+        vehLapStartET: new Float64Array([1100, 1287.2, 1102]),
+        vehLastLapTime: new Float64Array([133.4, 92.8, 138.9]),
+      },
+      lapStartState
+    );
+    expect(clean.LmuCarIdxLastLapInvalid?.value?.[1]).toBe(false);
+  });
+
+  it('is not marked before any lap, when the sim has no time and none is measured', () => {
+    // A car's first lap of a session: the sim reports no last lap, as it
+    // does for a lap that did not count, but nothing was driven to measure.
+    const raw = {
+      ...fixture(),
+      vehLastLapTime: new Float64Array([0, -1, 0]),
+    };
+    expect(
+      withLapStarts(raw, createLmuLapStartState()).LmuCarIdxLastLapInvalid
+        ?.value
+    ).toEqual([false, false, false]);
+    // And without the lap-start state at all, as a caller that keeps none.
+    expect(mapLmuTelemetry(raw).LmuCarIdxLastLapInvalid?.value).toEqual([
+      false,
+      false,
+      false,
+    ]);
+  });
+});
+
+describe('mapLmuTelemetry flag facts', () => {
+  const flagsOf = (overrides: Partial<LmuRawTelemetry>): number =>
+    mapLmuTelemetry({ ...fixture(), gamePhase: 5, ...overrides }).SessionFlags
+      .value[0];
+  /** The player is slot 1 of the fixture. */
+  const playerBlue = new Uint8Array([0, 6, 0]);
+
+  it('sets the blue alongside a sector yellow, not instead of it', () => {
+    // The fault this replaces: the first match won, so a yellow anywhere on
+    // the circuit kept the player's blue from ever being set.
+    expect(
+      flagsOf({ sectorFlags: new Uint8Array([11, 1, 11]), vehFlag: playerBlue })
+    ).toBe(GlobalFlags.Yellow | GlobalFlags.Blue);
+  });
+
+  it('sets the blue alongside a full-course yellow', () => {
+    expect(flagsOf({ gamePhase: 6, vehFlag: playerBlue })).toBe(
+      GlobalFlags.Yellow | GlobalFlags.Caution | GlobalFlags.Blue
+    );
+  });
+
+  it('does not add a sector yellow to a full-course one', () => {
+    expect(
+      flagsOf({ yellowFlagState: 4, sectorFlags: new Uint8Array([1, 1, 1]) })
+    ).toBe(GlobalFlags.Yellow | GlobalFlags.Caution);
+  });
+
+  it('keeps the flags of the end of a session beside the others', () => {
+    expect(flagsOf({ gamePhase: 8, vehFlag: playerBlue })).toBe(
+      GlobalFlags.Checkered | GlobalFlags.Blue
+    );
+    expect(
+      flagsOf({ gamePhase: 7, sectorFlags: new Uint8Array([11, 11, 1]) })
+    ).toBe(GlobalFlags.Red | GlobalFlags.Yellow);
+  });
+
+  it('marks the player disqualified from their finish status', () => {
+    expect(flagsOf({ vehFinishStatus: new Int32Array([0, 3, 0]) })).toBe(
+      GlobalFlags.Disqualify
+    );
+    // Another car's disqualification is not the player's flag.
+    expect(flagsOf({ vehFinishStatus: new Int32Array([3, 0, 0]) })).toBe(0);
+  });
+
+  it('never sets green or black, which mean other things downstream', () => {
+    const flags = flagsOf({ vehNumPenalties: [0, 2, 0] });
+
+    expect(flags & GlobalFlags.Green).toBe(0);
+    expect(flags & GlobalFlags.Black).toBe(0);
+    expect(flags).toBe(0);
+  });
+
+  it('reads no flag for a player without a car', () => {
+    expect(flagsOf({ playerHasVehicle: false, vehFlag: playerBlue })).toBe(0);
+  });
+
+  it('publishes the session phase and the yellow sub-phase as they stand', () => {
+    const t = mapLmuTelemetry({
+      ...fixture(),
+      gamePhase: 6,
+      yellowFlagState: 3,
+    });
+
+    expect(t.LmuGamePhase?.value).toEqual([6]);
+    expect(t.LmuYellowFlagState?.value).toEqual([3]);
+  });
+
+  it('publishes the sector yellows in driving order', () => {
+    const sectorYellow = (raw: number[]) =>
+      mapLmuTelemetry({ ...fixture(), sectorFlags: new Uint8Array(raw) })
+        .LmuSectorYellow?.value;
+
+    // The sim's 1 is the first sector, 2 the second and 0 the third.
+    expect(sectorYellow([11, 1, 11])).toEqual([true, false, false]);
+    expect(sectorYellow([11, 11, 1])).toEqual([false, true, false]);
+    expect(sectorYellow([1, 11, 11])).toEqual([false, false, true]);
+    // A clear sector reads 11 on the recording, so only 1 is a yellow.
+    expect(sectorYellow([11, 11, 11])).toEqual([false, false, false]);
+    expect(sectorYellow([0, 0, 0])).toEqual([false, false, false]);
+  });
+
+  it('publishes the start lights', () => {
+    const t = mapLmuTelemetry({ ...fixture(), startLight: 2, numRedLights: 5 });
+
+    expect(t.LmuStartLight?.value).toEqual([2]);
+    expect(t.LmuNumRedLights?.value).toEqual([5]);
+  });
+
+  it('leaves the start lights out for an addon that does not export them', () => {
+    const raw: Record<string, unknown> = { ...fixture() };
+    delete raw.startLight;
+    delete raw.numRedLights;
+    const t = mapLmuTelemetry(raw as unknown as LmuRawTelemetry);
+
+    expect(t.LmuStartLight).toBeUndefined();
+    expect(t.LmuNumRedLights).toBeUndefined();
   });
 });

@@ -25,9 +25,32 @@ export interface LmuRestCell<T> {
 
 export interface LmuRestCells {
   pitStopTime?: LmuRestCell<number>;
+  /**
+   * The same standing time as the repair screen states it, seconds. Stands in
+   * for `pitStopTime` when the estimate path has not answered; on a recording
+   * the two agree to 0.0001 s.
+   */
+  pitStopLength?: LmuRestCell<number>;
   repairTime?: LmuRestCell<number>;
+  /**
+   * What the next stop is made of: eight values in seconds, in the order of
+   * LMU_PIT_STOP_PARTS in tasks.ts. Not a sum: on a recording `pitStopTime`
+   * equals the fuel part, with the energy going in alongside it.
+   */
+  pitStopParts?: LmuRestCell<number>;
   refuelTarget?: LmuRestCell<number>;
   refuelTargetIsVirtualEnergy?: LmuRestCell<boolean>;
+  /**
+   * Litres of fuel per percent of virtual energy, as the pit menu is set to
+   * add them. The menu's own entry, which a driver can move on track; the
+   * garage's figure is `fuelRatio` on the session.
+   */
+  refuelRatio?: LmuRestCell<number>;
+  /**
+   * What the pit menu is set to repair, in the sim's own words ("Do Not
+   * Repair", "Repair Body"). Absent while there is nothing to repair.
+   */
+  repairChoice?: LmuRestCell<string>;
   /**
    * Seconds the next stop spends serving penalties. See types/lmu/penalty.ts.
    */
@@ -40,9 +63,30 @@ export interface LmuRestCells {
    * `watch-focus` task.
    */
   focusCarIdx?: LmuRestCell<number>;
-  brakeWear?: LmuRestCell<number>;
+  /** Brake disc thickness per wheel, millimetres: LF, RF, LR, RR. */
+  brakeThickness?: LmuRestCell<number>;
+  /**
+   * How many answers have carried a brake thickness. It only ever rises.
+   *
+   * `brakeThickness` cannot say this for itself. A disc wears a few
+   * micrometres a lap, so most answers repeat the reading before, and a cell
+   * that has not moved looks the same whether the sim answered with the same
+   * thickness or stopped answering. This moves on every answer that carried
+   * a reading, the same one included, and stands still when none arrives.
+   *
+   * To be compared with what it read a moment ago, not read as a count of
+   * anything: it is dropped with the other cells when a session begins and
+   * goes on from where it was. See `LmuRestOutput.refreshed`.
+   */
+  wearablesSeq?: LmuRestCell<number>;
+  /** Per wheel, LF, RF, LR, RR. An undamaged car reads four zeros. */
   suspensionDamage?: LmuRestCell<number>;
   aeroDamage?: LmuRestCell<number>;
+  /**
+   * The steering wheel's range lock to lock as the garage setup states it,
+   * degrees. Changes only when the setup does.
+   */
+  steerLockDeg?: LmuRestCell<number>;
 }
 
 export interface LmuRestData {

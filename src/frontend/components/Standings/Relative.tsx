@@ -10,7 +10,7 @@ import {
   useLapTimeHistory,
   useCarIdxRollingAvgLapTime,
   useFocusCarIdx,
-  useTrackStateSnapshot,
+  useFlagStateSnapshot,
   useP2PDisplayStates,
   usePitStopDuration,
   usePitLaneStore,
@@ -32,7 +32,7 @@ import { useIsSingleMake } from './hooks/useIsSingleMake';
 import { useTrackLimitsMax } from './hooks/useTrackLimitsMax';
 import { calculateLapDeltas } from './hooks';
 import { FlagContour } from '@irdashies/utils/FlagContour';
-import { getFlag } from '@irdashies/utils/getFlag';
+import { flagLabelType, flagWidgetLabel } from '@irdashies/domain/flags';
 import { getFlagColor } from '@irdashies/utils/getFlagColor';
 
 /** The relative widget: the cars just ahead of and behind the focus car. */
@@ -79,14 +79,21 @@ export const Relative = () => {
   const isMultiClass = (numCarClasses ?? 0) > 1;
   const isSessionVisible = useSessionVisibility(settings?.sessionVisibility);
 
-  const sessionFlags = useTrackStateSnapshot()?.sessionFlags ?? 0;
-  const flagInfo = getFlag(sessionFlags);
   const flagContourSetting = settings?.stylingOptions?.flagContour;
+  // The resolved flag, so a blue is not hidden by a yellow somewhere else on
+  // the circuit. A clear track draws no contour: green shows only while it
+  // is announced, after the start and after a yellow.
+  const flagState = useFlagStateSnapshot(flagContourSetting?.enabled ?? false);
+  const flagLabel = flagWidgetLabel(
+    flagState?.kind ?? 'none',
+    flagState?.detail ?? 'noSession',
+    false
+  );
   const flagContourEnabled =
-    (flagContourSetting?.enabled ?? false) && flagInfo.label !== 'NO FLAG';
+    (flagContourSetting?.enabled ?? false) && flagLabel !== 'NO FLAG';
   const borderWidth = flagContourSetting?.borderWidth ?? 5;
 
-  const flagColor = getFlagColor(getFlag(sessionFlags).label);
+  const flagColor = getFlagColor(flagLabelType(flagLabel));
 
   const p2pDisplayStates = useP2PDisplayStates();
 

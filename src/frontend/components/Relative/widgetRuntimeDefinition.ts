@@ -12,6 +12,8 @@ export default {
     'relative-gaps.snapshot',
     'standings.snapshot',
     'track-state.snapshot',
+    // The flag contour.
+    'flag-state.snapshot',
   ],
   ratePreset: 'gapTiming',
   channelRates: { 'radio.snapshot': 25 },

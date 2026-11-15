@@ -109,3 +109,24 @@ export const lmuLastLapTimes = (
         return measured !== undefined && measured > 0 ? measured : -1;
       })
     : [];
+
+/**
+ * Whether each car's last lap did not count: the sim gave it no time, and
+ * the time published in its place is the one measured from its two starts.
+ *
+ * The sim's own statement, not a verdict about why. It is wider than a lap
+ * voided for track limits: an out-lap in practice is untimed as well. False
+ * before a car has completed a lap, which the sim also reports as no time
+ * and which has nothing measured to stand in.
+ */
+export const lmuLastLapInvalid = (
+  state: LmuLapStartState | undefined,
+  lastLapTimes: ArrayLike<number> | undefined
+): boolean[] =>
+  lastLapTimes
+    ? Array.from(lastLapTimes, (time, carIdx) => {
+        if (time > 0) return false;
+        const measured = state?.measured[carIdx];
+        return measured !== undefined && measured > 0;
+      })
+    : [];

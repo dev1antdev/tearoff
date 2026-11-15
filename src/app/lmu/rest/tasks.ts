@@ -1,4 +1,8 @@
-import type { LmuWeatherNode } from '@irdashies/types';
+import type {
+  LmuGarageSetting,
+  LmuPitService,
+  LmuWeatherNode,
+} from '@irdashies/types';
 import {
   parseLmuGameState,
   readLmuGameStateFailure,
@@ -65,14 +69,33 @@ export interface LmuRestOutput {
    * at first, so a report can name only what is new.
    */
   readonly report?: (value: unknown, previous: unknown) => string | undefined;
+  /**
+   * Marks that an answer carried this output's value, new or not.
+   *
+   * `apply` cannot say that. A body identical to the one before is never
+   * parsed, and a value that reads the same in a body that moved is written
+   * again as it was -- so a cell that has not changed looks the same whether
+   * the sim answered with the same value or stopped answering. For a reading
+   * that barely moves, the difference matters: a brake disc that has stopped
+   * wearing is a failed brake, and an answer that has stopped arriving is
+   * not.
+   *
+   * Called by the poller on every answer whose body this output read a value
+   * from: the body just parsed, or an identical one after it. Not called for
+   * an answer that failed, nor for a body this output found nothing in.
+   * `count` is how many such answers there have been; it only ever rises, for
+   * as long as the poller lives, so two marks are never the same. Written
+   * into a cell of its own, which reaches a processor on the telemetry frame.
+   */
+  readonly refreshed?: (data: LmuRestData, count: number) => void;
 }
 
 export interface LmuRestTask {
   readonly id: string;
   readonly path: string;
   /**
-   * `once` runs a single time per session -- session settings and the
-   * forecast cannot change mid-session. `repeat` polls, backing off while the
+   * `once` runs a single time per session -- session settings cannot change
+   * mid-session. `repeat` polls, backing off while the
    * response is unchanged. `burst` polls only when the bridge asks, through
    * `LmuRestPoller.burst`: every `baseIntervalMs` until the bridge's own
    * check passes or `burstMs` has gone by.
@@ -96,8 +119,9 @@ export interface LmuRestTask {
   /**
    * The ceiling this task's interval backs off to, if not REST_MAX_INTERVAL_MS.
    *
-   * For a task where noticing a change promptly *is* the feature, rather than
-   * one reading a value that sits still for a stint.
+   * Lower for a task where noticing a change promptly *is* the feature,
+   * rather than one reading a value that sits still for a stint; higher for
+   * one whose base interval is already longer than the shared ceiling.
    */
   readonly maxIntervalMs?: number;
   /**
@@ -186,6 +210,175 @@ const fourCorners = (value: unknown): number[] | undefined => {
     : undefined;
 };
 
+/** Whether a list already held is, number for number, the one just parsed. */
+const sameNumbers = (
+  current: readonly number[] | undefined,
+  next: readonly number[]
+): boolean =>
+  current !== undefined &&
+  current.length === next.length &&
+  next.every((value, index) => current[index] === value);
+
+/**
+ * The entries of the pit menu, or undefined when the payload has no menu.
+ *
+ * `pitMenu.pitMenu` is a list of entries, each a `name` ("FUEL RATIO:"), the
+ * `settings` it can be put on and `currentSetting`, the index of the one it
+ * is on.
+ */
+const pitMenuEntries = (payload: unknown): readonly unknown[] | undefined => {
+  const menu = at(payload, ['pitMenu', 'pitMenu']);
+  return Array.isArray(menu) ? menu : undefined;
+};
+
+/** The text of the setting a pit-menu entry is on, or undefined. */
+const selectedText = (entry: unknown): string | undefined => {
+  const index = at(entry, ['currentSetting']);
+  const settings = at(entry, ['settings']);
+  if (typeof index !== 'number' || !Array.isArray(settings)) return undefined;
+  const text = at(settings[index], ['text']);
+  return typeof text === 'string' ? text : undefined;
+};
+
+/**
+ * Litres of fuel per percent of virtual energy, as the pit menu is set to add
+ * them: the text of the setting the `FUEL RATIO:` entry is on ("1.03").
+ *
+ * A recorded LMGT3, which runs on virtual energy, has the entry; whether the
+ * menu of a fuel-limited car does is not known. A menu without it returns
+ * undefined, like anything else unrecognised, and the session's end is what
+ * takes the last value down.
+ */
+const refuelRatio = (payload: unknown): number | undefined => {
+  const entry = pitMenuEntries(payload)?.find(
+    (candidate) => at(candidate, ['name']) === 'FUEL RATIO:'
+  );
+  const ratio = firstNumber(selectedText(entry));
+  return ratio !== undefined && ratio > 0 ? ratio : undefined;
+};
+
+/** What `repairChoice` parses: the choice, or none where nothing is offered. */
+interface ParsedRepairChoice {
+  choice: string | undefined;
+}
+
+/**
+ * What the pit menu is set to repair, from its `DAMAGE:` entry.
+ *
+ * An undamaged car's entry has the single setting "N/A"; once there is
+ * something to repair the sim replaces it with the choices -- a recorded GT3
+ * went from "N/A" to "Do Not Repair" / "Repair Body" on its first contact.
+ * The text is kept as the sim words it, since the full set of choices is not
+ * known.
+ *
+ * "N/A", an empty text and a menu with no such entry all read as no choice,
+ * which is a value: it takes the cell down, where returning undefined would
+ * leave "Repair Body" standing after the repair was made. Undefined is for
+ * a payload with no menu at all, or an entry whose setting cannot be read.
+ */
+const repairChoice = (payload: unknown): ParsedRepairChoice | undefined => {
+  const menu = pitMenuEntries(payload);
+  if (!menu) return undefined;
+  const entry = menu.find((candidate) => at(candidate, ['name']) === 'DAMAGE:');
+  if (entry === undefined) return { choice: undefined };
+  const text = selectedText(entry)?.trim();
+  if (text === undefined) return undefined;
+  const offered = text.length > 0 && text.toUpperCase() !== 'N/A';
+  return { choice: offered ? text : undefined };
+};
+
+/**
+ * The parts of a pit stop, in the order `pitStopParts` holds them.
+ *
+ * These are the keys of `/rest/strategy/pitstop-estimate` beside `total`,
+ * each in seconds. Exported so that a reader indexes the cell by name rather
+ * than by a number repeated from here.
+ */
+export const LMU_PIT_STOP_PARTS = [
+  'fuel',
+  've',
+  'tires',
+  'damage',
+  'driverSwap',
+  'brakes',
+  'brakeDucts',
+  'penalties',
+] as const;
+
+/**
+ * All eight parts or nothing, for the reason `fourCorners` gives: the cell is
+ * read by position, and a part published short would be read as another.
+ * The sim writes every key on every answer, zero for work the stop does not
+ * include.
+ */
+const pitStopParts = (payload: unknown): number[] | undefined => {
+  const parts: number[] = [];
+  for (const key of LMU_PIT_STOP_PARTS) {
+    const seconds = finiteNumber(at(payload, [key]));
+    if (seconds === undefined) return undefined;
+    parts.push(seconds);
+  }
+  return parts;
+};
+
+/**
+ * Where each `pitStopTimes.times` key lands on LmuPitService.
+ *
+ * The sim's group holds more than this -- wing, radiator and pressure changes
+ * among them -- and only what a stop's length is worked out from is taken.
+ */
+const PIT_SERVICE_KEYS: readonly (readonly [keyof LmuPitService, string])[] = [
+  ['fuelFillRate', 'FuelFillRate'],
+  ['fuelInsert', 'FuelInsert'],
+  ['fuelRemove', 'FuelRemove'],
+  ['fuelTimeConcurrent', 'FuelTimeConcurrent'],
+  ['fuelRandomDelay', 'FuelRandomDelay'],
+  ['virtualEnergyFillRate', 'virtualEnergyFillRate'],
+  ['virtualEnergyInsert', 'virtualEnergyInsert'],
+  ['virtualEnergyRemove', 'virtualEnergyRemove'],
+  ['virtualEnergyTimeConcurrent', 'virtualEnergyTimeConcurrent'],
+  ['fourTireChange', 'FourTireChange'],
+  ['twoTireChange', 'TwoTireChange'],
+  ['tireTimeConcurrent', 'TireTimeConcurrent'],
+  ['randomTireDelay', 'RandomTireDelay'],
+  ['driverChange', 'DriverChange'],
+  ['driverConcurrent', 'DriverConcurrent'],
+  ['driverRandom', 'DriverRandom'],
+  ['fixAeroDamage', 'FixAeroDamage'],
+  ['fixAllDamage', 'FixAllDamage'],
+  ['fixTimeConcurrent', 'FixTimeConcurrent'],
+  ['fixRandomDelay', 'FixRandomDelay'],
+  ['brakeChange', 'BrakeChange'],
+  ['brakeTimeConcurrent', 'BrakeTimeConcurrent'],
+];
+
+/**
+ * What each kind of pit work costs, from the repair screen's `pitStopTimes`.
+ *
+ * Member by member rather than all or nothing: nothing reads these by
+ * position, so a key a build drops or renames costs that one member. With
+ * none of them readable there is nothing to land.
+ */
+const pitService = (payload: unknown): LmuPitService | undefined => {
+  const times = at(payload, ['pitStopTimes', 'times']);
+  const service: LmuPitService = {};
+  let found = false;
+  for (const [member, key] of PIT_SERVICE_KEYS) {
+    const value = finiteNumber(at(times, [key]));
+    if (value === undefined) continue;
+    service[member] = value;
+    found = true;
+  }
+  return found ? service : undefined;
+};
+
+const samePitService = (
+  current: LmuPitService | undefined,
+  next: LmuPitService
+): boolean =>
+  current !== undefined &&
+  PIT_SERVICE_KEYS.every(([member]) => current[member] === next[member]);
+
 /**
  * What the next pit stop will put in, from the pit menu.
  *
@@ -246,9 +439,14 @@ const refuelTarget = (
  * consumer never has to know which convention it came in.
  *
  * All five or nothing: a partial forecast would render as a cliff rather than
- * a gap.
+ * a gap. That rule is tied to sky, temperature and rain chance. Humidity and
+ * wind ride along where a point states them and are left off where it does
+ * not, so a build without them still has a forecast.
  */
 const FORECAST_NODES = ['START', 'NODE_25', 'NODE_50', 'NODE_75', 'FINISH'];
+
+/** LMU's wind directions are an index, 0 to this. */
+const WIND_DIRECTION_MAX = 7;
 
 const forecast = (payload: unknown): LmuWeatherNode[] | undefined => {
   const nodes: LmuWeatherNode[] = [];
@@ -268,15 +466,57 @@ const forecast = (payload: unknown): LmuWeatherNode[] | undefined => {
     ) {
       return undefined;
     }
-    nodes.push({
+    const parsed: LmuWeatherNode = {
       start: Math.round(index * 0.2 * 10) / 10,
       skyType: Math.trunc(skyType),
       temperature,
       rainChance: Math.min(Math.max(rawChance * 0.01, 0), 1),
-    });
+    };
+    // A percentage, like the rain chance, and published as a fraction too.
+    const humidity = finiteNumber(at(node, ['WNV_HUMIDITY', 'currentValue']));
+    if (humidity !== undefined) {
+      parsed.humidity = Math.min(Math.max(humidity / 100, 0), 1);
+    }
+    // Metres per second already: the sim words 17 as "61.2 kph".
+    const windSpeed = finiteNumber(at(node, ['WNV_WINDSPEED', 'currentValue']));
+    if (windSpeed !== undefined && windSpeed >= 0) parsed.windSpeed = windSpeed;
+    // Kept as the sim's index. What compass point each one is belongs to
+    // whoever draws it; anything that is not one of them is left off.
+    const windDirection = finiteNumber(
+      at(node, ['WNV_WINDDIRECTION', 'currentValue'])
+    );
+    if (
+      windDirection !== undefined &&
+      Number.isInteger(windDirection) &&
+      windDirection >= 0 &&
+      windDirection <= WIND_DIRECTION_MAX
+    ) {
+      parsed.windDirection = windDirection;
+    }
+    nodes.push(parsed);
   }
   return nodes;
 };
+
+/** Whether a forecast already held says what the one just parsed does. */
+const sameForecast = (
+  current: readonly LmuWeatherNode[] | undefined,
+  next: readonly LmuWeatherNode[]
+): boolean =>
+  current !== undefined &&
+  current.length === next.length &&
+  next.every((node, index) => {
+    const held = current[index];
+    return (
+      held.start === node.start &&
+      held.skyType === node.skyType &&
+      held.temperature === node.temperature &&
+      held.rainChance === node.rainChance &&
+      held.humidity === node.humidity &&
+      held.windSpeed === node.windSpeed &&
+      held.windDirection === node.windDirection
+    );
+  });
 
 /** A forecast for one session type, landed under LmuRest.forecast. */
 const forecastFor = (
@@ -287,6 +527,10 @@ const forecastFor = (
   id,
   target: 'session',
   parse: (payload) => forecast(at(payload, [key])),
+  // The task repeats, and a forecast that reads as it did must not rebuild
+  // the session: a body can move for a reason this output does not read.
+  unchanged: (data, value) =>
+    sameForecast(data.session.forecast?.[slot], value as LmuWeatherNode[]),
   apply: (data, value) => {
     data.session.forecast = {
       ...data.session.forecast,
@@ -317,6 +561,80 @@ const sessionSetting = (
  */
 const garageNumber = (payload: unknown, key: string): number | undefined =>
   firstNumber(at(payload, ['carSetup', 'garageValues', key, 'stringValue']));
+
+/**
+ * Millimetres in each unit a garage length may be worded in.
+ *
+ * Centimetres is the one seen: a recorded setup reads "3.60 cm". The other
+ * two are here because a length in them converts without a guess, and a unit
+ * that is none of the three is rejected rather than taken for centimetres.
+ */
+const MM_PER_UNIT: Readonly<Record<string, number>> = {
+  mm: 1,
+  cm: 10,
+  in: 25.4,
+};
+
+/** A garage length such as "3.60 cm", in millimetres, or undefined. */
+const lengthMm = (text: unknown): number | undefined => {
+  if (typeof text !== 'string') return undefined;
+  const match = /^\s*(\d+(?:\.\d+)?)\s*([a-z]+)/i.exec(text);
+  if (!match) return undefined;
+  const factor = MM_PER_UNIT[match[2].toLowerCase()];
+  if (factor === undefined) return undefined;
+  // To the micrometre, which drops the binary tail a multiplication leaves
+  // and is far finer than the two decimals of a centimetre the sim words.
+  const mm = Math.round(Number(match[1]) * factor * 1000) / 1000;
+  return mm > 0 ? mm : undefined;
+};
+
+/** The setup's brake disc keys, in corner order: LF, RF, LR, RR. */
+const BRAKE_DISC_KEYS = [
+  'WM_BRAKEDISC-W_FL',
+  'WM_BRAKEDISC-W_FR',
+  'WM_BRAKEDISC-W_RL',
+  'WM_BRAKEDISC-W_RR',
+];
+
+/**
+ * The thickness of a new brake disc on each wheel, millimetres.
+ *
+ * What the setup fits, so it is the figure a worn disc is measured against;
+ * the thickness now is `wearables.brakes` on the repair screen. All four or
+ * nothing, as `fourCorners` has it.
+ */
+const brakeDiscNewMm = (payload: unknown): number[] | undefined => {
+  const discs: number[] = [];
+  for (const key of BRAKE_DISC_KEYS) {
+    const mm = lengthMm(
+      at(payload, ['carSetup', 'garageValues', key, 'stringValue'])
+    );
+    if (mm === undefined) return undefined;
+    discs.push(mm);
+  }
+  return discs;
+};
+
+/**
+ * The garage's regeneration level, or null for a car that has none.
+ *
+ * How to read a garage value, as a recording has it: `stringValue` carries
+ * the quantity as text, `value` is the position of the slider and `maxValue`
+ * the number of positions. The sim lists the setting for every car, and a
+ * car without it has a single position -- a recorded LMGT3 reads "0%" with a
+ * `maxValue` of 1. That is null rather than undefined: it is an answer, and
+ * it takes down a level held from before.
+ */
+const regenLevel = (payload: unknown): LmuGarageSetting | null | undefined => {
+  const setting = at(payload, ['carSetup', 'garageValues', 'VM_REGEN_LEVEL']);
+  const positions = finiteNumber(at(setting, ['maxValue']));
+  if (positions === undefined) return undefined;
+  if (positions <= 1) return null;
+  const text = at(setting, ['stringValue']);
+  const value = finiteNumber(at(setting, ['value']));
+  if (typeof text !== 'string' || value === undefined) return undefined;
+  return { text, value, positions };
+};
 
 interface ParsedNationalities {
   codes: Record<string, string>;
@@ -602,12 +920,47 @@ export const LMU_REST_TASKS: readonly LmuRestTask[] = [
         },
       },
       {
+        id: 'refuelRatio',
+        // Telemetry, unlike the garage's ratio on the session: this is the
+        // pit menu's entry, which the driver can move on track.
+        target: 'telemetry',
+        parse: refuelRatio,
+        apply: (data, value) => {
+          data.cells.refuelRatio = cell(value as number);
+        },
+      },
+      {
+        id: 'repairChoice',
+        target: 'telemetry',
+        parse: repairChoice,
+        apply: (data, value) => {
+          const { choice } = value as ParsedRepairChoice;
+          if (choice === undefined) delete data.cells.repairChoice;
+          else data.cells.repairChoice = cell(choice);
+        },
+      },
+      // The standing time of the next stop as this screen states it. The
+      // estimate path's `total` is the same figure and the one published;
+      // the mapper falls back to this while that path has not answered.
+      numberCell(
+        'pitStopLength',
+        ['pitStopLength', 'timeInSeconds'],
+        (data, value) => {
+          data.cells.pitStopLength = value;
+        }
+      ),
+      {
         id: 'maxVirtualEnergy',
         // Session, not telemetry: it is a per-car constant, and a telemetry
         // target here would force a session rebuild on every poll.
         target: 'session',
         parse: (payload) =>
           finiteNumber(at(payload, ['fuelInfo', 'maxVirtualEnergy'])),
+        // And compared, for the same reason. This body carries the fuel
+        // aboard and the time of day, so it differs on every poll of a car
+        // that is running; without the comparison each of those polls
+        // rebuilt the session to say what it already said.
+        unchanged: (data, value) => data.session.maxVirtualEnergy === value,
         apply: (data, value) => {
           data.session.maxVirtualEnergy = value as number;
         },
@@ -620,24 +973,51 @@ export const LMU_REST_TASKS: readonly LmuRestTask[] = [
         // mFuelCapacity is shared memory's word for it. A GT3 capture has all
         // three agreeing at 120, and this is the one that says so directly.
         parse: (payload) => finiteNumber(at(payload, ['fuelInfo', 'maxFuel'])),
+        unchanged: (data, value) => data.session.maxFuel === value,
         apply: (data, value) => {
           data.session.maxFuel = value as number;
+        },
+      },
+      {
+        id: 'pitService',
+        // Session: constants of a car in a session, which nothing reads at
+        // the frame rate.
+        target: 'session',
+        parse: pitService,
+        unchanged: (data, value) =>
+          samePitService(data.session.pitService, value as LmuPitService),
+        apply: (data, value) => {
+          data.session.pitService = value as LmuPitService;
         },
       },
       numberCell('aeroDamage', ['wearables', 'body', 'aero'], (data, value) => {
         data.cells.aeroDamage = value;
       }),
       {
-        id: 'brakeWear',
+        id: 'brakeThickness',
         target: 'telemetry',
-        parse: (payload) => fourCorners(at(payload, ['wearables', 'brakes'])),
+        // Disc thickness, which the sim states in metres: a recorded GT3
+        // starts at 0.0360 front and 0.0320 rear, the 3.60 and 3.20 cm of
+        // its setup. Converted here, once, so everything after this reads
+        // millimetres. Not a 0..1 share of anything, which is what this was
+        // first taken for.
+        parse: (payload) =>
+          fourCorners(at(payload, ['wearables', 'brakes']))?.map(
+            (metres) => metres * 1000
+          ),
         apply: (data, value) => {
-          data.cells.brakeWear = { value: value as number[] };
+          data.cells.brakeThickness = { value: value as number[] };
+        },
+        // A disc wears micrometres a lap, so most answers repeat the reading
+        // before. This is what says they are still arriving.
+        refreshed: (data, count) => {
+          data.cells.wearablesSeq = cell(count);
         },
       },
       {
         id: 'suspensionDamage',
         target: 'telemetry',
+        // Four zeros on an undamaged car.
         parse: (payload) =>
           fourCorners(at(payload, ['wearables', 'suspension'])),
         apply: (data, value) => {
@@ -650,9 +1030,12 @@ export const LMU_REST_TASKS: readonly LmuRestTask[] = [
     id: 'car-setup-overview',
     path: '/rest/garage/UIScreen/CarSetupOverview',
     // Repeating, because a setup can be edited mid-session and a one-shot
-    // would go stale. The payload is the largest in the set, so this leans on
-    // the hash compare: unchanged bodies are never parsed, and the backoff
-    // carries an untouched setup out to the cap.
+    // would go stale. The payload is the largest in the set, and the hash
+    // compare does not spare it: beside the setup the body carries the time
+    // of day, the weather now and the gaps in class, so in a running session
+    // it differs on every poll and is parsed on every poll. What the session
+    // targets below are spared, by their comparators, is the session rebuild
+    // that used to follow each one.
     mode: 'repeat',
     baseIntervalMs: 1000,
     outputs: [
@@ -660,6 +1043,7 @@ export const LMU_REST_TASKS: readonly LmuRestTask[] = [
         id: 'fuelRatio',
         target: 'session',
         parse: (payload) => garageNumber(payload, 'VM_FUEL_LEVEL'),
+        unchanged: (data, value) => data.session.fuelRatio === value,
         apply: (data, value) => {
           data.session.fuelRatio = value as number;
         },
@@ -682,8 +1066,61 @@ export const LMU_REST_TASKS: readonly LmuRestTask[] = [
               'maxValue',
             ])
           ),
+        unchanged: (data, value) => data.session.fuelLevelMax === value,
         apply: (data, value) => {
           data.session.fuelLevelMax = value as number;
+        },
+      },
+      {
+        id: 'brakeDiscNewMm',
+        target: 'session',
+        parse: brakeDiscNewMm,
+        unchanged: (data, value) =>
+          sameNumbers(data.session.brakeDiscNewMm, value as number[]),
+        apply: (data, value) => {
+          data.session.brakeDiscNewMm = value as number[];
+        },
+      },
+      {
+        id: 'steerLockDeg',
+        // A cell, though it moves no more often than the setup does: the
+        // telemetry mapper is what wants it, as the wheel's range where
+        // shared memory states none, and the mapper is handed the cells and
+        // not the session.
+        target: 'telemetry',
+        // The first number of "476 (17.2) deg": the wheel's range, where the
+        // bracket is the angle at the road wheels.
+        parse: (payload) => {
+          const lock = garageNumber(payload, 'VM_STEER_LOCK');
+          return lock !== undefined && lock > 0 ? lock : undefined;
+        },
+        apply: (data, value) => {
+          data.cells.steerLockDeg = cell(value as number);
+        },
+      },
+      {
+        id: 'regenLevel',
+        target: 'session',
+        parse: regenLevel,
+        unchanged: (data, value) => {
+          const held = data.session.garage?.regenLevel;
+          const next = value as LmuGarageSetting | null;
+          if (next === null) return held === undefined;
+          return (
+            held !== undefined &&
+            held.text === next.text &&
+            held.value === next.value &&
+            held.positions === next.positions
+          );
+        },
+        apply: (data, value) => {
+          // A copy, never the object already on the session: a snapshot
+          // built from it keeps what it was built from.
+          const garage = { ...data.session.garage };
+          if (value === null) delete garage.regenLevel;
+          else garage.regenLevel = value as LmuGarageSetting;
+          if (Object.keys(garage).length > 0) data.session.garage = garage;
+          else delete data.session.garage;
         },
       },
     ],
@@ -711,8 +1148,16 @@ export const LMU_REST_TASKS: readonly LmuRestTask[] = [
   {
     id: 'sessions-weather',
     path: '/rest/sessions/weather',
-    mode: 'once',
-    baseIntervalMs: 1000,
+    // Repeating, in case a forecast can change during a session. It was
+    // fetched once, on the reasoning that it cannot; that holds for scripted
+    // weather and is unverified for the kinds the sim generates. Asked for
+    // twice a minute, and once a minute while the answer is the one before,
+    // which the hash compare rejects unparsed -- so being wrong about this
+    // costs a loopback request a minute, and being right about it without
+    // asking would cost a forecast that is out of date for the whole race.
+    mode: 'repeat',
+    baseIntervalMs: 30_000,
+    maxIntervalMs: 60_000,
     outputs: [
       forecastFor('forecastPractice', 'PRACTICE', 'practice'),
       forecastFor('forecastQualify', 'QUALIFY', 'qualify'),
@@ -860,6 +1305,17 @@ export const LMU_REST_TASKS: readonly LmuRestTask[] = [
       numberCell('penaltySeconds', ['penalties'], (data, value) => {
         data.cells.penaltySeconds = value;
       }),
+      {
+        id: 'pitStopParts',
+        // The whole breakdown as one cell. Repairs and penalties are in it
+        // as well as in cells of their own above, which came first and are
+        // read by what was written against them.
+        target: 'telemetry',
+        parse: pitStopParts,
+        apply: (data, value) => {
+          data.cells.pitStopParts = { value: value as number[] };
+        },
+      },
     ],
   },
 ];

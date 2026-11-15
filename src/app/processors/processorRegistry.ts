@@ -1,4 +1,5 @@
 import type {
+  FlagProcessorTuning,
   LapTimesSnapshot,
   RadarProcessorTuning,
   ReferenceLapsSnapshot,
@@ -11,6 +12,7 @@ import type {
 import { CarSpeedsProcessor } from './CarSpeedsProcessor';
 import { BlindSpotProcessor } from './BlindSpotProcessor';
 import { DriverControlsProcessor } from './DriverControlsProcessor';
+import { FlagStateProcessor } from './FlagStateProcessor';
 import { FuelProjectionProcessor } from './FuelProjectionProcessor';
 import { LapDeltaProcessor } from './LapDeltaProcessor';
 import { LapLogProcessor } from './LapLogProcessor';
@@ -50,6 +52,11 @@ interface ProcessorRegistryOptions {
   radarTuning?: () => RadarProcessorTuning;
   /** The player's own pole side per track; the table's without. */
   radarPoleSides?: PoleSideSettings;
+  /**
+   * The yellow ranges of the flag panel from the current dashboard; 500 m
+   * ahead and 50 m behind without.
+   */
+  flagTuning?: () => FlagProcessorTuning;
 }
 
 interface DefaultProcessorHostOptions extends ProcessorRegistryOptions {
@@ -75,6 +82,8 @@ const noLapTimes: LapTimesSnapshot = {
   version: 0,
 };
 
+const noCarSpeeds: readonly number[] = [];
+
 const defineProcessor = <K extends AnyProcessorDefinition['channel']>(
   definition: ProcessorDefinition<K>
 ): ProcessorDefinition<K> => definition;
@@ -84,6 +93,7 @@ export const createProcessorDefinitions = ({
   playerReferenceLaps,
   radarTuning,
   radarPoleSides,
+  flagTuning,
 }: ProcessorRegistryOptions): readonly AnyProcessorDefinition[] => [
   defineProcessor({
     channel: 'blind-spot.snapshot',
@@ -106,6 +116,19 @@ export const createProcessorDefinitions = ({
     channel: 'car-speeds.snapshot',
     metricsPrefix: 'carSpeeds',
     create: () => new CarSpeedsProcessor(),
+  }),
+  defineProcessor({
+    channel: 'flag-state.snapshot',
+    // Speeds find the stopped car a yellow is for and say whether the car a
+    // blue is for is closing.
+    dependencies: ['car-speeds.snapshot'],
+    metricsPrefix: 'flagState',
+    create: ({ snapshot }) =>
+      new FlagStateProcessor({
+        carSpeeds: () =>
+          snapshot('car-speeds.snapshot')?.carSpeeds ?? noCarSpeeds,
+        tuning: flagTuning,
+      }),
   }),
   defineProcessor({
     channel: 'reference-laps.snapshot',

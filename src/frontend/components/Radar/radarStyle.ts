@@ -1,10 +1,10 @@
 import type { RadarConfig } from '@irdashies/types';
 import { colorNumToHex } from '@irdashies/utils/colors';
+import { distanceFromMetres } from '@irdashies/utils/units';
 import type { RadarStyle } from './radarDraw';
 import type { CarSize } from '@irdashies/domain/radar/carSizes';
 import { OVERLAP_MARKS } from './radarHints';
 
-const FEET_PER_METRE = 3.28084;
 const MPH_PER_MS = 2.23694;
 
 /** Speed in km/h or mph, rounded, without the unit. */
@@ -15,9 +15,10 @@ export const speedUnit = (metric: boolean) => (metric ? 'km/h' : 'mph');
 
 /** A distance for the disc: tenths under 10, whole numbers above. */
 export const formatDistance = (metres: number, metric: boolean): string => {
-  const value = metric ? metres : metres * FEET_PER_METRE;
+  const unit = metric ? 'm' : 'ft';
+  const value = distanceFromMetres(metres, unit);
   const text = value < 10 ? value.toFixed(1) : String(Math.round(value));
-  return `${text}${metric ? 'm' : 'ft'}`;
+  return `${text}${unit}`;
 };
 
 /** What the drawing needs from the saved settings; `player` is our size. */

@@ -71,3 +71,39 @@ export const kphFromSpeed = (speed: number, unit: SpeedUnit): number =>
  */
 export const msFromSpeed = (speed: number, unit: SpeedUnit): number =>
   speed / (unit === 'km/h' ? MS_TO_KPH : MS_TO_MPH);
+
+/**
+ * Distance unit conversion and resolution.
+ *
+ * Snapshots carry metres. Only the Radar used to print feet, through a helper
+ * of its own and with no setting; these are the shared version, for it and
+ * for anything else that prints a distance.
+ */
+export type DistanceUnit = 'm' | 'ft';
+
+/** Feet in one metre. */
+export const FEET_PER_METRE = 3.28084;
+
+/**
+ * Resolve a widget's distance setting against the sim's own display setting.
+ *
+ * `'auto'`, `undefined` and anything unrecognised follow the sim. Unlike
+ * speed, a missing `DisplayUnits` reads as metric: a distance is printed by
+ * widgets that also run under Le Mans Ultimate, which is metric throughout,
+ * and it is what the Radar has always done.
+ */
+export const resolveDistanceUnit = (
+  setting: DistanceUnit | 'auto' | undefined,
+  displayUnits: number | undefined
+): DistanceUnit => {
+  if (setting === 'm' || setting === 'ft') return setting;
+  return displayUnits === undefined || displayUnits === IRACING_UNITS_METRIC
+    ? 'm'
+    : 'ft';
+};
+
+/** Convert metres to the display unit. */
+export const distanceFromMetres = (
+  metres: number,
+  unit: DistanceUnit
+): number => (unit === 'm' ? metres : metres * FEET_PER_METRE);

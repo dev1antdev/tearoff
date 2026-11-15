@@ -7,6 +7,7 @@ import type {
   StreamChatMessagesSnapshot,
 } from '../streamChat';
 import type { ReplayContextSnapshot } from './replayContext';
+import type { FlagStateSnapshot } from './flagState';
 import type { PitLaneCalibration } from '../pitLane';
 
 export type SessionLifecycleEvent =
@@ -20,6 +21,7 @@ export interface ChannelPayloads {
   'car-speeds.snapshot': CarSpeedsSnapshot;
   'car-systems.snapshot': CarSystemsSnapshot;
   'driver-controls.snapshot': DriverControlsSnapshot;
+  'flag-state.snapshot': FlagStateSnapshot;
   'fuel.projection': FuelProjectionSnapshot;
   'lap-times.snapshot': LapTimesSnapshot;
   'lap-log.snapshot': LapLogSnapshot;
@@ -472,6 +474,13 @@ export interface LapLogSnapshot {
   deltaToSessionBestLapOk: boolean;
   /** LMU's void flag for the player's lap in progress; always false in iRacing. */
   lapInvalidated: boolean;
+  /**
+   * The player's last lap did not count: LMU gave it no time, and
+   * `lastLapTime` is the lap timed from its two starts. The sim's own
+   * statement, wider than a voided lap (an out-lap in practice is untimed
+   * too). Always false under iRacing for now, which has no such flag.
+   */
+  lastLapInvalid: boolean;
   /** A full-course caution was seen during the most recently completed lap. */
   lastLapUnderCaution: boolean;
   version: number;
@@ -840,6 +849,13 @@ export const channelRegistry = {
     kind: 'snapshot',
     defaultRateHz: 25,
     maxRateHz: 60,
+  },
+  // The resolved flag and the car a blue is for. The metres to that car are a
+  // figure to read, and LMU's own flags move at 5 Hz.
+  'flag-state.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 5,
+    maxRateHz: 10,
   },
   'fuel.projection': {
     kind: 'snapshot',

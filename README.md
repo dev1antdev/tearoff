@@ -48,7 +48,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 1. In LMU, enable **Settings > Gameplay > Enable Plugins**, then restart the simulator.
 2. Start Tearoff and load into an LMU session to receive telemetry.
 
-**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Information Bar, Tyres, Minimap, Lap Delta, Corner Delta, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Car Systems, Lap Timer, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, Tyres, Minimap, Lap Delta, Corner Delta, Timing, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Car Systems, Lap Timer, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
@@ -633,6 +633,24 @@ The corner you have just driven against the same corner on one of your own laps:
 
 Corners come from the bundled track data, the same data the Corner Names overlay uses, so the widget says so on a track that has none. Both ends of a corner are placed between the two telemetry frames either side of them, so the figures do not depend on where a frame happened to fall. The list is cleared in the pit lane.
 
+### Timing
+
+The lap in one glance: a block of tiles with the lap you are on, the delta to a reference lap, your last and best laps and your sector times. Works in iRacing and Le Mans Ultimate.
+
+**Features:**
+
+- Lap: the lap you are driving, on a blue tile
+- Delta: how far up or down you are on the reference lap at this point of the track, green when ahead and red when behind, to two or three decimals. The reference is your best clean lap of this session or your all-time reference on this track in this car, from the [lap library](#lap-library); before the chosen one exists the tile shows dashes
+- Last lap: purple when it is the best of the session, green when it is your own best. In Le Mans Ultimate a lap the game gave no time, such as one voided for track limits, is still shown, timed from line to line, greyed and marked with a warning sign
+- Best lap: your best of the session, on a purple tile, with a crown when it is also the best of the session in your class, or of every car if you choose so
+- Sector times: one tile per sector with a bar coloured against your own best for that sector (purple at your best, then green, yellow and red). A tile shows this lap's time once the sector is done and the previous lap's, dimmed, until then; for five seconds after the line all of them show the lap just finished. They can also show this lap only, or your best sectors
+- A lap in progress that the game has voided greys the delta and says so in its label, and a sector with an incident in it carries a warning sign, or is left out if you prefer
+- Optional rows: current lap time, predicted lap, session best, all-time best and your recent pace
+- Tracks with more than three sectors (iRacing) get a tile per sector, up to a number you choose; past it the row follows you round the lap
+- Adjustable precision for the delta, the lap times and the sector times, text size, background opacity, session visibility and an option to show only when on track
+
+The default size fits the three default rows; make the widget taller when you switch on optional rows, and wider on a track with many sectors. Sector colours use the green and yellow thresholds set for [Sector Delta](#sector-delta). In Le Mans Ultimate the sector a stint starts in has no time, because the game only times a sector it saw you enter.
+
 ### Lap Library
 
 Every lap you complete is recorded, grouped by the session it was driven in, and listed in **Settings > Laps**. Works in iRacing and Le Mans Ultimate, and records whether or not any widget is on screen.
@@ -673,12 +691,34 @@ Displays racing flags in an LED-matrix style, automatically showing the most rel
 - Option to display two identical flags within a single widget
 - Matrix mode: choose the LED resolution (8x8, 16x16, or uniform 1x1) for a more detailed or compact look
 - Optional flag label and "no flag" state display
+- Green while the track is clear, or only for a few seconds after the start and after a yellow, as iRacing itself shows it
+- A blue flag is shown over a yellow that is somewhere else on the circuit; a yellow close to you still comes first
 - Optional glow effect and configurable flag animation (toggle plus blink period)
 - Customizable size and positioning
 - Adjustable background opacity
 - Session visibility settings (Race, Lone Qualify, Open Qualify, Practice, Offline Testing)
 
 ![Flag Widget](./docs/assets/flags.png)
+
+### Flag Panel
+
+A wide card that names the flag that applies to you right now and explains it in one line. Under a blue flag it becomes the plate of the car coming to lap you. Works in iRacing and Le Mans Ultimate; each sim has states the other cannot report.
+
+**Features:**
+
+- The flag as a colour block, its name in capitals and a one-line explanation: "Track clear", "Incident 320 m ahead", "Pit lane open for lead-lap cars", "10 s in your pit box"
+- Under a blue flag: the number of the car to let by on the block, its driver or team under the title, its class as the standings draw it, and how many metres it is behind
+- A count of the further cars queued behind that one, and the plate handed to the next car as each one goes by
+- In a race the car named is one that is lapping you or one of a faster class, never a rival on your own lap; in practice and qualifying it is the nearest car behind, a closing one first
+- Local yellows with the distance to the stopped car they are for, ahead or just behind you, and the block pulsing when it is close. A yellow somewhere else on the circuit is named without taking the card over, so it does not hide a blue
+- Full course yellow with its sub-phase where the sim states one (pit lane closed, open for lead-lap cars, green next time by) and a pit closed marker
+- The states before a race (reconnaissance laps, the grid, the formation lap, the start lights), the last lap, the chequered flag, red flag and disqualification
+- Penalties still to serve: drive-through, stop-go with its seconds, time penalty, and iRacing's black flag, warning and meatball
+- The whole card tinted in the flag's colour for the states that need attention, or always, or never
+- Metres or feet, the name format, which states to show, and whether to show green or hide the card while the track is clear
+- Adjustable background opacity, session visibility and an option to show only when on track
+
+Le Mans Ultimate has no white flag and does not say which car a blue flag is for, so the last lap and the car are worked out from the timing data. Its sector flags are read in the order its sector numbers use, which no recording has confirmed yet, so naming the sector of a yellow is an option that is off by default. iRacing reports no sector yellows, no start-light count and no penalty kind.
 
 ### Setup Comparison Tool
 

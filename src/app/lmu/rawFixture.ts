@@ -44,6 +44,11 @@ export function fixture(): LmuRawTelemetry {
     maxPathWetness: 0,
     avgPathWetness: 0.05,
     wind: [2, 0, -3],
+    // A race under way: the three-light start sequence has gone out, and the
+    // wheel is being sent a quarter of full force.
+    startLight: 0,
+    numRedLights: 3,
+    ffbTorque: 0.25,
     playerVehicleIdx: 1,
     playerHasVehicle: true,
     activeVehicles: 2,
@@ -106,6 +111,48 @@ export function fixture(): LmuRawTelemetry {
     ]),
     tyreOptimalTemperatureRaw: new Float64Array([92, 92, 92, 92]),
     brakeTemperatureRaw: new Float64Array([673.15, 683.15, 573.15, 583.15]),
+    // Per-wheel physics as the sim publishes it, LF RF LR RR, with figures of
+    // the size a recorded LMGT3 shows in a left-hand corner: metres, newtons,
+    // radians and radians per second. The right-hand side carries the load
+    // and rides lower, the fronts' toe is mostly steering angle, and tyre
+    // load is the zero the sim leaves it at.
+    wheelRideHeight: new Float64Array([0.054, 0.05, 0.063, 0.059]),
+    suspensionForce: new Float64Array([3600, 5100, 4300, 6000]),
+    tyreLoad: new Float64Array([0, 0, 0, 0]),
+    tyreVerticalDeflection: new Float64Array([0.014, 0.019, 0.017, 0.022]),
+    wheelCamber: new Float64Array([-0.0349, -0.0381, -0.0297, -0.0281]),
+    wheelToe: new Float64Array([-0.0898, -0.0843, 0.0018, -0.0018]),
+    wheelRotation: new Float64Array([-153.9, -156.6, -147.2, -149.8]),
+    // Whole centimetres. The right front is on a kerb; nothing is flat or off.
+    tyreStaticRadius: new Uint8Array([34, 34, 36, 36]),
+    wheelSurfaceType: new Uint8Array([0, 5, 0, 0]),
+    tyreFlat: new Uint8Array([0, 0, 0, 0]),
+    wheelDetached: new Uint8Array([0, 0, 0, 0]),
+    // No third springs on this car, so each reads the mean of its axle's two
+    // suspensionDeflection values above.
+    front3rdDeflection: 0.045,
+    rear3rdDeflection: 0.065,
+    // One impact at the nose, 9.68 s before this frame's elapsedTime, which
+    // left the first body part dented. The position is in car axes, where
+    // forwards is -z.
+    lastImpactET: 240.72,
+    lastImpactMagnitude: 3016.93,
+    lastImpactPos: new Float64Array([-0.567, -0.153, -2.453]),
+    dentSeverity: new Uint8Array([1, 0, 0, 0, 0, 0, 0, 0]),
+    detached: false,
+    overheating: false,
+    // An LMGT3 has no hybrid, so the motor reads "not available" and zeros,
+    // as on the recording. A spec about the hybrid overrides these.
+    electricBoostMotorState: 0,
+    electricBoostMotorTorque: 0,
+    electricBoostMotorRPM: 0,
+    electricBoostMotorTemperature: 0,
+    electricBoostWaterTemperature: 0,
+    // What the recording holds for all three: not lifting, wipers on auto in
+    // the dry, and a physical wheel range the sim does not report.
+    liftAndCoastProgress: 0,
+    wiperState: 1,
+    physicalSteeringWheelRange: 0,
     vehIds: [0, 1, 1],
     vehIsPlayer: [0, 1, 0],
     vehPlaces: [2, 1, 3],
@@ -150,6 +197,9 @@ export function fixture(): LmuRawTelemetry {
     // car 0 reads 0.25 of three, car 1 is clean, and car 2 is one step from a
     // drive-through.
     vehTrackLimitsSteps: [1, 0, 11],
+    // Pit stops counted so far: car 0 has made one, the player none, and
+    // car 2, which is in the pit lane, is on its second.
+    vehNumPitstops: [1, 0, 2],
     // Car 0 is energy-limited and runs on virtual energy; car 1 has none, so
     // its fuel byte is what counts; car 2 reports neither.
     vehFuelFraction: [255, 51, 0],

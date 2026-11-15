@@ -5,18 +5,16 @@ import {
   useLapDeltaSnapshot,
   useSessionVisibility,
 } from '@irdashies/context';
-import type { LapDeltaConfig, LapDeltaReference } from '@irdashies/types';
-import { useLapDeltaSettings } from './hooks/useLapDeltaSettings';
 import {
-  REFERENCE_LABELS,
   deltaTone,
   formatDelta,
   formatLapTime,
   predictedLapTime,
-  trendFill,
   type DeltaTone,
-  type TrendFill,
-} from './lapDeltaDisplay';
+} from '@irdashies/domain/lapTiming/deltaDisplay';
+import type { LapDeltaConfig, LapDeltaReference } from '@irdashies/types';
+import { useLapDeltaSettings } from './hooks/useLapDeltaSettings';
+import { REFERENCE_LABELS, trendFill, type TrendFill } from './lapDeltaDisplay';
 
 const TONE_CLASS: Record<DeltaTone, string> = {
   faster: 'text-green-400',

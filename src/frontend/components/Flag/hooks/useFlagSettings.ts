@@ -5,14 +5,14 @@ export const useFlagSettings = () => {
   const { currentDashboard } = useDashboard();
   const generalSettings = useGeneralSettings();
   const saved = currentDashboard?.widgets.find((w) => w.id === 'flag') as
-    | FlagWidgetSettings
-    | undefined;
+    FlagWidgetSettings | undefined;
 
   return {
     enabled: saved?.enabled ?? true,
     showOnlyWhenOnTrack: saved?.config?.showOnlyWhenOnTrack ?? true,
     showLabel: saved?.config?.showLabel ?? true,
     showNoFlagState: saved?.config?.showNoFlagState ?? true,
+    greenWhenClear: saved?.config?.greenWhenClear ?? true,
     matrixMode:
       (saved?.config?.matrixMode as '8x8' | '16x16' | 'uniform') ?? '16x16',
     animate: saved?.config?.animate ?? true,

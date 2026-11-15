@@ -64,7 +64,7 @@ const commonTelemetryProperties = [
   { path: 'LmuCarIdxEnergyIsVirtual', label: 'LMU Car Energy Is Virtual' },
   { path: 'LmuStateOfCharge', label: 'LMU State Of Charge' },
   { path: 'LmuRegen', label: 'LMU Regen' },
-  { path: 'LmuBrakeWear', label: 'LMU Brake Wear' },
+  { path: 'LmuBrakeThickness', label: 'LMU Brake Thickness' },
   { path: 'LmuSuspensionDamage', label: 'LMU Suspension Damage' },
   { path: 'LmuAeroDamage', label: 'LMU Aero Damage' },
 ];

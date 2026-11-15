@@ -8,11 +8,45 @@ export type Telemetry = {
   LmuBestSectorTimes?: TelemetryVar<(number | null)[]>;
   LmuSectorIdx?: TelemetryVar<number[]>;
   /**
+   * mGamePhase as the sim states it: 0 before the session, 1 reconnaissance
+   * laps, 2 grid walk-through, 3 formation lap, 4 starting-light countdown,
+   * 5 green flag, 6 full-course yellow, 7 session stopped, 8 session over,
+   * 9 a heartbeat while paused. SessionState folds these onto iRacing's
+   * states; the flag processor reads the phase itself, and its presence is
+   * what tells it the frame is LMU's.
+   */
+  LmuGamePhase?: TelemetryVar<number[]>;
+  /**
+   * mYellowFlagState, the sub-phase of a full-course yellow: 0 none, 1
+   * pending, 2 pits closed, 3 pit lead lap, 4 pits open, 5 last lap, 6
+   * resume. Whether LMU uses the sub-phases at all is not confirmed.
+   */
+  LmuYellowFlagState?: TelemetryVar<number[]>;
+  /**
+   * Whether each sector is under a local yellow, in driving order: S1, S2,
+   * S3. The sim's own order is not that, and a clear sector does not read 0
+   * there; see LMU_SECTOR_FLAG_ORDER in the mapper.
+   */
+  LmuSectorYellow?: TelemetryVar<boolean[]>;
+  /**
+   * The step of the start-light sequence and the count of red lights in it.
+   * Absent from an addon built before they were exported.
+   */
+  LmuStartLight?: TelemetryVar<number[]>;
+  LmuNumRedLights?: TelemetryVar<number[]>;
+  /**
    * mLapInvalidated — the sim has voided the lap in progress. A bare flag:
    * LMU gives no reason with it, so nothing downstream should infer one.
    * Stands in for PlayerCarMyIncidentCount, which LMU does not publish.
    */
   LmuLapInvalidated?: TelemetryVar<boolean[]>;
+  /**
+   * Whether each car's last lap did not count: the sim gave it no time
+   * (mLastLapTime not above 0) and CarIdxLastLapTime carries the lap timed
+   * from its two starts instead. False before a car's first lap. Wider than
+   * "voided": an out-lap in practice is untimed too.
+   */
+  LmuCarIdxLastLapInvalid?: TelemetryVar<boolean[]>;
   LmuCarIdxRelativeAvailable?: TelemetryVar<boolean[]>;
   LmuCarIdxRelativeLateral?: TelemetryVar<number[]>;
   LmuCarIdxRelativeLongitudinal?: TelemetryVar<number[]>;
@@ -138,15 +172,50 @@ export type Telemetry = {
   LmuPitStopTime?: TelemetryVar<number[]>;
   LmuRepairTime?: TelemetryVar<number[]>;
   /**
+   * What the next stop is made of, REST: eight values in seconds, in the
+   * order fuel, virtual energy, tyres, damage, driver swap, brakes, brake
+   * ducts, penalties. Not a sum: on a recording the stop time equals the fuel
+   * part, with the energy going in alongside it.
+   */
+  LmuPitStopParts?: TelemetryVar<number[]>;
+  /**
    * What the next pit stop will add. Litres, or a virtual-energy percentage --
    * the companion flag says which, and nothing downstream should guess.
    */
   LmuRefuelTarget?: TelemetryVar<number[]>;
   LmuRefuelTargetIsVirtualEnergy?: TelemetryVar<boolean[]>;
-  /** Wear and damage, 0..1. The four-element arrays are LF, RF, LR, RR. */
-  LmuBrakeWear?: TelemetryVar<number[]>;
+  /**
+   * Litres of fuel per percent of virtual energy, as the pit menu is set to
+   * add them. REST.
+   */
+  LmuRefuelRatio?: TelemetryVar<number[]>;
+  /**
+   * What the pit menu is set to repair, in the sim's own words ("Do Not
+   * Repair", "Repair Body"). REST. Absent while there is nothing to repair.
+   * The one frame key that holds text.
+   */
+  LmuRepairChoice?: { value: string[] };
+  /**
+   * Brake disc thickness per wheel, millimetres, REST. LF, RF, LR, RR. The
+   * thickness of a new disc is LmuRest.brakeDiscNewMm on the session.
+   */
+  LmuBrakeThickness?: TelemetryVar<number[]>;
+  /**
+   * Moves each time a REST answer carried a brake thickness, the same
+   * thickness included, and stands still when none arrives: what tells a disc
+   * that has stopped wearing from an answer that has stopped coming. Only ever
+   * rises; compare it with the frame before rather than read it as a count.
+   */
+  LmuRestWearablesSeq?: TelemetryVar<number[]>;
+  /**
+   * Damage, REST: 0 is none. The suspension's four values are LF, RF, LR, RR.
+   */
   LmuSuspensionDamage?: TelemetryVar<number[]>;
   LmuAeroDamage?: TelemetryVar<number[]>;
+  /**
+   * The steering wheel's range as the garage setup states it, degrees. REST.
+   */
+  LmuSteerLockDeg?: TelemetryVar<number[]>;
   /**
    * From shared memory, not REST. Virtual energy remaining; the budget it
    * counts down from is LmuRest.maxVirtualEnergy on the session.

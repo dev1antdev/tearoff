@@ -255,6 +255,10 @@ void LmuSdkNode::FillVehicleArrays(Napi::Object &out) const
   // field for which penalty it is. See lmu/penalty.ts for where the kind
   // comes from (see types/lmu/penalty.ts).
   auto numPenalties = Napi::Int32Array::New(env, cap);
+  // Pit stops the sim has counted for each car. From scoring like the
+  // penalties above, so every car in this loop has one and a slot with no car
+  // reads 0, as its laps and its place do.
+  auto numPitstops = Napi::Int32Array::New(env, cap);
   auto fuelFraction = Napi::Uint8Array::New(env, cap);
   // Virtual energy, already a fraction. From the telemetry block, so -1 where
   // a car has none this frame -- 0 is an empty battery, not a missing one.
@@ -296,6 +300,7 @@ void LmuSdkNode::FillVehicleArrays(Napi::Object &out) const
     underYellow[id] = v.mUnderYellow ? 1 : 0;
     fuelFraction[id] = v.mFuelFraction;
     numPenalties[id] = v.mNumPenalties;
+    numPitstops[id] = v.mNumPitstops;
     bestSector1[id] = v.mBestSector1;
     bestSector2[id] = v.mBestSector2;
     lastSector1[id] = v.mLastSector1;
@@ -365,6 +370,7 @@ void LmuSdkNode::FillVehicleArrays(Napi::Object &out) const
   out.Set("vehWheelCompounds", wheelCompounds);
   out.Set("vehTrackLimitsSteps", trackLimitsSteps);
   out.Set("vehNumPenalties", numPenalties);
+  out.Set("vehNumPitstops", numPitstops);
   out.Set("vehFuelFraction", fuelFraction);
   out.Set("vehVirtualEnergy", virtualEnergy);
 }
@@ -427,6 +433,14 @@ Napi::Value LmuSdkNode::Read(const Napi::CallbackInfo &info)
   out.Set("maxPathWetness", scoring.mMaxPathWetness);
   out.Set("avgPathWetness", scoring.mAvgPathWetness);
   SetVect3(out, "wind", scoring.mWind);
+  // The start lights, as scoring counts them: the step the sequence is on and
+  // how many red lights it has. Neither means anything without the other.
+  out.Set("startLight", scoring.mStartLight);
+  out.Set("numRedLights", scoring.mNumRedLights);
+  // The force the sim is sending to the wheel, as a signed fraction of full
+  // force. It lives on the generic block rather than on a car, so it is set
+  // here and not in the player branch below.
+  out.Set("ffbTorque", _snapshot.generic.FFBTorque);
 
   const auto *player = GetPlayerTelemetry();
   out.Set(
@@ -501,6 +515,37 @@ Napi::Value LmuSdkNode::Read(const Napi::CallbackInfo &info)
     out.Set("deltaBest", player->mDeltaBest);
     out.Set("batteryChargeFraction", player->mBatteryChargeFraction);
     out.Set("turboBoostPressure", player->mTurboBoostPressure);
+    // Chassis, damage and hybrid state, exported exactly as the sim writes
+    // it, for the same reason as the per-wheel detail below: what a unit or an
+    // enum value means is decided in the mapper, where a spec can pin it
+    // against a recording. The hybrid motor's units in particular are not
+    // confirmed by any recording yet.
+    out.Set("front3rdDeflection", player->mFront3rdDeflection);
+    out.Set("rear3rdDeflection", player->mRear3rdDeflection);
+    // The last impact stays in place until the next one replaces it, so a
+    // new impact is a change of mLastImpactET, not a non-zero magnitude.
+    out.Set("lastImpactET", player->mLastImpactET);
+    out.Set("lastImpactMagnitude", player->mLastImpactMagnitude);
+    SetVect3(out, "lastImpactPos", player->mLastImpactPos);
+    auto dentSeverity = Napi::Uint8Array::New(env, 8);
+    for (size_t i = 0; i < 8; ++i)
+      dentSeverity[i] = player->mDentSeverity[i];
+    out.Set("dentSeverity", dentSeverity);
+    out.Set("detached", player->mDetached);
+    out.Set("overheating", player->mOverheating);
+    out.Set("electricBoostMotorState", player->mElectricBoostMotorState);
+    out.Set("electricBoostMotorTorque", player->mElectricBoostMotorTorque);
+    out.Set("electricBoostMotorRPM", player->mElectricBoostMotorRPM);
+    out.Set(
+        "electricBoostMotorTemperature",
+        player->mElectricBoostMotorTemperature);
+    out.Set(
+        "electricBoostWaterTemperature",
+        player->mElectricBoostWaterTemperature);
+    // A byte over 255, like mFuelFraction: not a fraction and not a percentage.
+    out.Set("liftAndCoastProgress", player->mLiftAndCoastProgress);
+    out.Set("wiperState", player->mWiperState);
+    out.Set("physicalSteeringWheelRange", player->mPhysicalSteeringWheelRange);
     SetString(out, "frontTireCompoundName", player->mFrontTireCompoundName, sizeof(player->mFrontTireCompoundName));
     SetString(out, "vehicleName", player->mVehicleName, sizeof(player->mVehicleName));
     SetVect3(out, "localAccel", player->mLocalAccel);
@@ -524,6 +569,22 @@ Napi::Value LmuSdkNode::Read(const Napi::CallbackInfo &info)
     auto tyreCarcassTemperatureRaw = Napi::Float64Array::New(env, 4);
     auto tyreOptimalTemperatureRaw = Napi::Float64Array::New(env, 4);
     auto brakeTemperatureRaw = Napi::Float64Array::New(env, 4);
+    // Per-wheel physics, raw for the same reason: metres, newtons, radians
+    // and radians per second as the sim publishes them, and the static radius
+    // in the whole centimetres its byte holds. mTireLoad is exported although
+    // the sim leaves it at zero for every car recorded so far, so that a car
+    // or a build that does fill it needs no new export.
+    auto wheelRideHeight = Napi::Float64Array::New(env, 4);
+    auto suspensionForce = Napi::Float64Array::New(env, 4);
+    auto tyreLoad = Napi::Float64Array::New(env, 4);
+    auto tyreVerticalDeflection = Napi::Float64Array::New(env, 4);
+    auto wheelCamber = Napi::Float64Array::New(env, 4);
+    auto wheelToe = Napi::Float64Array::New(env, 4);
+    auto wheelRotation = Napi::Float64Array::New(env, 4);
+    auto tyreStaticRadius = Napi::Uint8Array::New(env, 4);
+    auto wheelSurfaceType = Napi::Uint8Array::New(env, 4);
+    auto tyreFlat = Napi::Uint8Array::New(env, 4);
+    auto wheelDetached = Napi::Uint8Array::New(env, 4);
     for (size_t i = 0; i < 4; ++i)
     {
       const auto &wheel = player->mWheels[i];
@@ -542,6 +603,17 @@ Napi::Value LmuSdkNode::Read(const Napi::CallbackInfo &info)
       tyreCarcassTemperatureRaw[i] = wheel.mTireCarcassTemperature;
       tyreOptimalTemperatureRaw[i] = wheel.mOptimalTemp;
       brakeTemperatureRaw[i] = wheel.mBrakeTemp;
+      wheelRideHeight[i] = wheel.mRideHeight;
+      suspensionForce[i] = wheel.mSuspForce;
+      tyreLoad[i] = wheel.mTireLoad;
+      tyreVerticalDeflection[i] = wheel.mVerticalTireDeflection;
+      wheelCamber[i] = wheel.mCamber;
+      wheelToe[i] = wheel.mToe;
+      wheelRotation[i] = wheel.mRotation;
+      tyreStaticRadius[i] = wheel.mStaticUndeflectedRadius;
+      wheelSurfaceType[i] = wheel.mSurfaceType;
+      tyreFlat[i] = wheel.mFlat ? 1 : 0;
+      wheelDetached[i] = wheel.mDetached ? 1 : 0;
     }
     out.Set("tyreTemperature", tyreTemperature);
     out.Set("tyrePressure", tyrePressure);
@@ -553,6 +625,17 @@ Napi::Value LmuSdkNode::Read(const Napi::CallbackInfo &info)
     out.Set("tyreCarcassTemperatureRaw", tyreCarcassTemperatureRaw);
     out.Set("tyreOptimalTemperatureRaw", tyreOptimalTemperatureRaw);
     out.Set("brakeTemperatureRaw", brakeTemperatureRaw);
+    out.Set("wheelRideHeight", wheelRideHeight);
+    out.Set("suspensionForce", suspensionForce);
+    out.Set("tyreLoad", tyreLoad);
+    out.Set("tyreVerticalDeflection", tyreVerticalDeflection);
+    out.Set("wheelCamber", wheelCamber);
+    out.Set("wheelToe", wheelToe);
+    out.Set("wheelRotation", wheelRotation);
+    out.Set("tyreStaticRadius", tyreStaticRadius);
+    out.Set("wheelSurfaceType", wheelSurfaceType);
+    out.Set("tyreFlat", tyreFlat);
+    out.Set("wheelDetached", wheelDetached);
 
     double vx = player->mLocalVel.x;
     double vy = player->mLocalVel.y;

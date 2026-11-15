@@ -36,6 +36,74 @@ export interface LmuWeatherNode {
   temperature: number;
   /** Chance of rain as a fraction, 0..1. */
   rainChance: number;
+  /**
+   * Relative humidity as a fraction, 0..1. Absent when the node states none,
+   * as are the two wind figures: a node is whole with sky, temperature and
+   * rain chance alone.
+   */
+  humidity?: number;
+  /**
+   * Metres per second. The forecast's wind, which is not felt on track: LMU's
+   * shared-memory wind vector is always zero.
+   */
+  windSpeed?: number;
+  /**
+   * LMU's own index, 0..7. The sim words 6 as "West" and 7 as "North West",
+   * so 0 as north in 45 degree steps clockwise is inferred from those two.
+   */
+  windDirection?: number;
+}
+
+/**
+ * What each kind of pit work costs the player's car, from the `pitStopTimes`
+ * group of `/rest/garage/UIScreen/RepairAndRefuel`.
+ *
+ * Constants of a car in a session. Each member carries the sim's own key in
+ * camel case, and is absent when the sim did not state it. Seconds, unless a
+ * member says otherwise; units measured on a recording.
+ *
+ * The `*Concurrent` members are flags as the sim sends them, 0 or 1. That 1
+ * means the work may overlap other work is how rFactor 2 reads them, and is
+ * assumed rather than confirmed here.
+ */
+export interface LmuPitService {
+  /** Litres per second. */
+  fuelFillRate?: number;
+  /** Seconds to connect the hose, and to take it off again. */
+  fuelInsert?: number;
+  fuelRemove?: number;
+  fuelTimeConcurrent?: number;
+  fuelRandomDelay?: number;
+  /** Share of a full energy budget per second: 0.025 is 2.5 % a second. */
+  virtualEnergyFillRate?: number;
+  virtualEnergyInsert?: number;
+  virtualEnergyRemove?: number;
+  virtualEnergyTimeConcurrent?: number;
+  fourTireChange?: number;
+  twoTireChange?: number;
+  tireTimeConcurrent?: number;
+  randomTireDelay?: number;
+  driverChange?: number;
+  driverConcurrent?: number;
+  driverRandom?: number;
+  fixAeroDamage?: number;
+  fixAllDamage?: number;
+  fixTimeConcurrent?: number;
+  fixRandomDelay?: number;
+  brakeChange?: number;
+  brakeTimeConcurrent?: number;
+}
+
+/**
+ * One setting of the garage setup, as the sim's setup screen states it.
+ *
+ * `text` carries the quantity as the screen words it, `value` is the position
+ * of the slider and `positions` how many positions it has.
+ */
+export interface LmuGarageSetting {
+  text: string;
+  value: number;
+  positions: number;
 }
 
 /**
@@ -128,6 +196,31 @@ export interface LmuRestSession {
    * what the grid itself states, which wins where the two disagree.
    */
   tireCompounds?: string[];
+  /** What each kind of pit work costs this car. See LmuPitService. */
+  pitService?: LmuPitService;
+  /**
+   * Thickness of a new brake disc on each wheel, millimetres, in the order
+   * LF, RF, LR, RR, from the garage setup (`WM_BRAKEDISC-W_*`).
+   *
+   * What a disc starts at, where LmuBrakeThickness on the telemetry frame is
+   * what it has worn to. All four or absent.
+   */
+  brakeDiscNewMm?: number[];
+  /**
+   * Garage setup values kept as the setup screen states them, for the ones
+   * that have no reading in shared memory.
+   */
+  garage?: {
+    /**
+     * The regeneration level (`VM_REGEN_LEVEL`). Present only for a car that
+     * has the setting: the sim lists it for every car, with a single position
+     * where there is nothing to choose.
+     *
+     * The garage's figure. Nothing shows that it follows a change made on
+     * track.
+     */
+    regenLevel?: LmuGarageSetting;
+  };
 }
 
 /**
