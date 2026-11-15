@@ -7,6 +7,7 @@ import {
   IRACING_DISABLED_WIDGETS,
   LMU_DISABLED_WIDGETS,
   LMU_SUPPORTED_WIDGETS,
+  isAnyWidgetAvailableForSim,
   isWidgetDisabledForSim,
   KNOWN_WIDGET_IDS,
   normalizeSimWidgetSupport,
@@ -69,6 +70,22 @@ describe('per-simulator widget support', () => {
     expect(isWidgetDisabledForSim(configured, 'standings', 'iracing')).toBe(
       false
     );
+  });
+
+  it('says whether the running sim can show any of a set of widgets', () => {
+    const both = ['blindspotmonitor', 'standings'];
+    expect(isAnyWidgetAvailableForSim(configured, both, 'lmu')).toBe(true);
+    expect(
+      isAnyWidgetAvailableForSim(configured, ['blindspotmonitor'], 'lmu')
+    ).toBe(false);
+    expect(
+      isAnyWidgetAvailableForSim(configured, ['blindspotmonitor'], 'iracing')
+    ).toBe(true);
+    // No simulator known: nothing is hidden, so nothing is ruled out.
+    expect(
+      isAnyWidgetAvailableForSim(configured, ['blindspotmonitor'], null)
+    ).toBe(true);
+    expect(isAnyWidgetAvailableForSim(configured, [], 'iracing')).toBe(false);
   });
 
   it('hides under iRacing only what iRacing cannot feed', () => {

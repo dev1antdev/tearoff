@@ -113,6 +113,36 @@ export const simulatorHasDriverRatings = (
   simulator: ActiveSimulator | null | undefined
 ): boolean => (simulator ? SIMULATOR_HAS_DRIVER_RATINGS[simulator] : true);
 
+/**
+ * Whether a simulator gives every event a session id of its own.
+ *
+ * iRacing's SubSessionID names one event for good. Le Mans Ultimate has no
+ * such id: the one Tearoff derives is made of the track, the session type and
+ * the server (app/lmu/sessionIdentity.ts), so two races on the same server
+ * and track carry the same one, in one run of the app or across a restart.
+ *
+ * Anything stored under a session id and read back later has to ask this
+ * first. Without it the second race is handed what was stored for the first.
+ */
+export const SIMULATOR_HAS_UNIQUE_SESSION_IDS: Record<
+  ActiveSimulator,
+  boolean
+> = {
+  iracing: true,
+  lmu: false,
+};
+
+/**
+ * Whether what is stored under the running simulator's session id can be
+ * trusted to belong to this event.
+ *
+ * True when nothing has been detected yet, like the other questions here:
+ * demo mode and mock data have no simulator, and behave as they always did.
+ */
+export const simulatorHasUniqueSessionIds = (
+  simulator: ActiveSimulator | null | undefined
+): boolean => (simulator ? SIMULATOR_HAS_UNIQUE_SESSION_IDS[simulator] : true);
+
 export const isActiveSimulator = (value: unknown): value is ActiveSimulator =>
   typeof value === 'string' && SIMULATOR_IDS.includes(value as ActiveSimulator);
 

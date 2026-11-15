@@ -107,14 +107,32 @@ interface LoadedPlanning {
 type FetchedPlanning =
   ({ ok: true } & LoadedPlanning) | { ok: false; error: RacePlanFetchError };
 
+/**
+ * Whether the plan may be fetched unasked: once at start, and then on the
+ * refresh timer.
+ *
+ * Off while the running simulator has no widget to show a plan in, which
+ * today is Le Mans Ultimate: a plan names its drivers, team and track by
+ * iRacing ids. What the user asks for in Settings (save a key, choose a
+ * planning, load the list, refresh now) is still fetched, whatever this says.
+ */
+export interface RacePlanAutoRefresh {
+  isAllowed: () => boolean;
+  /** Calls the listener when the answer may have changed. */
+  onChange: (listener: () => void) => (() => unknown) | undefined;
+}
+
 export function createRacePlanService(options: {
   store: RacePlanStore;
   client: IracePlanClient;
   crypto: ApiKeyCrypto;
   now?: () => number;
+  /** Always allowed when left out. */
+  autoRefresh?: RacePlanAutoRefresh;
 }): RacePlanService {
   const { store, client, crypto } = options;
   const now = options.now ?? Date.now;
+  const autoRefreshAllowed = () => options.autoRefresh?.isAllowed() ?? true;
   let stored: RacePlanStoredState;
   let planning: RacePlanning | null = null;
   let status: RacePlanFetchStatus = 'idle';
@@ -224,6 +242,7 @@ export function createRacePlanService(options: {
     timer = undefined;
     if (
       disposed ||
+      !autoRefreshAllowed() ||
       !stored.encryptedApiKey ||
       stored.config.planningId === null
     )
@@ -248,7 +267,17 @@ export function createRacePlanService(options: {
     planning = cached && cached.id === loaded.config.planningId ? cached : null;
     if (!planning && loaded.cache) stored = { ...stored, cache: null };
     schedule();
-    void refresh();
+    if (autoRefreshAllowed()) void refresh();
+  });
+
+  const stopWatchingAutoRefresh = options.autoRefresh?.onChange(() => {
+    void ready.then(() => {
+      if (disposed) return;
+      const wasPolling = timer !== undefined;
+      schedule();
+      // Polling again after a spell without: the plan may have moved on.
+      if (!wasPolling && timer !== undefined) void refresh();
+    });
   });
 
   return {
@@ -361,6 +390,7 @@ export function createRacePlanService(options: {
       disposed = true;
       clearInterval(timer);
       timer = undefined;
+      stopWatchingAutoRefresh?.();
       listeners.clear();
     },
   };

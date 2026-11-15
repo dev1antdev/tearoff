@@ -565,6 +565,115 @@ describe('racePlanService', () => {
     expect(client.getPlanning).toHaveBeenCalledTimes(1);
   });
 
+  /** The simulator's say, as main.ts passes it: an answer and a change. */
+  const simulatorSwitch = (allowed: boolean) => {
+    const state = { allowed };
+    const listeners = new Set<() => void>();
+    return {
+      autoRefresh: {
+        isAllowed: () => state.allowed,
+        onChange: (listener: () => void) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+      },
+      set: (next: boolean) => {
+        state.allowed = next;
+        listeners.forEach((listener) => listener());
+      },
+      listeners: () => listeners.size,
+    };
+  };
+
+  it('fetches nothing unasked while the simulator cannot show a plan', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const client = stubClient();
+    const lmu = simulatorSwitch(false);
+    const service = make({
+      store: memoryStore({
+        ...configured(),
+        cache: { planning: rawPlanningFixture().planning, fetchedAt: 1_000 },
+      }),
+      client,
+      crypto: fakeCrypto(),
+      autoRefresh: lmu.autoRefresh,
+    });
+
+    // Not at start, and not on the timer.
+    const state = await service.getState();
+    await vi.advanceTimersByTimeAsync(60 * 60_000);
+    expect(client.getPlanning).not.toHaveBeenCalled();
+    expect(client.listPlannings).not.toHaveBeenCalled();
+    // The plan saved last is still there to look at in Settings.
+    expect(state.planning?.id).toBe(FIXTURE_PLANNING_ID);
+
+    // What the user asks for by hand is still fetched, and starts no timer.
+    await service.refreshNow();
+    expect(client.getPlanning).toHaveBeenCalledTimes(1);
+    await service.listPlannings();
+    expect(client.listPlannings).toHaveBeenCalledTimes(1);
+    await service.setConfig({ refreshMinutes: 1 });
+    await vi.advanceTimersByTimeAsync(60 * 60_000);
+    expect(client.getPlanning).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops the timer when the simulator turns out to be one without plans', async () => {
+    // Left on auto-detect: the service starts before a game is found.
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const client = stubClient();
+    const simulator = simulatorSwitch(true);
+    const service = make({
+      store: memoryStore(configured()),
+      client,
+      crypto: fakeCrypto(),
+      autoRefresh: simulator.autoRefresh,
+    });
+    await service.ready;
+    await vi.waitFor(() => expect(client.getPlanning).toHaveBeenCalledTimes(1));
+
+    simulator.set(false);
+    await service.getState();
+    await vi.advanceTimersByTimeAsync(60 * 60_000);
+    expect(client.getPlanning).toHaveBeenCalledTimes(1);
+  });
+
+  it('fetches once and polls again when the simulator can show a plan', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    const client = stubClient();
+    const simulator = simulatorSwitch(false);
+    const service = make({
+      store: memoryStore(configured()),
+      client,
+      crypto: fakeCrypto(),
+      autoRefresh: simulator.autoRefresh,
+    });
+    await service.ready;
+
+    simulator.set(true);
+    await vi.waitFor(() => expect(client.getPlanning).toHaveBeenCalledTimes(1));
+    // A second notice that changes nothing does not fetch again.
+    simulator.set(true);
+    await service.getState();
+    expect(client.getPlanning).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+    expect(client.getPlanning).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops listening to the simulator once disposed', async () => {
+    const simulator = simulatorSwitch(true);
+    const service = make({
+      store: memoryStore(),
+      client: stubClient(),
+      crypto: fakeCrypto(),
+      autoRefresh: simulator.autoRefresh,
+    });
+    await service.ready;
+    expect(simulator.listeners()).toBe(1);
+    service.dispose();
+    expect(simulator.listeners()).toBe(0);
+  });
+
   it('lists plannings, or reports unauthorized without a key', async () => {
     const withKey = make({
       store: memoryStore(configured()),

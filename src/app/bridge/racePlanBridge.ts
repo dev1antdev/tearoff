@@ -7,6 +7,7 @@ import { createIracePlanClient } from '../services/iracePlanClient';
 import {
   createRacePlanService,
   type ApiKeyCrypto,
+  type RacePlanAutoRefresh,
   type RacePlanService,
 } from '../services/racePlanService';
 import { setRacePlanSource } from '../services/racePlanSource';
@@ -79,7 +80,9 @@ export function createRacePlanBroadcast(
 }
 
 /** Must run after `app.whenReady()`: safeStorage needs the app ready. */
-export function setupRacePlanBridge() {
+export function setupRacePlanBridge(
+  options: { autoRefresh?: RacePlanAutoRefresh } = {}
+) {
   const store = createRacePlanStore(
     path.join(app.getPath('userData'), 'race-plan.json')
   );
@@ -87,6 +90,7 @@ export function setupRacePlanBridge() {
     store,
     client: createIracePlanClient(),
     crypto: safeStorageCrypto,
+    autoRefresh: options.autoRefresh,
   });
   setRacePlanSource(service);
   const watchedWindows = new Set<number>();

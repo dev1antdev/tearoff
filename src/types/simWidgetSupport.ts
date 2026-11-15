@@ -174,6 +174,19 @@ export const isWidgetDisabledForSim = (
   !!simulator &&
   (config.disabledWidgets[simulator] ?? []).includes(widgetId);
 
+/**
+ * Whether the running sim can show at least one of these widgets.
+ *
+ * For work the main process does on a widget's behalf: a recorder or a poll
+ * whose only readers are hidden under the running sim has nobody to work for.
+ */
+export const isAnyWidgetAvailableForSim = (
+  config: SimWidgetSupportConfig,
+  widgetIds: readonly string[],
+  simulator: ActiveSimulator | null | undefined
+): boolean =>
+  widgetIds.some((id) => !isWidgetDisabledForSim(config, id, simulator));
+
 /** The hover text for a disabled widget, or null when it is available. */
 export const widgetDisabledMessage = (
   config: SimWidgetSupportConfig,

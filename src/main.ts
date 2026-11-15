@@ -101,20 +101,16 @@ import {
   type IncidentPersistence,
   type PerformanceSections,
 } from './app/processors/incidentRuntime';
-import {
-  LapHistoryRuntime,
-  type LapHistoryPersistence,
-} from './app/processors/lapHistoryRuntime';
+import { LapHistoryRuntime } from './app/processors/lapHistoryRuntime';
 import { watchLapHistoryDemand } from './app/lapHistoryDemand';
+import { createLapHistoryArchive } from './app/lapHistoryArchive';
+import { watchPitStopDemand } from './app/pitStopDemand';
+import { canSimulatorShowRacePlan } from './app/racePlanDemand';
 import {
   flushLapHistoryOnShutdown,
   listArchivedLapHistorySessions,
   loadArchivedLapHistory,
-  loadLapHistory,
   pruneOldSessions as pruneOldLapHistorySessions,
-  rehydrateLapHistory,
-  saveLapHistory,
-  sealLapHistorySession,
 } from './app/storage/lapHistoryStorage';
 import { ReplayContextRuntime } from './app/processors/replayContextRuntime';
 import { setupTapeReplayBridge } from './app/bridge/tapeReplayBridge';
@@ -125,7 +121,11 @@ import { createKnownLocalUserIdStore } from './app/storage/knownLocalUserIds';
 import { setupLapHistoryBridge } from './app/bridge/lapHistoryBridge';
 import { onDashboardUpdated } from './app/storage/dashboardEvents';
 import { setupStreamChat } from './app/streamChat/setupStreamChat';
-import { loadSimWidgetSupport } from './app/storage/simWidgetSupport';
+import {
+  getSimWidgetSupport,
+  loadSimWidgetSupport,
+} from './app/storage/simWidgetSupport';
+import { simulatorHasUniqueSessionIds } from '@irdashies/types';
 import type { DashboardLayout, Session } from '@irdashies/types';
 import { getActivePerfMetrics } from './app/perfMetrics';
 import {
@@ -238,26 +238,17 @@ const incidentPersistence: IncidentPersistence = {
     );
   },
 };
-const lapHistoryPersistence: LapHistoryPersistence = {
-  save: (sessionId, snapshot) => {
-    saveLapHistory(sessionId, snapshot).catch((err) =>
-      log.error('[LapHistory] Failed to persist lap history:', err)
-    );
-  },
-  seal: (sessionId, snapshot) => {
-    sealLapHistorySession(sessionId, snapshot).catch((err) =>
-      log.error('[LapHistory] Failed to persist lap history:', err)
-    );
-  },
-  load: async (sessionId) => {
-    const stored = await loadLapHistory(sessionId);
-    if (!stored) return null;
-    return {
-      sessionNums: Object.keys(stored.sessions).map(Number),
-      apply: (target) => rehydrateLapHistory(stored, target),
-    };
-  },
-};
+/**
+ * Whether the running simulator's session id names this event and no other.
+ * Read at each use: left on auto-detect the simulator is named only once a
+ * game is found, and a profile can pin another one later.
+ */
+const sessionIdNamesOneEvent = () =>
+  simulatorHasUniqueSessionIds(getActiveSimulator());
+const lapHistoryPersistence = createLapHistoryArchive({
+  canArchive: sessionIdNamesOneEvent,
+  logError: (message, error) => log.error(message, error),
+});
 /** Session numbers this PC archived for an event: incidents or lap history. */
 const replayArchiveIndex: ArchiveIndex = {
   has: async (subSessionId) => {
@@ -396,8 +387,10 @@ function setupLapHistoryRuntime(
   // Retention: the current race plus one previous race.
   const unsubscribeSessionId = runtime.onSessionIdChanged((sessionId) => {
     // A replay's event is not the newest race, so pruning around it would
-    // delete a newer archive.
-    if (!sessionId || replayContext.isReplayFile()) return;
+    // delete a newer archive. Nor is a session that is not archived at all:
+    // it has no file to keep, and would cost an older race its own.
+    if (!sessionId || replayContext.isReplayFile() || !sessionIdNamesOneEvent())
+      return;
     pruneOldLapHistorySessions(sessionId).catch((err) =>
       log.error('[LapHistory] Failed to prune old sessions:', err)
     );
@@ -429,7 +422,8 @@ const pitStopPersistence: PitStopPersistence = {
 
 /**
  * Hosts pit stop recording like lap history: gated on the Gantry widget, and
- * kept running while the Gantry window is closed.
+ * kept running while the Gantry window is closed. Not under a simulator that
+ * hides the Gantry, which leaves the widget's own switch as the user set it.
  */
 function setupPitStopRuntime(
   initialDashboard: DashboardLayout,
@@ -446,12 +440,14 @@ function setupPitStopRuntime(
     runtime.updateReplayPaused(context.mode === 'replayFile')
   );
 
-  const applyDashboard = (layout: DashboardLayout | undefined) => {
-    const widget = layout?.widgets.find((w) => w.id === 'gantry');
-    runtime.updateEnabled(widget?.enabled ?? false);
-  };
-  applyDashboard(initialDashboard);
-  const unsubscribeDashboard = onDashboardUpdated(applyDashboard);
+  const unsubscribeDemand = watchPitStopDemand({
+    initialLayout: initialDashboard,
+    onDashboardUpdated,
+    getSimulator: getActiveSimulator,
+    onSimulatorChanged: onActiveSimulatorChanged,
+    getSupport: getSimWidgetSupport,
+    onChange: (needed) => runtime.updateEnabled(needed),
+  });
 
   let unsubscribeSession: (() => void) | undefined;
   let unsubscribeTelemetry: (() => void) | undefined;
@@ -476,7 +472,7 @@ function setupPitStopRuntime(
     unsubscribeSession = undefined;
     unsubscribeTelemetry = undefined;
     unsubscribeBridgeChanged?.();
-    unsubscribeDashboard?.();
+    unsubscribeDemand();
     unsubscribeReplayContext();
     runtime.dispose();
   };
@@ -668,7 +664,15 @@ void app.whenReady().then(async () => {
   setupLapTraceBridge(overlayManager);
   setupGarage61SearchSession(dashboard);
   setupChromiumFlagsBridge();
-  racePlan = setupRacePlanBridge();
+  racePlan = setupRacePlanBridge({
+    // A plan is fetched unasked only while the running simulator has a widget
+    // to show it in. Settings can still load one by hand.
+    autoRefresh: {
+      isAllowed: () =>
+        canSimulatorShowRacePlan(getActiveSimulator(), getSimWidgetSupport()),
+      onChange: onActiveSimulatorChanged,
+    },
+  });
   ipcMain.handle('widgetVisibility:getHidden', () => getHiddenWidgets());
   const replayContextRuntime = setupReplayContextRuntime(dashboard);
   const incidents = new IncidentRuntime(
