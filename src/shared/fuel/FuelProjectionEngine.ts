@@ -30,6 +30,13 @@ export interface FuelEngineFrame {
   sessionFlags: number;
   sessionNum?: number;
   sessionTime: number;
+  /**
+   * True while somebody other than the user is driving the car: a
+   * team-mate's stint, watched from outside. The car is using its fuel all
+   * the same, so the lap is measured and counted; it is not the user's own,
+   * so it is not one to save. Absent, the user is at the wheel.
+   */
+  watched?: boolean;
 }
 
 export interface FuelEngineHistory {
@@ -117,6 +124,12 @@ export class FuelProjectionEngine {
   private wasOnPitRoadDuringLap = false;
   private isLapFullyGreen = true;
   /**
+   * Whether any of the lap under way was driven by somebody else. Remembered
+   * across the lap as a tow is: a lap the user took over half-way round is
+   * not theirs from start to finish either.
+   */
+  private wasWatchedDuringLap = false;
+  /**
    * Whether the lap under way is being measured from the line. The engine
    * can be started anywhere on a lap -- the app opened mid-race, the widget
    * turned on, a reset -- and what is left of that lap is not a lap: half of
@@ -148,6 +161,7 @@ export class FuelProjectionEngine {
     this.wasTowedDuringLap = false;
     this.wasOnPitRoadDuringLap = false;
     this.isLapFullyGreen = true;
+    this.wasWatchedDuringLap = false;
     this.lapFromLine = false;
     this.resetProjection();
   }
@@ -163,6 +177,7 @@ export class FuelProjectionEngine {
 
     if (frame.playerCarTowTime > 0) this.wasTowedDuringLap = true;
     if (frame.onPitRoad) this.wasOnPitRoadDuringLap = true;
+    if (frame.watched) this.wasWatchedDuringLap = true;
     if (!isGreenFlag(frame.sessionFlags)) this.isLapFullyGreen = false;
     this.state.lastSessionFlags = frame.sessionFlags;
 
@@ -253,6 +268,7 @@ export class FuelProjectionEngine {
       lapTime >= MIN_LAP_TIME
     ) {
       const wasTowed = this.wasTowedDuringLap;
+      const wasWatched = this.wasWatchedDuringLap;
       const isOutlier = !validateLap(fuelUsed, lapTime, [
         ...history.getRecentLaps(10),
       ]);
@@ -265,15 +281,24 @@ export class FuelProjectionEngine {
         isOutLap: this.state.wasOnPitRoad,
         isInLap: this.wasOnPitRoadDuringLap,
         wasTowed,
+        // Only where it is true, so a lap the user drove is the same object
+        // it always was.
+        ...(wasWatched ? { wasWatched } : {}),
         timestamp: this.clock.now(),
         sessionNum: frame.sessionNum,
       };
+      // Counted either way: it is what the car used. Saved only as the
+      // user's own.
       commands.push({ type: 'lapCompleted', lap });
-      if (settings.persistLaps) commands.push({ type: 'saveLap', lap });
+      if (settings.persistLaps && !wasWatched) {
+        commands.push({ type: 'saveLap', lap });
+      }
     }
 
     this.wasTowedDuringLap = false;
     this.wasOnPitRoadDuringLap = false;
+    // The frame that crosses the line is the new lap's first.
+    this.wasWatchedDuringLap = frame.watched === true;
     this.isLapFullyGreen = isGreenFlag(frame.sessionFlags);
     this.state.isLapDistPctReset = false;
     this.resetProjection();

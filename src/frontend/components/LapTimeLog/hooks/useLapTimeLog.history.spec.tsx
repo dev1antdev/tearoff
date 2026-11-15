@@ -62,6 +62,7 @@ const emptySnapshot: LapLogSnapshot = {
   currentLapTime: 30,
   lastLapTime: 0,
   bestLapTime: 0,
+  ownBestLapTime: 0,
   carIdxBestLapTime: [],
   sessionNum: 0,
   sessionTime: 0,

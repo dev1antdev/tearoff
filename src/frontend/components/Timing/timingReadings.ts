@@ -36,6 +36,13 @@ export interface TimingReadings {
    * ones driven, and are drawn dimmed.
    */
   dimmed: boolean;
+  /**
+   * The sector times alone are held from the user's last lap at the wheel
+   * and drawn dimmed, while the rest is live: a team-mate is driving the
+   * car. The sector timer follows the user's own driving and no one else's,
+   * so its bests stay theirs.
+   */
+  sectorsHeld?: boolean;
 }
 
 const emptySector = (index: number): SectorTile => ({

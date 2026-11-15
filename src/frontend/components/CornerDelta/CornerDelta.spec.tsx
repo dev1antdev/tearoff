@@ -32,6 +32,17 @@ vi.mock('./hooks/useCornerResults', () => ({
 
 const defaults = getWidgetDefaultConfig('cornerdelta');
 
+/** Where the user is, as useDrivingState says it; nowhere unless told. */
+const where = (
+  state: Partial<ReturnType<typeof useDrivingState>> = {}
+): ReturnType<typeof useDrivingState> => ({
+  isDriving: false,
+  isWatching: false,
+  isWatchingOwnCar: false,
+  isWatchingOtherCar: false,
+  ...state,
+});
+
 const settings = (
   overrides: Partial<CornerDeltaConfig> = {}
 ): CornerDeltaConfig => ({ ...defaults, ...overrides });
@@ -241,10 +252,7 @@ describe('CornerDelta', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     dashboard();
-    vi.mocked(useDrivingState).mockReturnValue({
-      isDriving: true,
-      isWatching: false,
-    });
+    vi.mocked(useDrivingState).mockReturnValue(where({ isDriving: true }));
     vi.mocked(useSessionVisibility).mockReturnValue(true);
     // Metric display units.
     vi.mocked(useTrackStateSelector).mockReturnValue(1);
@@ -260,7 +268,7 @@ describe('CornerDelta', () => {
 
     expect(value(container).textContent).toBe('-0.08');
     expect(container.textContent).toContain('Entry km/h171+3.2');
-    expect(useCornerResults).toHaveBeenCalledWith(true, 'name');
+    expect(useCornerResults).toHaveBeenCalledWith(true, 'name', false);
   });
 
   it('takes the speed unit from the sim unless the settings name one', () => {
@@ -280,29 +288,35 @@ describe('CornerDelta', () => {
     dashboard({ cornerLabel: 'number' });
     render(<CornerDelta />);
 
-    expect(useCornerResults).toHaveBeenCalledWith(true, 'number');
+    expect(useCornerResults).toHaveBeenCalledWith(true, 'number', false);
   });
 
   it('is hidden while not driving, unless told to stay', () => {
-    vi.mocked(useDrivingState).mockReturnValue({
-      isDriving: false,
-      isWatching: false,
-    });
+    vi.mocked(useDrivingState).mockReturnValue(where());
     expect(render(<CornerDelta />).container.textContent).toBe('');
 
     dashboard({ showOnlyWhenOnTrack: false });
     expect(value(render(<CornerDelta />).container).textContent).toBe('-0.08');
   });
 
-  it('stays hidden while watching a car: the corners it times are the user’s own', () => {
-    // A team-mate's stint. Nothing true to show for a watched car yet, so
-    // watching does not count as on track here.
-    vi.mocked(useDrivingState).mockReturnValue({
-      isDriving: false,
-      isWatching: true,
-    });
+  it('shows through a team-mate’s stint in the user’s own car, and times its corners', () => {
+    vi.mocked(useDrivingState).mockReturnValue(
+      where({ isWatching: true, isWatchingOwnCar: true })
+    );
+
+    expect(value(render(<CornerDelta />).container).textContent).toBe('-0.08');
+    // The feed is told the car is being driven for it to follow.
+    expect(useCornerResults).toHaveBeenCalledWith(true, 'name', true);
+  });
+
+  it('stays hidden while the camera is on another car, and times nothing', () => {
+    // The corners are still the team car's, which is not the car on screen.
+    vi.mocked(useDrivingState).mockReturnValue(
+      where({ isWatching: true, isWatchingOtherCar: true })
+    );
 
     expect(render(<CornerDelta />).container.textContent).toBe('');
+    expect(useCornerResults).toHaveBeenCalledWith(true, 'name', false);
   });
 
   it('is hidden and stops timing in a session it is switched off for', () => {
@@ -310,15 +324,12 @@ describe('CornerDelta', () => {
     const { container } = render(<CornerDelta />);
 
     expect(container.textContent).toBe('');
-    expect(useCornerResults).toHaveBeenCalledWith(false, 'name');
+    expect(useCornerResults).toHaveBeenCalledWith(false, 'name', false);
   });
 
   it('shows an example in demo mode, whatever the session says', () => {
     dashboard({}, true);
-    vi.mocked(useDrivingState).mockReturnValue({
-      isDriving: false,
-      isWatching: false,
-    });
+    vi.mocked(useDrivingState).mockReturnValue(where());
     vi.mocked(useSessionVisibility).mockReturnValue(false);
     vi.mocked(useCornerResults).mockReturnValue({
       hasCorners: undefined,
@@ -330,7 +341,7 @@ describe('CornerDelta', () => {
     expect(byTestId(container, 'corner-delta-label')?.textContent).toBe(
       'Variante Alta'
     );
-    expect(useCornerResults).toHaveBeenCalledWith(false, 'name');
+    expect(useCornerResults).toHaveBeenCalledWith(false, 'name', false);
   });
 
   it('falls back to the defaults on a config with unknown values', () => {

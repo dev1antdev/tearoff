@@ -49,10 +49,16 @@ const NO_RESULTS: readonly CornerResult[] = [];
  *
  * The reference laps are read at the moment a corner is completed, so a
  * corner is always measured against the laps that existed when it was driven.
+ *
+ * `isWatchingOwnCar` is the user watching their own car with somebody else
+ * at the wheel (see useDrivingState). The corners that car drives are then
+ * taken as they are while the user drives it, against the same reference
+ * laps, which stay the user's own.
  */
 export const useCornerResults = (
   enabled: boolean,
-  labelStyle: CornerLabelStyle
+  labelStyle: CornerLabelStyle,
+  isWatchingOwnCar = false
 ): CornerResults => {
   const trackName = useSessionStore((s) => s.session?.WeekendInfo?.TrackName);
   const { sections } = useLovelyTrackData();
@@ -81,6 +87,8 @@ export const useCornerResults = (
   // Read inside the per-frame callback, so it never restarts the subscription.
   const playerCarIdxRef = useRef(playerCarIdx);
   playerCarIdxRef.current = playerCarIdx;
+  const watchingOwnCarRef = useRef(isWatchingOwnCar);
+  watchingOwnCarRef.current = isWatchingOwnCar;
 
   useEffect(() => {
     if (!enabled || corners.length === 0) return;
@@ -121,7 +129,12 @@ export const useCornerResults = (
         publish(NO_RESULTS);
       }
 
-      const driving = sample.isOnTrack && !sample.onPitRoad && !replayPlaying;
+      // The car on the track with somebody driving it: the user, or a
+      // team-mate while the user watches their own car.
+      const driving =
+        (sample.isOnTrack || watchingOwnCarRef.current) &&
+        !sample.onPitRoad &&
+        !replayPlaying;
       // Whatever is on screen is stale once the car is in the pits. The
       // tracker keeps how each corner was last driven for the out-lap.
       if (!driving) publish(NO_RESULTS);

@@ -368,6 +368,8 @@ export async function publishLmuSDKEvents(
   const ownEntryState = createLmuOwnEntryState();
   /** The own-entry line last logged, so each change is one line. */
   let lastOwnEntryLine: string | null = null;
+  /** The own entry's slot the session was last built with. */
+  let lastOwnEntrySlot = -1;
   /** The watched car last logged, for the same reason. */
   let lastWatchedSlot: number | null = null;
   let lastWatchedSource: LmuWatchedSource | null = null;
@@ -683,6 +685,13 @@ export async function publishLmuSDKEvents(
           lastOwnEntryLine = ownEntryLine;
           logger.info(`[lmuSdkBridge] ${ownEntryLine}`);
         }
+        // The session names the own entry as DriverInfo.DriverCarIdx, and its
+        // signature sees only what shared memory holds: an entry found again
+        // in another slot, or first resolved, would not rebuild it.
+        if (ownEntry.slot !== lastOwnEntrySlot) {
+          lastOwnEntrySlot = ownEntry.slot;
+          lastSessionSignature = null;
+        }
         // Flags for an online grid: a burst of teams polls a second after a
         // driver arrives, until every driver on it has one or the burst runs
         // out. Offline, the watch never calls for one.
@@ -731,7 +740,10 @@ export async function publishLmuSDKEvents(
             // No rating source: this build has no driver-rating service, so
             // LmuRating carries only the country the sim itself reports.
             undefined,
-            sessionIdentity
+            sessionIdentity,
+            // The same slot the frame below is given, so the two name one
+            // car as the user's through a team-mate's stint.
+            ownEntry.slot
           );
           mapSessionMs = performance.now() - mapStartedAt;
           perfMetrics.markEnd('mapSession');

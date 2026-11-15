@@ -186,6 +186,51 @@ describe('TrackStateProcessor', () => {
     expect(processor.snapshot().watching).toBe(false);
   });
 
+  it('says whether the car watched is the user’s own entry', () => {
+    const processor = new TrackStateProcessor();
+    processor.onFrame(frame({}));
+    expect(processor.snapshot().watchingOwnCar).toBe(false);
+
+    // A team-mate's stint, the camera left on the team car.
+    processor.onFrame(
+      frame({ LmuWatching: [true], CamCarIdx: [7], PlayerCarIdx: [7] })
+    );
+    expect(processor.snapshot()).toMatchObject({
+      watching: true,
+      watchingOwnCar: true,
+      focusCarIdx: 7,
+    });
+
+    // The camera moved to a rival: still watching, and not the own car.
+    const version = processor.snapshot().version;
+    processor.onFrame(
+      frame({ LmuWatching: [true], CamCarIdx: [3], PlayerCarIdx: [7] })
+    );
+    expect(processor.snapshot()).toMatchObject({
+      watching: true,
+      watchingOwnCar: false,
+      focusCarIdx: 3,
+    });
+    expect(processor.snapshot().version).toBe(version + 1);
+
+    // At the wheel of the same car: not watched at all.
+    processor.onFrame(
+      frame({
+        LmuWatching: [false],
+        IsOnTrack: [true],
+        CamCarIdx: [7],
+        PlayerCarIdx: [7],
+      })
+    );
+    expect(processor.snapshot().watchingOwnCar).toBe(false);
+
+    processor.onFrame(
+      frame({ LmuWatching: [true], CamCarIdx: [7], PlayerCarIdx: [7] })
+    );
+    processor.onLifecycle({ type: 'disconnect' });
+    expect(processor.snapshot().watchingOwnCar).toBe(false);
+  });
+
   it('is never watching on a frame without the flag, as every iRacing frame is', () => {
     // Under iRacing nothing sets it yet, whatever the camera is on.
     const processor = new TrackStateProcessor();

@@ -6,6 +6,8 @@ import type { LapLogSnapshot } from '@irdashies/types';
 let snapshot: LapLogSnapshot;
 let drivers: { CarIdx: number; CarPath: string; CarModel?: string }[];
 const getPersonalBest = vi.fn<(track: string, car: string) => undefined>();
+const setPersonalBest =
+  vi.fn<(track: string, car: string, time: number) => void>();
 
 vi.mock('@irdashies/context', () => ({
   useLapLogSnapshot: () => snapshot,
@@ -18,7 +20,7 @@ vi.mock('@irdashies/context', () => ({
       },
     }),
   usePersonalBestStore: (selector: (state: unknown) => unknown) =>
-    selector({ getPersonalBest, setPersonalBest: () => undefined }),
+    selector({ getPersonalBest, setPersonalBest }),
   useGeneralSettings: () => undefined,
 }));
 
@@ -33,6 +35,7 @@ const emptySnapshot: LapLogSnapshot = {
   currentLapTime: 30,
   lastLapTime: 0,
   bestLapTime: 0,
+  ownBestLapTime: 0,
   carIdxBestLapTime: [],
   sessionNum: 0,
   sessionTime: 0,
@@ -52,6 +55,51 @@ const emptySnapshot: LapLogSnapshot = {
 beforeEach(() => {
   snapshot = { ...emptySnapshot };
   getPersonalBest.mockClear();
+  setPersonalBest.mockClear();
+});
+
+describe('Lap Timer personal best', () => {
+  beforeEach(() => {
+    drivers = [
+      { CarIdx: 0, CarPath: 'AF_LMGT3_23.VEH', CarModel: 'Ferrari 296 LMGT3' },
+    ];
+  });
+
+  it('is taken from the best lap the user drove', () => {
+    const { rerender } = renderHook(() => useLapTimeLog());
+    snapshot = { ...snapshot, bestLapTime: 104.2, ownBestLapTime: 104.2 };
+    rerender();
+
+    expect(setPersonalBest).toHaveBeenCalledWith(
+      '1',
+      'Ferrari 296 LMGT3',
+      104.2
+    );
+  });
+
+  it('is not taken from the car’s best lap when a team-mate set it', () => {
+    // The car's best of the session moves; the user's own does not.
+    const { result, rerender } = renderHook(() => useLapTimeLog());
+    snapshot = { ...snapshot, bestLapTime: 103.1, ownBestLapTime: 0 };
+    rerender();
+
+    expect(setPersonalBest).not.toHaveBeenCalled();
+    // The session's best for the car is still what the widget shows.
+    expect(result.current.bestlap).toBe(103.1);
+  });
+
+  it('is not replaced by a team-mate’s quicker lap once the user has one', () => {
+    const { rerender } = renderHook(() => useLapTimeLog());
+    snapshot = { ...snapshot, bestLapTime: 104.2, ownBestLapTime: 104.2 };
+    rerender();
+    setPersonalBest.mockClear();
+
+    // The team-mate goes quicker in the same car.
+    snapshot = { ...snapshot, bestLapTime: 103.1 };
+    rerender();
+
+    expect(setPersonalBest).not.toHaveBeenCalled();
+  });
 });
 
 describe('Lap Timer personal-best key', () => {

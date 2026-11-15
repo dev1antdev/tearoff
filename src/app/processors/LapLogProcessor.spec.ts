@@ -306,3 +306,187 @@ describe('LapLogProcessor', () => {
     });
   });
 });
+
+describe('LapLogProcessor best lap that is the user’s own', () => {
+  interface Scene {
+    time: number;
+    /** The car's best lap of the session, as the sim has it. */
+    best: number;
+    /** False while a team-mate is driving. */
+    atWheel?: boolean;
+    sessionNum?: number;
+  }
+
+  /** A Le Mans Ultimate frame: it says whether the user is watching. */
+  const lmuFrame = ({ time, best, atWheel = true, sessionNum = 1 }: Scene) =>
+    frame({
+      LapBestLapTime: [best],
+      LapCompleted: [Math.floor(time / 100)],
+      SessionNum: [sessionNum],
+      SessionTime: [time],
+      IsOnTrack: [atWheel],
+      LmuWatching: [!atWheel],
+    });
+
+  const play = (processor: LapLogProcessor, scenes: Scene[]) => {
+    for (const scene of scenes) processor.onFrame(lmuFrame(scene));
+    return processor.snapshot();
+  };
+
+  it('is the lap the user drove from the line to the line', () => {
+    const snapshot = play(new LapLogProcessor(), [
+      { time: 0, best: -1 },
+      { time: 100, best: -1 },
+      // A lap of 95 s, with the user at the wheel for the 200 before it.
+      { time: 200, best: 95 },
+    ]);
+
+    expect(snapshot.bestLapTime).toBe(95);
+    expect(snapshot.ownBestLapTime).toBe(95);
+  });
+
+  it('is not a lap a team-mate set', () => {
+    const snapshot = play(new LapLogProcessor(), [
+      { time: 0, best: -1 },
+      { time: 100, best: -1, atWheel: false },
+      { time: 200, best: 95, atWheel: false },
+    ]);
+
+    // The car's best is theirs; the user has none.
+    expect(snapshot.bestLapTime).toBe(95);
+    expect(snapshot.ownBestLapTime).toBe(0);
+  });
+
+  it('does not become the team-mate’s lap once the user is back in', () => {
+    // The case that was wrong before: LMU's best lap is the car's, and it
+    // is still the car's best an hour into the user's own stint.
+    const processor = new LapLogProcessor();
+    play(processor, [
+      { time: 0, best: -1 },
+      { time: 100, best: 95, atWheel: false },
+      { time: 200, best: 95, atWheel: false },
+    ]);
+
+    const snapshot = play(processor, [
+      { time: 300, best: 95 },
+      { time: 3900, best: 95 },
+    ]);
+
+    expect(snapshot.ownBestLapTime).toBe(0);
+  });
+
+  it('is not a lap the user took over part-way round', () => {
+    const snapshot = play(new LapLogProcessor(), [
+      { time: 0, best: -1, atWheel: false },
+      // In the car for the last 40 s of a 95 s lap.
+      { time: 160, best: -1 },
+      { time: 200, best: 95 },
+    ]);
+
+    expect(snapshot.ownBestLapTime).toBe(0);
+  });
+
+  it('takes the user’s next lap after a stint', () => {
+    const processor = new LapLogProcessor();
+    play(processor, [
+      { time: 0, best: -1 },
+      { time: 100, best: 96, atWheel: false },
+      { time: 160, best: 96 },
+      // The rest of the lap the user got in on: not their own.
+      { time: 200, best: 96 },
+    ]);
+    expect(processor.snapshot().ownBestLapTime).toBe(0);
+
+    // And the lap after it, quicker than the team-mate's.
+    const snapshot = play(processor, [{ time: 294, best: 94 }]);
+
+    expect(snapshot.ownBestLapTime).toBe(94);
+  });
+
+  it('keeps the user’s best when a team-mate goes quicker', () => {
+    const processor = new LapLogProcessor();
+    play(processor, [
+      { time: 0, best: -1 },
+      { time: 200, best: 95 },
+      { time: 300, best: 95, atWheel: false },
+    ]);
+
+    const snapshot = play(processor, [{ time: 400, best: 93, atWheel: false }]);
+
+    expect(snapshot.bestLapTime).toBe(93);
+    expect(snapshot.ownBestLapTime).toBe(95);
+  });
+
+  it('takes a lap whose time appears just after the user got out', () => {
+    // Over the line and straight out of the car: the sim gives the lap its
+    // time a moment later.
+    const snapshot = play(new LapLogProcessor(), [
+      { time: 0, best: -1 },
+      { time: 200, best: -1 },
+      { time: 201, best: -1, atWheel: false },
+      { time: 202, best: 95, atWheel: false },
+    ]);
+
+    expect(snapshot.ownBestLapTime).toBe(95);
+  });
+
+  it('does not take a best that was there when it began to watch', () => {
+    // The app started part-way through a session: whose lap that was is
+    // not known, however long the user then drives.
+    const snapshot = play(new LapLogProcessor(), [
+      { time: 1000, best: 95 },
+      { time: 2000, best: 95 },
+    ]);
+
+    expect(snapshot.ownBestLapTime).toBe(0);
+  });
+
+  it('does not take a best that got slower', () => {
+    // The sim taking a lap away: what is left is an older lap, whoever
+    // drove it.
+    const processor = new LapLogProcessor();
+    play(processor, [
+      { time: 0, best: -1 },
+      { time: 200, best: 95 },
+    ]);
+
+    const snapshot = play(processor, [{ time: 300, best: 97 }]);
+
+    expect(snapshot.ownBestLapTime).toBe(95);
+  });
+
+  it('starts again with a new session', () => {
+    const processor = new LapLogProcessor();
+    play(processor, [
+      { time: 0, best: -1 },
+      { time: 200, best: 95 },
+    ]);
+
+    const snapshot = play(processor, [
+      { time: 10, best: -1, sessionNum: 2 },
+      { time: 50, best: -1, sessionNum: 2 },
+    ]);
+
+    expect(snapshot.ownBestLapTime).toBe(0);
+
+    processor.onLifecycle({ type: 'disconnect' });
+    expect(processor.snapshot().ownBestLapTime).toBe(0);
+  });
+
+  it('is the player’s best lap as it stands under iRacing', () => {
+    // iRacing's best lap is the player's own, and watching there is a later
+    // step: nothing changes.
+    const processor = new LapLogProcessor();
+    processor.onFrame(
+      frame({
+        LapBestLapTime: [95],
+        LapCompleted: [3],
+        SessionNum: [1],
+        SessionTime: [400],
+        IsOnTrack: [false],
+      })
+    );
+
+    expect(processor.snapshot().ownBestLapTime).toBe(95);
+  });
+});

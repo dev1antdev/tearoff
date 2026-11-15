@@ -5,6 +5,7 @@ import type {
   Telemetry,
 } from '@irdashies/types';
 import type { TelemetryProcessor } from './TelemetryProcessor';
+import { isWatchingAnotherCar } from './watchedCar';
 
 type MutableSessionBarSnapshot = Omit<
   SessionBarSnapshot,
@@ -60,6 +61,9 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
   private lastTime = -Infinity;
   private lap = -1;
   private lapTop = 0;
+  /** The top speeds as measured, which the snapshot shows or withholds. */
+  private lastLapTopSpeed: number | null = null;
+  private sessionBestTopSpeed: number | null = null;
   private enabled = true;
   private readonly latest = this.empty();
 
@@ -76,15 +80,22 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
       sessionNum !== this.latest.sessionNum
     )
       this.reset(sessionNum);
+    // The figures of the user's own car are the team car's through a
+    // team-mate's stint, whatever the camera is on. With the camera on a
+    // rival they are still true and are not what is on screen, so they are
+    // withheld, as they were before the team car had any.
+    const ownCar = !isWatchingAnotherCar(frame);
     const currentLap = n(frame, 'Lap') ?? 0;
     const speed = n(frame, 'Speed') ?? 0;
     if (this.lap >= 0 && currentLap > this.lap) {
-      this.latest.lastLapTopSpeed = this.lapTop || null;
-      this.latest.sessionBestTopSpeed =
-        Math.max(
-          this.latest.sessionBestTopSpeed ?? 0,
-          this.latest.lastLapTopSpeed ?? 0
-        ) || null;
+      this.lastLapTopSpeed = this.lapTop || null;
+      this.sessionBestTopSpeed =
+        Math.max(this.sessionBestTopSpeed ?? 0, this.lastLapTopSpeed ?? 0) ||
+        null;
+      this.latest.lastLapTopSpeed = ownCar ? this.lastLapTopSpeed : null;
+      this.latest.sessionBestTopSpeed = ownCar
+        ? this.sessionBestTopSpeed
+        : null;
       this.lapTop = 0;
     } else if (this.lap >= 0 && currentLap < this.lap) {
       this.lapTop = 0;
@@ -102,6 +113,7 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
     const drivers = this.session?.DriverInfo?.Drivers ?? [];
     const playerCarIdx = this.session?.DriverInfo?.DriverCarIdx ?? null;
     const player = drivers.find((d) => d?.CarIdx === playerCarIdx);
+    const ownCarIdx = ownCar ? playerCarIdx : null;
     const positions = a(frame, 'CarIdxPosition');
     const classPositions = a(frame, 'CarIdxClassPosition');
     this.latest.competitorCarIds.length = 0;
@@ -130,7 +142,9 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
       sessionName: info?.SessionType,
       trackDisplayName: this.session?.WeekendInfo?.TrackDisplayName,
       displayUnits: n(frame, 'DisplayUnits') ?? 0,
-      brakeBias: n(frame, isClio ? 'dcPeakBrakeBias' : 'dcBrakeBias'),
+      brakeBias: ownCar
+        ? n(frame, isClio ? 'dcPeakBrakeBias' : 'dcBrakeBias')
+        : undefined,
       brakeBiasIsClio: isClio,
       incidents: n(frame, 'PlayerCarTeamIncidentCount') ?? 0,
       incidentLimit: this.session?.WeekendInfo?.WeekendOptions?.IncidentLimit,
@@ -145,7 +159,7 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
       // undefined rather than 0 for a car with no reading -- 0 is clean.
       trackLimitsPoints: trackLimits(
         a(frame, 'LmuCarIdxTrackLimitsPoints'),
-        playerCarIdx
+        ownCarIdx
       ),
       trackLimitsPointsMax: n(frame, 'LmuTrackLimitsPointsMax') || undefined,
       precipitation: n(frame, 'Precipitation'),
@@ -155,14 +169,16 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
       windDirection: n(frame, 'WindDir'),
       windVelocity: n(frame, 'WindVel'),
       windYaw: n(frame, 'YawNorth'),
-      fuelLevel: n(frame, 'FuelLevel'),
+      fuelLevel: ownCar ? n(frame, 'FuelLevel') : undefined,
       virtualEnergy: playerVirtualEnergy(
         a(frame, 'LmuCarIdxEnergyRemaining'),
         a(frame, 'LmuCarIdxEnergyIsVirtual'),
-        playerCarIdx
+        ownCarIdx
       ),
-      lastLapTime: n(frame, 'LapLastLapTime'),
-      bestLapTime: n(frame, 'LapBestLapTime'),
+      lastLapTime: ownCar ? n(frame, 'LapLastLapTime') : undefined,
+      bestLapTime: ownCar ? n(frame, 'LapBestLapTime') : undefined,
+      lastLapTopSpeed: ownCar ? this.lastLapTopSpeed : null,
+      sessionBestTopSpeed: ownCar ? this.sessionBestTopSpeed : null,
       sessionBestLap: sessionBest,
       sessionTimeOfDay: n(frame, 'SessionTimeOfDay'),
       playerCarIdx,
@@ -171,12 +187,12 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
         player && !player.CarIsPaceCar && !player.IsSpectator
       ),
       playerOverallPosition:
-        typeof positions[playerCarIdx ?? -1] === 'number'
-          ? (positions[playerCarIdx ?? -1] as number)
+        typeof positions[ownCarIdx ?? -1] === 'number'
+          ? (positions[ownCarIdx ?? -1] as number)
           : 0,
       playerClassPosition:
-        typeof classPositions[playerCarIdx ?? -1] === 'number'
-          ? (classPositions[playerCarIdx ?? -1] as number)
+        typeof classPositions[ownCarIdx ?? -1] === 'number'
+          ? (classPositions[ownCarIdx ?? -1] as number)
           : 0,
       playerClassSize: classSize,
       sessionNum,
@@ -205,6 +221,8 @@ export class SessionBarProcessor implements TelemetryProcessor<SessionBarSnapsho
     this.lastTime = -Infinity;
     this.lap = -1;
     this.lapTop = 0;
+    this.lastLapTopSpeed = null;
+    this.sessionBestTopSpeed = null;
   }
   private empty(): MutableSessionBarSnapshot {
     return {

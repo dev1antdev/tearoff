@@ -159,7 +159,12 @@ const show = (
     },
   } as unknown as ReturnType<typeof useDashboard>);
   vi.mocked(useFlagStateSnapshot).mockReturnValue(snapshot);
-  vi.mocked(useDrivingState).mockReturnValue({ isDriving, isWatching });
+  vi.mocked(useDrivingState).mockReturnValue({
+    isDriving,
+    isWatching,
+    isWatchingOwnCar: false,
+    isWatchingOtherCar: isWatching,
+  });
   vi.mocked(useSessionVisibility).mockReturnValue(sessionVisible);
   vi.mocked(useTrackStateSelector).mockImplementation(((selector: unknown) =>
     selector === trackStateSelectors.displayUnits

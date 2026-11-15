@@ -7,6 +7,7 @@ import type {
   Telemetry,
 } from '@irdashies/types';
 import type { TelemetryProcessor } from './TelemetryProcessor';
+import { isAwayFromWheel } from './watchedCar';
 import {
   bucketIndex,
   crossingTime,
@@ -209,6 +210,13 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
   private playerAllTime: ReferenceLap | null = null;
   /** The source's revision when the all-time lap was last read from it. */
   private playerRevision = -1;
+  /**
+   * Whether somebody other than the user drove any of the lap the player's
+   * car is on. Such a lap is the car's and not the user's, and does not
+   * become their session best. True until the car has been seen crossing
+   * the line with the user at the wheel.
+   */
+  private playerLapWatched = true;
   private latest: ReferenceLapsSnapshot = this.emptySnapshot();
 
   constructor(
@@ -226,7 +234,10 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
     )[];
     this.drivers = drivers;
     this.classReferences = hasClassReferences(session);
-    this.playerCarIdx = session.DriverInfo?.DriverCarIdx ?? -1;
+    const playerCarIdx = session.DriverInfo?.DriverCarIdx ?? -1;
+    // Another car's lap in progress says nothing of who is driving it.
+    if (playerCarIdx !== this.playerCarIdx) this.playerLapWatched = true;
+    this.playerCarIdx = playerCarIdx;
     const player = drivers.find(
       (driver) => driver?.CarIdx === this.playerCarIdx
     );
@@ -287,6 +298,10 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
     // LMU only, and only for the player: the sim voids a lap for a track cut
     // without a pit visit. iRacing publishes no such var.
     const playerLapInvalidated = frame.LmuLapInvalidated?.value?.[0] === true;
+    // A team-mate at the wheel of the player's car. Their lap is timed like
+    // any other car's, but the best lap kept for the player's car is the
+    // one the player's own laps are measured against, and stays theirs.
+    const playerAway = isAwayFromWheel(frame);
     if (
       !Array.isArray(distances) ||
       distances.length === 0 ||
@@ -317,9 +332,11 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
         playerLapInvalidated &&
         trackPct >= INVALIDATION_START_PCT;
       const clean = !pitRoad?.[carIdx] && !invalidated;
+      const isPlayer = carIdx === this.playerCarIdx;
       const active = this.activeLaps.get(carIdx);
       if (!active) {
         // First sight of the car: its lap began before anything was seen.
+        if (isPlayer) this.playerLapWatched = true;
         this.activeLaps.set(
           carIdx,
           createLap(this.pointsCount, this.interval, null, trackPct, clean)
@@ -334,13 +351,18 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
           sessionTime
         );
         active.finishTime = crossedAt;
-        this.promote(driver, active);
+        if (!(isPlayer && (this.playerLapWatched || playerAway))) {
+          this.promote(driver, active);
+        }
+        // The frame that crosses the line is the new lap's first.
+        if (isPlayer) this.playerLapWatched = playerAway;
         this.activeLaps.set(
           carIdx,
           createLap(this.pointsCount, this.interval, crossedAt, trackPct, clean)
         );
         continue;
       }
+      if (isPlayer && playerAway) this.playerLapWatched = true;
       if (!clean) active.isCleanLap = false;
       const key = bucketIndex(trackPct, this.pointsCount);
       if (active.pointPos[key] !== -1) continue;
@@ -381,6 +403,7 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
 
   /** Discards an incomplete lap when processing demand is paused. */
   pause(): void {
+    this.playerLapWatched = true;
     this.activeLaps.clear();
     this.prevPcts.length = 0;
     this.prevFrameTime = null;
@@ -491,6 +514,7 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
   }
 
   private resetSession(sessionNum: number | null): void {
+    this.playerLapWatched = true;
     this.activeLaps.clear();
     this.bestLaps.clear();
     this.prevPcts.length = 0;

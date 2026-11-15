@@ -236,6 +236,10 @@ export function useFuelCalculation(
     // processor's newest-first order would be stored back to front whenever
     // more than one lap is waiting, as when the widget is shown in mid-race.
     for (const completed of [...(projection?.completedLaps ?? [])].reverse()) {
+      // A lap a team-mate drove, or took over part-way round. It counts in
+      // this session's averages, because the car used that fuel; the stored
+      // history is the user's own driving and it is not part of that.
+      if (completed.wasWatched) continue;
       const key = `${projection.trackId}:${projection.carName}:${completed.sessionNum ?? -1}:${completed.lapNumber}:${completed.timestamp ?? 0}`;
       if (
         savedLapKeysRef.current.has(key) ||
@@ -271,7 +275,10 @@ export function useFuelCalculation(
     if (isQualifying) {
       const lapHistory = useFuelStore.getState().getLapHistory();
 
-      const allCandidates = lapHistory.filter((l) => !l.wasTowed);
+      // The stored qualifying figure is the user's own, like the history.
+      const allCandidates = lapHistory.filter(
+        (l) => !l.wasTowed && !l.wasWatched
+      );
       const fullLaps = allCandidates.filter((l) => !l.isOutLap);
 
       const lapsToUse = fullLaps.length > 0 ? fullLaps : allCandidates;

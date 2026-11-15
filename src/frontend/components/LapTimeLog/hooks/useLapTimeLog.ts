@@ -95,6 +95,7 @@ export const useLapTimeLog = () => {
   const currentLapTime = snapshot?.currentLapTime ?? 0;
   const lastLapTime = snapshot?.lastLapTime ?? 0;
   const bestLapTime = snapshot?.bestLapTime ?? 0;
+  const ownBestLapTime = snapshot?.ownBestLapTime ?? 0;
   const carIdxBestLapTime = snapshot?.carIdxBestLapTime;
   const sessionNum = snapshot?.sessionNum ?? 0;
   const sessionTime = snapshot?.sessionTime ?? 0;
@@ -274,8 +275,13 @@ export const useLapTimeLog = () => {
   ]);
 
   // 5. check personal best
+  //
+  // From the best lap the user drove themselves, not the session's best for
+  // the car. Under Le Mans Ultimate those differ after a team-mate's stint:
+  // the car's best may be a lap they set, and it stays the car's best once
+  // the user is back in. See LapLogSnapshot.ownBestLapTime.
   useEffect(() => {
-    const isValidTime = bestLapTime > 0;
+    const isValidTime = ownBestLapTime > 0;
     if (!isValidTime) return;
     const {
       trackId: currentTrackId,
@@ -285,11 +291,11 @@ export const useLapTimeLog = () => {
     const hasPersonalBestKey =
       Boolean(currentTrackId) && currentCar !== 'unknown';
     const isBetter =
-      savedPB === undefined || savedPB === null || bestLapTime < savedPB;
+      savedPB === undefined || savedPB === null || ownBestLapTime < savedPB;
     if (hasPersonalBestKey && isBetter) {
-      setPersonalBest(currentTrackId, currentCar, bestLapTime);
+      setPersonalBest(currentTrackId, currentCar, ownBestLapTime);
     }
-  }, [bestLapTime, setPersonalBest]);
+  }, [ownBestLapTime, setPersonalBest]);
 
   return {
     current: displayTime,

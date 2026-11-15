@@ -523,6 +523,23 @@ describe('CarSystemsProcessor', () => {
 
       expect(processor.snapshot().discovered).toBe(false);
     });
+
+    it('does not take a team-mate in the pit lane for the user in the car', () => {
+      // Through a team-mate's stint the pit flags are the team car's, in
+      // and out of the pits, and the mapper says the user is out of it.
+      for (const pitFlags of [
+        { OnPitRoad: true },
+        { OnPitRoad: true, PlayerCarInPitStall: true },
+      ]) {
+        processor.onFrame(
+          frame(lmgt3({ ...pitFlags, LmuOutOfCar: true, IsOnTrack: false }), {
+            inCar: false,
+          })
+        );
+      }
+
+      expect(processor.snapshot().discovered).toBe(false);
+    });
   });
 
   describe('a system intervening', () => {

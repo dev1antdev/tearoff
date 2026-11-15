@@ -6,9 +6,18 @@ import type {
 } from '@irdashies/types';
 import { GlobalFlags } from '../irsdk/types/enums';
 import type { TelemetryProcessor } from './TelemetryProcessor';
+import { isAwayFromWheel } from './watchedCar';
 
 const FULL_COURSE_CAUTION_FLAGS =
   GlobalFlags.Caution | GlobalFlags.CautionWaving;
+
+/**
+ * How long after the user leaves the wheel a best lap may still appear and
+ * be the lap they have just finished. The sim publishes a lap's time a
+ * moment after the line, and a driver who crosses it and gets straight out
+ * is out of the car by then.
+ */
+const BEST_LAP_PUBLISH_SECONDS = 5;
 
 const numberValue = (frame: Telemetry, key: keyof Telemetry): number => {
   const value = frame[key]?.value?.[0];
@@ -42,6 +51,16 @@ export class LapLogProcessor implements TelemetryProcessor<LapLogSnapshot> {
   private readonly bestLaps: number[] = [];
   private readonly latest = this.empty();
   private currentLapUnderCaution = false;
+  /** LapBestLapTime on the previous frame, to see a new one appear. */
+  private lastBestLapTime = 0;
+  /**
+   * The user's present spell at the wheel, or their last one: when it
+   * began and the last frame of it, on the session clock. Null before the
+   * user has been seen at the wheel.
+   */
+  private spellStart: number | null = null;
+  private spellEnd = 0;
+  private wasAtWheel = false;
 
   init(session: Session): void {
     void session;
@@ -51,14 +70,16 @@ export class LapLogProcessor implements TelemetryProcessor<LapLogSnapshot> {
     const lapCompleted = numberValue(frame, 'LapCompleted');
     const sessionNum = numberValue(frame, 'SessionNum');
     const sessionTime = numberValue(frame, 'SessionTime');
-    if (
+    const sessionChanged =
       sessionNum !== this.latest.sessionNum ||
-      sessionTime < this.latest.sessionTime - 5 ||
-      lapCompleted < this.latest.lapCompleted
-    ) {
+      sessionTime < this.latest.sessionTime - 5;
+    if (sessionChanged || lapCompleted < this.latest.lapCompleted) {
       // A new session or replay rewind must not inherit the old lap's latch.
       this.currentLapUnderCaution = false;
       this.latest.lastLapUnderCaution = false;
+      // Nor the best lap of the session before, or a spell at the wheel
+      // timed on its clock.
+      if (sessionChanged) this.resetOwnBest();
     } else if (lapCompleted > this.latest.lapCompleted) {
       // Retain this result until the next completed lap: LapLastLapTime may
       // arrive after LapCompleted, and the renderer can miss individual ticks.
@@ -75,11 +96,13 @@ export class LapLogProcessor implements TelemetryProcessor<LapLogSnapshot> {
       this.bestLaps[index] =
         typeof value === 'number' && Number.isFinite(value) ? value : 0;
     }
+    const bestLapTime = numberValue(frame, 'LapBestLapTime');
     Object.assign(this.latest, {
       lapCompleted,
       currentLapTime: numberValue(frame, 'LapCurrentLapTime'),
       lastLapTime: numberValue(frame, 'LapLastLapTime'),
-      bestLapTime: numberValue(frame, 'LapBestLapTime'),
+      bestLapTime,
+      ownBestLapTime: this.ownBestLapTime(frame, bestLapTime, sessionTime),
       sessionNum,
       sessionTime,
       playerTrackSurface: numberValue(frame, 'PlayerTrackSurface'),
@@ -102,9 +125,60 @@ export class LapLogProcessor implements TelemetryProcessor<LapLogSnapshot> {
     });
   }
 
+  /**
+   * The best lap that is the user's own, as of this frame.
+   *
+   * iRacing's best lap is the player's, and is passed through. Le Mans
+   * Ultimate's is the car's: after a team-mate's stint it may be a lap they
+   * drove, and it stays the car's best once the user is back in it. So a
+   * time is taken only when it appears as an improvement while the user has
+   * been at the wheel, without a break, for at least as long as the lap
+   * took. A best that was already there when this began watching, or that
+   * a team-mate set, is never taken, however long the user then drives.
+   *
+   * Measured in time at the wheel rather than by counting laps, because the
+   * lap count here moves where the lap fraction wraps and the sim times the
+   * lap at its timing line, which can be either side of that.
+   */
+  private ownBestLapTime(
+    frame: Telemetry,
+    bestLapTime: number,
+    sessionTime: number
+  ): number {
+    if (frame.LmuWatching === undefined) return bestLapTime;
+
+    if (!isAwayFromWheel(frame)) {
+      if (!this.wasAtWheel) this.spellStart = sessionTime;
+      this.spellEnd = sessionTime;
+      this.wasAtWheel = true;
+    } else {
+      this.wasAtWheel = false;
+    }
+
+    const previous = this.lastBestLapTime;
+    this.lastBestLapTime = bestLapTime;
+    const improved =
+      bestLapTime > 0 && (previous <= 0 || bestLapTime < previous);
+    const own = this.latest.ownBestLapTime;
+    if (!improved || this.spellStart === null) return own;
+    const drivenWhole =
+      sessionTime - this.spellEnd <= BEST_LAP_PUBLISH_SECONDS &&
+      this.spellEnd - this.spellStart >= bestLapTime;
+    return drivenWhole && (own <= 0 || bestLapTime < own) ? bestLapTime : own;
+  }
+
+  private resetOwnBest(): void {
+    this.latest.ownBestLapTime = 0;
+    this.lastBestLapTime = 0;
+    this.spellStart = null;
+    this.spellEnd = 0;
+    this.wasAtWheel = false;
+  }
+
   onLifecycle(event: SessionLifecycleEvent): void {
     if (event.type === 'enter') return;
     this.currentLapUnderCaution = false;
+    this.resetOwnBest();
     Object.assign(this.latest, this.empty(), {
       version: this.latest.version + 1,
     });
@@ -121,6 +195,7 @@ export class LapLogProcessor implements TelemetryProcessor<LapLogSnapshot> {
       currentLapTime: 0,
       lastLapTime: 0,
       bestLapTime: 0,
+      ownBestLapTime: 0,
       carIdxBestLapTime: this.bestLaps,
       sessionNum: null,
       sessionTime: 0,

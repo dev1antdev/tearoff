@@ -212,6 +212,7 @@ export const playLmuTape = async ({
   let lastClock = Number.NaN;
   let lastSessionAt = Number.NEGATIVE_INFINITY;
   let lastSignature: string | null = null;
+  let lastOwnEntrySlot = -1;
   let session: Session | null = null;
   try {
     sdk.start();
@@ -226,11 +227,16 @@ export const playLmuTape = async ({
       }
       const raw = transformRaw(read);
       // The player's 100 Hz clock where there is one, scoring's otherwise:
-      // the same choice the mapper makes for SessionTime.
+      // the same choice the mapper makes for SessionTime. Read from the
+      // recording itself, before anything a spec has staged over it: this
+      // clock is what tells one recorded frame from the next, and a frame
+      // staged without the player's vehicle is still a frame. Told apart by
+      // what was left of it, a stint staged that way was played at
+      // scoring's five frames a second, where the bridge maps every read.
       const clock =
-        typeof raw.elapsedTime === 'number' && raw.elapsedTime >= 0
-          ? raw.elapsedTime
-          : raw.currentET;
+        typeof read.elapsedTime === 'number' && read.elapsedTime >= 0
+          ? read.elapsedTime
+          : read.currentET;
       if (clock === lastClock) continue;
       lastClock = clock;
       frames += 1;
@@ -262,7 +268,12 @@ export const playLmuTape = async ({
         lastSessionAt = clock;
         const rawSession = transformRaw(sdk.readSession());
         // On every session read, as in the bridge, and before the frame.
-        observeLmuOwnEntry(ownEntryState, rawSession);
+        const ownEntry = observeLmuOwnEntry(ownEntryState, rawSession);
+        // The session names the own entry, which its signature does not see.
+        if (ownEntry.slot !== lastOwnEntrySlot) {
+          lastOwnEntrySlot = ownEntry.slot;
+          lastSignature = null;
+        }
         const signature = lmuSessionSignature(rawSession);
         if (signature !== lastSignature) {
           lastSignature = signature;
@@ -271,7 +282,8 @@ export const playLmuTape = async ({
             null,
             undefined,
             undefined,
-            sessionIdentity
+            sessionIdentity,
+            ownEntry.slot
           );
           sessionChanged = true;
         }

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import {
   trackStateSelectors,
   useDriverCarIdx,
+  useDrivingState,
   useReferenceLapStore,
   useTrackStateSelector,
 } from '@irdashies/context';
@@ -17,6 +18,10 @@ import { hasCompleteSpeedTrace } from '../referenceSpeed';
  * yet, a reference lap without a complete speed trace, or a point on track the
  * reference never recorded. The widget shows a placeholder in that case rather
  * than a stale or invented number.
+ *
+ * The speed is the user's own car's, whoever is driving it. So there is
+ * nothing to show with the camera on another car, nor through a team-mate's
+ * stint in a car the sim sends no speed for, which reads here as 0.
  */
 export const useDeltaSpeed = (): number | null => {
   // Full precision on speed: it drives the bar, and it is the quantity being
@@ -31,6 +36,7 @@ export const useDeltaSpeed = (): number | null => {
     equality: (a, b) => Math.round(a * 10000) === Math.round(b * 10000),
   });
 
+  const { isWatchingOwnCar, isWatchingOtherCar } = useDrivingState();
   const playerCarIdx = useDriverCarIdx();
   // Subscribed rather than read inside the memo: the store swaps in fresh maps
   // on every reference-laps snapshot, and selecting the lap itself means a
@@ -42,6 +48,8 @@ export const useDeltaSpeed = (): number | null => {
   return useMemo(() => {
     if (speedMs == null || lapDistPct == null) return null;
     if (lapDistPct < 0) return null;
+    if (isWatchingOtherCar) return null;
+    if (isWatchingOwnCar && speedMs === 0) return null;
 
     if (!referenceLap || referenceLap.finishTime < 0) return null;
     if (!hasCompleteSpeedTrace(referenceLap)) return null;
@@ -50,5 +58,5 @@ export const useDeltaSpeed = (): number | null => {
     if (referenceKph === null) return null;
 
     return speedFromMs(speedMs, 'km/h') - referenceKph;
-  }, [speedMs, lapDistPct, referenceLap]);
+  }, [speedMs, lapDistPct, referenceLap, isWatchingOwnCar, isWatchingOtherCar]);
 };

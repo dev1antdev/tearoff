@@ -100,15 +100,28 @@ describe('the car the overlays are about under Le Mans Ultimate', () => {
       expect(camCarIdx(noPlayerVehicle(), { ownEntrySlot: -1 })).toBe(-1);
     });
 
-    it('leaves the player’s own slot empty: the car is watched, not driven', () => {
+    it('names the own entry as the player’s car, watched and not driven', () => {
       const t = map(noPlayerVehicle(), {
         gameState: 'monitor',
         ownEntrySlot: PLAYER,
       });
 
       expect(t.CamCarIdx?.value[0]).toBe(PLAYER);
-      expect(t.PlayerCarIdx?.value[0]).toBe(-1);
+      // The own entry, as iRacing's PlayerCarIdx is through a team-mate's
+      // stint; see ownEntryKeys.spec.ts for what describes it.
+      expect(t.PlayerCarIdx?.value[0]).toBe(PLAYER);
       expect(t.IsOnTrack.value[0]).toBe(false);
+    });
+
+    it('keeps the own entry as the player’s car with the camera on a rival', () => {
+      const t = map(noPlayerVehicle(), {
+        gameState: 'monitor',
+        focus: RIVAL,
+        ownEntrySlot: PLAYER,
+      });
+
+      expect(t.CamCarIdx?.value[0]).toBe(RIVAL);
+      expect(t.PlayerCarIdx?.value[0]).toBe(PLAYER);
     });
   });
 });
@@ -272,7 +285,7 @@ describe('a frame staged without a player vehicle', () => {
     }
   });
 
-  it('maps to a frame with the player’s own channels empty', () => {
+  it('maps to a frame with the player’s own channels empty, with no own entry', () => {
     const t = map(noPlayerVehicle(), { gameState: 'monitor' });
 
     expect(t.PlayerCarIdx?.value[0]).toBe(-1);

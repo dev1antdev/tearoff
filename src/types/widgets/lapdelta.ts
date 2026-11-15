@@ -88,7 +88,8 @@ export default defineWidgetManifest({
     showOnlyWhenOnTrack: {
       type: 'boolean',
       label: 'Show Only When On Track',
-      description: 'Hide the widget while you are not driving.',
+      description:
+        'Hidden in the garage and in the menus. Shown while you drive, and while you watch your own car with a team-mate driving it.',
     },
   },
 });

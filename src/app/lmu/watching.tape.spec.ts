@@ -97,8 +97,8 @@ const playStint = async (clearPlayerFlags: boolean) => {
   let ownEntryAtEnd = { slot: -1, source: 'none' };
   /** Frames after the removal whose own entry was not the player's slot. */
   let lostOwnEntry = 0;
-  /** Frames after the removal that still named a player slot. */
-  let namedPlayer = 0;
+  /** Frames after the removal that did not name it as the player's car. */
+  let notNamedAsPlayers = 0;
   /** Frames on which a processor's focus was not the frame's. */
   let processorsOffFocus = 0;
   /** Frames on which the track state did not say what the frame said. */
@@ -231,8 +231,8 @@ const playStint = async (clearPlayerFlags: boolean) => {
 
       if (removed) {
         if (ownEntry.slot !== playerSlot) lostOwnEntry += 1;
-        if ((telemetry.PlayerCarIdx?.value[0] as number) !== -1) {
-          namedPlayer += 1;
+        if ((telemetry.PlayerCarIdx?.value[0] as number) !== playerSlot) {
+          notNamedAsPlayers += 1;
         }
       }
       driverCarIdxAtEnd = session.DriverInfo?.DriverCarIdx;
@@ -247,7 +247,7 @@ const playStint = async (clearPlayerFlags: boolean) => {
     driverCarIdxAtEnd,
     ownEntryAtEnd,
     lostOwnEntry,
-    namedPlayer,
+    notNamedAsPlayers,
     processorsOffFocus,
     snapshotDisagreed,
     watchingInGarage,
@@ -282,12 +282,11 @@ describe.skipIf(!lmuTapeAvailable())(
           slot: stint.playerSlot,
           source: 'remembered',
         });
-        // Nothing else names it: the frame has no player slot, and in this
-        // variant the session has none either.
-        expect(stint.namedPlayer).toBe(0);
-        expect(stint.driverCarIdxAtEnd).toBe(
-          clearPlayerFlags ? -1 : stint.playerSlot
-        );
+        // And it is the car the frame and the session name as the user's,
+        // whatever the camera is on and whether or not scoring still flags
+        // it: see teamMateStint.tape.spec.ts for what describes it.
+        expect(stint.notNamedAsPlayers).toBe(0);
+        expect(stint.driverCarIdxAtEnd).toBe(stint.playerSlot);
 
         // The second in which the game state has not caught up: no vehicle,
         // the sim still saying driving. Watching already, so no widget

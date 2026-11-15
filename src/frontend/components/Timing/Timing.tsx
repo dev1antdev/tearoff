@@ -121,9 +121,13 @@ export const TimingView = ({ settings, readings }: TimingViewProps) => {
     currentLapTime,
     sectors,
     dimmed,
+    sectorsHeld,
   } = readings;
   // Figures held from the last time the car was driven step back.
   const dim = dimmed ? ' opacity-60' : '';
+  // And the sector times alone while a team-mate drives: they are the
+  // user's own, from their last lap at the wheel.
+  const sectorDim = dimmed || sectorsHeld ? ' opacity-60' : '';
 
   /** A lap time tile's figure, coloured by the one rule for lap times. */
   const lapTime = (time: number | null, invalid = false) => {
@@ -222,7 +226,7 @@ export const TimingView = ({ settings, readings }: TimingViewProps) => {
               label={sector.label}
               value={formatSectorTime(sector.time, sectorDecimals)}
               boxClassName={sectorBoxClass(denseSectors, sector.color)}
-              valueClassName={`${SMALL} ${sectorValueClass(sector.state, sector.color)}${dim}`}
+              valueClassName={`${SMALL} ${sectorValueClass(sector.state, sector.color)}${sectorDim}`}
               // The mark sits by the figure, as on the last lap, and moves
               // up to the label where the figure fills its tile.
               valueIcon={
@@ -310,11 +314,13 @@ export const TimingView = ({ settings, readings }: TimingViewProps) => {
 interface LiveTimingProps {
   settings: TimingConfig;
   isDriving: boolean;
+  /** The user is driving, or watching their own car being driven. */
+  isLapLive: boolean;
 }
 
 /** The panel on its channels; mounted only while it is on screen. */
-const LiveTiming = ({ settings, isDriving }: LiveTimingProps) => {
-  const readings = useTimingReadings(settings, isDriving);
+const LiveTiming = ({ settings, isDriving, isLapLive }: LiveTimingProps) => {
+  const readings = useTimingReadings(settings, isDriving, isLapLive);
   return <TimingView settings={settings} readings={readings} />;
 };
 
@@ -327,18 +333,30 @@ const LiveTiming = ({ settings, isDriving }: LiveTimingProps) => {
  * It adds no data of its own: every figure is one a channel already carries.
  * The reference is the one the settings choose and only that one; before it
  * exists, and on a lap that was not seen from its start, the delta is dashes.
+ *
+ * Through a team-mate's stint the lap, the delta and the lap times are the
+ * team car's, live; the sector times are held from the user's own last lap.
+ * With the camera on another car the panel holds its last figures, as it
+ * does out of the car.
  */
 export const Timing = () => {
   const settings = useTimingSettings();
   const { isDemoMode } = useDashboard();
-  const { isDriving } = useDrivingState();
+  const { isDriving, isWatchingOwnCar } = useDrivingState();
   const isSessionVisible = useSessionVisibility(settings.sessionVisibility);
+  const isLapLive = isDriving || isWatchingOwnCar;
 
   if (isDemoMode) {
     return <TimingView settings={settings} readings={DEMO_TIMING_READINGS} />;
   }
   if (!isSessionVisible) return <></>;
-  if (settings.showOnlyWhenOnTrack && !isDriving) return <></>;
+  if (settings.showOnlyWhenOnTrack && !isLapLive) return <></>;
 
-  return <LiveTiming settings={settings} isDriving={isDriving} />;
+  return (
+    <LiveTiming
+      settings={settings}
+      isDriving={isDriving}
+      isLapLive={isLapLive}
+    />
+  );
 };

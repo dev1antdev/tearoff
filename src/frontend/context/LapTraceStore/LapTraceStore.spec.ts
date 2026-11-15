@@ -473,6 +473,105 @@ describe('LapTraceStore', () => {
     expect(useLapTraceStore.getState().referenceLap).toBeNull();
   });
 
+  describe('a lap a team-mate drives in the user’s own car', () => {
+    /**
+     * Through a team-mate's stint the car's place on the lap, its lap count
+     * and its lap times go on, with the user not on track. One lap of it,
+     * from the line to its official time; `teamMate` says who is driving
+     * at each point.
+     */
+    const lapByTeamMate = (
+      lapTimeSec: number,
+      teamMate: (pct: number) => boolean = () => true
+    ) => {
+      const lapStart = clock;
+      feed({ pct: 0, time: lapStart, onTrack: !teamMate(0) });
+      const step = lapTimeSec / (STEPS + 1);
+      for (let i = 0; i < STEPS; i++) {
+        const pct = 0.01 + i * 0.05;
+        feed({
+          pct,
+          time: lapStart + step * (i + 1),
+          onTrack: !teamMate(pct),
+        });
+      }
+      clock = lapStart + lapTimeSec;
+      feed({ pct: 0.01, time: clock, onTrack: !teamMate(1) });
+      feed({
+        pct: 0.02,
+        time: clock,
+        lastLapTime: lapTimeSec,
+        onTrack: !teamMate(1),
+      });
+    };
+
+    it('is never the user’s best lap, however quick', () => {
+      lapByTeamMate(85);
+      lapByTeamMate(84);
+
+      const state = useLapTraceStore.getState();
+      expect(state.referenceLap).toBeNull();
+      expect(state.bestLapTimeSec).toBe(Number.POSITIVE_INFINITY);
+      expect(state.pendingBest).toBeNull();
+    });
+
+    it('does not replace the user’s best lap', () => {
+      driveCleanLap(90);
+      lapByTeamMate(85);
+
+      const state = useLapTraceStore.getState();
+      expect(state.bestLapTimeSec).toBeCloseTo(90, 5);
+      expect(state.referenceLap?.lapTimeSec).toBeCloseTo(90, 5);
+    });
+
+    it('is not saved', async () => {
+      const bridge = makeBridge();
+      useLapTraceStore.getState().reset();
+      await useLapTraceStore
+        .getState()
+        .initialize(bridge, 7, 'Grand Prix', 'gt3car', TRACK_LENGTH_M);
+      const { collectPlayerFrame } = useLapTraceStore.getState();
+      const away = (frame: Frame) =>
+        collectPlayerFrame(bridge, sample({ ...frame, onTrack: false }));
+
+      away({ pct: 0, time: 0 });
+      for (let i = 0; i < STEPS; i++) {
+        away({ pct: 0.01 + i * 0.05, time: i + 1 });
+      }
+      away({ pct: 0.01, time: 85 });
+      away({ pct: 0.02, time: 85, lastLapTime: 85, lapCompleted: 1 });
+
+      expect(bridge.saveLapTrace).not.toHaveBeenCalled();
+    });
+
+    it('is not the user’s when they took the car over part-way round', () => {
+      lapByTeamMate(85, (pct) => pct < 0.4);
+
+      expect(useLapTraceStore.getState().referenceLap).toBeNull();
+    });
+
+    it('is not the user’s when they got out before the line', () => {
+      feed({ pct: 0, time: 0 });
+      lapByTeamMate(85, (pct) => pct > 0.9);
+
+      expect(useLapTraceStore.getState().referenceLap).toBeNull();
+    });
+
+    it('is followed by the user’s own lap from the next crossing at the wheel', () => {
+      lapByTeamMate(85);
+      // Back in the car on the lap after: not theirs from the line.
+      lapByTeamMate(86, (pct) => pct < 0.4);
+      expect(useLapTraceStore.getState().referenceLap).toBeNull();
+
+      driveCleanLap(91);
+
+      expect(useLapTraceStore.getState().referenceLap?.lapTimeSec).toBeCloseTo(
+        91,
+        5
+      );
+    });
+  });
+
   it('never promotes an invalid lap, even as the first and only lap driven', () => {
     // The exact regression reported: the very first lap of the session, and
     // the only one timed so far — it must still never become the best.

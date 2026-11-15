@@ -147,24 +147,33 @@ export const LapDeltaView = ({ settings, reading }: LapDeltaViewProps) => {
  * The reference is the one the settings choose and only that one. Before it
  * exists, and on a lap that was not seen from its start, the figures are
  * dashes.
+ *
+ * Through a team-mate's stint the lap is theirs, in the user's own car,
+ * against the user's reference. With the camera on another car there is no
+ * delta: the figure would still be the team car's.
  */
 export const LapDelta = () => {
   const settings = useLapDeltaSettings();
   const snapshot = useLapDeltaSnapshot();
   const { isDemoMode } = useDashboard();
-  const { isDriving } = useDrivingState();
+  const { isDriving, isWatchingOwnCar, isWatchingOtherCar } = useDrivingState();
   const isSessionVisible = useSessionVisibility(settings.sessionVisibility);
 
   if (isDemoMode) {
     return <LapDeltaView settings={settings} reading={DEMO_READING} />;
   }
   if (!isSessionVisible) return <></>;
-  if (settings.showOnlyWhenOnTrack && !isDriving) return <></>;
+  if (settings.showOnlyWhenOnTrack && !(isDriving || isWatchingOwnCar)) {
+    return <></>;
+  }
 
+  const reading = snapshot?.[settings.reference] ?? NO_READING;
   return (
     <LapDeltaView
       settings={settings}
-      reading={snapshot?.[settings.reference] ?? NO_READING}
+      reading={
+        isWatchingOtherCar ? { ...reading, delta: null, trend: null } : reading
+      }
     />
   );
 };

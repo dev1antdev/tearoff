@@ -417,6 +417,38 @@ describe('sessionLifecycle', () => {
       ['in the garage', { IsOnTrack: true, IsInGarage: true }, false],
       ['watching a replay', { IsOnTrack: true, IsReplayPlaying: true }, false],
       ['spotting for a team-mate', { IsOnTrack: false }, false],
+      // Le Mans Ultimate's monitor. The pit flags describe the car, and the
+      // user is not in it.
+      [
+        'at the monitor with the car left in the pit lane',
+        { OnPitRoad: true, LmuOutOfCar: true },
+        false,
+      ],
+      [
+        'at the monitor with the car left in its pit box',
+        { PlayerCarInPitStall: true, LmuOutOfCar: true },
+        false,
+      ],
+      [
+        'watching a team-mate bring the team car down the pit lane',
+        { OnPitRoad: true, LmuOutOfCar: true, LmuWatching: true },
+        false,
+      ],
+      [
+        'watching a team-mate stopped in the team car’s pit box',
+        {
+          PlayerCarInPitStall: true,
+          OnPitRoad: true,
+          LmuOutOfCar: true,
+          LmuWatching: true,
+        },
+        false,
+      ],
+      [
+        'in the pit lane with LMU saying in the car',
+        { OnPitRoad: true, LmuOutOfCar: false },
+        true,
+      ],
     ];
 
     it.each(drivingCases)(
@@ -457,6 +489,32 @@ describe('sessionLifecycle', () => {
       lifecycle._onTelemetry(makeDrivingTelemetry(0, { IsOnTrack: true }));
 
       expect(drivingSpy.mock.calls).toEqual([[true], [false], [true]]);
+    });
+
+    it('does not take the team car in the pit lane for the user driving', () => {
+      // A driver change under Le Mans Ultimate, on the frames its mapper
+      // writes: the user stops in the box and gets out, the team-mate
+      // drives off down the pit lane, laps, and comes back in.
+      const drivingSpy = vi.fn();
+      lifecycle.onDrivingStateChange(drivingSpy);
+      const inBox = { PlayerCarInPitStall: true, OnPitRoad: true };
+      const teamMate = { IsOnTrack: false, LmuOutOfCar: true };
+
+      lifecycle._onTelemetry(
+        makeDrivingTelemetry(0, { IsOnTrack: true, ...inBox })
+      );
+      for (const flags of [
+        { ...teamMate, ...inBox },
+        { ...teamMate, OnPitRoad: true },
+        { ...teamMate },
+        { ...teamMate, OnPitRoad: true },
+        { ...teamMate, ...inBox },
+      ]) {
+        lifecycle._onTelemetry(makeDrivingTelemetry(0, flags));
+      }
+
+      // Out once, and not back in for any of it.
+      expect(drivingSpy.mock.calls).toEqual([[true], [false]]);
     });
   });
 

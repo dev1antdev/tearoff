@@ -50,6 +50,61 @@ describe('mapLmuSession', () => {
     expect(s.DriverInfo.DriverCarRedLine).toBe(9000);
   });
 
+  describe('with the user’s own entry resolved by the caller', () => {
+    /** A team-mate's stint: no player vehicle, scoring's flag dropped. */
+    const teamMateDriving = () => {
+      const raw = fixture();
+      raw.playerHasVehicle = false;
+      raw.playerVehicleIdx = -1;
+      raw.drivers = raw.drivers.map((driver) => ({
+        ...driver,
+        isPlayer: false,
+      }));
+      return raw;
+    };
+    const map = (raw: ReturnType<typeof fixture>, ownEntrySlot?: number) =>
+      mapLmuSession(raw, null, undefined, undefined, undefined, ownEntrySlot);
+
+    it('names that entry as the driver’s car through a team-mate’s stint', () => {
+      // The sim names no player at all; the entry is the one remembered.
+      const s = map(teamMateDriving(), 1);
+
+      expect(s.DriverInfo.DriverCarIdx).toBe(1);
+    });
+
+    it('describes that entry, not the one scoring flags', () => {
+      const raw = teamMateDriving();
+      raw.drivers[0].isPlayer = true;
+      // The third entry of the fixture, which holds slot 3.
+      raw.drivers[2].pitLapDist = 3502;
+      raw.drivers[2].estimatedLapTime = 141.5;
+
+      const s = map(raw, 3);
+
+      expect(s.DriverInfo.DriverCarIdx).toBe(3);
+      // The pit box and the lap estimate are that car's own.
+      expect(s.DriverInfo.DriverPitTrkPct).toBeCloseTo(0.5);
+      expect(s.DriverInfo.DriverCarEstLapTime).toBe(141.5);
+    });
+
+    it('names no car when the caller found none, whatever scoring flags', () => {
+      // The frame is given the same answer, and the two have to agree.
+      expect(map(fixture(), -1).DriverInfo.DriverCarIdx).toBe(-1);
+    });
+
+    it('keeps a slot the grid does not list yet', () => {
+      const raw = teamMateDriving();
+      raw.drivers = raw.drivers.filter((driver) => driver.id !== 1);
+
+      expect(map(raw, 1).DriverInfo.DriverCarIdx).toBe(1);
+    });
+
+    it('goes by scoring’s player flag when the caller says nothing', () => {
+      expect(map(fixture()).DriverInfo.DriverCarIdx).toBe(1);
+      expect(map(teamMateDriving()).DriverInfo.DriverCarIdx).toBe(-1);
+    });
+  });
+
   it('flags only AI-controlled cars as AI', () => {
     const raw = fixture();
     raw.drivers[0].control = 1;

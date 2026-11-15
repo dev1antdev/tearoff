@@ -44,20 +44,32 @@ interface FrameOptions {
   sessionNum?: number;
   /** Where car 1 is; it laps in step with the player by default. */
   otherPct?: number;
+  /**
+   * Set on a Le Mans Ultimate frame, which says whether the user is
+   * watching: true with a team-mate at the wheel of the player's car.
+   */
+  watching?: boolean;
 }
 
 const frame = (
   playerPct: number,
   sessionTime: number,
-  { onTrack = true, incidents = 0, sessionNum = 1, otherPct }: FrameOptions = {}
+  {
+    onTrack = true,
+    incidents = 0,
+    sessionNum = 1,
+    otherPct,
+    watching,
+  }: FrameOptions = {}
 ) =>
   ({
     CarIdxLapDistPct: { value: [playerPct, otherPct ?? playerPct] },
     CarIdxOnPitRoad: { value: [false, false] },
     SessionTime: { value: [sessionTime] },
     SessionNum: { value: [sessionNum] },
-    IsOnTrack: { value: [onTrack] },
+    IsOnTrack: { value: [onTrack && watching !== true] },
     PlayerCarMyIncidentCount: { value: [incidents] },
+    ...(watching === undefined ? {} : { LmuWatching: { value: [watching] } }),
   }) as unknown as Telemetry;
 
 /**
@@ -235,6 +247,72 @@ describe('ReferenceLapProcessor line crossing', () => {
     driveFromJustPastTheLine(processor, 100, 60);
 
     expect(processor.snapshot().bestLaps).toHaveLength(0);
+  });
+});
+
+describe('ReferenceLapProcessor through a team-mate’s stint', () => {
+  /** The best lap kept for a car, which for the player's is their own. */
+  const bestOf = (processor: ReferenceLapProcessor, carIdx: number) =>
+    processor.snapshot().bestLaps.find(([idx]) => idx === carIdx)?.[1];
+  const atWheel = () => ({ watching: false });
+  const teamMate = () => ({ watching: true });
+
+  it('does not take a team-mate’s lap for the user’s session best', () => {
+    const { processor } = setup();
+    crossLine(processor, 10, teamMate());
+    driveLap(processor, 10, 90, teamMate);
+
+    expect(bestOf(processor, 0)).toBeUndefined();
+    // The car beside it lapped in step, and its lap is its own.
+    expect(lapTimeOf(bestOf(processor, 1))).toBeCloseTo(90, 5);
+  });
+
+  it('keeps the user’s best when a team-mate goes quicker in the same car', () => {
+    const { processor } = setup();
+    crossLine(processor, 10, atWheel());
+    driveLap(processor, 10, 90, atWheel);
+    // The stint: quicker by two seconds.
+    driveLap(processor, 100, 88, teamMate);
+
+    expect(lapTimeOf(bestOf(processor, 0))).toBeCloseTo(90, 5);
+    expect(lapTimeOf(bestOf(processor, 1))).toBeCloseTo(88, 5);
+  });
+
+  it('does not take a lap the user took over part-way round', () => {
+    const { processor } = setup();
+    crossLine(processor, 10, teamMate());
+    driveLap(processor, 10, 88, (pct) => ({ watching: pct < 0.4 }));
+
+    expect(bestOf(processor, 0)).toBeUndefined();
+  });
+
+  it('does not take a lap the user got out of before the line', () => {
+    const { processor } = setup();
+    crossLine(processor, 10, atWheel());
+    driveLap(processor, 10, 88, (pct) => ({ watching: pct > 0.9 }));
+
+    expect(bestOf(processor, 0)).toBeUndefined();
+  });
+
+  it('takes the user’s own lap again from the next crossing', () => {
+    const { processor } = setup();
+    crossLine(processor, 10, teamMate());
+    // Back in the car half-way round the team-mate's lap.
+    driveLap(processor, 10, 88, (pct) => ({ watching: pct < 0.5 }));
+    expect(bestOf(processor, 0)).toBeUndefined();
+
+    driveLap(processor, 98, 91, atWheel);
+
+    expect(lapTimeOf(bestOf(processor, 0))).toBeCloseTo(91, 5);
+  });
+
+  it('takes the player’s lap as it stands under iRacing, in or out of the car', () => {
+    // No word on watching in an iRacing frame: that is a later step.
+    const { processor } = setup();
+    crossLine(processor, 10, { onTrack: false });
+    driveLap(processor, 10, 90, () => ({ onTrack: false }));
+
+    expect(lapTimeOf(bestOf(processor, 0))).toBeCloseTo(90, 5);
   });
 });
 

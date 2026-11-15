@@ -287,13 +287,14 @@ const DEMO_RESULTS: readonly CornerResult[] = [
 export const CornerDelta = () => {
   const settings = useCornerDeltaSettings();
   const { isDemoMode } = useDashboard();
-  const { isDriving } = useDrivingState();
+  const { isDriving, isWatchingOwnCar } = useDrivingState();
   const isSessionVisible = useSessionVisibility(settings.sessionVisibility);
   const displayUnits = useTrackStateSelector(trackStateSelectors.displayUnits);
   const unit = resolveSpeedUnit(settings.speedUnit, displayUnits);
   const { hasCorners, results, labels } = useCornerResults(
     !isDemoMode && isSessionVisible,
-    settings.cornerLabel
+    settings.cornerLabel,
+    isWatchingOwnCar
   );
 
   if (isDemoMode) {
@@ -302,7 +303,11 @@ export const CornerDelta = () => {
     );
   }
   if (!isSessionVisible) return <></>;
-  if (settings.showOnlyWhenOnTrack && !isDriving) return <></>;
+  // Driving, or watching the user's own car with a team-mate in it: the
+  // corners are theirs then, against the user's reference laps.
+  if (settings.showOnlyWhenOnTrack && !(isDriving || isWatchingOwnCar)) {
+    return <></>;
+  }
 
   return (
     <CornerDeltaView

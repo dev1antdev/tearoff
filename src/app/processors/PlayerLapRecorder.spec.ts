@@ -422,6 +422,62 @@ describe('PlayerLapRecorder', () => {
     expect(recorded[0].lap.own).toBe(false);
   });
 
+  describe('through a team-mate’s stint under Le Mans Ultimate', () => {
+    /**
+     * The team car goes on lapping in the user's slot with somebody else at
+     * the wheel: its place on the lap, its lap number and its speed are all
+     * there, and IsOnTrack is false.
+     */
+    const teamMate = (): FrameOptions => ({ onTrack: false, fuel: null });
+
+    it('records a lap a team-mate drove as not the user’s own', () => {
+      const { recorder, recorded } = setup('lmu');
+      crossLine(recorder, 100, teamMate());
+
+      driveLap(recorder, 100, 88, teamMate);
+
+      expect(recorded).toHaveLength(1);
+      // Complete, clean and quick, and not a lap of the user's: the library
+      // keeps it and never makes it a reference.
+      expect(recorded[0].lap).toMatchObject({
+        own: false,
+        complete: true,
+        pit: false,
+        voided: false,
+      });
+      expect(recorded[0].lap.lapTime).toBeCloseTo(88, 6);
+    });
+
+    it('does not make the lap the user gets back in on their own', () => {
+      const { recorder, recorded } = setup('lmu');
+      crossLine(recorder, 100, teamMate());
+
+      driveLap(recorder, 100, 88, (pct) => (pct < 0.4 ? teamMate() : {}));
+
+      expect(recorded[0].lap.own).toBe(false);
+    });
+
+    it('records the user’s own lap again from its next line crossing', () => {
+      const { recorder, recorded } = setup('lmu');
+      crossLine(recorder, 100, teamMate());
+      driveLap(recorder, 100, 88, (pct) => (pct < 0.4 ? teamMate() : {}));
+
+      driveLap(recorder, 188, 91);
+
+      expect(recorded.map(({ lap }) => lap.own)).toEqual([false, true]);
+      expect(recorded[1].lap.lapTime).toBeCloseTo(91, 6);
+    });
+
+    it('does not make a lap the user got out of before the line their own', () => {
+      const { recorder, recorded } = setup('lmu');
+      crossLine(recorder, 100);
+
+      driveLap(recorder, 100, 90, (pct) => (pct > 0.9 ? teamMate() : {}));
+
+      expect(recorded[0].lap.own).toBe(false);
+    });
+  });
+
   it('counts the incidents picked up on the lap, not the running total', () => {
     const { recorder, recorded } = setup();
     crossLine(recorder, 100, { incidents: 3 });
