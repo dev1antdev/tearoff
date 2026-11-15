@@ -106,7 +106,8 @@ export default defineWidgetManifest({
     showOnlyWhenOnTrack: {
       type: 'boolean',
       label: 'Show only when on track',
-      description: 'If enabled, widget will only be shown when driving.',
+      description:
+        'Hidden in the garage and in the menus. Shown while you drive. Not shown while a team-mate drives your car: the sim sends the dials only for a car you are in.',
     },
   },
 });

@@ -749,6 +749,24 @@ describe('CarSystems when a dial moves', () => {
       expect(container).toBeEmptyDOMElement();
     });
 
+    it('draws nothing on track only while a team-mate drives the car', () => {
+      // The sim sends the dials only for a car the user is in, so watching
+      // the own car is not on track here, whatever else is read for it.
+      mockSettings.displayMode = 'always';
+      mockSettings.showOnlyWhenOnTrack = true;
+      underLmu(lmgt3(7));
+      vi.mocked(Context.useDrivingState).mockReturnValue({
+        isDriving: false,
+        isWatching: true,
+        isWatchingOwnCar: true,
+        isWatchingOtherCar: false,
+      });
+
+      const { container } = render(<CarSystems />);
+
+      expect(container).toBeEmptyDOMElement();
+    });
+
     it('is always drawn in the always mode, change or no change', () => {
       mockSettings.displayMode = 'always';
       underLmu();

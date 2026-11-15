@@ -117,6 +117,14 @@ export interface TrackStateSnapshot {
    * now.
    */
   watchingOwnCar: boolean;
+  /**
+   * True while the car being watched is the user's own entry and the sim is
+   * writing its pedals, gear, revs and brake temperatures: what a widget
+   * made of those needs before it shows during a team-mate's stint. Never
+   * true without `watchingOwnCar`. Left out while it does not hold, so the
+   * snapshot at the wheel is the one it always was.
+   */
+  watchingOwnCarTelemetry?: boolean;
   playerCarInPitStall: boolean;
   playerTrackSurface: number;
   onPitRoad: boolean;

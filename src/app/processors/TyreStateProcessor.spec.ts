@@ -168,6 +168,77 @@ describe('TyreStateProcessor', () => {
     expect(snapshot.version).toBe(version + 1);
   });
 
+  describe('with a team-mate driving the car', () => {
+    /**
+     * What the mapper publishes from the block of a car the user is not in:
+     * the brakes, the tread where the car is simulated on this machine, the
+     * compound from the per-car array, and no tyre temperature or pressure.
+     */
+    const watched = (wear?: number[]): Telemetry => {
+      const out: Record<string, { value: unknown[] }> = {
+        SessionNum: { value: [0] },
+        PlayerCarIdx: { value: [1] },
+        LmuBrakeTemp: { value: [400.04, 410, 300, 310] },
+        LmuCarIdxWheelCompounds: { value: [0, 0, 0, 0, 2, 2, 1, 1] },
+      };
+      ['LF', 'RF', 'LR', 'RR'].forEach((corner, index) => {
+        if (wear) out[`${corner}wearM`] = { value: [wear[index]] };
+      });
+      return out as unknown as Telemetry;
+    };
+
+    it('publishes the brakes, the tread and the compound, and no tyre reading', () => {
+      processor.onFrame(watched([0.96412, 0.96, 0.95, 0.94]));
+      const snapshot = processor.snapshot();
+
+      expect(snapshot.available).toBe(true);
+      expect(snapshot.wheels[0]).toEqual({
+        surfaceTempC: null,
+        innerLayerTempC: null,
+        carcassTempC: null,
+        optimalTempC: null,
+        pressureKpa: null,
+        // No pressure to average, so no offset from the highest either.
+        pressureDeviationKpa: null,
+        treadRemaining: 0.964,
+        brakeTempC: 400,
+        compound: 2,
+      });
+      expect(snapshot.wheels.map((wheel) => wheel.brakeTempC)).toEqual([
+        400, 410, 300, 310,
+      ]);
+      expect(snapshot.wheels[3].compound).toBe(1);
+    });
+
+    it('publishes no tread where the sim’s figure for the car is withheld', () => {
+      processor.onFrame(watched());
+      const snapshot = processor.snapshot();
+
+      expect(snapshot.available).toBe(true);
+      expect(snapshot.wheels.map((wheel) => wheel.treadRemaining)).toEqual([
+        null,
+        null,
+        null,
+        null,
+      ]);
+      expect(snapshot.wheels[1].brakeTempC).toBe(410);
+    });
+
+    it('drops the tyre readings as the user leaves the car, and takes them up again', () => {
+      processor.onFrame(frame());
+      expect(processor.snapshot().wheels[0].surfaceTempC).not.toBeNull();
+
+      processor.onFrame(watched());
+      expect(processor.snapshot().available).toBe(true);
+      expect(processor.snapshot().wheels[0].surfaceTempC).toBeNull();
+      expect(processor.snapshot().wheels[0].pressureKpa).toBeNull();
+
+      processor.onFrame(frame());
+      expect(processor.snapshot().wheels[0].surfaceTempC).toEqual([80, 85, 90]);
+      expect(processor.snapshot().wheels[0].pressureKpa).toBe(171.2);
+    });
+  });
+
   it('stays quiet while there is still nothing to show', () => {
     processor.onFrame(emptyFrame());
     const { version } = processor.snapshot();

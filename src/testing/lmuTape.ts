@@ -26,6 +26,7 @@ import {
   observeLmuOwnEntry,
   type LmuOwnEntry,
 } from '../app/lmu/ownEntry';
+import { lmuBlockSlotToRead } from '../app/lmu/ownEntryBlock';
 import type { LmuRestCells } from '../app/lmu/rest/state';
 
 export const LMU_TAPE_ADDON_PATH = path.resolve(
@@ -47,8 +48,8 @@ export const lmuTapeAvailable = (tapePath = LMU_CURATED_TAPE_PATH): boolean =>
 interface LmuTapeSdk {
   start(): boolean;
   stop(): boolean;
-  read(): LmuRawTelemetry & { running: boolean };
-  readSession(): LmuRawSession;
+  read(blockSlot?: number): LmuRawTelemetry & { running: boolean };
+  readSession(blockSlot?: number): LmuRawSession;
   readRest(path: string): string | null;
 }
 
@@ -76,8 +77,13 @@ export interface PlayLmuTapeOptions {
    * Changes each snapshot before it is mapped, for the questions a recording
    * cannot answer as it stands: the same cars and laps as a practice session
    * rather than a race, say. Applied to the session snapshot as well.
+   *
+   * `blockSlot` is the slot whose telemetry block the read asked for, -1
+   * when it asked for the player's own. The replay asks as the bridge does:
+   * for the own entry's block, while the snapshot before this one, as this
+   * callback left it, named no player vehicle.
    */
-  transformRaw?: <T extends LmuRawTelemetry>(raw: T) => T;
+  transformRaw?: <T extends LmuRawTelemetry>(raw: T, blockSlot: number) => T;
   /**
    * Where the sim says the player is, for each frame, as the bridge takes it
    * from GetGameState. Called with the frame after `transformRaw`. Omitted,
@@ -149,6 +155,7 @@ const SESSION_WIDE_FIELDS: ReadonlySet<string> = new Set([
   'playerVehicleIdx',
   'playerHasVehicle',
   'activeVehicles',
+  'blockSlot',
   'classes',
   'drivers',
 ]);
@@ -164,18 +171,29 @@ const SESSION_WIDE_FIELDS: ReadonlySet<string> = new Set([
  * The car that was the player's goes on lapping in its slot, which is what
  * stands in for a team-mate driving it. Scoring's player flags are left
  * alone; a spec that wants them cleared does that itself.
+ *
+ * `blockSlot` is the slot the read asked the addon for, as `transformRaw`
+ * is given it. Where the snapshot's single-car fields are that slot's
+ * telemetry block they stay, as the addon leaves them when it names no
+ * player: the block was asked for by slot, and is there whoever drives the
+ * car. On a recording that block is still the one the player's own car
+ * had, with the tyre temperatures and the dials the sim writes for no other
+ * car in it.
  */
 export const lmuRawWithoutPlayerVehicle = <T extends LmuRawTelemetry>(
-  raw: T
+  raw: T,
+  blockSlot = -1
 ): T => {
+  const keepsBlock = blockSlot >= 0 && raw.blockSlot === blockSlot;
   const staged: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(raw)) {
-    if (SESSION_WIDE_FIELDS.has(key) || /^veh[A-Z]/.test(key)) {
+    if (keepsBlock || SESSION_WIDE_FIELDS.has(key) || /^veh[A-Z]/.test(key)) {
       staged[key] = value;
     }
   }
   staged.playerHasVehicle = false;
   staged.playerVehicleIdx = -1;
+  if (!keepsBlock) staged.blockSlot = -1;
   return staged as T;
 };
 
@@ -223,18 +241,26 @@ export const playLmuTape = async ({
   let lastSignature: string | null = null;
   let lastOwnEntrySlot = -1;
   let session: Session | null = null;
+  // Whether the last snapshot, as staged, named a player vehicle: what the
+  // bridge decides which telemetry block to ask for by.
+  let playerHadVehicle = true;
   try {
     sdk.start();
     const deadline = performance.now() + 10 * 60_000;
     let ended = false;
     while (performance.now() < deadline && !ended) {
-      const read = sdk.read();
+      const blockSlot = lmuBlockSlotToRead(
+        playerHadVehicle,
+        lmuOwnEntrySlot(ownEntryState)
+      );
+      const read = sdk.read(blockSlot);
       if (!read?.running) {
         if (frames > 0) ended = true;
         else await new Promise((resolve) => setTimeout(resolve, 2));
         continue;
       }
-      const raw = transformRaw(read);
+      const raw = transformRaw(read, blockSlot ?? -1);
+      playerHadVehicle = raw.playerHasVehicle;
       // The player's 100 Hz clock where there is one, scoring's otherwise:
       // the same choice the mapper makes for SessionTime. Read from the
       // recording itself, before anything a spec has staged over it: this
@@ -242,9 +268,16 @@ export const playLmuTape = async ({
       // staged without the player's vehicle is still a frame. Told apart by
       // what was left of it, a stint staged that way was played at
       // scoring's five frames a second, where the bridge maps every read.
-      const clock =
-        typeof read.elapsedTime === 'number' && read.elapsedTime >= 0
+      // A read that asked for another car's block carries that car's clock
+      // in its place, which the sim advances less often: the player's is
+      // then taken from the per-car array, which holds it for every car.
+      const recordedClock =
+        blockSlot === undefined
           ? read.elapsedTime
+          : read.vehElapsedTime?.[read.playerVehicleIdx];
+      const clock =
+        typeof recordedClock === 'number' && recordedClock >= 0
+          ? recordedClock
           : read.currentET;
       if (clock === lastClock) continue;
       lastClock = clock;
@@ -275,7 +308,10 @@ export const playLmuTape = async ({
         clock < lastSessionAt
       ) {
         lastSessionAt = clock;
-        const rawSession = transformRaw(sdk.readSession());
+        const rawSession = transformRaw(
+          sdk.readSession(blockSlot),
+          blockSlot ?? -1
+        );
         // On every session read, as in the bridge, and before the frame.
         const ownEntry = observeLmuOwnEntry(ownEntryState, rawSession);
         // The session names the own entry, which its signature does not see.

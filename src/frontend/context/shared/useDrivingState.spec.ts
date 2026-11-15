@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
-import { useDrivingState } from './useDrivingState';
+import { useDrivingState, useWatchingOwnCarTelemetry } from './useDrivingState';
 import { useTelemetryValue } from '../TelemetryStore/TelemetryStore';
 
 // Mock the telemetry store
@@ -10,13 +10,20 @@ vi.mock('../TelemetryStore/TelemetryStore', () => ({
 
 // Whether the car being watched is the user's own entry. Not a frame key:
 // the track state works it out from the watched car and the own entry.
-const trackState = vi.hoisted(() => ({ watchingOwnCar: false }));
+const trackState = vi.hoisted(() => ({
+  watchingOwnCar: false,
+  /** And whether the sim is writing that car's pedals and revs. */
+  watchingOwnCarTelemetry: false,
+}));
 
 vi.mock('../ChannelStore', () => ({
   trackStateSelectors: {
     watching: (snapshot: { watching?: boolean }) => snapshot.watching,
     watchingOwnCar: (snapshot: { watchingOwnCar?: boolean }) =>
       snapshot.watchingOwnCar,
+    watchingOwnCarTelemetry: (snapshot: {
+      watchingOwnCarTelemetry?: boolean;
+    }) => snapshot.watchingOwnCarTelemetry === true,
   },
   useTrackStateSelector: vi.fn((selector) =>
     selector({
@@ -31,6 +38,10 @@ vi.mock('../ChannelStore', () => ({
       outOfCar: useTelemetryValue('LmuOutOfCar'),
       watching: useTelemetryValue('LmuWatching'),
       watchingOwnCar: trackState.watchingOwnCar,
+      // Left out of the snapshot until it holds.
+      ...(trackState.watchingOwnCarTelemetry
+        ? { watchingOwnCarTelemetry: true }
+        : {}),
     })
   ),
 }));
@@ -441,6 +452,50 @@ describe('useDrivingState while watching a car', () => {
     expect(state({ IsOnTrack: true }).isDriving).toBe(true);
     expect(state({ CarIdxOnPitRoad: true }).isDriving).toBe(true);
     expect(state({ IsOnTrack: true, IsInGarage: true }).isDriving).toBe(false);
+  });
+});
+
+describe('useWatchingOwnCarTelemetry', () => {
+  const watching = (telemetry: boolean) => {
+    vi.mocked(useTelemetryValue).mockImplementation(
+      (key: string) => key === 'LmuWatching' || key === 'LmuOutOfCar'
+    );
+    trackState.watchingOwnCar = true;
+    trackState.watchingOwnCarTelemetry = telemetry;
+    return renderHook(() => useWatchingOwnCarTelemetry()).result.current;
+  };
+
+  beforeEach(() => {
+    general.showWhileWatching = true;
+    trackState.watchingOwnCarTelemetry = false;
+  });
+
+  it('holds while the own car is watched and the sim writes its pedals and revs', () => {
+    expect(watching(true)).toBe(true);
+  });
+
+  it('does not hold where the sim sends no block for the car', () => {
+    // Watching the own car all the same, which is what the lap widgets ask.
+    expect(watching(false)).toBe(false);
+    expect(renderHook(() => useDrivingState()).result.current).toMatchObject({
+      isWatchingOwnCar: true,
+    });
+  });
+
+  it('does not hold with the setting switched off', () => {
+    general.showWhileWatching = false;
+
+    expect(watching(true)).toBe(false);
+  });
+
+  it('does not hold before the track state has said anything', () => {
+    vi.mocked(useTelemetryValue).mockReturnValue(undefined);
+    trackState.watchingOwnCar = false;
+    trackState.watchingOwnCarTelemetry = false;
+
+    expect(renderHook(() => useWatchingOwnCarTelemetry()).result.current).toBe(
+      false
+    );
   });
 });
 

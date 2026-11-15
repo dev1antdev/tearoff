@@ -150,7 +150,19 @@ export interface LmuRawTelemetry {
   playerVehicleIdx: number;
   playerHasVehicle: boolean;
   activeVehicles: number;
-  // Present only when playerHasVehicle
+  /**
+   * The slot of the car whose telemetry block the single-car fields below
+   * were read from, -1 when they are absent.
+   *
+   * The player's own slot unless the read was asked for another one
+   * (`read(blockSlot)`): then it is that slot, whatever `playerVehicleIdx`
+   * and `playerHasVehicle` say, which go on reporting the sim's own word
+   * about the player. Absent from an addon built before the argument
+   * existed, where the block is always the player's.
+   */
+  blockSlot?: number;
+  // Present only when a block was read: the player's vehicle, or the slot
+  // the read asked for.
   gear?: number;
   engineRPM?: number;
   engineWaterTemp?: number;
@@ -355,6 +367,13 @@ export interface LmuRawTelemetry {
   // Per-vehicle arrays, indexed by CarIdx (vehicle slot id)
   vehIds: Int32Array;
   vehIsPlayer: Uint8Array;
+  /**
+   * Who is driving each car, from scoring's mControl: 0 the player on this
+   * machine, 1 the AI on this machine, 2 somebody on another machine, 3 a
+   * replay. An empty slot reads 0. Absent from an addon built before the
+   * export.
+   */
+  vehControl?: ArrayLike<number>;
   vehPlaces: Int32Array;
   vehLapDistPct: Float64Array;
   vehTotalLaps: Int32Array;
@@ -448,8 +467,17 @@ export class NativeLmu {
   start(): boolean;
   stop(): boolean;
   isRunning(): boolean;
-  read(): LmuRawTelemetry;
-  readSession(): LmuRawSession;
+  /**
+   * One snapshot. The single-car fields are the player's car's, or with
+   * `blockSlot` those of the car in that slot, whoever is driving it; the
+   * result's `blockSlot` says which they are. Left out, undefined or null,
+   * it is the player's. A slot that is not a whole number in range, or
+   * that holds no car, gives a snapshot with no single-car fields and a
+   * `blockSlot` of -1, never the player's block.
+   */
+  read(blockSlot?: number | null): LmuRawTelemetry;
+  /** As `read`, with the drivers and the classes. */
+  readSession(blockSlot?: number | null): LmuRawSession;
   /**
    * The latest recorded REST body for a path, or null.
    *

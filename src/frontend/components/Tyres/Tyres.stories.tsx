@@ -2,8 +2,10 @@ import { Meta, StoryObj } from '@storybook/react-vite';
 import {
   ChannelSnapshotDecorator,
   TelemetryDecoratorWithConfig,
+  trackStateStorySnapshot,
 } from '@irdashies/storybook';
 import type {
+  TrackStateSnapshot,
   TyreStateSnapshot,
   TyreWheelState,
   WheelDynamicsSnapshot,
@@ -81,11 +83,43 @@ const noDynamics: WheelDynamicsSnapshot = {
 /** The height the widget wants with the load and deflection rows on. */
 const TALL = 430;
 
+/**
+ * A wheel as the sim writes it for a car somebody else is driving: the brake
+ * and the compound, the tread where the car is simulated on this machine,
+ * and no tyre temperature or pressure.
+ */
+const watchedWheel = (
+  brake: number,
+  treadRemaining: number | null
+): TyreWheelState => ({
+  surfaceTempC: null,
+  innerLayerTempC: null,
+  carcassTempC: null,
+  optimalTempC: null,
+  pressureKpa: null,
+  pressureDeviationKpa: null,
+  treadRemaining,
+  brakeTempC: brake,
+  compound: 0,
+});
+
+/** Out of the car, watching the own car with its telemetry block read. */
+const watchingOwnCar: TrackStateSnapshot = {
+  ...trackStateStorySnapshot,
+  isOnTrack: false,
+  outOfCar: true,
+  watching: true,
+  watchingOwnCar: true,
+  watchingOwnCarTelemetry: true,
+};
+
 const story = (
   tyres: TyreStateSnapshot,
   config: Record<string, unknown> = {},
   wheelDynamics?: WheelDynamicsSnapshot,
-  height = 380
+  height = 380,
+  /** Where the user is; at the wheel unless told. */
+  trackState?: TrackStateSnapshot
 ) => ({
   decorators: [
     TelemetryDecoratorWithConfig('/test-data/1747384033336', {
@@ -94,6 +128,7 @@ const story = (
     ChannelSnapshotDecorator({
       'tyre-state.snapshot': tyres,
       ...(wheelDynamics ? { 'wheel-dynamics.snapshot': wheelDynamics } : {}),
+      ...(trackState ? { 'track-state.snapshot': trackState } : {}),
     }),
     // The widget fills its overlay window, so the story supplies one of the
     // default size rather than letting it span the page.
@@ -203,6 +238,46 @@ export const WithoutBrakes: Story = {
       wheel([89, 92, 95], 405, 185.9),
     ]),
     { showBrakes: false }
+  ),
+};
+
+/**
+ * A team-mate driving the user's own car, set to show only when on track.
+ * The sim goes on writing the brake temperatures and the compound of the
+ * car; the tyre temperatures and pressures it writes only for a car the user
+ * is in, and the tread of a car driven on another machine is not taken.
+ */
+export const TeamMateDriving: Story = {
+  ...story(
+    snapshot([
+      watchedWheel(520, null),
+      watchedWheel(535, null),
+      watchedWheel(430, null),
+      watchedWheel(425, null),
+    ]),
+    { showWear: true, showOnlyWhenOnTrack: true },
+    undefined,
+    380,
+    watchingOwnCar
+  ),
+};
+
+/**
+ * The same with the AI driving the car on this machine, where the sim's
+ * figure for the tread is the car's own.
+ */
+export const AiDriving: Story = {
+  ...story(
+    snapshot([
+      watchedWheel(520, 0.94),
+      watchedWheel(535, 0.93),
+      watchedWheel(430, 0.96),
+      watchedWheel(425, 0.95),
+    ]),
+    { showWear: true, showOnlyWhenOnTrack: true },
+    undefined,
+    380,
+    watchingOwnCar
   ),
 };
 
@@ -319,6 +394,27 @@ export const NoLoadPublished: Story = {
     everyRow,
     dynamics({ loadShare: null, loadSource: null, loadTotalN: null }),
     TALL
+  ),
+};
+
+/**
+ * A team-mate driving the user's own car with every row on. The pressure
+ * offsets, the deflection and the load are worked out from the wheels of a
+ * car the user is in, so each keeps its place with a placeholder and the
+ * load bars stay empty; the brakes and the compound are the team car's.
+ */
+export const TeamMateDrivingEveryRow: Story = {
+  ...story(
+    snapshot([
+      watchedWheel(520, null),
+      watchedWheel(535, null),
+      watchedWheel(430, null),
+      watchedWheel(425, null),
+    ]),
+    { ...everyRow, showOnlyWhenOnTrack: true },
+    noDynamics,
+    TALL,
+    watchingOwnCar
   ),
 };
 

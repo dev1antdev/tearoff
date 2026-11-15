@@ -60,6 +60,7 @@ import {
 import { lmuWatchedSlot } from './ownEntry';
 import { lmuFrontWheelAngleDeg, lmuSteeringRangeDeg } from './steering';
 import { writeLmuOwnEntryKeys } from './ownEntryKeys';
+import { lmuPublishedBlock, writeLmuOwnEntryBlockKeys } from './ownEntryBlock';
 import { lmuSectorIdx, mapLmuSectorTimes } from './sectorTimes';
 
 type Raw = import('./native').LmuRawTelemetry;
@@ -300,7 +301,7 @@ const focusCarIdx = (
  * equivalent for is published empty or neutral rather than left out.
  */
 export function mapLmuTelemetry(
-  raw: Raw,
+  snapshot: Raw,
   /**
    * Lap-distance integrator state, owned by the caller so it survives between
    * frames. Omitted -- as every spec does -- the fraction is the raw 5 Hz
@@ -383,6 +384,13 @@ export function mapLmuTelemetry(
    */
   ownEntrySlot = -1
 ): Telemetry {
+  // The snapshot as the sim wrote it, unless its single-car fields are the
+  // telemetry block of a car the user is not driving: the own entry's, read
+  // in place of a player vehicle the sim does not name. Then only what the
+  // sim is known to write for such a car is left of them, so that every key
+  // below it has no reading for stays absent, as it is with no block at
+  // all. See ownEntryBlock.ts.
+  const raw = lmuPublishedBlock(snapshot, ownEntrySlot);
   // Boundary note: a handful of generated Telemetry keys (e.g. SessionTime) are
   // typed with an `undefined[]` value shape although the iRacing native layer
   // emits numbers there at runtime. Building into a plain record and casting is
@@ -1141,6 +1149,10 @@ export function mapLmuTelemetry(
   // describes the frame as it goes out; a frame with a player vehicle is
   // not touched. See ownEntryKeys.ts.
   writeLmuOwnEntryKeys(t, raw, playerIdx, ownEntrySlot);
+  // And where the own entry's telemetry block was read as well, the frame
+  // says so, and the keys written above as a zero the sim never wrote for
+  // the car are taken out. See ownEntryBlock.ts.
+  writeLmuOwnEntryBlockKeys(t, raw);
 
   return t as unknown as Telemetry;
 }

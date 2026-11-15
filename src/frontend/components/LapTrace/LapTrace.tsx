@@ -13,6 +13,7 @@ import {
   useLapTraceStore,
   useSessionVisibility,
   useTrackStateSelector,
+  useWatchingOwnCarTelemetry,
 } from '@irdashies/context';
 import { formatTime } from '@irdashies/utils/time';
 import { resolveSpeedUnit, speedFromMs } from '@irdashies/utils/units';
@@ -49,6 +50,9 @@ export type LapTraceProps = Partial<LapTraceConfig> & {
 /** Stable identity so the countdown's effects do not restart every render. */
 const EMPTY_CUE_POINTS = new Float32Array(0);
 
+/** Shown in place of the recording status while somebody else drives. */
+const WATCHED_LAP_MESSAGE = "Your team-mate's lap is not recorded";
+
 /**
  * The bar towards a first reference. Its own component so that only it
  * re-renders as the lap is driven, and only while it is on screen: the lap
@@ -77,6 +81,12 @@ const RecordingProgress = () => {
  * that slides with the car. The reference is drawn pastel, as a washed-out
  * background target; the lap currently being driven is overlaid as a bright
  * ghost so the two can be read against each other directly.
+ *
+ * Through a team-mate's stint in the user's own car, where the sim sends
+ * that car's pedals, the lap being driven is theirs, against the user's
+ * reference. It is drawn and nothing more: a lap the user did not drive is
+ * never recorded as a reference, the corner comparisons are not taken from
+ * it, and the brake cues stay silent.
  */
 export const LapTrace = (props: LapTraceProps) => {
   const settings = useLapTraceSettings();
@@ -98,6 +108,7 @@ export const LapTrace = (props: LapTraceProps) => {
   const barSide = lapTraceElementSide(tree, 'brakeCue') ?? 'right';
 
   const { isDriving } = useDrivingState();
+  const isWatchingOwnCarTelemetry = useWatchingOwnCarTelemetry();
   const isSessionVisible = useSessionVisibility(config.sessionVisibility);
 
   const referenceLap = useLapTraceStore((s) => s.referenceLap);
@@ -227,7 +238,9 @@ export const LapTrace = (props: LapTraceProps) => {
   };
 
   if (!isSessionVisible) return null;
-  if (config.showOnlyWhenOnTrack && !isDriving) return null;
+  if (config.showOnlyWhenOnTrack && !(isDriving || isWatchingOwnCarTelemetry)) {
+    return null;
+  }
 
   return (
     <div
@@ -277,7 +290,13 @@ export const LapTrace = (props: LapTraceProps) => {
               a reference that will never be saved is the thing to avoid. */}
           {!referenceError &&
             trackLengthM > 0 &&
-            (invalidReason ? (
+            (isWatchingOwnCarTelemetry ? (
+              // A team-mate's lap is never the reference, whatever else
+              // could be said of it.
+              <span className="text-slate-500 text-[10px]">
+                {WATCHED_LAP_MESSAGE}
+              </span>
+            ) : invalidReason ? (
               <span className="text-slate-500 text-[10px]">
                 {invalidLapMessage(invalidReason)}
               </span>

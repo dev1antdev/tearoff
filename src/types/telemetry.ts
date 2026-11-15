@@ -176,6 +176,19 @@ export type Telemetry = {
    */
   LmuWatching?: TelemetryVar<boolean[]>;
   /**
+   * True while the keys that exist only in a car's telemetry block -- the
+   * pedals, the steering, the gear, the revs, the brake temperatures -- are
+   * read from the block of the user's own entry with somebody else driving
+   * it: the sim names no player vehicle, and has filled in the block of the
+   * car in the own entry's slot. Absent otherwise: at the wheel, where those
+   * keys are the player's own as always, and where the sim sends no block
+   * for the car, where they hold nothing. The tyre temperatures and
+   * pressures, the engine temperatures and the dials are absent with it
+   * set, as the sim writes them for the player's car alone; the fuel level
+   * and the tyre wear are there only for a car simulated on this machine.
+   */
+  LmuOwnEntryTelemetry?: TelemetryVar<boolean[]>;
+  /**
    * True while LMU's GetGameState says PAUSED: the player is in the car with
    * a menu open. The widgets keep their state through it, which is why the
    * in-car channels above still read as driving; this is for the one thing

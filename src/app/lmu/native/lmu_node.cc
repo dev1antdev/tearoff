@@ -176,6 +176,37 @@ const LMUVehicleTelemetry *LmuSdkNode::GetVehicleTelemetryById(int id) const
   return NULL;
 }
 
+/**
+ * The telemetry block the single-car fields of a read are taken from.
+ *
+ * read() and readSession() take one optional argument, a vehicle slot. With
+ * none -- or undefined or null, which is how a caller with nothing to ask for
+ * spells it -- the block is the player's, as it always was. With a slot it is
+ * the block of the car in that slot, whoever is driving it: the sim writes a
+ * block for every car, and the player's is only one of them.
+ *
+ * Anything else answers with no block at all rather than falling back to the
+ * player's: a number that is not a whole slot in range, a slot with no car
+ * in it, or an argument that is not a number. A caller that asked for one
+ * car must never be handed another.
+ */
+const LMUVehicleTelemetry *LmuSdkNode::GetBlockTelemetry(
+    const Napi::CallbackInfo &info,
+    const LMUVehicleTelemetry *player) const
+{
+  if (info.Length() < 1 || info[0].IsUndefined() || info[0].IsNull())
+    return player;
+  if (!info[0].IsNumber())
+    return NULL;
+
+  const double slot = info[0].As<Napi::Number>().DoubleValue();
+  if (!std::isfinite(slot) || slot != std::floor(slot))
+    return NULL;
+  if (slot < 0 || slot >= LMU_MAX_VEHICLES)
+    return NULL;
+  return GetVehicleTelemetryById(static_cast<int>(slot));
+}
+
 void LmuSdkNode::FillVehicleArrays(Napi::Object &out) const
 {
   auto env = out.Env();
@@ -195,6 +226,10 @@ void LmuSdkNode::FillVehicleArrays(Napi::Object &out) const
 
   auto ids = Napi::Int32Array::New(env, cap);
   auto isPlayer = Napi::Uint8Array::New(env, cap);
+  // Who is driving each car, as scoring's mControl has it: 0 the player on
+  // this machine, 1 the AI on this machine, 2 somebody on another machine,
+  // 3 a replay. An empty slot reads 0 like every other array here.
+  auto control = Napi::Uint8Array::New(env, cap);
   auto places = Napi::Int32Array::New(env, cap);
   auto lapDistPct = Napi::Float64Array::New(env, cap);
   if (cap > 0)
@@ -274,6 +309,7 @@ void LmuSdkNode::FillVehicleArrays(Napi::Object &out) const
       continue;
     ids[id] = v.mID;
     isPlayer[id] = v.mIsPlayer ? 1 : 0;
+    control[id] = v.mControl;
     places[id] = v.mPlace;
     lapDistPct[id] = scoring.scoringInfo.mLapDist > 0.0
         ? std::clamp(v.mLapDist / scoring.scoringInfo.mLapDist, 0.0, 1.0)
@@ -331,6 +367,7 @@ void LmuSdkNode::FillVehicleArrays(Napi::Object &out) const
 
   out.Set("vehIds", ids);
   out.Set("vehIsPlayer", isPlayer);
+  out.Set("vehControl", control);
   out.Set("vehPlaces", places);
   out.Set("vehLapDistPct", lapDistPct);
   out.Set("vehTotalLaps", totalLaps);
@@ -442,12 +479,21 @@ Napi::Value LmuSdkNode::Read(const Napi::CallbackInfo &info)
   // here and not in the player branch below.
   out.Set("ffbTorque", _snapshot.generic.FFBTorque);
 
-  const auto *player = GetPlayerTelemetry();
+  // What the sim says of the player, whichever block is read below.
+  const auto *simPlayer = GetPlayerTelemetry();
   out.Set(
       "playerVehicleIdx",
-      player != NULL ? player->mID : -1);
+      simPlayer != NULL ? simPlayer->mID : -1);
   out.Set("playerHasVehicle", _snapshot.telemetry.playerHasVehicle);
   out.Set("activeVehicles", _snapshot.telemetry.activeVehicles);
+
+  // The car the single-car fields below describe: the player's, or the one
+  // in the slot the caller asked for; see GetBlockTelemetry. The pointer
+  // keeps the name `player` so that every field below reads the block that
+  // was asked for, and so does a field added to this list later. blockSlot
+  // says whose block it is, -1 for none.
+  const auto *player = GetBlockTelemetry(info, simPlayer);
+  out.Set("blockSlot", player != NULL ? player->mID : -1);
 
   if (player != NULL)
   {

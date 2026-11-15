@@ -775,6 +775,62 @@ describe('LapTrace', () => {
     });
   });
 
+  describe('through a team-mate’s stint in the user’s own car', () => {
+    /** Out of the car, the camera on the team car. */
+    const stint = (telemetry: boolean) => {
+      window.channelBridge = {
+        subscribe: (channel: string, callback: (payload: unknown) => void) => {
+          if (channel === 'track-state.snapshot') {
+            callback(
+              trackState({
+                isOnTrack: false,
+                outOfCar: true,
+                watching: true,
+                watchingOwnCar: true,
+                ...(telemetry ? { watchingOwnCarTelemetry: true } : {}),
+              })
+            );
+          }
+          return () => undefined;
+        },
+      } as unknown as ChannelBridge;
+    };
+    const onTrackOnly = { ...baseProps, showOnlyWhenOnTrack: true };
+
+    it('draws their lap against the reference where the sim sends the car’s pedals', () => {
+      stint(true);
+      seedReference();
+
+      const { container } = render(<LapTrace {...onTrackOnly} />);
+
+      expect(container.querySelector('svg')).toBeTruthy();
+    });
+
+    it('stays hidden where the sim sends no pedals for the car', () => {
+      stint(false);
+      seedReference();
+
+      const { container } = render(<LapTrace {...onTrackOnly} />);
+
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it('says their lap is not recorded, in place of the recording status', async () => {
+      // The lap store calls a lap begun out of the car an out-lap. True of
+      // the user's own, and not what is going on here.
+      await seedLap([{ lapDistPct: 0, isOnTrack: false }]);
+      stint(true);
+
+      render(<LapTrace {...onTrackOnly} />);
+
+      expect(
+        screen.getByText("Your team-mate's lap is not recorded")
+      ).toBeTruthy();
+      expect(screen.queryByText(/Out-lap/i)).toBeNull();
+      expect(screen.queryByText(/Recording \d+%/)).toBeNull();
+    });
+  });
+
   it('caps a long imported lap name at half the header', () => {
     const record = makeSyntheticLapTrace({ trackLengthM: TRACK_LENGTH_M });
     const longName =

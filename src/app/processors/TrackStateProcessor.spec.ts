@@ -231,6 +231,34 @@ describe('TrackStateProcessor', () => {
     expect(processor.snapshot().watchingOwnCar).toBe(false);
   });
 
+  it('says whether the own car’s pedals and revs are being read while it is watched', () => {
+    const processor = new TrackStateProcessor();
+    const stint = { LmuWatching: [true], CamCarIdx: [7], PlayerCarIdx: [7] };
+    // Left out of the snapshot until it holds, at the wheel included.
+    processor.onFrame(frame({ IsOnTrack: [true] }));
+    expect(processor.snapshot()).not.toHaveProperty('watchingOwnCarTelemetry');
+    processor.onFrame(frame(stint));
+    expect(processor.snapshot().watchingOwnCar).toBe(true);
+    expect(processor.snapshot().watchingOwnCarTelemetry).toBeUndefined();
+
+    // The sim fills in the team car's block.
+    const version = processor.snapshot().version;
+    processor.onFrame(frame({ ...stint, LmuOwnEntryTelemetry: [true] }));
+    expect(processor.snapshot().watchingOwnCarTelemetry).toBe(true);
+    expect(processor.snapshot().version).toBe(version + 1);
+
+    // The camera moves to a rival: the block is still the team car's.
+    processor.onFrame(
+      frame({ ...stint, CamCarIdx: [3], LmuOwnEntryTelemetry: [true] })
+    );
+    expect(processor.snapshot().watchingOwnCarTelemetry).toBeUndefined();
+
+    processor.onFrame(frame({ ...stint, LmuOwnEntryTelemetry: [true] }));
+    expect(processor.snapshot().watchingOwnCarTelemetry).toBe(true);
+    processor.onLifecycle({ type: 'disconnect' });
+    expect(processor.snapshot().watchingOwnCarTelemetry).toBeUndefined();
+  });
+
   it('is never watching on a frame without the flag, as every iRacing frame is', () => {
     // Under iRacing nothing sets it yet, whatever the camera is on.
     const processor = new TrackStateProcessor();

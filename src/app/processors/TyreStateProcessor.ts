@@ -86,6 +86,14 @@ const emptyWheel = (): TyreWheelState => ({
  * below the highest of the four. It is taken from an average of each
  * pressure over the session clock, so that a kerb or a hot corner does not
  * make it jump, and the averages are dropped with the readings.
+ *
+ * Through a team-mate's stint the mapper fills them from the block of the
+ * user's own entry, as far as the sim writes that block for a car the user
+ * is not in: the brake temperatures, and the tread for a car simulated on
+ * this machine. The snapshot is available then, with the tyre temperatures
+ * and pressures null, which the widget draws as its placeholders. With no
+ * pressure to average there is no deviation either, and the averages start
+ * again from the user's own tyres when they are back in the car.
  */
 export class TyreStateProcessor implements TelemetryProcessor<TyreStateSnapshot> {
   readonly channel = 'tyre-state.snapshot';
@@ -138,7 +146,12 @@ export class TyreStateProcessor implements TelemetryProcessor<TyreStateSnapshot>
     }
 
     const surface = numbers(frame, 'LmuTyreSurfaceTemp');
-    const available = surface !== undefined && surface.length >= 12;
+    const brakes = numbers(frame, 'LmuBrakeTemp');
+    // The tyres of the player's own car, or failing them the brakes, which
+    // are what the sim goes on writing for a car somebody else is driving.
+    const available =
+      (surface !== undefined && surface.length >= 12) ||
+      (brakes !== undefined && brakes.length >= WHEEL_COUNT);
     if (available !== this.latest.available) {
       this.latest.available = available;
       changed = true;
@@ -159,7 +172,6 @@ export class TyreStateProcessor implements TelemetryProcessor<TyreStateSnapshot>
     const innerLayer = numbers(frame, 'LmuTyreInnerLayerTemp');
     const carcass = numbers(frame, 'LmuTyreCarcassTemp');
     const optimal = numbers(frame, 'LmuTyreOptimalTemp');
-    const brakes = numbers(frame, 'LmuBrakeTemp');
     const compounds = numbers(frame, 'LmuCarIdxWheelCompounds');
     const playerCarIdx = scalar(frame, 'PlayerCarIdx');
 

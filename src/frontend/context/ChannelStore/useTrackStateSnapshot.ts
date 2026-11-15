@@ -24,6 +24,8 @@ export const trackStateSelectors = {
   speed: (snapshot: TrackStateSnapshot) => snapshot.speed,
   watching: (snapshot: TrackStateSnapshot) => snapshot.watching,
   watchingOwnCar: (snapshot: TrackStateSnapshot) => snapshot.watchingOwnCar,
+  watchingOwnCarTelemetry: (snapshot: TrackStateSnapshot) =>
+    snapshot.watchingOwnCarTelemetry === true,
 } as const;
 
 export const useTrackStateSelector = <Selected>(

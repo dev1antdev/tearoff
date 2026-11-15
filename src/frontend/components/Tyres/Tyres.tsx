@@ -4,6 +4,7 @@ import {
   useDrivingState,
   useSessionVisibility,
   useTyreStateSnapshot,
+  useWatchingOwnCarTelemetry,
   useWheelDynamicsSnapshot,
 } from '@irdashies/context';
 import type {
@@ -330,14 +331,27 @@ const Axle = ({
  * Le Mans Ultimate only. Out of the car the sim publishes no wheel data and
  * the widget keeps its shape with placeholders, so it can still be placed in
  * edit mode.
+ *
+ * Through a team-mate's stint in the user's own car the sim goes on writing
+ * the brake temperatures and the compound, and the tread for a car it
+ * simulates on this machine. Those are shown. The tyre temperatures and the
+ * pressures, which it writes only for a car the user is in, keep their
+ * placeholders, and so do the rows worked out from the user's own wheels:
+ * the pressure offsets, the deflection and the load, whose bar stays empty.
+ * With the camera on another car the readings on hand are still the own
+ * car's, and every tile is a placeholder.
  */
 export const Tyres = () => {
   const settings = useTyresSettings();
   const snapshot = useTyreStateSnapshot();
-  const { isDriving } = useDrivingState();
+  const { isDriving, isWatchingOtherCar } = useDrivingState();
+  const isWatchingOwnCarTelemetry = useWatchingOwnCarTelemetry();
   const isSessionVisible = useSessionVisibility(settings.sessionVisibility);
+  // On track is at the wheel, or watching the own car where the sim sends
+  // its telemetry block: the brakes are read from it then.
   const visible =
-    isSessionVisible && (!settings.showOnlyWhenOnTrack || isDriving);
+    isSessionVisible &&
+    (!settings.showOnlyWhenOnTrack || isDriving || isWatchingOwnCarTelemetry);
   // Only while the widget is drawn and one of its two rows is on, so the
   // processor behind it rests otherwise.
   const wheelDynamics = useWheelDynamicsSnapshot(
@@ -346,8 +360,10 @@ export const Tyres = () => {
 
   if (!visible) return <></>;
 
-  const wheels = snapshot?.available ? snapshot.wheels : undefined;
-  const dynamics = wheelDynamics?.available ? wheelDynamics : undefined;
+  const wheels =
+    snapshot?.available && !isWatchingOtherCar ? snapshot.wheels : undefined;
+  const dynamics =
+    wheelDynamics?.available && !isWatchingOtherCar ? wheelDynamics : undefined;
 
   return (
     <div

@@ -7,6 +7,10 @@ import { Input } from './Input';
 const state = vi.hoisted(() => ({
   driving: false,
   watching: false,
+  /** Watching the own car with the sim writing its pedals. */
+  watchingOwnCarTelemetry: false,
+  /** The camera on a car that is not the user's own. */
+  watchingOtherCar: false,
   sessionVisible: true,
   mounts: 0,
   unmounts: 0,
@@ -21,7 +25,9 @@ vi.mock('@irdashies/context', async (original) => ({
   useDrivingState: () => ({
     isDriving: state.driving,
     isWatching: state.watching,
+    isWatchingOtherCar: state.watchingOtherCar,
   }),
+  useWatchingOwnCarTelemetry: () => state.watchingOwnCarTelemetry,
   useSessionVisibility: () => state.sessionVisible,
 }));
 vi.mock('./hooks/useInputSettings', async (original) => ({
@@ -38,7 +44,8 @@ vi.mock('./hooks/useInputs', async () => {
           state.unmounts++;
         };
       }, []);
-      return {};
+      // What the car is doing, as the channel has it.
+      return { gear: 4 };
     },
   };
 });
@@ -56,13 +63,17 @@ vi.mock('./hooks/useGearFlash', () => ({
   },
 }));
 vi.mock('./InputContainer/InputContainer', () => ({
-  InputContainer: () => <div>Inputs</div>,
+  InputContainer: ({ gear }: { gear?: number }) => (
+    <div>{gear === undefined ? 'No reading' : `Gear ${gear}`}</div>
+  ),
 }));
 
 afterEach(() => {
   cleanup();
   state.driving = false;
   state.watching = false;
+  state.watchingOwnCarTelemetry = false;
+  state.watchingOtherCar = false;
   state.sessionVisible = true;
   state.mounts = 0;
   state.unmounts = 0;
@@ -91,14 +102,47 @@ describe('Input high-frequency consumers', () => {
     expect(state.unmounts).toBe(2);
   });
 
-  it('stays unmounted while watching a car: the pedals are the user’s own', () => {
-    // A team-mate's stint. The sim writes no pedals for a watched car that
-    // the app reads yet, so watching does not count as on track here.
+  it('stays unmounted while watching a car whose pedals the sim does not send', () => {
+    // A team-mate's stint with no telemetry block for the team car, or the
+    // camera on a rival: watching alone does not count as on track here.
     state.watching = true;
     const view = render(<Input {...getWidgetDefaultConfig('input')} />);
 
     expect(state.mounts).toBe(0);
     expect(view.container.textContent).toBe('');
+  });
+
+  it('shows the team-mate’s inputs while watching the own car, where the sim sends them', () => {
+    state.watching = true;
+    state.watchingOwnCarTelemetry = true;
+    const config = getWidgetDefaultConfig('input');
+    const view = render(<Input {...config} />);
+
+    expect(state.mounts).toBe(1);
+    expect(view.container.textContent).toBe('Gear 4');
+
+    // The stint ends with the user back in the garage.
+    state.watching = false;
+    state.watchingOwnCarTelemetry = false;
+    view.rerender(<Input {...config} />);
+    expect(state.unmounts).toBe(1);
+  });
+
+  it('draws no reading with the camera on another car, where it is always shown', () => {
+    // The pedals on hand are still the team car's, not the car on screen.
+    state.watching = true;
+    state.watchingOtherCar = true;
+    const config = {
+      ...getWidgetDefaultConfig('input'),
+      showOnlyWhenOnTrack: false,
+    };
+    const view = render(<Input {...config} />);
+
+    expect(view.container.textContent).toBe('No reading');
+
+    state.watchingOtherCar = false;
+    view.rerender(<Input {...config} />);
+    expect(view.container.textContent).toBe('Gear 4');
   });
 
   it('can remain active off-track when the configuration requests it', () => {
