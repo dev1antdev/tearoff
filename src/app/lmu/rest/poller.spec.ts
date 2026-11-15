@@ -707,6 +707,51 @@ describe('createLmuRestPoller with a pending source', () => {
 
     expect(data.cells.pitStopTime?.value[0]).toBe(41);
   });
+
+  it('does not make a task with a long interval wait it out for a tape', async () => {
+    // The forecast is asked for twice a minute. Its first poll of a replay
+    // goes out before the tape has reached the record, a few milliseconds
+    // in, and waiting a base interval for the next left the replay without
+    // a forecast for half a minute.
+    let body: string | null = null;
+    const { transport, calls } = makeTransport(() =>
+      body === null
+        ? { ok: false, reason: 'pending' as const }
+        : { ok: true, body }
+    );
+    const data = createLmuRestData();
+    const poller = createLmuRestPoller({
+      data,
+      transport,
+      tasks: [{ ...repeatTask, baseIntervalMs: 30_000, maxIntervalMs: 60_000 }],
+    });
+
+    poller.setActive(true);
+    await advance(0);
+    expect(calls).toHaveLength(1);
+    await advance(REST_RETRY_DELAY_MS);
+    expect(calls).toHaveLength(2);
+
+    body = '{"total":41}';
+    await advance(REST_RETRY_DELAY_MS);
+    expect(data.cells.pitStopTime?.value[0]).toBe(41);
+    expect(calls).toHaveLength(3);
+
+    // Once it has answered it keeps its own pace: the base interval after a
+    // new body, then out to its own ceiling, which is above the shared one.
+    await advance(29_999);
+    expect(calls).toHaveLength(3);
+    await advance(1);
+    expect(calls).toHaveLength(4);
+    await advance(45_000);
+    expect(calls).toHaveLength(5);
+    await advance(59_999);
+    expect(calls).toHaveLength(5);
+    await advance(1);
+    expect(calls).toHaveLength(6);
+    await advance(60_000);
+    expect(calls).toHaveLength(7);
+  });
 });
 
 /**
@@ -1847,5 +1892,305 @@ describe('createLmuRestPoller across sessions', () => {
     expect(calls).toHaveLength(0);
     await advance(1);
     expect(calls).toHaveLength(1);
+  });
+});
+
+/**
+ * A reading that barely moves, as a brake disc's thickness does: most
+ * answers repeat the one before, and what has to be told apart is the sim
+ * saying the same thing again from the sim not answering.
+ */
+const wearParseSpy = vi.fn((payload: unknown) =>
+  typeof payload === 'object' && payload !== null
+    ? (payload as { mm?: number }).mm
+    : undefined
+);
+const wearApplySpy = vi.fn((data: LmuRestData, value: unknown) => {
+  data.cells.brakeThickness = { value: [value as number] };
+});
+
+const wearTask: LmuRestTask = {
+  id: 'wear',
+  path: '/rest/garage/UIScreen/RepairAndRefuel',
+  mode: 'repeat',
+  baseIntervalMs: BASE_MS,
+  outputs: [
+    {
+      id: 'brakeThickness',
+      target: 'telemetry',
+      parse: wearParseSpy,
+      apply: wearApplySpy,
+      refreshed: (data, count) => {
+        data.cells.wearablesSeq = { value: [count] };
+      },
+    },
+    {
+      // Beside it in the same body, and asking for no mark.
+      id: 'aeroDamage',
+      target: 'telemetry',
+      parse: (payload) =>
+        typeof payload === 'object' && payload !== null
+          ? (payload as { aero?: number }).aero
+          : undefined,
+      apply: (data, value) => {
+        data.cells.aeroDamage = { value: [value as number] };
+      },
+    },
+  ],
+};
+
+describe('createLmuRestPoller and an output that marks its answers', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    wearParseSpy.mockClear();
+    wearApplySpy.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const seq = (data: LmuRestData) => data.cells.wearablesSeq?.value[0];
+
+  const setup = (responder: () => LmuRestResponse) => {
+    const { transport, calls } = makeTransport(responder);
+    const data = createLmuRestData();
+    const poller = createLmuRestPoller({ data, transport, tasks: [wearTask] });
+    return { poller, data, calls };
+  };
+
+  it('marks an answer identical to the last, which is never parsed', async () => {
+    // The disc has not worn and nothing else in the body moved. The cell is
+    // the same object it was; only the mark says the sim answered again.
+    const { poller, data, calls } = setup(() => ok('{"mm":36}'));
+
+    poller.setActive(true);
+    await advance(0);
+    const thickness = data.cells.brakeThickness;
+    expect(seq(data)).toBe(1);
+
+    // 1000, then 1500: three answers in all.
+    await advance(1000);
+    await advance(1500);
+
+    expect(calls).toHaveLength(3);
+    expect(seq(data)).toBe(3);
+    expect(wearParseSpy).toHaveBeenCalledTimes(1);
+    expect(data.cells.brakeThickness).toBe(thickness);
+  });
+
+  it('marks an answer whose body moved around the same reading', async () => {
+    // What a running car sends: the fuel aboard and the clock move on every
+    // poll, the thickness on few of them.
+    let clock = 0;
+    const { poller, data } = setup(() =>
+      ok(JSON.stringify({ mm: 36, clock: (clock += 1) }))
+    );
+
+    poller.setActive(true);
+    await advance(0);
+    await advance(BASE_MS * 4);
+
+    expect(seq(data)).toBe(5);
+    expect(data.cells.brakeThickness?.value).toEqual([36]);
+  });
+
+  it('replaces the mark rather than writing into it', async () => {
+    const { poller, data } = setup(() => ok('{"mm":36}'));
+
+    poller.setActive(true);
+    await advance(0);
+    const first = data.cells.wearablesSeq;
+    await advance(BASE_MS);
+
+    // A frame holding the first mark keeps the count it was built with.
+    expect(first?.value).toEqual([1]);
+    expect(data.cells.wearablesSeq).not.toBe(first);
+  });
+
+  it('stands still while the path does not answer', async () => {
+    // The case the mark exists for. The thickness reads as it did, as it
+    // would for a disc that had stopped wearing, and the mark does not move.
+    let answering = true;
+    const { poller, data } = setup(() =>
+      answering ? ok('{"mm":36}') : fail('timeout')
+    );
+
+    poller.setActive(true);
+    await advance(0);
+    await advance(BASE_MS);
+    expect(seq(data)).toBe(2);
+
+    answering = false;
+    await advance(60_000);
+    expect(seq(data)).toBe(2);
+    expect(data.cells.brakeThickness?.value).toEqual([36]);
+
+    // The same body as before the gap is still an answer.
+    answering = true;
+    await advance(REST_MAX_INTERVAL_MS);
+    expect(seq(data)).toBe(3);
+  });
+
+  it('does not mark an answer that left the value out', async () => {
+    // The path answers, and the other value in the body lands, but nothing
+    // vouches for a thickness this answer did not carry.
+    let body = '{"mm":36,"aero":0}';
+    const { poller, data } = setup(() => ok(body));
+
+    poller.setActive(true);
+    await advance(0);
+    expect(seq(data)).toBe(1);
+
+    body = '{"aero":0.2}';
+    await advance(BASE_MS);
+    expect(data.cells.aeroDamage?.value).toEqual([0.2]);
+    expect(seq(data)).toBe(1);
+
+    // Nor a repeat of that body, which is not parsed at all.
+    await advance(BASE_MS);
+    await advance(BASE_MS * 1.5);
+    expect(seq(data)).toBe(1);
+
+    // The next poll, 2.25 s on, carries one again.
+    body = '{"mm":36,"aero":0.2}';
+    await advance(BASE_MS * 2.25);
+    expect(seq(data)).toBe(2);
+  });
+
+  it('does not mark a body that is not JSON', async () => {
+    const { poller, data } = setup(() => ok('<html>loading</html>'));
+
+    poller.setActive(true);
+    await advance(0);
+    await advance(BASE_MS * 5);
+
+    expect(seq(data)).toBeUndefined();
+  });
+
+  it('marks a value its output recognised and did not write again', async () => {
+    // A comparator spares the write, not the mark: the answer still carried
+    // the value.
+    let clock = 0;
+    const { transport } = makeTransport(() =>
+      ok(JSON.stringify({ mm: 36, clock: (clock += 1) }))
+    );
+    const data = createLmuRestData();
+    const poller = createLmuRestPoller({
+      data,
+      transport,
+      tasks: [
+        {
+          ...wearTask,
+          outputs: [
+            {
+              ...wearTask.outputs[0],
+              unchanged: (held, value) =>
+                held.cells.brakeThickness?.value[0] === value,
+            },
+          ],
+        },
+      ],
+    });
+
+    poller.setActive(true);
+    await advance(0);
+    await advance(BASE_MS * 3);
+
+    expect(wearApplySpy).toHaveBeenCalledTimes(1);
+    expect(seq(data)).toBe(4);
+  });
+
+  it('goes on from where it was when a session begins', async () => {
+    // The mark is dropped with the other cells and comes back with the next
+    // answer. Not from one: a reader comparing it with the last it saw must
+    // never meet the same number for a different answer.
+    const { poller, data } = setup(() => ok('{"mm":36}'));
+
+    poller.setActive(true);
+    await advance(0);
+    await advance(BASE_MS);
+    expect(seq(data)).toBe(2);
+
+    poller.beginSession();
+    expect(data.cells.wearablesSeq).toBeUndefined();
+    await advance(0);
+
+    expect(seq(data)).toBe(3);
+    expect(data.cells.brakeThickness?.value).toEqual([36]);
+  });
+
+  it('goes on from where it was when LMU goes away and comes back', async () => {
+    const { poller, data } = setup(() => ok('{"mm":36}'));
+
+    poller.setActive(true);
+    await advance(0);
+    await advance(BASE_MS);
+    expect(seq(data)).toBe(2);
+
+    poller.setActive(false);
+    expect(data.cells.wearablesSeq).toBeUndefined();
+    poller.setActive(true);
+    await advance(0);
+
+    expect(seq(data)).toBe(3);
+  });
+
+  it('does not mark an answer that arrived for the session before', async () => {
+    let release: ((value: LmuRestResponse) => void) | undefined;
+    let served = 0;
+    const data = createLmuRestData();
+    const poller = createLmuRestPoller({
+      data,
+      transport: () => {
+        served += 1;
+        if (served === 1) {
+          return new Promise<LmuRestResponse>((resolve) => {
+            release = resolve;
+          });
+        }
+        return Promise.resolve(fail('timeout'));
+      },
+      tasks: [wearTask],
+    });
+
+    poller.setActive(true);
+    await advance(0);
+    poller.beginSession();
+    release?.(ok('{"mm":36}'));
+    await advance(BASE_MS - 1);
+
+    expect(served).toBe(2);
+    expect(seq(data)).toBeUndefined();
+    expect(data.cells.brakeThickness).toBeUndefined();
+  });
+
+  it('wires the mark to the brake thickness of the real repair screen', async () => {
+    // Through LMU_REST_TASKS rather than a stand-in: two polls of a car
+    // whose discs did not wear between them.
+    const repair = LMU_REST_TASKS.find(
+      (task) => task.id === 'repair-and-refuel'
+    );
+    if (!repair) throw new Error('no repair-and-refuel task');
+    let fuel = 44.9;
+    const { transport } = makeTransport(() =>
+      ok(
+        JSON.stringify({
+          fuelInfo: { currentFuel: (fuel -= 0.01) },
+          wearables: { brakes: [0.036, 0.036, 0.032, 0.032] },
+        })
+      )
+    );
+    const data = createLmuRestData();
+    const poller = createLmuRestPoller({ data, transport, tasks: [repair] });
+
+    poller.setActive(true);
+    await advance(0);
+    const first = seq(data);
+    await advance(repair.baseIntervalMs);
+
+    expect(first).toBe(1);
+    expect(seq(data)).toBe(2);
+    expect(data.cells.brakeThickness?.value).toEqual([36, 36, 32, 32]);
   });
 });

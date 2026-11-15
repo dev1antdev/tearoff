@@ -1,5 +1,6 @@
 import type { DashboardWidget } from './dashboardLayout';
 import type { CornerNameOverlayConfig } from './cornerName';
+import type { FlagPanelConfig } from './flagPanel';
 import type { LapTraceColors, LapTraceSound, LapTraceSource } from './lapTrace';
 import type { LmuBadgeFormat } from './lmu';
 
@@ -849,6 +850,12 @@ export interface FlagConfig {
   animate: boolean;
   blinkPeriod: number;
   showNoFlagState: boolean;
+  /**
+   * Draw green for as long as the track is clear. Off, green is drawn only
+   * while it is announced, after the start and after a yellow, as iRacing
+   * shows it. Unset is on.
+   */
+  greenWhenClear?: boolean;
   enableGlow: boolean;
   doubleFlag?: boolean;
   background?: { opacity: number };
@@ -1140,6 +1147,68 @@ export interface CornerDeltaConfig {
   speedUnit: 'auto' | 'km/h' | 'mph';
   /** How many earlier corners are listed under the last one; 0 for none. */
   historyCount: number;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
+ * The timing panel: a block of tiles with the lap, the delta to a reference
+ * lap, the last and best laps and the sector times.
+ *
+ * Times are seconds throughout, as the channels carry them.
+ */
+export interface TimingConfig {
+  background: { opacity: number };
+  /** Which tiles are drawn. Each optional pair shares a row. */
+  tiles: {
+    /** The lap being driven. */
+    lap: boolean;
+    /** The delta to the reference lap. */
+    delta: boolean;
+    lastLap: boolean;
+    /** The player's best lap of the session. */
+    bestLap: boolean;
+    /** The row of sector times. */
+    sectors: boolean;
+    /** The running time of the lap in progress. */
+    currentLap: boolean;
+    /** The reference lap plus the delta. */
+    predictedLap: boolean;
+    /** The fastest lap of the session among the cars in scope. */
+    sessionBest: boolean;
+    /** The best lap kept for this track and car across sessions. */
+    allTimeBest: boolean;
+    /** The best lap since the car last stood in the pits. */
+    stintBest: boolean;
+    /** The player's recent pace. */
+    pace: boolean;
+  };
+  /**
+   * Which lap the delta and the predicted lap are measured against. Where
+   * the chosen one does not exist the tiles show dashes rather than another
+   * lap's figures. The delta channel carries the first two today; a stored
+   * `stintBest` or `lastLap` reads dashes until it carries those as well.
+   */
+  deltaReference: 'sessionBest' | 'allTime' | 'stintBest' | 'lastLap';
+  deltaDecimals: 2 | 3;
+  lapTimeDecimals: 1 | 2 | 3;
+  sectorDecimals: 1 | 2 | 3;
+  /**
+   * What a sector tile shows: this lap's time with the previous lap's until
+   * it exists, this lap's time alone, or the player's best for the sector.
+   */
+  sectorSource: 'live' | 'liveOnly' | 'best';
+  /**
+   * A sector with an incident in it is kept and marked, or left out as if
+   * it had not been driven.
+   */
+  sectorIncidents: 'mark' | 'drop';
+  /** The most sector tiles in the row; a lap with more shows a window. */
+  sectorTilesMax: number;
+  /** Whose laps count as the session best: the player's class or everyone. */
+  sessionBestScope: 'class' | 'overall';
+  /** Text size, in percent. */
+  scale: number;
   sessionVisibility: SessionVisibilitySettings;
   showOnlyWhenOnTrack: boolean;
 }
@@ -1638,6 +1707,7 @@ export interface WidgetConfigMap {
   garagecover: GarageCoverConfig;
   rejoin: RejoinIndicatorConfig;
   flag: FlagConfig;
+  flagpanel: FlagPanelConfig;
   telemetryinspector: TelemetryInspectorConfig;
   fastercarsfrombehind: FasterCarsFromBehindConfig;
   pitlanehelper: PitlaneHelperConfig;
@@ -1652,6 +1722,7 @@ export interface WidgetConfigMap {
   minimap: MinimapConfig;
   lapdelta: LapDeltaConfig;
   cornerdelta: CornerDeltaConfig;
+  timing: TimingConfig;
   heartrate: HeartRateConfig;
   cornername: CornerNameOverlayConfig;
   battle: BattleConfig;
@@ -1758,6 +1829,7 @@ export type RejoinIndicatorWidgetSettings =
 export type FlagWidgetSettings = BaseWidgetSettings<FlagConfig> & {
   id: 'flag';
 };
+export type FlagPanelWidgetSettings = BaseWidgetSettings<FlagPanelConfig>;
 export type GarageCoverWidgetSettings = BaseWidgetSettings<GarageCoverConfig>;
 export type TelemetryInspectorWidgetSettings =
   BaseWidgetSettings<TelemetryInspectorConfig>;
@@ -1777,6 +1849,7 @@ export type TyresWidgetSettings = BaseWidgetSettings<TyresConfig>;
 export type MinimapWidgetSettings = BaseWidgetSettings<MinimapConfig>;
 export type LapDeltaWidgetSettings = BaseWidgetSettings<LapDeltaConfig>;
 export type CornerDeltaWidgetSettings = BaseWidgetSettings<CornerDeltaConfig>;
+export type TimingWidgetSettings = BaseWidgetSettings<TimingConfig>;
 export type HeartRateWidgetSettings = BaseWidgetSettings<HeartRateConfig>;
 export type CornerNameWidgetSettings =
   BaseWidgetSettings<CornerNameOverlayConfig>;

@@ -1,6 +1,8 @@
 import type { DashboardWidget } from '@irdashies/types';
 
-const SECTOR_WIDGETS = new Set(['sectordelta', 'map', 'flatmap']);
+// Timing reads the channel itself; it is here for the thresholds the updater
+// keeps in step with the Sector Delta settings, which colour its tiles too.
+const SECTOR_WIDGETS = new Set(['sectordelta', 'map', 'flatmap', 'timing']);
 const TABLE_WIDGETS = new Set(['standings', 'relative']);
 
 /** Supporting renderer state belongs to the widget in this window, not the profile. */

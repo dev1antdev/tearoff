@@ -128,6 +128,25 @@ export interface LmuRawTelemetry {
   maxPathWetness: number;
   avgPathWetness: number;
   wind: LmuVec;
+  /**
+   * The step the start light sequence is on (rFactor 2 header). The one
+   * recording opens under green, after a rolling start: it reads
+   * `numRedLights + 1` for the first five seconds and 0 from then on, which
+   * fits a green light that then goes out. The steps of the countdown itself
+   * have not been recorded.
+   */
+  startLight?: number;
+  /**
+   * The count of red lights in the start sequence (rFactor 2 header). 3 on
+   * the recording.
+   */
+  numRedLights?: number;
+  /**
+   * Force feedback: a signed fraction of full force, 1 = clipping (TinyPedal's
+   * reader; measured -0.75 to 0.95). From the sim's generic block, so it is
+   * set with or without a car. A float in the sim, so not an exact decimal.
+   */
+  ffbTorque?: number;
   playerVehicleIdx: number;
   playerHasVehicle: boolean;
   activeVehicles: number;
@@ -197,6 +216,71 @@ export interface LmuRawTelemetry {
   deltaBest?: number;
   batteryChargeFraction?: number;
   turboBoostPressure?: number;
+  /**
+   * Front third-spring deflection, m (measured). Equals the mean of the two
+   * front suspension deflections on a car with no third spring.
+   */
+  front3rdDeflection?: number;
+  /** Rear third-spring deflection, m (measured). */
+  rear3rdDeflection?: number;
+  /**
+   * When the car last took an impact: s on the `elapsedTime` clock
+   * (measured). 0 until the first one, and it keeps its value until the next,
+   * so a new impact is a change of this number. Held to float precision: an
+   * impact at 147.2 reads 147.19999695.
+   */
+  lastImpactET?: number;
+  /** How hard the last impact was: unitless (measured 40 to 3,017). */
+  lastImpactMagnitude?: number;
+  /**
+   * Where the last impact landed, x y z: car axes, metres assumed (header).
+   * The recording fits metres: five impacts at the nose read 2.0 to 2.5
+   * ahead of the car's origin, which is negative z.
+   */
+  lastImpactPos?: Float64Array;
+  /**
+   * Dent level of eight parts of the body: 0 none, 1 some, 2 more (header).
+   * The index layout is TinyPedal's; index 0 is the one a nose impact raises.
+   */
+  dentSeverity?: Uint8Array;
+  /** Whether parts other than wheels have come off (header). */
+  detached?: boolean;
+  /** Whether the sim is showing its overheating icon (header). */
+  overheating?: boolean;
+  /**
+   * Hybrid motor state, an enum: 0 not available, 1 inactive, 2 deploying,
+   * 3 regenerating (TinyPedal's reader). 0 on a car with no hybrid.
+   */
+  electricBoostMotorState?: number;
+  /** Hybrid motor torque: Nm by TinyPedal's reader; unconfirmed. */
+  electricBoostMotorTorque?: number;
+  /** Hybrid motor speed: rev/min by TinyPedal's reader; unconfirmed. */
+  electricBoostMotorRPM?: number;
+  /**
+   * Hybrid motor temperature. Unit unconfirmed: Celsius by TinyPedal's use,
+   * possibly Kelvin. No recording holds a car with a hybrid.
+   */
+  electricBoostMotorTemperature?: number;
+  /**
+   * Hybrid motor coolant temperature. Unit unconfirmed, as the motor's:
+   * Celsius by TinyPedal's use, possibly Kelvin.
+   */
+  electricBoostWaterTemperature?: number;
+  /**
+   * Lift-and-coast progress as a byte, 0..255: the fraction is the byte over
+   * 255 (TinyPedal's conversion).
+   */
+  liftAndCoastProgress?: number;
+  /**
+   * Wiper state, an enum: 0 off, 1 auto, 2 slow, 3 fast (TinyPedal's reader).
+   * Unconfirmed: the one recording reads 1 throughout a dry race.
+   */
+  wiperState?: number;
+  /**
+   * Rotation of the driver's physical wheel, degrees lock to lock (TinyPedal's
+   * reader). 0 when the sim does not know it.
+   */
+  physicalSteeringWheelRange?: number;
   frontTireCompoundName?: string;
   vehicleName?: string;
   speed?: number;
@@ -224,6 +308,50 @@ export interface LmuRawTelemetry {
   tyreCarcassTemperatureRaw?: Float64Array;
   tyreOptimalTemperatureRaw?: Float64Array;
   brakeTemperatureRaw?: Float64Array;
+  // Per-wheel physics for the player's car, exactly as the sim publishes it:
+  // one value per wheel, LF, RF, LR, RR.
+  /**
+   * Ride height at each wheel, m (measured against the setup's 5.4 / 6.3 cm).
+   * Not floored at 0: the recording has two frames 1.5 mm below it.
+   */
+  wheelRideHeight?: Float64Array;
+  /**
+   * Pushrod load, N (rFactor 2 header; measured). Negative on a drooping
+   * wheel.
+   */
+  suspensionForce?: Float64Array;
+  /**
+   * Tyre load, N (header). The sim leaves it at 0 for every car recorded so
+   * far, so 0 on all four wheels means "not published", not "no load".
+   */
+  tyreLoad?: Float64Array;
+  /** How far the tyre is squashed, m (measured). 0 with the wheel in the air. */
+  tyreVerticalDeflection?: Float64Array;
+  /**
+   * Camber, rad (measured: -0.035 is a setup's -2.0 deg). Negative with the
+   * top of the wheel leaning in, on both sides.
+   */
+  wheelCamber?: Float64Array;
+  /**
+   * Toe, rad; positive = pointing right, so toe-in is positive on a left
+   * wheel and negative on a right one. The fronts include the steering angle
+   * (measured).
+   */
+  wheelToe?: Float64Array;
+  /** Wheel rotation, rad/s; negative rolling forwards (measured). */
+  wheelRotation?: Float64Array;
+  /** Static undeflected tyre radius, whole cm (measured 34 front, 36 rear). */
+  tyreStaticRadius?: Uint8Array;
+  /**
+   * What each wheel is on, an enum. By the header: 0 dry, 1 wet, 2 grass,
+   * 3 dirt, 4 gravel, 5 kerb, 6 special. As recorded, 4 is reported on both
+   * dirt and gravel terrain.
+   */
+  wheelSurfaceType?: Uint8Array;
+  /** Whether each tyre is flat: 1 or 0. */
+  tyreFlat?: Uint8Array;
+  /** Whether each wheel has come off: 1 or 0. */
+  wheelDetached?: Uint8Array;
   // Per-vehicle arrays, indexed by CarIdx (vehicle slot id)
   vehIds: Int32Array;
   vehIsPlayer: Uint8Array;
@@ -294,6 +422,12 @@ export interface LmuRawTelemetry {
    * lmu/penalty.ts.
    */
   vehNumPenalties?: ArrayLike<number>;
+  /**
+   * Pit stops per car, a count, from scoring's mNumPitstops (TinyPedal shows
+   * it as the stop count). An Int32Array indexed by slot; every car on the
+   * grid has one, and a slot with no car reads 0.
+   */
+  vehNumPitstops?: ArrayLike<number>;
   vehFuelFraction?: ArrayLike<number>;
   /**
    * Virtual energy remaining per car, already a fraction.

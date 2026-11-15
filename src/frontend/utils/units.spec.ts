@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  FEET_PER_METRE,
   IRACING_UNITS_METRIC,
+  distanceFromMetres,
   kphFromSpeed,
   msFromSpeed,
+  resolveDistanceUnit,
   resolveSpeedUnit,
   speedFromKph,
   speedFromMs,
@@ -91,5 +94,41 @@ describe('agreement between the two speed sources', () => {
     const viaMs = speedFromMs(ms, 'mph');
     const viaKph = speedFromKph(speedFromMs(ms, 'km/h'), 'mph');
     expect(viaMs).toBeCloseTo(viaKph, 3);
+  });
+});
+
+describe('resolveDistanceUnit', () => {
+  it('follows the sim when the setting is auto', () => {
+    expect(resolveDistanceUnit('auto', IRACING_UNITS_METRIC)).toBe('m');
+    expect(resolveDistanceUnit('auto', 0)).toBe('ft');
+  });
+
+  it('follows the sim when there is no setting at all', () => {
+    expect(resolveDistanceUnit(undefined, IRACING_UNITS_METRIC)).toBe('m');
+    expect(resolveDistanceUnit(undefined, 0)).toBe('ft');
+  });
+
+  it('lets an explicit setting override the sim', () => {
+    expect(resolveDistanceUnit('ft', IRACING_UNITS_METRIC)).toBe('ft');
+    expect(resolveDistanceUnit('m', 0)).toBe('m');
+  });
+
+  it('reads metres when the sim has not said', () => {
+    // Unlike speed: the Radar has always printed metres without a reading,
+    // and Le Mans Ultimate is metric throughout.
+    expect(resolveDistanceUnit('auto', undefined)).toBe('m');
+  });
+});
+
+describe('distanceFromMetres', () => {
+  it('leaves metres as they are', () => {
+    expect(distanceFromMetres(15, 'm')).toBe(15);
+  });
+
+  it('converts metres to feet', () => {
+    // 15 m is 49 ft, as the flag panel prints it.
+    expect(Math.round(distanceFromMetres(15, 'ft'))).toBe(49);
+    expect(distanceFromMetres(1, 'ft')).toBeCloseTo(FEET_PER_METRE, 6);
+    expect(distanceFromMetres(100, 'ft')).toBeCloseTo(328.084, 3);
   });
 });

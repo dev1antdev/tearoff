@@ -46,6 +46,7 @@ import {
   type LmuSessionClockState,
 } from './sessionClock';
 import {
+  lmuLastLapInvalid,
   lmuLastLapTimes,
   observeLmuLapStarts,
   type LmuLapStartState,
@@ -183,23 +184,54 @@ export function mapLmuCarLeftRight(raw: Raw): CarLeftRight | null {
   );
 }
 
-function sessionFlags(raw: Raw): number {
-  if (raw.gamePhase === 8) return GlobalFlags.Checkered;
-  if (raw.gamePhase === 7) return GlobalFlags.Red;
+/** The value of mSectorFlag that is a local yellow. A clear sector reads 11. */
+const SECTOR_FLAG_YELLOW = 1;
+
+/**
+ * Where each sector's flag sits in mSectorFlag, in driving order.
+ *
+ * Assumed to be the rotation mSector uses, where the sim's 1 is the first
+ * sector, 2 the second and 0 the third; the rFactor 2 header itself says the
+ * order is not known. Not confirmed on a recording: none has a local yellow.
+ * This is the one place the sim's order is turned into driving order.
+ */
+const LMU_SECTOR_FLAG_ORDER = [1, 2, 0] as const;
+
+/**
+ * The flags that hold, as a union of independent facts rather than the first
+ * one that matches: a sector yellow anywhere on the circuit used to keep the
+ * player's blue from ever being set.
+ *
+ * Deliberately no Green and no Black. Green as a standing bit would be read
+ * with iRacing's meaning, where it is momentary, by consumers that rank it
+ * above a blue or take it for the start of the race. Black is one of the bits
+ * the fuel calculator treats as "not a green lap", so a pending penalty would
+ * drop every lap from its averages. The flag processor reads the phase and
+ * the penalty count for those two itself.
+ */
+function sessionFlags(raw: Raw, playerIdx: number): number {
+  let flags = 0;
+  if (raw.gamePhase === 8) flags |= GlobalFlags.Checkered;
+  if (raw.gamePhase === 7) flags |= GlobalFlags.Red;
   if (
     raw.gamePhase === 6 ||
     (raw.yellowFlagState >= 1 && raw.yellowFlagState <= 6)
   ) {
     // Preserve the yellow display while distinguishing an FCY from a sector
     // yellow for consumers such as the lap-history filter.
-    return GlobalFlags.Yellow | GlobalFlags.Caution;
+    flags |= GlobalFlags.Yellow | GlobalFlags.Caution;
+  } else if (
+    Array.from(raw.sectorFlags).some((flag) => flag === SECTOR_FLAG_YELLOW)
+  ) {
+    flags |= GlobalFlags.Yellow;
   }
-  if (Array.from(raw.sectorFlags).some((flag) => flag === 1)) {
-    return GlobalFlags.Yellow;
+  if (playerIdx >= 0) {
+    if (raw.vehFlag?.[playerIdx] === 6) flags |= GlobalFlags.Blue;
+    if (raw.vehFinishStatus?.[playerIdx] === 3) {
+      flags |= GlobalFlags.Disqualify;
+    }
   }
-  const playerFlag = raw.vehFlag?.[raw.playerVehicleIdx];
-  if (playerFlag === 6) return GlobalFlags.Blue;
-  return 0;
+  return flags;
 }
 
 function carSessionFlags(raw: Raw): number[] {
@@ -467,7 +499,22 @@ export function mapLmuTelemetry(
   );
   t.SessionLapsTotal = num(hasLapLimit ? raw.maxLaps : TIMED_SESSION_LAPS);
   t.SessionTimeOfDay = num(raw.timeOfDay);
-  t.SessionFlags = num(sessionFlags(raw));
+  t.SessionFlags = num(sessionFlags(raw, playerIdx));
+  // The same facts unfolded, for the flag processor: iRacing's bits have no
+  // room for the phase before the start, the sub-phase of a full-course
+  // yellow or which sector a yellow is in.
+  t.LmuGamePhase = num(raw.gamePhase);
+  t.LmuYellowFlagState = num(raw.yellowFlagState);
+  t.LmuSectorYellow = {
+    value: LMU_SECTOR_FLAG_ORDER.map(
+      (index) => raw.sectorFlags?.[index] === SECTOR_FLAG_YELLOW
+    ),
+  };
+  // Absent from an addon built before the two were exported.
+  if (raw.startLight !== undefined) t.LmuStartLight = num(raw.startLight);
+  if (raw.numRedLights !== undefined) {
+    t.LmuNumRedLights = num(raw.numRedLights);
+  }
   // Metric. iRacing carries the driver's own unit preference here and widgets
   // resolve 'auto' from it; LMU's shared memory has no equivalent, and 0
   // (imperial) meant every 'auto' widget showed mph for a sim whose own UI,
@@ -621,6 +668,10 @@ export function mapLmuTelemetry(
   }
   const lastLapTimes = lmuLastLapTimes(lapStartState, raw.vehLastLapTime);
   t.CarIdxLastLapTime = { value: lastLapTimes };
+  // Which of those times are the measured kind: the lap did not count.
+  t.LmuCarIdxLastLapInvalid = {
+    value: lmuLastLapInvalid(lapStartState, raw.vehLastLapTime),
+  };
   t.CarIdxBestLapTime = lapTimeArr(raw.vehBestLapTime);
   t.CarIdxGear = numArr(undefined);
   // The front-left of each car, which is all a one-value-per-car channel can
@@ -688,8 +739,12 @@ export function mapLmuTelemetry(
   // a REST cell is readonly so an in-place write to one is a type error (see
   // rest/state.ts). Handed over by reference and never written to here.
   const staged = (cell: LmuRestCell<unknown>) => cell as { value: unknown[] };
-  if (restCells?.pitStopTime) {
-    t.LmuPitStopTime = staged(restCells.pitStopTime);
+  // The estimate's own total, or the repair screen's figure for the same
+  // stop while the estimate path has not answered.
+  const pitStopTime = restCells?.pitStopTime ?? restCells?.pitStopLength;
+  if (pitStopTime) t.LmuPitStopTime = staged(pitStopTime);
+  if (restCells?.pitStopParts) {
+    t.LmuPitStopParts = staged(restCells.pitStopParts);
   }
   if (restCells?.repairTime) t.LmuRepairTime = staged(restCells.repairTime);
   if (restCells?.penaltySeconds) {
@@ -713,11 +768,23 @@ export function mapLmuTelemetry(
       restCells.refuelTargetIsVirtualEnergy
     );
   }
-  if (restCells?.brakeWear) t.LmuBrakeWear = staged(restCells.brakeWear);
+  if (restCells?.refuelRatio) t.LmuRefuelRatio = staged(restCells.refuelRatio);
+  if (restCells?.repairChoice) {
+    t.LmuRepairChoice = staged(restCells.repairChoice);
+  }
+  if (restCells?.brakeThickness) {
+    t.LmuBrakeThickness = staged(restCells.brakeThickness);
+  }
+  if (restCells?.wearablesSeq) {
+    t.LmuRestWearablesSeq = staged(restCells.wearablesSeq);
+  }
   if (restCells?.suspensionDamage) {
     t.LmuSuspensionDamage = staged(restCells.suspensionDamage);
   }
   if (restCells?.aeroDamage) t.LmuAeroDamage = staged(restCells.aeroDamage);
+  if (restCells?.steerLockDeg) {
+    t.LmuSteerLockDeg = staged(restCells.steerLockDeg);
+  }
 
   // Shared memory, unlike the cells above. The addon always writes these when
   // LMU is running, so the guard is only for a tape or a build predating the

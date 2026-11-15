@@ -114,7 +114,9 @@ export const OverlayContainer = memo(() => {
     >
       <SectorTimingUpdater
         enabled={widgetsForThisDisplay.some((widget) =>
-          ['sectordelta', 'map', 'flatmap'].includes(widget.type || widget.id)
+          ['sectordelta', 'map', 'flatmap', 'timing'].includes(
+            widget.type || widget.id
+          )
         )}
       />
       <PushToPassUpdater />

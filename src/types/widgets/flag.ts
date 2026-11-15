@@ -19,6 +19,7 @@ export default defineWidgetManifest({
     blinkPeriod: 0.5,
     matrixMode: '16x16',
     showNoFlagState: true,
+    greenWhenClear: true,
     enableGlow: true,
     doubleFlag: false,
     background: { opacity: 80 },
@@ -79,6 +80,12 @@ export default defineWidgetManifest({
       type: 'boolean',
       label: 'Show No Flag State',
       description: "Display 'no flag' (grey leds) when no flags are waved",
+    },
+    greenWhenClear: {
+      type: 'boolean',
+      label: 'Green While The Track Is Clear',
+      description:
+        'Show the green flag for as long as nothing else is out. When off, green is shown only for a few seconds after the start and after a yellow.',
     },
     enableGlow: {
       type: 'boolean',

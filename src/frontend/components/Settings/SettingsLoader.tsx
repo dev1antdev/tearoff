@@ -23,6 +23,7 @@ import { RadarSettings } from './sections/RadarSettings';
 import { GarageCoverSettings } from './sections/GarageCoverSettings';
 import { ProfileSettings } from './sections/ProfileSettings';
 import { FlagSettings } from './sections/FlagSettings';
+import { FlagPanelSettings } from './sections/FlagPanelSettings';
 import { CarSetupSettings } from './sections/CarSetupSettings';
 import { LapLibrarySettings } from './sections/LapLibrary/LapLibrarySettings';
 import { StreamChatSettings } from './sections/StreamChatSettings';
@@ -38,6 +39,7 @@ import { CarSystemsSettings } from './sections/CarSystemsSettings';
 import { TyresSettings } from './sections/TyresSettings';
 import { LapDeltaSettings } from './sections/LapDeltaSettings';
 import { CornerDeltaSettings } from './sections/CornerDeltaSettings';
+import { TimingSettings } from './sections/TimingSettings';
 import { MinimapSettings } from './sections/MinimapSettings';
 import { HeartRateSettings } from './sections/HeartRateSettings';
 import { CornerNameSettings } from './sections/CornerNameSettings';
@@ -72,6 +74,7 @@ export const WIDGET_SETTINGS: Record<
   radar: RadarSettings,
   garagecover: GarageCoverSettings,
   flag: FlagSettings,
+  flagpanel: FlagPanelSettings,
   streamchat: StreamChatSettings,
   laptimelog: LapTimeLogSettings,
   infobar: InformationBarSettings,
@@ -82,6 +85,7 @@ export const WIDGET_SETTINGS: Record<
   tyres: TyresSettings,
   lapdelta: LapDeltaSettings,
   cornerdelta: CornerDeltaSettings,
+  timing: TimingSettings,
   minimap: MinimapSettings,
   heartrate: HeartRateSettings,
   cornername: CornerNameSettings,

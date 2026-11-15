@@ -94,6 +94,8 @@ export const FlagSettings = () => {
 
                     <SettingProp path="showNoFlagState" />
 
+                    <SettingProp path="greenWhenClear" />
+
                     <SettingProp path="enableGlow" />
                   </SettingsSection>
                 </>

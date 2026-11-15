@@ -97,4 +97,18 @@ describe('OverlayContainer', () => {
 
     expect(sectorTimingEnabled()).toBe(true);
   });
+
+  it('subscribes when Timing is enabled, for the sector colour thresholds', () => {
+    mockDashboard([
+      {
+        id: 'timing',
+        enabled: true,
+        layout: { x: 0, y: 0, width: 300, height: 170 },
+      },
+    ]);
+
+    render(<OverlayContainer />);
+
+    expect(sectorTimingEnabled()).toBe(true);
+  });
 });

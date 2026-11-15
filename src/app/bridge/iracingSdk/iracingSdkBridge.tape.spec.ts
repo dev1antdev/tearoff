@@ -44,6 +44,7 @@ vi.mock('../../storage/referenceLaps', () => ({
 }));
 vi.mock('../../storage/lapLibrary', () => ({ getLapLibrary: () => null }));
 vi.mock('../../storage/radarTuning', () => ({ getRadarTuning: vi.fn() }));
+vi.mock('../../storage/flagTuning', () => ({ getFlagTuning: vi.fn() }));
 vi.mock('../../storage/radarPoleSideOverrides', () => ({
   radarPoleSideOverrides: {},
   loadRadarPoleSideOverrides: mocks.loadRadarPoleSideOverrides,

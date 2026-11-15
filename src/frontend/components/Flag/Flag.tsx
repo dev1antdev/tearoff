@@ -1,26 +1,26 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import {
+  trackStateSelectors,
+  useFlagStateSnapshot,
   useTrackStateSelector,
   useSessionVisibility,
 } from '@irdashies/context';
-import type { GeneralSettingsType, TrackStateSnapshot } from '@irdashies/types';
-import { shallow } from 'zustand/shallow';
+import type { GeneralSettingsType } from '@irdashies/types';
+import { flagWidgetLabel } from '@irdashies/domain/flags';
 import { useFlagSettings } from './hooks/useFlagSettings';
 import { useBlinkState } from './hooks/useBlinkState';
 import { getLedColor } from './hooks/getLedColor';
 import { getTextColorClass } from './hooks/getTextColorClass';
-import { getFlag } from '@irdashies/utils/getFlag';
-
-const EMPTY_FLAG_STATE: readonly [number, boolean] = [0, false];
-const selectFlagState = (snapshot: TrackStateSnapshot) =>
-  [snapshot.sessionFlags, snapshot.isOnTrack] as const;
 
 export const Flag = () => {
   const settings = useFlagSettings();
 
-  const [sessionFlags, isPlayerOnTrack] =
-    useTrackStateSelector(selectFlagState, { equality: shallow }) ??
-    EMPTY_FLAG_STATE;
+  // The flag comes resolved from the flag channel, which ranks a blue over a
+  // yellow that is somewhere else on the circuit and knows a clear track from
+  // no session. Reading the session flag bits here did neither.
+  const flagState = useFlagStateSnapshot();
+  const isPlayerOnTrack =
+    useTrackStateSelector(trackStateSelectors.isOnTrack) ?? false;
   const isVisibleInSession = useSessionVisibility(settings.sessionVisibility);
 
   const blinkOn = useBlinkState(settings.animate, settings.blinkPeriod);
@@ -28,13 +28,16 @@ export const Flag = () => {
   if (!isVisibleInSession) return null;
   if (settings.showOnlyWhenOnTrack && !isPlayerOnTrack) return null;
 
-  const flagInfo = getFlag(sessionFlags);
+  const flagLabel = flagWidgetLabel(
+    flagState?.kind ?? 'none',
+    flagState?.detail ?? 'noSession',
+    settings.greenWhenClear
+  );
 
-  const visibleLabel =
-    settings.animate && !blinkOn ? 'NO FLAG' : flagInfo.label;
+  const visibleLabel = settings.animate && !blinkOn ? 'NO FLAG' : flagLabel;
 
   // 4. Hide widget if NO FLAG state is disabled and no flags are waved (check actual flag, not visible label)
-  if (flagInfo.label === 'NO FLAG' && !settings.showNoFlagState) return null;
+  if (flagLabel === 'NO FLAG' && !settings.showNoFlagState) return null;
 
   // Single flag
   if (!settings.doubleFlag) {

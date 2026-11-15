@@ -34,6 +34,12 @@ import {
  * - A changed response resets the interval, so the moment the driver opens the
  *   pit menu it is responsive again.
  *
+ * A response that is not parsed is still an answer. An output can ask to be
+ * told of every answer that carried its value, the repeats included (see
+ * `LmuRestOutput.refreshed`), so that a reader of a value that barely moves --
+ * the thickness of a brake disc -- can tell the sim saying the same thing
+ * again from the sim not answering.
+ *
  * Absence is the common case and must be cheap: most people run iRacing, and an
  * older LMU has no REST API at all. A refused connection on the first request
  * after activation latches every task off at once and logs a single line, so a
@@ -78,7 +84,8 @@ export type LmuRestFailure =
    * A tape's REST records are interleaved with its snapshots, so early in
    * playback a path legitimately has no body yet. Counting that as a failure
    * would latch the task off three seconds into every replay. Retried at the
-   * base interval, indefinitely, without consuming a retry.
+   * base interval, or at a failed request's retry delay where the base is
+   * longer than that, indefinitely, without consuming a retry.
    */
   | 'pending';
 
@@ -191,6 +198,19 @@ interface TaskState {
    * `report` that has to say what is new rather than everything it sees.
    */
   lastParsed: Map<string, unknown>;
+  /**
+   * The outputs that read a value from the body `hash` is of, by id. An
+   * answer identical to that body carries the same values without being
+   * parsed, and this is how the poller knows which.
+   */
+  carried: Set<string>;
+  /**
+   * How many answers have carried each output's value, by output id, for
+   * `LmuRestOutput.refreshed`. Never reset, not even when LMU goes away: a
+   * mark is told from the one before by being different, and a count that
+   * started over could repeat one.
+   */
+  refreshes: Map<string, number>;
   inFlight: boolean;
   timer: ReturnType<typeof setTimeout> | undefined;
 }
@@ -214,6 +234,8 @@ export function createLmuRestPoller({
         satisfied: false,
         burst: undefined,
         lastParsed: new Map(),
+        carried: new Set(),
+        refreshes: new Map(),
         inFlight: false,
         timer: undefined,
       },
@@ -311,9 +333,11 @@ export function createLmuRestPoller({
     }
 
     let sessionChanged = false;
+    state.carried.clear();
     for (const output of task.outputs) {
       const value = output.parse(payload);
       if (value === undefined) continue;
+      state.carried.add(output.id);
       // Before the unchanged check: what a parser has to say about a body is
       // worth saying even when there is nothing new to write.
       const report = output.report?.(value, state.lastParsed.get(output.id));
@@ -330,6 +354,25 @@ export function createLmuRestPoller({
     }
     if (sessionChanged) data.revision += 1;
     return true;
+  };
+
+  /**
+   * Tells each output that asked that an answer has carried its value.
+   *
+   * After every answer, the body new or not: an identical body is the sim
+   * saying the same thing again, which is exactly what `apply` cannot show
+   * and what a reader waiting on a slow-moving value needs to know. Only for
+   * the outputs the body had a value for, so one that the answer left out is
+   * not vouched for by the others. See `LmuRestOutput.refreshed`.
+   */
+  const markRefreshed = (task: LmuRestTask) => {
+    const state = stateOf(task);
+    for (const output of task.outputs) {
+      if (!output.refreshed || !state.carried.has(output.id)) continue;
+      const count = (state.refreshes.get(output.id) ?? 0) + 1;
+      state.refreshes.set(output.id, count);
+      output.refreshed(data, count);
+    }
   };
 
   /** The next interval after a poll that learned nothing, per task ceiling. */
@@ -420,8 +463,15 @@ export function createLmuRestPoller({
         if (state.burst) {
           state.burst.startsAt = Date.now() + task.baseIntervalMs;
           state.burst.endsAt = state.burst.startsAt + (task.burstMs ?? 0);
+          schedule(task, task.baseIntervalMs);
+          return;
         }
-        schedule(task, task.baseIntervalMs);
+        // Never slower than a failed request is retried. The first poll of
+        // a replay goes out before the tape has reached its first records,
+        // and a task with a long base interval -- the forecast, asked for
+        // twice a minute -- would leave the replay without its value for
+        // that long over a record a few milliseconds away.
+        schedule(task, Math.min(task.baseIntervalMs, REST_RETRY_DELAY_MS));
         return;
       }
 
@@ -541,6 +591,7 @@ export function createLmuRestPoller({
       logger?.info(`[lmuRest] ${task.path} is answering`);
     }
     const changed = applyBody(task, response.body);
+    markRefreshed(task);
 
     if (task.mode === 'burst') {
       continueBurst(task, true);
@@ -602,6 +653,7 @@ export function createLmuRestPoller({
           state.satisfied = false;
           state.burst = undefined;
           state.lastParsed.clear();
+          state.carried.clear();
         });
         tasks.forEach((task) => {
           stateOf(task).intervalMs = task.baseIntervalMs;

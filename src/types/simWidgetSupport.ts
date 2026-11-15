@@ -46,6 +46,9 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   'cornername',
   'deltaspeed',
   'flag',
+  // The flag in force and the car a blue is for, from LMU's session phase,
+  // sector flags and scoring. Each sim has states the other cannot report.
+  'flagpanel',
   // Counts virtual energy in percent for a Hypercar, LMDh or LMGT3, which
   // stop when that runs out, and litres for the fuel-limited classes.
   'fuel',
@@ -75,6 +78,10 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // one widget absent from the settings menu, so there would be no toggle to
   // grey out if it were listed as unsupported.
   'telemetryinspector',
+  // Lap, delta, last and best lap and LMU's own three sector times, all from
+  // channels the lap and sector widgets above already read. A last lap the
+  // sim gave no time is shown as the measured one, marked.
+  'timing',
   // Tyre and brake temperatures from LMU's per-wheel telemetry block.
   'tyres',
   // Without its wind cell, which the widget drops under LMU.
@@ -146,7 +153,7 @@ export const DEFAULT_SIM_WIDGET_SUPPORT: SimWidgetSupportConfig = {
  * it did, which costs a user their hand edits once per change and is why the
  * number is bumped only for a real one.
  */
-export const SIM_WIDGET_SUPPORT_VERSION = 12;
+export const SIM_WIDGET_SUPPORT_VERSION = 13;
 
 /**
  * Whether a widget is unavailable under the running sim.

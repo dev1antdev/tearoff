@@ -9,6 +9,7 @@ import { RelativeGapProcessor } from '../src/app/processors/RelativeGapProcessor
 import { SessionBarProcessor } from '../src/app/processors/SessionBarProcessor';
 import { TrackStateProcessor } from '../src/app/processors/TrackStateProcessor';
 import { LapTimesProcessor } from '../src/app/processors/LapTimesProcessor';
+import { FlagStateProcessor } from '../src/app/processors/FlagStateProcessor';
 import defaultSession from '../src/app/irsdk/node/utils/mock-data/session.json';
 import defaultTelemetry from '../src/app/irsdk/node/utils/mock-data/telemetry.json';
 
@@ -77,6 +78,7 @@ export const buildCaptureSnapshots = (
     const sessionBar = new SessionBarProcessor();
     const trackState = new TrackStateProcessor();
     const lapTimes = new LapTimesProcessor();
+    const flagState = new FlagStateProcessor();
 
     const processors = [
       standings,
@@ -84,6 +86,7 @@ export const buildCaptureSnapshots = (
       sessionBar,
       trackState,
       lapTimes,
+      flagState,
     ];
     for (const processor of processors) {
       processor.init?.(session);
@@ -96,6 +99,7 @@ export const buildCaptureSnapshots = (
       'session-bar.snapshot': sessionBar.snapshot(),
       'track-state.snapshot': trackState.snapshot(),
       'lap-times.snapshot': lapTimes.snapshot(),
+      'flag-state.snapshot': flagState.snapshot(),
     } as CaptureSnapshots;
   });
 

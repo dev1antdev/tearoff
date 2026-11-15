@@ -2,6 +2,7 @@ import { BarbellIcon, TimerIcon, UsersIcon } from '@phosphor-icons/react';
 import { getTailwindStyle } from '@irdashies/utils/colors';
 import type { ClassHeaderStyle } from '@irdashies/types';
 import { CarManufacturer } from '../../../shared/CarManufacturer/CarManufacturer';
+import { ClassLabel } from '../../../shared/ClassLabel/ClassLabel';
 import type { OrderedColumn } from '../../Standings';
 import type { ClassLapEstimate } from '../../hooks/useClassLapEstimates';
 
@@ -52,9 +53,6 @@ export const DriverClassHeader = ({
   const classDividerBottomBorder =
     classHeaderStyle?.classDivider?.bottomBorder ?? false;
 
-  const classNameStyle = classNameColorBackground
-    ? styles.classHeader
-    : styles.borderColor;
   const classInfoStyle = classInfoColorBackground
     ? styles.driverIcon
     : styles.borderColor;
@@ -115,11 +113,14 @@ export const DriverClassHeader = ({
 
   const infoContent = (
     <>
-      <span
-        className={`${classNameStyle} px-2${py} font-bold whitespace-nowrap${classNameColorBackground ? ' border-l-4' : ''}`}
-      >
-        {className}
-      </span>
+      <ClassLabel
+        name={className}
+        color={classColor}
+        highlightColor={highlightColor}
+        isMultiClass={isMultiClass}
+        filled={classNameColorBackground}
+        className={`px-2${py}`}
+      />
       <span className={`${classInfoStyle} px-2${py} flex items-center gap-1`}>
         {classHeaderStyle?.estimatedLaps?.enabled && estimatedLaps && (
           // "44 / ≈55.38" has spaces: short of width, the header wrapped it

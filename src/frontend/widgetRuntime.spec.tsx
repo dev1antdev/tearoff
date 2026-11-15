@@ -115,6 +115,7 @@ describe('widget runtime metadata', () => {
         'relative-gaps.snapshot',
         'standings.snapshot',
         'track-state.snapshot',
+        'flag-state.snapshot',
       ],
       channelRates: { 'radio.snapshot': 25 },
     });

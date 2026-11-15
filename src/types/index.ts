@@ -16,6 +16,7 @@ export * from './gantryStandings';
 export * from './defaultDashboard';
 export * from './widgetPreview';
 export * from './cornerName';
+export * from './flagPanel';
 export * from './lapTrace';
 export * from './lapTraceLayout';
 export * from './lapLibrary';

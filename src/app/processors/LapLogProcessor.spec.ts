@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GlobalFlags, type Telemetry } from '@irdashies/types';
 import { LapLogProcessor } from './LapLogProcessor';
 import { mapLmuTelemetry } from '../lmu/mapTelemetry';
+import { createLmuLapStartState } from '../lmu/lapStartTiming';
 import { fixture as lmuFixture } from '../lmu/rawFixture';
 
 const frame = (values: Record<string, unknown[]>): Telemetry =>
@@ -180,6 +181,119 @@ describe('LapLogProcessor', () => {
 
     processor.onFrame(frame({ LapCompleted: [3] }));
     expect(processor.snapshot().lapInvalidated).toBe(false);
+  });
+
+  describe('a last lap the sim gave no time', () => {
+    // Two cars; the player is in slot 1.
+    const invalidFrame = (
+      lapCompleted: number,
+      flags: boolean[] | undefined,
+      sessionNum = 1
+    ) =>
+      frame({
+        PlayerCarIdx: [1],
+        LapCompleted: [lapCompleted],
+        SessionNum: [sessionNum],
+        SessionTime: [lapCompleted * 90 + 30],
+        ...(flags ? { LmuCarIdxLastLapInvalid: flags } : {}),
+      });
+
+    it('is marked when the lap ends untimed and cleared by the next timed lap', () => {
+      const processor = new LapLogProcessor();
+      processor.onFrame(invalidFrame(2, [false, false]));
+      expect(processor.snapshot().lastLapInvalid).toBe(false);
+
+      // The lap ends and the mapper says the sim put no time to it.
+      processor.onFrame(invalidFrame(3, [false, true]));
+      expect(processor.snapshot().lastLapInvalid).toBe(true);
+      // It stands for as long as that lap is the last one.
+      processor.onFrame(invalidFrame(3, [false, true]));
+      expect(processor.snapshot().lastLapInvalid).toBe(true);
+
+      processor.onFrame(invalidFrame(4, [false, false]));
+      expect(processor.snapshot().lastLapInvalid).toBe(false);
+    });
+
+    it("reads the player's entry, not another car's", () => {
+      const processor = new LapLogProcessor();
+      processor.onFrame(invalidFrame(3, [true, false]));
+      expect(processor.snapshot().lastLapInvalid).toBe(false);
+    });
+
+    it.each(['sessionNumChange', 'disconnect'] as const)(
+      'is cleared on %s',
+      (type) => {
+        const processor = new LapLogProcessor();
+        processor.onFrame(invalidFrame(3, [false, true]));
+        expect(processor.snapshot().lastLapInvalid).toBe(true);
+
+        processor.onLifecycle({ type });
+        expect(processor.snapshot().lastLapInvalid).toBe(false);
+      }
+    );
+
+    it('does not carry over into a new session number', () => {
+      const processor = new LapLogProcessor();
+      processor.onFrame(invalidFrame(3, [false, true]));
+      // The mapper starts its lap timing again with the session.
+      processor.onFrame(invalidFrame(0, [false, false], 2));
+      expect(processor.snapshot().lastLapInvalid).toBe(false);
+    });
+
+    it('is false under iRacing, which publishes no such flag', () => {
+      const processor = new LapLogProcessor();
+      processor.onFrame(invalidFrame(3, undefined));
+      expect(processor.snapshot().lastLapInvalid).toBe(false);
+    });
+
+    it('is false while LMU has no player car', () => {
+      const processor = new LapLogProcessor();
+      processor.onFrame(
+        frame({ PlayerCarIdx: [-1], LmuCarIdxLastLapInvalid: [true, true] })
+      );
+      expect(processor.snapshot().lastLapInvalid).toBe(false);
+    });
+
+    it('follows the LMU mapper through a cut lap and the clean one after', () => {
+      const processor = new LapLogProcessor();
+      const lapStartState = createLmuLapStartState();
+      const raw = lmuFixture();
+      const drive = (lapStartET: number, lastLapTime: number) =>
+        processor.onFrame(
+          mapLmuTelemetry(
+            {
+              ...raw,
+              vehLapStartET: new Float64Array([1000, lapStartET, 900]),
+              vehLastLapTime: new Float64Array([135.6, lastLapTime, 138.9]),
+            },
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            undefined,
+            lapStartState
+          )
+        );
+
+      drive(1100, 133.4);
+      expect(processor.snapshot().lastLapInvalid).toBe(false);
+
+      // A cut: the lap that began at 1100 ends at 1194.4 with no time.
+      drive(1194.4, -1);
+      expect(processor.snapshot()).toMatchObject({ lastLapInvalid: true });
+      expect(processor.snapshot().lastLapTime).toBeCloseTo(94.4, 9);
+
+      // The next lap is clean and the sim times it.
+      drive(1287.2, 92.8);
+      expect(processor.snapshot()).toMatchObject({
+        lastLapInvalid: false,
+        lastLapTime: 92.8,
+      });
+    });
   });
 
   it('resets session-derived state on lifecycle changes', () => {

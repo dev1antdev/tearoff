@@ -20,6 +20,22 @@ const booleanValue = (frame: Telemetry, key: keyof Telemetry): boolean => {
   return value === true || value === 1;
 };
 
+/**
+ * Whether the sim gave the player's last lap no time, from LMU's per-car
+ * flags. The flag stands for as long as that lap is the last one: the mapper
+ * sets it when the lap ends untimed and drops it when the next lap is timed
+ * or its lap-start state is reset for a new session.
+ *
+ * iRacing publishes no such flag and reads false here for now. Its untimed
+ * laps have to be inferred from the incident count and the track surface,
+ * which is the shared lap-validity module of a later phase.
+ */
+const playerLastLapInvalid = (frame: Telemetry): boolean => {
+  const playerIdx = frame.PlayerCarIdx?.value?.[0];
+  if (typeof playerIdx !== 'number' || playerIdx < 0) return false;
+  return frame.LmuCarIdxLastLapInvalid?.value?.[playerIdx] === true;
+};
+
 export class LapLogProcessor implements TelemetryProcessor<LapLogSnapshot> {
   readonly channel = 'lap-log.snapshot';
   readonly tickRateHz = 25;
@@ -81,6 +97,7 @@ export class LapLogProcessor implements TelemetryProcessor<LapLogSnapshot> {
       ),
       // LMU only; iRacing publishes no such var, read here as false.
       lapInvalidated: booleanValue(frame, 'LmuLapInvalidated'),
+      lastLapInvalid: playerLastLapInvalid(frame),
       version: this.latest.version + 1,
     });
   }
@@ -115,6 +132,7 @@ export class LapLogProcessor implements TelemetryProcessor<LapLogSnapshot> {
       deltaToSessionBestLap: 0,
       deltaToSessionBestLapOk: false,
       lapInvalidated: false,
+      lastLapInvalid: false,
       lastLapUnderCaution: false,
       version: 0,
     };

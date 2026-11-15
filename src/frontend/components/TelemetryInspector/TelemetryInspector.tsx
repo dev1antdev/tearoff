@@ -69,7 +69,7 @@ const TELEMETRY_UNITS: Readonly<Record<string, string>> = {
   LmuVirtualEnergy: 'fraction',
   LmuCarIdxEnergyRemaining: 'fraction',
   LmuStateOfCharge: 'fraction',
-  LmuBrakeWear: 'fraction',
+  LmuBrakeThickness: 'mm',
   LmuSuspensionDamage: 'fraction',
   LmuAeroDamage: 'fraction',
 };

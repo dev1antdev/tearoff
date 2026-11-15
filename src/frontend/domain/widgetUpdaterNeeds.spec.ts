@@ -45,7 +45,7 @@ describe('individual-widget updater needs', () => {
       });
     }
   );
-  it.each(['map', 'flatmap', 'sectordelta'])(
+  it.each(['map', 'flatmap', 'sectordelta', 'timing'])(
     'keeps sector timing for %s',
     (type) => {
       expect(widgetUpdaterNeeds(widget(type)).sectorTiming).toBe(true);

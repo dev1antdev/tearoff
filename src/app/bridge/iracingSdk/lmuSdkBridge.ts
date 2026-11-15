@@ -229,6 +229,9 @@ export async function publishLmuSDKEvents(
   const lapLibrary = channelBus
     ? (await import('../../storage/lapLibrary')).getLapLibrary()
     : null;
+  const flagTuningStorage = channelBus
+    ? await import('../../storage/flagTuning')
+    : undefined;
   const processorHost =
     channelBus && referenceLapStorage
       ? createDefaultProcessorHost({
@@ -252,6 +255,7 @@ export async function publishLmuSDKEvents(
                 revision: () => lapLibrary.referenceRevision(),
               }
             : undefined,
+          flagTuning: flagTuningStorage?.getFlagTuning,
         })
       : undefined;
 
