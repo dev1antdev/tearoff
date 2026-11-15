@@ -20,11 +20,45 @@ const booleanValue = (frame: Telemetry, key: string): boolean | undefined => {
   return typeof current === 'boolean' ? current : undefined;
 };
 
+/** A reading held to the precision it is shown at, so that noise below it
+ *  does not publish a snapshot of its own. */
+const roundedValue = (
+  frame: Telemetry,
+  key: string,
+  perUnit: number
+): number | undefined => {
+  const current = numberValue(frame, key);
+  return current === undefined
+    ? undefined
+    : Math.round(current * perUnit) / perUnit;
+};
+
+const BRAKE_LINE_PRESSURE_KEYS = [
+  'LFbrakeLinePress',
+  'RFbrakeLinePress',
+  'LRbrakeLinePress',
+  'RRbrakeLinePress',
+] as const;
+
+/**
+ * What the largest brake pressure seen starts at. Above zero so that the
+ * first reading divides by something; small enough that any real application
+ * replaces it at once.
+ */
+const INITIAL_PRESSURE_MAXIMUM = 0.01;
+
 export class DriverControlsProcessor implements TelemetryProcessor<DriverControlsSnapshot> {
   readonly channel = 'driver-controls.snapshot';
   readonly tickRateHz = 60;
 
   private readonly latest: DriverControlsSnapshot = { version: 0 };
+  /**
+   * The largest summed brake line pressure seen this session. The sims state
+   * the pressure in units of their own and no maximum, so the hardest
+   * application so far is the scale: a first, light one reads as full until
+   * a harder one follows.
+   */
+  private pressureMaximum = INITIAL_PRESSURE_MAXIMUM;
 
   init(session: Session): void {
     const shiftRpm = session.DriverInfo?.DriverCarSLShiftRPM;
@@ -55,6 +89,21 @@ export class DriverControlsProcessor implements TelemetryProcessor<DriverControl
     changed =
       this.set('brakeAbsActive', booleanValue(frame, 'BrakeABSactive')) ||
       changed;
+    // LMU's own key: iRacing has no flag for traction control cutting, so
+    // under it this stays absent rather than false.
+    changed =
+      this.set('tcActive', booleanValue(frame, 'LmuTcActive')) || changed;
+    changed =
+      this.set('steeringRangeDeg', this.steeringRangeDeg(frame)) || changed;
+    changed =
+      this.set('ffb', roundedValue(frame, 'SteeringWheelPctTorqueSign', 100)) ||
+      changed;
+    changed = this.set('brakePressure', this.brakePressure(frame)) || changed;
+    changed =
+      this.set(
+        'frontWheelAngleDeg',
+        roundedValue(frame, 'LmuFrontWheelAngle', 10)
+      ) || changed;
     changed = this.set('rpm', numberValue(frame, 'RPM')) || changed;
     changed =
       this.set('shiftGrindRpm', numberValue(frame, 'ShiftGrindRPM')) || changed;
@@ -79,6 +128,12 @@ export class DriverControlsProcessor implements TelemetryProcessor<DriverControl
     this.latest.displayUnits = undefined;
     this.latest.steeringWheelAngle = undefined;
     this.latest.brakeAbsActive = undefined;
+    this.latest.tcActive = undefined;
+    this.latest.steeringRangeDeg = undefined;
+    this.latest.ffb = undefined;
+    this.latest.brakePressure = undefined;
+    this.latest.frontWheelAngleDeg = undefined;
+    this.pressureMaximum = INITIAL_PRESSURE_MAXIMUM;
     this.latest.rpm = undefined;
     this.latest.shiftGrindRpm = undefined;
     this.latest.oilTemp = undefined;
@@ -91,6 +146,32 @@ export class DriverControlsProcessor implements TelemetryProcessor<DriverControl
 
   snapshot(): DriverControlsSnapshot {
     return this.latest;
+  }
+
+  /**
+   * SteeringWheelAngleMax is the wheel's rotation lock to lock, in radians,
+   * under both sims. Absent when the sim states none.
+   */
+  private steeringRangeDeg(frame: Telemetry): number | undefined {
+    const range = numberValue(frame, 'SteeringWheelAngleMax');
+    return range !== undefined && range > 0
+      ? Math.round((range * 180) / Math.PI)
+      : undefined;
+  }
+
+  /** The four line pressures summed, over the largest sum seen so far. */
+  private brakePressure(frame: Telemetry): number | undefined {
+    let sum = 0;
+    let wheels = 0;
+    for (const key of BRAKE_LINE_PRESSURE_KEYS) {
+      const pressure = numberValue(frame, key);
+      if (pressure === undefined) continue;
+      sum += pressure;
+      wheels += 1;
+    }
+    if (wheels === 0) return undefined;
+    if (sum > this.pressureMaximum) this.pressureMaximum = sum;
+    return Math.round((Math.max(0, sum) / this.pressureMaximum) * 100) / 100;
   }
 
   private set<K extends Exclude<keyof DriverControlsSnapshot, 'version'>>(

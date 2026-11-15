@@ -222,8 +222,16 @@ export type Telemetry = {
   LmuAeroDamage?: TelemetryVar<number[]>;
   /**
    * The steering wheel's range as the garage setup states it, degrees. REST.
+   * SteeringWheelAngle and SteeringWheelAngleMax are scaled by it when the
+   * sim states no range for the driver's own wheel.
    */
   LmuSteerLockDeg?: TelemetryVar<number[]>;
+  /**
+   * The mean angle of the two front road wheels, degrees, signed like
+   * SteeringWheelAngle: positive to the left. Averaging the pair cancels the
+   * static toe. iRacing publishes no live toe.
+   */
+  LmuFrontWheelAngle?: TelemetryVar<number[]>;
   /**
    * From shared memory, not REST. Virtual energy remaining; the budget it
    * counts down from is LmuRest.maxVirtualEnergy on the session.

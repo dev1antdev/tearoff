@@ -54,6 +54,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
 - Lap Trace does not yet check LMU lap validity, so laps invalidated by track limits may still become saved references. Imports support iRacing `.ibt` files and Garage 61 CSV laps, with no native LMU telemetry-file import.
 - Input and Lap Trace need your own car's telemetry, which can be unavailable while spectating or in the garage.
+- The steering wheel is drawn at the range of the driver's own wheel when LMU knows it, otherwise at the steering lock of the car setup, and at the cockpit animation's range only until the setup has been read. The animation's range turned the drawn wheel about half as far again as the real one on an LMGT3.
 - Lap positions are estimated between updates; cars without full telemetry may update in larger steps. Automatic units are metric, and Pitlane Helper currently uses a fixed 60 km/h pit limit.
 - Virtual energy: Hypercar, LMDh and LMGT3 cars run on virtual energy, LMP2 and LMP3 on fuel. The optional **VE** column in Standings and Relative shows what each car has left to run on, with a pump icon marking a figure that is fuel. The Fuel Level item shows your virtual energy ahead of the litres, and Pitlane Helper shows what the next stop is set to put in. Fuel Calculator counts a car on virtual energy in percent of its energy and a fuel-limited car in litres; see [Fuel Calculator](#fuel-calculator).
 - LMU in-game replays do not yet have iRacing's replay-aware handling. LMU session recording and playback tools are development tools.
@@ -70,19 +71,30 @@ Displays the throttle, clutch, and brake input traces, as well as the current ge
 
 **Features:**
 
-- Input trace visualization (throttle, brake, ABS indicator, steering)
+- Input source, chosen at the top of the widget's settings:
+  - **Car**: what the car receives, the throttle and brake after traction control, ABS and shift cuts. Works while you watch another car and in replays, where the sim gives that car's inputs.
+  - **Pedals**: what you press, the raw pedal position before the assists.
+  - Where the chosen source has no value, the other one is shown rather than nothing.
+- Input trace visualization (throttle, brake, ABS and traction control marks, steering)
   - Configurable stroke width (1-10px)
   - Configurable max samples (50-1000)
-  - Toggle individual inputs (throttle, brake, ABS, steering)
-  - ABS activity shown as an overlay or highlighted fill beneath the brake trace
-- Input bar display (clutch, brake, throttle, ABS indicator)
-  - Toggle individual inputs (clutch, brake, throttle, ABS)
-  - Optional raw input values showing actual pedal/wheel inputs without sim processing (e.g. ABS, traction control)
+  - Toggle individual inputs (throttle, brake, ABS, traction control, steering)
+  - ABS activity marked on the brake trace and traction control on the throttle trace, as an overlay or a highlighted fill beneath the curve. Traction control activity is reported by Le Mans Ultimate only; iRacing publishes the dial but not when it cuts.
+- Input bar display (clutch, brake, throttle, ABS and traction control indicators)
+  - Toggle individual inputs (clutch, brake, throttle, ABS, traction control)
+  - A full-travel marker above each pedal, lit while the pedal is flat, whichever source is shown
+  - Optional side-by-side bars: a narrow strip of pedal travel beside a wide strip of what the car received, with the brake's wide strip optionally taken from the brake line pressure
+  - Optional force feedback bar, which turns amber while the force is clipping
 - Current gear display with speed (auto/mph/km/h units) and dynamic sizing to fit container
 - Optional speed-first gear layout
 - Steering wheel visualization with multiple styles (default, formula, LMP, NASCAR, U-shape, ring) and color themes (light/dark)
+  - Angle readout in degrees: past 270° (default), always, or never
+  - Optional rotation arc around the wheel, always or only at a standstill
+  - Manual wheel rotation range, for a wheel whose range the sim gets wrong
+  - Front wheel angle and steering ratio under the wheel (Le Mans Ultimate only)
+- Optional steering meter: a bar that fills from its centre toward the steered side, with scale marks at a configurable spacing
 - Customizable display order for all components
-- Drag-and-drop layout editor to arrange traces, bars, steering, gear, and ABS indicators
+- Drag-and-drop layout editor to arrange traces, bars, steering, the steering meter, gear, and ABS indicators
 - Multiple Input widgets with independent layouts, including a gear-only layout for a detached gear indicator
 - Optional background shift flash at redline or custom Tachometer shift points, with a configurable colour
 - Adjustable background opacity

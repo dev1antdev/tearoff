@@ -262,6 +262,94 @@ describe('InputTrace Canvas', () => {
     );
   });
 
+  it('marks the throttle while traction control cuts, the way ABS marks the brake', () => {
+    const cutting = { ...activeInput, tcActive: true };
+    const view = render(trace(cutting, 2));
+    drawFrame();
+    // A second sample, so that the cut spans the whole history.
+    view.rerender(trace({ ...cutting }, 2));
+    drawFrame();
+    const drawn = paths(view.container);
+    // The fill under each curve, the curve, then its highlight: the
+    // throttle's set first, the brake's on top.
+    expect(drawn.map(({ kind, color }) => [kind, color])).toEqual([
+      ['stroke', '#666'],
+      ['stroke', 'slate'],
+      ['stroke', 'blue'],
+      ['fill', 'yellow'],
+      ['stroke', 'green'],
+      ['stroke', 'yellow'],
+      ['fill', 'yellow'],
+      ['stroke', 'red'],
+      ['stroke', 'yellow'],
+    ]);
+    // The mark follows the throttle, not the brake.
+    expect(drawn[5].path).toBe(drawn[4].path);
+    expect(drawn[5].path).not.toBe(drawn[7].path);
+    expect(drawn[3].alpha).toBe(0.3);
+    expect(drawn[4].alpha).toBe(1);
+    expect(drawn[5].width).toBe(3);
+  });
+
+  it('draws the traction control overlay wider and the brake after it at its own width', () => {
+    const view = render(
+      <InputTrace
+        input={{ ...activeInput, tcActive: true }}
+        settings={{ ...settings, absStyle: 'overlay' }}
+      />
+    );
+    drawFrame();
+    const drawn = paths(view.container);
+    expect(
+      drawn.map(({ kind, color, width }) => [kind, color, width]).slice(3)
+    ).toEqual([
+      ['stroke', 'green', 3],
+      ['stroke', 'yellow', 5],
+      ['stroke', 'red', 3],
+      ['stroke', 'yellow', 5],
+    ]);
+  });
+
+  it('draws no traction control mark when it is off, or when the throttle is', () => {
+    const cutting = { ...activeInput, brakeAbsActive: false, tcActive: true };
+    const off = render(
+      <InputTrace
+        input={cutting}
+        settings={{ ...settings, includeAbs: false, includeTc: false }}
+      />
+    );
+    const noThrottle = render(
+      <InputTrace
+        input={cutting}
+        settings={{ ...settings, includeAbs: false, includeThrottle: false }}
+      />
+    );
+    drawFrame();
+    for (const view of [off, noThrottle]) {
+      expect(
+        paths(view.container).some(({ color }) => color === 'yellow')
+      ).toBe(false);
+    }
+  });
+
+  it('stops drawing the mark once the last cut has left the history', () => {
+    const view = render(trace({ ...idleInput, tcActive: true }, 4));
+    drawFrame();
+    const marked = () =>
+      paths(view.container).filter(({ color }) => color === 'yellow').length;
+    // The fill and the highlight for traction control, and ABS's two.
+    expect(marked()).toBe(4);
+    for (let index = 1; index < 4; index++) {
+      view.rerender(trace({ ...idleInput }, 4));
+      drawFrame();
+      expect(marked()).toBe(4);
+    }
+    view.rerender(trace({ ...idleInput }, 4));
+    drawFrame();
+    // Only ABS's, which are drawn whether or not it has worked.
+    expect(marked()).toBe(2);
+  });
+
   it.each(['bar', 'overlay'] as const)(
     'hides zero-width pedal strokes in ABS %s mode',
     (absStyle) => {

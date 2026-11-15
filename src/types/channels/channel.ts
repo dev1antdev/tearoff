@@ -441,6 +441,28 @@ export interface DriverControlsSnapshot {
   displayUnits?: number;
   steeringWheelAngle?: number;
   brakeAbsActive?: boolean;
+  /**
+   * Traction control is cutting power on this frame. Le Mans Ultimate only:
+   * iRacing publishes the dial and its switch, but no flag for the cut.
+   */
+  tcActive?: boolean;
+  /** Lock-to-lock rotation the angle was scaled by, whole degrees. */
+  steeringRangeDeg?: number;
+  /**
+   * Signed force feedback as a fraction of full force, 2 decimals; a
+   * magnitude of 1 or more is clipping.
+   */
+  ffb?: number;
+  /**
+   * Summed brake line pressure as a fraction of the largest sum seen this
+   * session, 0..1, 2 decimals.
+   */
+  brakePressure?: number;
+  /**
+   * Le Mans Ultimate only. Mean front road-wheel angle, degrees, 1 decimal,
+   * signed like steeringWheelAngle.
+   */
+  frontWheelAngleDeg?: number;
   rpm?: number;
   shiftGrindRpm?: number;
   oilTemp?: number;

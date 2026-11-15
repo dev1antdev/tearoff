@@ -53,6 +53,7 @@ import {
   type LmuLapStartState,
 } from './lapStartTiming';
 import { lmuWatchedSlot } from './ownEntry';
+import { lmuFrontWheelAngleDeg, lmuSteeringRangeDeg } from './steering';
 
 type Raw = import('./native').LmuRawTelemetry;
 
@@ -444,7 +445,14 @@ export function mapLmuTelemetry(
   // clamping here keeps the published value inside the [0, 1] contract this
   // mapper has always had.
   const lapDistPct = Math.min(1, Math.max(0, estimatedLapDistPct));
-  const steeringMaxRad = ((raw.visualSteeringWheelRange ?? 0) * Math.PI) / 360;
+  // Lock to lock, from the first of three sources that reads; see
+  // steering.ts. The setup's value is a REST cell, so it costs nothing here.
+  const setupSteerLock = restCells?.steerLockDeg?.value?.[0];
+  const steeringRangeDeg = lmuSteeringRangeDeg(
+    raw.physicalSteeringWheelRange,
+    typeof setupSteerLock === 'number' ? setupSteerLock : undefined,
+    raw.visualSteeringWheelRange
+  );
   const relativePositions = deriveLmuRelativePositions(
     raw,
     relativePositionsBuffer
@@ -822,8 +830,22 @@ export function mapLmuTelemetry(
   }
   if (raw.regen !== undefined) t.LmuRegen = num(raw.regen);
 
-  // LMU reports steering as a fraction of the full wheel range; iRacing uses radians.
-  t.SteeringWheelAngle = num(-(raw.filteredSteering ?? 0) * steeringMaxRad);
+  // LMU reports steering as a fraction of the wheel's travel either side of
+  // centre; iRacing uses radians, positive to the left.
+  t.SteeringWheelAngle = num(
+    -(raw.filteredSteering ?? 0) * ((steeringRangeDeg * Math.PI) / 360)
+  );
+  // Force feedback as a signed fraction of full force, which is what
+  // iRacing's key carries; 1 or more is clipping. From the sim's generic
+  // block, so it reads with or without a car. Absent from an addon built
+  // before the export.
+  if (raw.ffbTorque !== undefined) {
+    t.SteeringWheelPctTorqueSign = num(raw.ffbTorque);
+  }
+  const frontWheelAngle = lmuFrontWheelAngleDeg(raw.wheelToe);
+  if (frontWheelAngle !== undefined) {
+    t.LmuFrontWheelAngle = num(frontWheelAngle);
+  }
   t.Throttle = num(raw.filteredThrottle);
   t.Brake = num(raw.filteredBrake);
   t.Clutch = num(
@@ -884,7 +906,11 @@ export function mapLmuTelemetry(
   t.YawNorth = num(0);
   t.Pitch = num(0);
   t.Roll = num(0);
-  t.SteeringWheelAngleMax = num(steeringMaxRad);
+  // Lock to lock, in radians, which is what iRacing's key holds: its MX-5
+  // Cup reads 17.28 (990 degrees) and its Ferrari 296 GT3 7.87 (451). This
+  // used to carry half the range, the most the wheel turns either way, which
+  // nothing read.
+  t.SteeringWheelAngleMax = num((steeringRangeDeg * Math.PI) / 180);
   if (raw.localAccel) {
     t.LatAccel = num(raw.localAccel[0]);
     t.LongAccel = num(raw.localAccel[2]);

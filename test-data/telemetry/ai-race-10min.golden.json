@@ -10366,9 +10366,9 @@
     },
     {
       "name": "driver-controls-state",
-      "schemaVersion": 1,
+      "schemaVersion": 2,
       "frameCount": 36000,
-      "rollingHash": "7071b8dfaf24514ec82a48bf9b0e2124a362aa201754dbbc910a65e9893b0859",
+      "rollingHash": "1d955a8742bd85d2ecc7125f35f79a0b79dc55c365dd7c56fdb421f2005c5752",
       "checkpoints": {
         "firstFrame": {
           "version": 1,
@@ -10383,6 +10383,9 @@
           "displayUnits": 1,
           "steeringWheelAngle": -0.04800163954496384,
           "brakeAbsActive": false,
+          "steeringRangeDeg": 393,
+          "ffb": 0,
+          "brakePressure": 0,
           "rpm": 2411.995361328125,
           "shiftGrindRpm": 0,
           "oilTemp": 79.14369201660156,
@@ -10402,6 +10405,9 @@
           "displayUnits": 1,
           "steeringWheelAngle": -0.0068572452291846275,
           "brakeAbsActive": false,
+          "steeringRangeDeg": 393,
+          "ffb": 0.02,
+          "brakePressure": 0,
           "rpm": 6217.0322265625,
           "shiftGrindRpm": 0,
           "oilTemp": 99.28093719482422,
