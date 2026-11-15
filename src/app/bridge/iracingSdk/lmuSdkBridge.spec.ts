@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import logger from '../../logger';
 import type { OverlayManager } from '../../overlayManager';
 import type { SessionLifecycle } from '../../sessionLifecycle';
@@ -35,11 +35,21 @@ const mapSessionSpy = vi.hoisted(() =>
 
 /**
  * The REST state the bridge would create for itself, held here so a spec can
- * bump its revision without any HTTP.
+ * bump its revision, or say where the player is, without any HTTP.
  */
 const restState = vi.hoisted(() => ({
-  data: { revision: 0, cells: {}, session: {} as Record<string, unknown> },
-  poller: { setActive: vi.fn(), invalidateOnce: vi.fn(), stop: vi.fn() },
+  data: {
+    revision: 0,
+    cells: {},
+    session: {} as Record<string, unknown>,
+    gameState: undefined as string | undefined,
+  },
+  poller: {
+    setActive: vi.fn(),
+    beginSession: vi.fn(),
+    retryGivenUp: vi.fn(),
+    stop: vi.fn(),
+  },
 }));
 
 /** Shared so the specs can observe how the bridge drives them. */
@@ -503,6 +513,99 @@ describe('publishLmuSDKEvents and REST-sourced session values', () => {
 
     await vi.waitFor(() =>
       expect(restState.poller.setActive).toHaveBeenCalledWith(false)
+    );
+    bridge.stop();
+  });
+});
+
+/**
+ * LMU stays open across sessions for hours, and the bridge is the only thing
+ * that knows where one ends and the next begins. The poller gives up on a path
+ * after three failures -- which is what the garage paths do in the menus --
+ * and asks again only when it is told to from here.
+ */
+describe('publishLmuSDKEvents and REST tasks across sessions', () => {
+  const gameStatesLogged = () =>
+    vi
+      .mocked(logger.info)
+      .mock.calls.map(([message]) => String(message))
+      .filter((message) => message.includes('Game state:'));
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    sdkState.running = true;
+    sdkState.readThrows = false;
+    sdkState.sessionEndEvents = 0;
+    restState.data.gameState = undefined;
+  });
+
+  afterEach(() => {
+    restState.data.gameState = undefined;
+  });
+
+  it('starts the REST tasks over when the session changes', async () => {
+    const { publishLmuSDKEvents } = await import('./lmuSdkBridge');
+    const bridge = await publishLmuSDKEvents(createOverlayManager());
+
+    // The first frame names a session where there was none.
+    await vi.waitFor(() =>
+      expect(restState.poller.beginSession).toHaveBeenCalledTimes(1)
+    );
+    // After the poller was started, which ignores it while LMU is away.
+    expect(restState.poller.setActive.mock.invocationCallOrder[0]).toBeLessThan(
+      restState.poller.beginSession.mock.invocationCallOrder[0]
+    );
+    // And only that frame: a session that carries on is not begun again.
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    expect(restState.poller.beginSession).toHaveBeenCalledTimes(1);
+
+    // The sim ends the session, and nothing else about it moves.
+    sdkState.sessionEndEvents = 1;
+
+    await vi.waitFor(() =>
+      expect(restState.poller.beginSession).toHaveBeenCalledTimes(2)
+    );
+    bridge.stop();
+  });
+
+  it('asks the tasks that gave up again when the player arrives in a session or gets into the car', async () => {
+    // In the menus when the app finds LMU, which is where the garage paths
+    // fail three times and are given up on.
+    restState.data.gameState = 'notInSession';
+    const { publishLmuSDKEvents } = await import('./lmuSdkBridge');
+    const bridge = await publishLmuSDKEvents(createOverlayManager());
+    await vi.waitFor(() => expect(gameStatesLogged()).toHaveLength(1));
+    expect(restState.poller.retryGivenUp).not.toHaveBeenCalled();
+
+    restState.data.gameState = 'monitor';
+    await vi.waitFor(() =>
+      expect(restState.poller.retryGivenUp).toHaveBeenCalledTimes(1)
+    );
+
+    // And once more from the car, in case the garage's paths came up after
+    // the session did and the first asking was spent too soon.
+    restState.data.gameState = 'driving';
+    await vi.waitFor(() =>
+      expect(restState.poller.retryGivenUp).toHaveBeenCalledTimes(2)
+    );
+
+    // A pause, and a trip back to the monitor, are neither: the paths that
+    // answered a moment ago have no reason to answer differently.
+    restState.data.gameState = 'paused';
+    await vi.waitFor(() => expect(gameStatesLogged()).toHaveLength(4));
+    restState.data.gameState = 'driving';
+    await vi.waitFor(() => expect(gameStatesLogged()).toHaveLength(5));
+    restState.data.gameState = 'monitor';
+    await vi.waitFor(() => expect(gameStatesLogged()).toHaveLength(6));
+    expect(restState.poller.retryGivenUp).toHaveBeenCalledTimes(2);
+
+    // GetGameState going quiet and coming back is the REST server itself
+    // having been away, which is when a task gives up.
+    restState.data.gameState = undefined;
+    await vi.waitFor(() => expect(gameStatesLogged()).toHaveLength(7));
+    restState.data.gameState = 'monitor';
+    await vi.waitFor(() =>
+      expect(restState.poller.retryGivenUp).toHaveBeenCalledTimes(3)
     );
     bridge.stop();
   });

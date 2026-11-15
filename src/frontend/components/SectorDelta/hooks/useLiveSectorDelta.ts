@@ -1,10 +1,10 @@
 import { useMemo } from 'react';
 import {
   useSectorTimingStore,
-  useSessionStore,
   useReferenceLapStore,
   useTrackStateSnapshot,
   useDriverCarIdx,
+  useGhostReferenceLap,
 } from '@irdashies/context';
 import { calculateReferenceDelta } from '@irdashies/domain';
 
@@ -16,7 +16,8 @@ import { calculateReferenceDelta } from '@irdashies/domain';
  * the reference, negative = ahead.
  *
  * Automatically selects the best available reference lap: prefers the player's
- * in-session personal best, falling back to the class-best (ghost) lap.
+ * in-session personal best, falling back to the ghost lap -- the reference
+ * of the player's class, or without one the player's own all-time lap.
  *
  * Returns null when no reference data is available or the current sector entry
  * is invalid (reset/teleport).
@@ -32,20 +33,17 @@ export const useLiveSectorDelta = (): number | null => {
   const sectorEntryValid = useSectorTimingStore((s) => s.sectorEntryValid);
   const currentSectorIdx = useSectorTimingStore((s) => s.currentSectorIdx);
   const sectors = useSectorTimingStore((s) => s.sectors);
-  const getReferenceLap = useReferenceLapStore((s) => s.getReferenceLap);
 
   const playerCarIdx = useDriverCarIdx();
-  const playerClassId = useSessionStore((s) => {
-    const carIdx = s.session?.DriverInfo?.DriverCarIdx;
-    const drivers = s.session?.DriverInfo?.Drivers;
-    return drivers?.find((d) => d.CarIdx === carIdx)?.CarClassID ?? null;
-  });
+  const sessionBestLap = useReferenceLapStore((s) =>
+    playerCarIdx != null ? (s.bestLaps.get(playerCarIdx) ?? null) : null
+  );
+  const ghostLap = useGhostReferenceLap();
 
   return useMemo(() => {
     if (!sectorEntryValid) return null;
-    if (playerCarIdx == null || playerClassId == null) return null;
 
-    const refLap = getReferenceLap(playerCarIdx, playerClassId, false);
+    const refLap = sessionBestLap ?? ghostLap;
 
     if (!refLap || refLap.finishTime < 0) return null;
 
@@ -60,9 +58,8 @@ export const useLiveSectorDelta = (): number | null => {
     return playerElapsed - ghostElapsed;
   }, [
     sectorEntryValid,
-    playerCarIdx,
-    playerClassId,
-    getReferenceLap,
+    sessionBestLap,
+    ghostLap,
     sectors,
     currentSectorIdx,
     lapDistPct,

@@ -23,6 +23,17 @@
  * Steering the distance by that counter was what made it jump at the line, or
  * cross it twice. So the counter plays no part in the position; it only seeds
  * the lap number published beside it (see `lap`).
+ *
+ * A scoring fraction of exactly 0 is not a position. LMU measures a car that
+ * has not crossed the line on this lap yet as a negative distance -- on the
+ * grid, rolling up to a start, between the timing line and scoring's own --
+ * and the addon clamps that to 0. So nothing is ever advanced from it. Where
+ * the estimate had followed the car to the line, the old lap carries on (see
+ * `heldAtLineSince`); otherwise the car stands still, at 0, until scoring
+ * gives it a place. Advanced by speed instead, a car anchored while rolling
+ * up to a start left 0 with the line still 145 m ahead, and the reference
+ * recorder began a lap there: a 92.9 s lap of which three seconds were the
+ * approach.
  */
 
 /**
@@ -31,7 +42,11 @@
  * deterministically in a test.
  */
 export interface LmuLapDistanceState {
-  /** Scoring fraction the estimate is advanced from; -1 when nothing is known. */
+  /**
+   * Scoring fraction the estimate is advanced from; -1 when nothing is known.
+   * Exactly 0 is scoring having no place for the car, and is not advanced
+   * from at all.
+   */
   syncedPct: number;
   /** `mElapsedTime` at that synchronisation. */
   syncedAt: number;
@@ -44,10 +59,11 @@ export interface LmuLapDistanceState {
    */
   lastPct: number;
   /**
-   * `mElapsedTime` when scoring dropped to exactly 0 while the estimate was
-   * still short of the line, or -1. That is scoring held at its own line
-   * rather than a position past it, so the old lap carries on until scoring
-   * moves, advanced frame by frame from `syncedPct`.
+   * `mElapsedTime` when scoring dropped to exactly 0 with the estimate at
+   * the line -- a little short of it, or already run over it -- or -1. That
+   * is scoring held at its own line rather than a position past it, so the
+   * old lap carries on until scoring moves, advanced frame by frame from
+   * `syncedPct`.
    */
   heldAtLineSince: number;
   /**
@@ -223,13 +239,11 @@ export function estimateLmuLapDistPct(
       // Scoring wrapped: the new lap. Exactly 0 just short of the line is
       // scoring held at its own line, not past it; the old lap carries on.
       // Taking that 0 jumped the car forward by the gap, then held it when
-      // the next update came back behind.
+      // the next update came back behind. An estimate that has already run
+      // over the line carries on the same way: that 0 is behind it, and
+      // taking it would stand the car still until scoring's next update.
       const shortOfLineM = (1 - state.lastPct) * trackLengthM;
-      if (
-        scoringPct === 0 &&
-        !ranOver &&
-        shortOfLineM <= LINE_GAP_MAX_PCT * trackLengthM
-      ) {
+      if (scoringPct === 0 && shortOfLineM <= LINE_GAP_MAX_PCT * trackLengthM) {
         // Carried on from where the estimate is now, and from here advanced
         // a frame at a time: scoring may hold for seconds, and one speed
         // applied to all of that would invent the distance.
@@ -276,6 +290,11 @@ export function estimateLmuLapDistPct(
     state.syncedAt = elapsedTime;
     if (state.lastPct >= 1) state.lastPct -= 1;
     else state.lastPct = 0;
+  } else if (!held && state.syncedPct === 0) {
+    // Scoring's 0 is the car short of the line, however far, not a place on
+    // the lap: there is nothing to advance from, so the car stands where it
+    // is until scoring gives it one. Speed says how fast it is coming, not
+    // how far it still has to come.
   } else if (
     !(dt >= 0) ||
     dt > MAX_INTEGRATION_SEC ||

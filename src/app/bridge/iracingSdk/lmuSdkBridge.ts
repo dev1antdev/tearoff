@@ -20,12 +20,25 @@ import {
 } from '../../lmu/sessionSignature';
 import { createRosterGate } from '../../lmu/rosterSettle';
 import { createLmuSessionIdentity } from '../../lmu/sessionIdentity';
+import {
+  createLmuSessionClockState,
+  resetLmuSessionClockState,
+} from '../../lmu/sessionClock';
+import {
+  createLmuLapStartState,
+  resetLmuLapStartState,
+} from '../../lmu/lapStartTiming';
 import { createLmuDataFreeze } from '../../lmu/dataFreeze';
 import {
   createLmuEnergyState,
   resetLmuEnergyState,
 } from '../../lmu/fuelEnergy';
-import { describeLmuGameState, type LmuGameState } from '../../lmu/gameState';
+import {
+  describeLmuGameState,
+  lmuInCar,
+  lmuInSession,
+  type LmuGameState,
+} from '../../lmu/gameState';
 import {
   createLmuNationalityWatch,
   NATIONALITY_JOIN_DELAY_MS,
@@ -308,6 +321,14 @@ export async function publishLmuSDKEvents(
   // reused, and a car's class says nothing about the next car to hold its
   // slot.
   const energyState = createLmuEnergyState();
+  // The session clock's memory. The clock has three sources under LMU and
+  // the best one goes away whenever the player leaves the car; this is what
+  // stops it stepping back when that happens, which every processor reads
+  // as a restarted session. See sessionClock.ts.
+  const sessionClockState = createLmuSessionClockState();
+  // When each car's lap began, so a lap the sim would not time -- a track
+  // limit takes the time away -- still has one. See lapStartTiming.ts.
+  const lapStartState = createLmuLapStartState();
 
   const telemetryCallbacks = new Set<(value: Telemetry) => void>();
   const sessionCallbacks = new Set<(value: Session) => void>();
@@ -402,6 +423,8 @@ export async function publishLmuSDKEvents(
           resetLmuLapDistanceState(lapDistanceState);
           resetLmuOpponentLapDistanceState(opponentLapDistanceState);
           resetLmuEnergyState(energyState);
+          resetLmuSessionClockState(sessionClockState);
+          resetLmuLapStartState(lapStartState);
           rosterGate.reset();
           sessionIdentity.reset();
           dataFreeze.reset();
@@ -447,9 +470,6 @@ export async function publishLmuSDKEvents(
           }
         }
         mapRecorder.reset(activeTrackName);
-        // Session settings and the forecast are fetched once per activation,
-        // and a new track means a new session.
-        restPoller.invalidateOnce();
         // A new event, so its grid's flags are asked for afresh.
         nationalityWatch.reset();
         resetLmuLapDistanceState(lapDistanceState);
@@ -501,7 +521,6 @@ export async function publishLmuSDKEvents(
         trackName: raw.trackName,
         session: raw.session,
         serverName: raw.serverName,
-        endET: raw.endET,
         currentET: raw.currentET,
         playerLaps:
           raw.playerHasVehicle && raw.playerVehicleIdx >= 0
@@ -519,10 +538,28 @@ export async function publishLmuSDKEvents(
       // the freeze watch only paces the loop.
       const gameState = restData.gameState;
       if (gameState !== lastGameState) {
+        const wasInSession =
+          lastGameState !== undefined && lmuInSession(lastGameState);
+        const wasInCar = lastGameState !== undefined && lmuInCar(lastGameState);
+        const isInSession = gameState !== undefined && lmuInSession(gameState);
+        const isInCar = gameState !== undefined && lmuInCar(gameState);
         lastGameState = gameState;
         logger.info(
           `[lmuSdkBridge] Game state: ${describeLmuGameState(gameState)}`
         );
+        // The garage and strategy paths fail in the menus and behind a
+        // loading screen, and three failures a second apart is all a REST
+        // task gets. The session change below hands the retries back, but it
+        // can come while the session is still loading and be spent on the
+        // same screen. So whatever gave up on the way in is asked once more
+        // when the sim says the player is in a session -- from the menus, or
+        // from a spell of GetGameState itself not answering -- and again as
+        // the player gets into the car: nothing says how soon after the
+        // first of those the garage's own paths come up, and by the second
+        // they have.
+        if ((isInSession && !wasInSession) || (isInCar && !wasInCar)) {
+          restPoller.retryGivenUp();
+        }
       }
       const frozen = dataFreeze.observe(
         { scoringUpdates: raw.scoringUpdates, currentET: raw.currentET },
@@ -542,13 +579,24 @@ export async function publishLmuSDKEvents(
       const sessionChange = sessionIdentity.lastChange();
       // The frame takes the new id at once; the snapshot has to as well, or
       // its SubSessionID keeps naming the session before. Its signature sees
-      // neither the epoch nor the server or length in the stamp, so an
-      // online practice that ends with the clock and grid standing still
-      // would never be rebuilt.
+      // neither the epoch nor the server in the stamp, so an online practice
+      // that ends with the clock and grid standing still would never be
+      // rebuilt.
       if (sessionChange) {
         lastSessionSignature = null;
         // A new session can put a different car in the same slot.
         resetLmuEnergyState(energyState);
+        // And its clock starts from wherever it starts: nothing is held
+        // over from the session before, nor any lap begun in it.
+        resetLmuSessionClockState(sessionClockState);
+        resetLmuLapStartState(lapStartState);
+        // And what REST last said is the old session's too: the refuel
+        // target, the pit estimate, the damage and the capacities describe
+        // the car that was in it. Forgotten and asked for afresh, the tasks
+        // that had given up included -- LMU stays open for hours across
+        // sessions, and nothing else would ever ask those again. A track
+        // change is always a session change, so it needs no call of its own.
+        restPoller.beginSession();
       }
       if (sessionChange && sessionChange !== 'stamp') {
         // 'event' is the sim's own StartSession/EndSession callback. The other
@@ -666,7 +714,9 @@ export async function publishLmuSDKEvents(
         frozen,
         penaltyChannels,
         gameState,
-        energyState
+        energyState,
+        sessionClockState,
+        lapStartState
       );
       lifecycle?._onTelemetry(telemetry);
       perfMetrics.markEnd('lifecycleTelemetry');

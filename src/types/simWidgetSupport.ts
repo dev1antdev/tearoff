@@ -62,8 +62,9 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   'minimap',
   'pitlanehelper',
   'relative',
-  // Timed over nominal thirds of the lap, not LMU's own sector lines: LMU
-  // publishes no boundary distances (see SplitTimeInfo in mapSession.ts).
+  // LMU's own sector times, which it publishes for the player. It gives no
+  // boundary distances, so where the sectors start is learned from where
+  // the car is when the sim moves it into the next one.
   'sectordelta',
   // Shift point from shiftPoints.ts for GT3 and LMP2, else 95% of the rev
   // limit. LMU publishes no shift point of its own.

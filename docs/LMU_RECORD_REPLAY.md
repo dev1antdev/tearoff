@@ -128,6 +128,61 @@ file in its place, which the replay specs detect and skip; fetch it later with:
 git lfs pull --include="test-data/telemetry/lmu-session.lmudt"
 ```
 
+## A tape in a spec
+
+`src/testing/lmuTape.ts` plays a tape through the session and telemetry
+mapping the way the LMU bridge does — one session identity, lap-distance and
+energy state for the whole run, a session rebuilt whenever its signature moves
+— and hands each frame to a callback:
+
+```ts
+await playLmuTape({
+  tapePath: LMU_CURATED_TAPE_PATH,
+  onFrame: ({ raw, telemetry, session, sessionTime }) => {
+    processor.onFrame(telemetry);
+  },
+});
+```
+
+`transformRaw` changes each raw snapshot before it is mapped, for the
+questions a recording cannot answer as it stands: the same cars as a practice
+session rather than a race, or a class put two laps behind the leader
+(`src/app/lmu/raceGap.tape.spec.ts`). Say so in the spec when a result rests
+on altered data. It runs without the REST answers, so the channels they feed
+are absent, as they are in a session where the API is not answering.
+
+Guard a tape spec with `describe.skipIf(!lmuTapeAvailable())`: the addon is
+Windows only and CI does not fetch the tape.
+
+## Fixtures for the renderer specs
+
+The renderer specs run in jsdom and cannot load the addon. They read a
+fixture instead: a few hundred kilobytes of JSON holding the mapped session
+and a run of mapped frames, cut from a tape with
+
+```powershell
+npm run lmu:replay:fixture -- --input test-data/telemetry/lmu-session.lmudt `
+  --output test-data/fixtures/lmu-race-laguna-seca.json `
+  --name "LMU race, Laguna Seca" --from 320 --to 380 --hz 0.5
+```
+
+`--from` and `--to` are session seconds, `--hz` the frames kept per second,
+`--keys A,B` keeps only those telemetry channels, and `--as-session 1` (or 5)
+replays the recording as a practice (or qualifying) session. The session a
+fixture carries is the one at the end of its window.
+
+`mountFixture` in `src/testing/renderWithFixture.tsx` runs a fixture through
+the real processors and mounts hooks against the result; see
+`src/frontend/domain/standings/useDriverStandings.lmu.spec.tsx`. Cut the
+fixtures again after a change to the LMU mapping that should show in them:
+they are the mapping's output at the time they were cut, not a live view of
+it.
+
+The tool goes through `tools/run-lmu-fixture.mjs`, which loads it with Vite's
+module runner. The other replay tools run under tsx, and this one cannot: the
+LMU mapping imports the types barrel, which finds the widget manifests with
+`import.meta.glob`.
+
 ## REST API values
 
 LMU serves things over a local REST API that its shared-memory block does not

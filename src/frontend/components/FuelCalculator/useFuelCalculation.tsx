@@ -7,6 +7,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFuelProjectionSnapshot } from '@irdashies/context';
+import { sessionLapLimit } from '@irdashies/shared';
 import { TIMED_SESSION_LAPS } from '@irdashies/types';
 import { useFuelStore, selectLapHistorySize } from './FuelStore';
 import type { FuelCalculation, FuelCalculatorSettings } from './types';
@@ -85,6 +86,8 @@ export function useFuelCalculation(
 
   // Subscribe to lap history size to trigger recalculation when laps are added
   const lapHistorySize = useFuelStore(selectLapHistorySize);
+  // The stored laps arrive from disk after the first calculation.
+  const storedLaps = useFuelStore((state) => state.storedLaps);
 
   // Ref to track the currently loaded context (Track + Car) to avoid redundant clears/loads
 
@@ -228,7 +231,11 @@ export function useFuelCalculation(
     ) {
       return;
     }
-    for (const completed of projection?.completedLaps ?? []) {
+    // Oldest first. Storage puts each lap it is given in front of the last,
+    // and its order is what says which stored laps are the recent ones: the
+    // processor's newest-first order would be stored back to front whenever
+    // more than one lap is waiting, as when the widget is shown in mid-race.
+    for (const completed of [...(projection?.completedLaps ?? [])].reverse()) {
       const key = `${projection.trackId}:${projection.carName}:${completed.sessionNum ?? -1}:${completed.lapNumber}:${completed.timestamp ?? 0}`;
       if (
         savedLapKeysRef.current.has(key) ||
@@ -410,11 +417,16 @@ export function useFuelCalculation(
       minLapUsage: 0,
       maxLapUsage: 0,
       lapsWithFuel: 0,
-      lapsRemaining: sessionLapsRemain ?? 0,
-      totalLaps:
-        typeof sessionLaps === 'string'
-          ? parseInt(sessionLaps, 10)
-          : sessionLaps || 0,
+      // Neither is a number of laps in a session run to the clock: the
+      // remaining count is a sentinel there, and the total has been
+      // 'unlimited', 32767 and 2147483647 by turns. Shown as they came, the
+      // widget opened a timed race on "L1 / 2147483647".
+      lapsRemaining:
+        sessionLapsRemain !== undefined &&
+        sessionLapsRemain < TIMED_SESSION_LAPS
+          ? sessionLapsRemain
+          : 0,
+      totalLaps: sessionLapLimit(sessionLaps),
       currentLap: lap ?? 0,
       fuelToFinish: 0,
       fuelToAdd: 0,
@@ -452,24 +464,20 @@ export function useFuelCalculation(
       return emptyCalculation;
     }
 
-    // Get lap history
+    // Get lap history: the laps just driven, as the processor recorded them,
+    // and behind them the stored ones, as storage keeps them. Both are
+    // newest first already. They are not sorted by timestamp, which is the
+    // session clock at the end of the lap and starts again with every
+    // session: by it a lap from late in an earlier, longer session was newer
+    // than the lap just finished, and "the last three laps" were old ones.
+    const liveLaps = projection?.completedLaps ?? [];
     const liveLapNumbers = new Set(
-      projection?.completedLaps.map((completed) => completed.lapNumber) ?? []
+      liveLaps.map((completed) => completed.lapNumber)
     );
-    const historicalLaps = useFuelStore
-      .getState()
-      .getLapHistory()
-      .filter(
-        (completed) =>
-          completed.isHistorical && !liveLapNumbers.has(completed.lapNumber)
-      );
     const lapHistory = [
-      ...(projection?.completedLaps ?? []),
-      ...historicalLaps,
-    ].sort(
-      (a, b) =>
-        (b.timestamp ?? 0) - (a.timestamp ?? 0) || b.lapNumber - a.lapNumber
-    );
+      ...liveLaps,
+      ...storedLaps.filter((stored) => !liveLapNumbers.has(stored.lapNumber)),
+    ];
 
     if (lapHistory.length < 1) {
       return emptyCalculation;
@@ -625,10 +633,7 @@ export function useFuelCalculation(
     // Separate variable for Refuel calculations (adds safety buffer)
     let lapsRemainingRefuel = (sessionLapsRemain || 0) + currentLapRemainingPct;
 
-    let totalLaps =
-      typeof sessionLaps === 'string'
-        ? parseInt(sessionLaps, 10)
-        : sessionLaps || 0;
+    let totalLaps = sessionLapLimit(sessionLaps);
 
     // Check for white/checkered flag
     if (sessionFlags !== undefined && isFinalLap(sessionFlags)) {
@@ -648,7 +653,7 @@ export function useFuelCalculation(
       totalLaps = Math.ceil(calculatedTotalRaceLaps);
       lapsRemaining = estimatedLapsRemaining;
       lapsRemainingRefuel = lapsRemaining;
-    } else if (sessionLapsRemain === TIMED_SESSION_LAPS) {
+    } else if (sessionLapsRemain >= TIMED_SESSION_LAPS) {
       // Use centralized useTotalRaceLaps hook for timed race calculations
       if (hasValidRaceEstimate && calculatedTotalRaceLaps > 0) {
         // Use the hook's result directly
@@ -761,7 +766,7 @@ export function useFuelCalculation(
       lapsRemaining < 0 ||
       lapsRemaining > MAX_REASONABLE_LAPS
     ) {
-      if (sessionLapsRemain !== TIMED_SESSION_LAPS) {
+      if (sessionLapsRemain < TIMED_SESSION_LAPS) {
         lapsRemaining = sessionLapsRemain;
         lapsRemainingRefuel = sessionLapsRemain;
       } else {
@@ -1056,6 +1061,7 @@ export function useFuelCalculation(
     estimatedLapsRemaining,
     hasValidRaceEstimate,
     lapHistorySize,
+    storedLaps,
     projection,
   ]);
 

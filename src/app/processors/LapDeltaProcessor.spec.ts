@@ -38,11 +38,17 @@ const session = (playerCarIdx = PLAYER, trackLength = '5 km') =>
     DriverInfo: { DriverCarIdx: playerCarIdx },
   }) as Session;
 
-const frame = (sessionTime: number, playerPct: number, sessionNum = 0) =>
+const frame = (
+  sessionTime: number,
+  playerPct: number,
+  sessionNum = 0,
+  playerOnPitRoad = false
+) =>
   ({
     SessionTime: { value: [sessionTime] },
     SessionNum: { value: [sessionNum] },
     CarIdxLapDistPct: { value: [0.5, playerPct, 0.25] },
+    CarIdxOnPitRoad: { value: [false, playerOnPitRoad, true] },
   }) as unknown as Telemetry;
 
 /** A reference source whose laps the test can swap. */
@@ -318,6 +324,49 @@ describe('LapDeltaProcessor', () => {
     expect(processor.snapshot().sessionBest.delta).toBeNull();
     // The reference is still there to be shown.
     expect(processor.snapshot().sessionBest.lapTime).toBe(100);
+  });
+
+  it('does not time the out-lap from a line crossed in the pit lane', () => {
+    // The pit lane runs past the line on most circuits. A clock started
+    // there measured the pit exit and a lap on cold tyres against a flying
+    // lap: tens of seconds, for a whole lap, after every stop.
+    const { processor } = start(steadyLap(100));
+    processor.onFrame(frame(999.98, 0.9998, 0, true));
+    processor.onFrame(frame(1000.02, 0.0002, 0, true));
+    processor.onFrame(frame(1004, 0.02, 0, true));
+    expect(processor.snapshot().sessionBest.delta).toBeNull();
+
+    // Out of the pit lane and round the lap: still nothing to compare.
+    drive(processor, 1010, 110, 0.03, 0.99);
+    expect(processor.snapshot().sessionBest.delta).toBeNull();
+
+    // The next line is the start of a lap, and it is timed.
+    crossLine(processor, 1120);
+    drive(processor, 1120, 100, 0.01, 0.5);
+    expect(processor.snapshot().sessionBest.delta).toBeCloseTo(0, 2);
+  });
+
+  it('stops timing a lap that ends in the pit lane', () => {
+    const { processor } = start(steadyLap(100));
+    crossLine(processor, 1000);
+    drive(processor, 1000, 100, 0.01, 0.9);
+    expect(processor.snapshot().sessionBest.delta).not.toBeNull();
+
+    // Into the pit entry: the limiter is not a slow sector.
+    processor.onFrame(frame(1091, 0.905, 0, true));
+    processor.onFrame(frame(1099, 0.93, 0, true));
+    expect(processor.snapshot().sessionBest.delta).toBeNull();
+  });
+
+  it('times a lap begun on the track after leaving the pits before the line', () => {
+    // A pit exit that rejoins before the line: the car crosses it on the
+    // track, and that lap is one to measure.
+    const { processor } = start(steadyLap(100));
+    processor.onFrame(frame(990, 0.95, 0, true));
+    processor.onFrame(frame(995, 0.97, 0, false));
+    crossLine(processor, 1000);
+    drive(processor, 1000, 100, 0.01, 0.3);
+    expect(processor.snapshot().sessionBest.delta).toBeCloseTo(0, 2);
   });
 
   it('keeps timing through a spin that rolls the car back a little', () => {

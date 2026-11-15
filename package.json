@@ -27,6 +27,7 @@
     "lmu:record": "build\\Release\\lmu_replay.exe record",
     "lmu:replay:app": "node tools/run-lmu-replay.mjs",
     "lmu:replay:curated": "node tools/run-lmu-replay.mjs --input test-data/telemetry/lmu-session.lmudt --loop",
+    "lmu:replay:fixture": "node tools/run-lmu-fixture.mjs",
     "test:replay:curated": "tsx tools/telemetry-replay/run-curated-validation.ts",
     "test:replay:curated:update": "npm run test:replay:curated -- --update",
     "package": "electron-forge package",

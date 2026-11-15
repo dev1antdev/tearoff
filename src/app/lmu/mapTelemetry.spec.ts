@@ -9,6 +9,8 @@ import { mapLmuSectorTimes, mapLmuTelemetry } from './mapTelemetry';
 import { fixture } from './rawFixture';
 import { createLmuEnergyState } from './fuelEnergy';
 import { createLmuLapDistanceState } from './lapDistance';
+import { createLmuSessionClockState } from './sessionClock';
+import { createLmuLapStartState } from './lapStartTiming';
 
 describe('mapLmuTelemetry', () => {
   it('maps session scalars', () => {
@@ -156,7 +158,12 @@ describe('mapLmuTelemetry', () => {
     const t = mapLmuTelemetry(fixture());
     expect(t.CarIdxPosition.value).toEqual([2, 1, 3]);
     expect(t.CarIdxLapDistPct.value).toEqual([0.4, 0.6, 0.2]);
-    expect(t.CarIdxLap.value).toEqual([2, 3, 1]);
+    // The lap each car is on, as iRacing counts it, beside the laps it has
+    // completed, which is what LMU counts.
+    expect(t.CarIdxLap.value).toEqual([3, 4, 2]);
+    expect(t.CarIdxLapCompleted.value).toEqual([2, 3, 1]);
+    expect(t.Lap.value[0]).toBe(4);
+    expect(t.LapCompleted.value[0]).toBe(3);
     expect(t.CarIdxClass.value).toEqual([0, 0, 1]);
     expect(t.CarIdxBestLapTime.value).toEqual([134.5, 132.8, 137.1]);
     expect(t.CarIdxEstTime.value).toEqual([50, 60, 20]);
@@ -614,15 +621,17 @@ describe('mapLmuTelemetry lap-distance reconstruction', () => {
       const wrapped = previousPct >= 0 && pct < previousPct - 0.5;
       if (wrapped) wraps += 1;
       if (previousLap >= 0) expect(lap !== previousLap).toBe(wrapped);
-      // The completed counts move with it, for the player's slots too.
-      expect(t.LapCompleted?.value[0]).toBe(lap);
+      // The completed counts move with it, for the player's slots too: one
+      // behind the lap being driven.
+      expect(t.LapCompleted?.value[0]).toBe(lap - 1);
       expect((t.CarIdxLap?.value as number[])[1]).toBe(lap);
-      expect((t.CarIdxLapCompleted?.value as number[])[1]).toBe(lap);
+      expect((t.CarIdxLapCompleted?.value as number[])[1]).toBe(lap - 1);
       previousPct = pct;
       previousLap = lap;
     }
     expect(wraps).toBe(1);
-    expect(previousLap).toBe(4);
+    // Four laps completed: on the fifth.
+    expect(previousLap).toBe(5);
   });
 
   it('never publishes a backward step within a lap', () => {
@@ -709,7 +718,8 @@ describe('mapLmuTelemetry absent-value sentinels', () => {
 
     expect((t.CarIdxBestLapTime?.value as number[])[1]).toBe(132.8);
     expect((t.CarIdxLastLapTime?.value as number[])[2]).toBe(138.9);
-    expect((t.CarIdxLap?.value as number[])[1]).toBe(3);
+    expect((t.CarIdxLapCompleted?.value as number[])[1]).toBe(3);
+    expect((t.CarIdxLap?.value as number[])[1]).toBe(4);
     expect((t.CarIdxClass?.value as number[])[2]).toBe(1);
     // Occupied cars keep a real class of 0 -- only the hole is sentinelled.
     expect((t.CarIdxClass?.value as number[])[1]).toBe(0);
@@ -717,9 +727,9 @@ describe('mapLmuTelemetry absent-value sentinels', () => {
 
   it('keeps a real zero lap count but not a zero lap time', () => {
     // The two fields need different rules. A car on its first lap genuinely
-    // has 0 completed laps, and createStandings normalises a falsy lap count
-    // to 1 -- turning that into -1 would corrupt the lap-gap arithmetic. A
-    // lap time of 0 is never real, so it is absent whoever wrote it.
+    // has 0 completed laps, and turning that into the -1 of an empty slot
+    // would corrupt the lap-gap arithmetic. A lap time of 0 is never real,
+    // so it is absent whoever wrote it.
     const raw = fixture();
     raw.vehTotalLaps = [0, 3, 1] as unknown as typeof raw.vehTotalLaps;
     raw.vehBestLapTime = [
@@ -728,8 +738,37 @@ describe('mapLmuTelemetry absent-value sentinels', () => {
 
     const t = mapLmuTelemetry(raw);
 
-    expect((t.CarIdxLap?.value as number[])[0]).toBe(0);
+    expect((t.CarIdxLapCompleted?.value as number[])[0]).toBe(0);
+    // And it is on its first lap.
+    expect((t.CarIdxLap?.value as number[])[0]).toBe(1);
     expect((t.CarIdxBestLapTime?.value as number[])[0]).toBe(-1);
+  });
+
+  it('keeps a car short of the line level with one just over it', () => {
+    // A rolling start: LMU holds the lap fraction at exactly 0 until a car
+    // reaches the line. Lap plus fraction is how the standings and the
+    // relative tell who is ahead, so that car is on lap one too -- counted
+    // as on no lap, it was a whole lap behind the car in front of it.
+    const raw = fixture();
+    raw.vehTotalLaps = [0, 0, 0] as unknown as typeof raw.vehTotalLaps;
+    raw.vehLapDistPct = new Float64Array([0, 0, 0.004]);
+
+    const t = mapLmuTelemetry(raw);
+
+    expect(t.CarIdxLap?.value).toEqual([1, 1, 1]);
+    expect(t.CarIdxLapCompleted?.value).toEqual([0, 0, 0]);
+    const laps = t.CarIdxLap?.value as number[];
+    const pcts = t.CarIdxLapDistPct?.value as number[];
+    expect(laps[2] + pcts[2] - (laps[0] + pcts[0])).toBeCloseTo(0.004, 9);
+    // The player is the car in slot 1.
+    expect(t.Lap?.value[0]).toBe(1);
+    expect(t.LapCompleted?.value[0]).toBe(0);
+  });
+
+  it('keeps an empty slot off every lap', () => {
+    const t = mapLmuTelemetry(withHole());
+    expect((t.CarIdxLap?.value as number[])[0]).toBe(-1);
+    expect((t.CarIdxLapCompleted?.value as number[])[0]).toBe(-1);
   });
 
   it('reports the player as absent when there is no player car', () => {
@@ -1239,5 +1278,163 @@ describe('mapLmuTelemetry spectator focus', () => {
     const spectating = { ...fixture(), playerHasVehicle: false };
     expect(camCarIdx(2, spectating as never)).toBe(2);
     expect(camCarIdx(undefined, spectating as never)).toBe(-1);
+  });
+});
+
+describe('the session clock, the length of a race and the pit limiter', () => {
+  const withClock = (
+    raw: LmuRawTelemetry,
+    clockState: ReturnType<typeof createLmuSessionClockState>
+  ) =>
+    mapLmuTelemetry(
+      raw,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      clockState
+    );
+  const timeOf = (frame: ReturnType<typeof mapLmuTelemetry>) =>
+    frame.SessionTime?.value?.[0] as unknown as number;
+
+  it('does not run the clock backwards when the player leaves the car', () => {
+    // In the car the clock is the player's own, a little ahead of scoring's.
+    // Without a car there is only scoring's, and stepping back to it is what
+    // made every trip to the monitor look like a restarted session.
+    const clockState = createLmuSessionClockState();
+    const inCar = withClock(
+      { ...fixture(), elapsedTime: 1250.653, currentET: 1250.5 },
+      clockState
+    );
+    expect(timeOf(inCar)).toBe(1250.653);
+
+    const atMonitor = withClock(
+      {
+        ...fixture(),
+        playerHasVehicle: false,
+        elapsedTime: undefined,
+        currentET: 1250.5,
+      },
+      clockState
+    );
+    expect(timeOf(atMonitor)).toBe(1250.653);
+    expect(atMonitor.SessionTick?.value?.[0]).toBe(1250.653);
+
+    const later = withClock(
+      {
+        ...fixture(),
+        playerHasVehicle: false,
+        elapsedTime: undefined,
+        currentET: 1250.9,
+      },
+      clockState
+    );
+    expect(timeOf(later)).toBe(1250.9);
+  });
+
+  it('keeps to the snapshot’s own clock with no memory to hold it by', () => {
+    const frame = mapLmuTelemetry({
+      ...fixture(),
+      playerHasVehicle: false,
+      elapsedTime: undefined,
+      currentET: 1250.5,
+    });
+    expect(timeOf(frame)).toBe(1250.5);
+  });
+
+  it('measures a race from its green flag, not from the grid', () => {
+    // The session clock starts on the grid. The race here goes green at
+    // 135 s and ends at 1035: fifteen minutes, not seventeen and a quarter.
+    const clockState = createLmuSessionClockState();
+    const race = { ...fixture(), session: 10, endET: 1035 };
+    const total = (gamePhase: number, elapsedTime: number) =>
+      withClock(
+        { ...race, gamePhase, elapsedTime, currentET: elapsedTime },
+        clockState
+      ).SessionTimeTotal?.value?.[0];
+
+    expect(total(4, 120)).toBe(1035);
+    expect(total(5, 135)).toBe(900);
+    expect(total(5, 600)).toBe(900);
+  });
+
+  it('gives a practice session its end time for a length', () => {
+    const clockState = createLmuSessionClockState();
+    const frame = withClock(
+      { ...fixture(), session: 1, endET: 3600 },
+      clockState
+    );
+    expect(frame.SessionTimeTotal?.value?.[0]).toBe(3600);
+  });
+
+  it('reports the pit limiter where the pit lane helper looks for it', () => {
+    const off = mapLmuTelemetry({ ...fixture(), speedLimiter: 0 });
+    const on = mapLmuTelemetry({ ...fixture(), speedLimiter: 1 });
+    expect(off.EngineWarnings?.value?.[0]).toBe(0);
+    // EngineWarnings.PitSpeedLimiter.
+    expect(on.EngineWarnings?.value?.[0]).toBe(0x10);
+  });
+});
+
+describe('the last lap of a car whose lap did not count', () => {
+  const withLapStarts = (
+    raw: LmuRawTelemetry,
+    lapStartState: ReturnType<typeof createLmuLapStartState>
+  ) =>
+    mapLmuTelemetry(
+      raw,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      lapStartState
+    );
+
+  it('is timed from the lap’s start to the next one’s', () => {
+    // The player, in slot 1, cuts the track: the sim gives the lap no time.
+    // It still took 93.4 s, and that is the last lap in the standings and in
+    // the pace of the laps before.
+    const lapStartState = createLmuLapStartState();
+    const raw = fixture();
+    withLapStarts(
+      { ...raw, vehLapStartET: new Float64Array([1100, 1101, 1102]) },
+      lapStartState
+    );
+    const after = withLapStarts(
+      {
+        ...raw,
+        vehLapStartET: new Float64Array([1100, 1194.4, 1102]),
+        vehLastLapTime: new Float64Array([133.4, -1, 138.9]),
+      },
+      lapStartState
+    );
+
+    const lastLaps = after.CarIdxLastLapTime?.value as number[];
+    expect(lastLaps[1]).toBeCloseTo(93.4, 9);
+    expect(after.LapLastLapTime?.value[0]).toBeCloseTo(93.4, 9);
+    // A lap the sim did time keeps the sim's figure.
+    expect(lastLaps[0]).toBe(133.4);
+    expect(lastLaps[2]).toBe(138.9);
+  });
+
+  it('is left without a time where there is nothing to measure it by', () => {
+    const raw = {
+      ...fixture(),
+      vehLastLapTime: new Float64Array([133.4, -1, 0]),
+    };
+    expect(mapLmuTelemetry(raw).CarIdxLastLapTime?.value).toEqual([
+      133.4, -1, -1,
+    ]);
+    const first = withLapStarts(raw, createLmuLapStartState());
+    expect(first.CarIdxLastLapTime?.value).toEqual([133.4, -1, -1]);
   });
 });

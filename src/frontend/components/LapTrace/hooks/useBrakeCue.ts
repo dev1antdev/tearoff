@@ -4,7 +4,11 @@ import type {
   LapTraceColors,
   LapTraceSound,
 } from '@irdashies/types';
-import { getChannelSnapshotStore, useLapTraceStore } from '@irdashies/context';
+import {
+  getChannelSnapshotStore,
+  useLapTraceStore,
+  useOverlayHidden,
+} from '@irdashies/context';
 import {
   playBrakeCue,
   primeBrakeCueAudio,
@@ -129,6 +133,14 @@ export const useBrakeCue = (
   // Asks the stepping effect for a frame. The subscription below lives in an
   // effect of its own, so a settings change does not resubscribe it.
   const requestStep = useRef<() => void>(() => undefined);
+  // Read inside the draw loop. A change of it asks for a draw itself: a
+  // pause hides the overlay and stops the telemetry that would bring one.
+  const isOverlayHidden = useOverlayHidden();
+  const overlayHidden = useRef(isOverlayHidden);
+  overlayHidden.current = isOverlayHidden;
+  useEffect(() => {
+    requestStep.current();
+  }, [isOverlayHidden]);
 
   useEffect(() => {
     if (carDistanceMOverride !== undefined) return;
@@ -204,38 +216,45 @@ export const useBrakeCue = (
           !!referenceLap,
       });
 
-      if (out.fire && playAudio) playBrakeCue(out.fire, volume, cues);
+      // A hidden overlay is silent and shows nothing. The widget is still
+      // mounted while it is, and the strip sets its own visibility, which
+      // the overlay's does not reach.
+      const hidden = overlayHidden.current;
+      if (out.fire && playAudio && !hidden) {
+        playBrakeCue(out.fire, volume, cues);
+      }
 
       if (!showBars) return;
 
-      if (out.bars !== lastBars || out.tone !== lastTone) {
+      const bars = hidden ? 0 : out.bars;
+      if (bars !== lastBars || out.tone !== lastTone) {
         const strip = refs.strip.current;
         // visibility, not display: the strip must keep its footprint so the
         // plot beside/above/below it does not resize every time a braking
         // zone starts or ends.
         if (strip) {
-          strip.style.visibility = out.bars > 0 ? 'visible' : 'hidden';
+          strip.style.visibility = bars > 0 ? 'visible' : 'hidden';
         }
 
         if (horizontal) {
           const fill = refs.fill.current;
-          if (fill && out.bars > 0) {
+          if (fill && bars > 0) {
             fill.style.backgroundColor = brakeCueColor(out.tone, colors);
           }
         } else {
-          const bars = refs.bars.current;
-          if (bars && out.bars > 0) {
+          const barEls = refs.bars.current;
+          if (barEls && bars > 0) {
             const lit = brakeCueColor(out.tone, colors);
             for (let i = 0; i < BRAKE_CUE_BAR_COUNT; i++) {
-              const el = bars[i];
+              const el = barEls[i];
               if (!el) continue;
-              el.style.backgroundColor = isBrakeCueBarLit(i, out.bars, lastBar)
+              el.style.backgroundColor = isBrakeCueBarLit(i, bars, lastBar)
                 ? lit
                 : BRAKE_CUE_UNLIT_COLOR;
             }
           }
         }
-        lastBars = out.bars;
+        lastBars = bars;
         lastTone = out.tone;
       }
 
@@ -246,7 +265,7 @@ export const useBrakeCue = (
       if (horizontal) {
         const fill = refs.fill.current;
         if (fill) {
-          const widthPct = out.bars > 0 ? Math.round(out.progress * 100) : 0;
+          const widthPct = bars > 0 ? Math.round(out.progress * 100) : 0;
           const width = `${widthPct}%`;
           if (width !== lastFillWidth) {
             fill.style.width = width;

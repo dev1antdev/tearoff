@@ -8,6 +8,7 @@ import type {
 } from '@irdashies/types';
 import {
   FuelProjectionEngine,
+  sessionLapLimit,
   type FuelEngineCommand,
   type FuelEngineFrame,
 } from '@irdashies/shared';
@@ -16,6 +17,23 @@ import type { TelemetryProcessor } from './TelemetryProcessor';
 const MAX_LAP_HISTORY = 50;
 const CLASS_PACE_HISTORY = 5;
 const CLASS_PACE_OUTLIER_SECONDS = 2;
+/**
+ * How far a timed race's projected finish has to fall short of a lap before
+ * the race is called that lap shorter, as a share of the laps still to run.
+ * The projection rests on a pace that is only an estimate, and one that
+ * lands near a whole lap tips over it and back with every new lap time, a
+ * lap of fuel each way. A pace out by this much is taken to be possible, so
+ * a lap is given up only when the finish falls short of it by more.
+ */
+const RACE_DISTANCE_PACE_DOUBT = 0.02;
+/** The most of a lap that doubt holds on to, however long the race. */
+const RACE_DISTANCE_MAX_HOLD_LAPS = 0.25;
+/**
+ * Taken off a projected finish before it is rounded up. The player leading
+ * the race finishes on exactly the leader's lap, and the rounding of the
+ * sums that say so must not be read as the start of another.
+ */
+const FINISH_ROUNDING_LAPS = 1e-9;
 
 /** A full virtual energy budget, in the percent it is counted in. */
 const VIRTUAL_ENERGY_CAPACITY = 100;
@@ -89,6 +107,28 @@ const lapStarted = (lap: number, completed: unknown): number =>
   typeof completed === 'number' && Number.isFinite(completed)
     ? Math.max(lap, completed + 1)
     : lap;
+
+/** The track a session is on, which is what its laps are stored under. */
+const trackOf = (session: Session | undefined): string | number | undefined =>
+  session?.WeekendInfo?.TrackName ?? session?.WeekendInfo?.TrackID;
+
+/**
+ * The lap a projected finish lands on, without giving up the lap it was on
+ * before for less than `hold` of a lap.
+ *
+ * One way only: a projection that rises is followed at once, so the answer
+ * is never fewer laps than the sums say. Only the step down waits, until
+ * the finish is short of the held lap by more than the doubt in it.
+ */
+const settleFinishLap = (
+  projected: number,
+  held: number | undefined,
+  hold: number
+): number => {
+  const lap = Math.ceil(projected - FINISH_ROUNDING_LAPS);
+  if (held === undefined || lap >= held) return lap;
+  return projected < held - 1 - hold ? lap : held;
+};
 
 /**
  * The player's virtual energy as a fraction, or undefined when their car runs
@@ -171,6 +211,19 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
    */
   private carModel: string | undefined;
   /**
+   * The track the laps in hand were driven on. Le Mans Ultimate stays
+   * connected from one event to the next, so nothing else says they belong
+   * to another track -- and the renderer saves them under whichever track
+   * the snapshot names.
+   */
+  private track: string | number | undefined;
+  /**
+   * The laps the leader and the player were last projected to finish a
+   * timed race on, which the next projection is settled against.
+   */
+  private leaderFinishLap: number | undefined;
+  private playerFinishLap: number | undefined;
+  /**
    * The tank of an energy car, counted by an engine of its own so its laps
    * are judged by the same rules as the energy's. Never published as laps,
    * never stored: only its average reaches the snapshot.
@@ -197,12 +250,25 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
       (driver) => driver.CarIdx === driverInfo.DriverCarIdx
     );
     const carPath = player?.CarPath;
-    if (carPath !== undefined && carPath !== this.carPath) {
-      // A different car: its laps are not this one's, nor is its budget.
-      if (this.carPath !== undefined) this.reset();
+    const carChanged = carPath !== undefined && carPath !== this.carPath;
+    // A session that does not name its track says nothing about it.
+    const track = trackOf(session);
+    const trackChanged =
+      track !== undefined && track !== '' && track !== this.track;
+    // A different car or a different track: the laps in hand are not this
+    // one's, nor is the budget. The first of either to be named is not a
+    // change.
+    if (
+      (carChanged && this.carPath !== undefined) ||
+      (trackChanged && this.track !== undefined)
+    ) {
+      this.reset();
+    }
+    if (carChanged) {
       this.carPath = carPath;
       this.carModel = undefined;
     }
+    if (trackChanged) this.track = track;
     if (player?.CarModel) this.carModel = player.CarModel;
   }
 
@@ -330,9 +396,7 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
       isFixedLapRace: raceProjection.isFixedLapRace,
       sessionType: sessionInfo?.SessionType,
       isOnTrack: booleanValue(frame, 'IsOnTrack'),
-      trackId:
-        this.session?.WeekendInfo?.TrackName ??
-        this.session?.WeekendInfo?.TrackID,
+      trackId: trackOf(this.session),
       carName:
         this.carKey !== undefined && onEnergy
           ? `${this.carKey}${VIRTUAL_ENERGY_KEY_SUFFIX}`
@@ -361,6 +425,7 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
     this.session = undefined;
     this.carPath = undefined;
     this.carModel = undefined;
+    this.track = undefined;
     this.aggregationEnabled = false;
   }
 
@@ -429,6 +494,8 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
     this.lastCommands = [];
     this.classLapTimes.clear();
     this.lastLapTimesByCarIdx = [];
+    this.leaderFinishLap = undefined;
+    this.playerFinishLap = undefined;
     if (!preserveCompletedLaps) {
       this.laps.length = 0;
       this.tankLaps.length = 0;
@@ -530,7 +597,10 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
       (playerClassEstimate && playerClassEstimate > 1
         ? playerClassEstimate
         : (bestLapTimes[playerCarIdx] ?? 0));
-    const configuredLaps = Number.parseInt(sessionLaps ?? '0', 10) || 0;
+    // 0 for a race run to the clock, however the session says so. Le Mans
+    // Ultimate has said 2147483647, and read as a lap count that was the
+    // length of the race from the moment its clock ran out.
+    const configuredLaps = sessionLapLimit(sessionLaps);
 
     if (value(frame, 'SessionState') >= 5) {
       return {
@@ -541,6 +611,10 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
       };
     }
     if (isFixedLapRace) {
+      // Neither a lap limit nor a clock to project from: a timed race whose
+      // time is up, with the leader still to reach the line. There is no
+      // distance to give, and the renderer counts down the lap under way.
+      if (configuredLaps === 0) return emptyProjection;
       let totalRaceLaps = configuredLaps;
       const leaderLap = carLaps[leaderCarIdx] ?? 0;
       const leaderDistance = lapDistances[leaderCarIdx] ?? 0;
@@ -569,12 +643,33 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
     const playerProgress = Math.max(0, playerLap - 1) + playerDistance;
     const leaderProgressAtTimeLimit =
       leaderProgress + timeRemaining / leaderLapTime;
-    const leaderFinishProgress = Math.ceil(leaderProgressAtTimeLimit);
+    // The doubt in the pace is a share of the laps it is applied to, so it
+    // is most of a lap in a long race and next to nothing in the last laps,
+    // where the finish is no longer in doubt and is given as projected.
+    const hold = Math.min(
+      RACE_DISTANCE_MAX_HOLD_LAPS,
+      (RACE_DISTANCE_PACE_DOUBT * timeRemaining) / leaderLapTime
+    );
+    // Nothing is held from before the start. A car on the grid or on the
+    // parade lap is on lap 0 with its place on the track counted as distance
+    // covered, so the projection made there runs a lap long until the line,
+    // and that lap must go when the car crosses it.
+    const underWay =
+      value(frame, 'SessionState') === 4 && leaderLap >= 1 && playerLap >= 1;
+    const leaderFinishProgress = settleFinishLap(
+      leaderProgressAtTimeLimit,
+      underWay ? this.leaderFinishLap : undefined,
+      hold
+    );
     const timeUntilLeaderFinishes =
       (leaderFinishProgress - leaderProgress) * leaderLapTime;
-    let playerFinishProgress = Math.ceil(
-      playerProgress + timeUntilLeaderFinishes / playerLapTime
+    let playerFinishProgress = settleFinishLap(
+      playerProgress + timeUntilLeaderFinishes / playerLapTime,
+      underWay ? this.playerFinishLap : undefined,
+      hold
     );
+    this.leaderFinishLap = underWay ? leaderFinishProgress : undefined;
+    this.playerFinishLap = underWay ? playerFinishProgress : undefined;
     if (configuredLaps > 0) {
       playerFinishProgress = Math.min(playerFinishProgress, configuredLaps);
     }
@@ -600,6 +695,20 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
         lapTime < 10 ||
         lapTime === previous ||
         classPositions[carIdx] !== 1
+      ) {
+        return;
+      }
+      // The lap from the start is not the class's pace. It begins at a
+      // standstill or in the formation, and Le Mans Ultimate times it from
+      // the green flag, which the back of the grid is shown well short of
+      // the line: on the recorded race it ran 5 % over for the leader and
+      // 9 and 10 % over for the two classes behind, and the race length
+      // moved by a lap as each came in. A time that arrives with the car on
+      // its second lap is that lap.
+      const lap = frame.CarIdxLap?.value?.[carIdx] as unknown;
+      if (
+        typeof lap === 'number' &&
+        lapStarted(lap, frame.CarIdxLapCompleted?.value?.[carIdx]) <= 2
       ) {
         return;
       }

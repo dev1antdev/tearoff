@@ -84,7 +84,7 @@ const makeTransport = (
  *
  * Not enough on its own to start the first request: activation schedules it
  * with setTimeout(0), so a timer tick is needed too -- hence `advance(0)` after
- * setActive/invalidateOnce rather than a bare settle.
+ * setActive/beginSession rather than a bare settle.
  */
 const settle = async () => {
   await Promise.resolve();
@@ -213,7 +213,7 @@ describe('createLmuRestPoller', () => {
     expect(calls).toHaveLength(backedOff + 2);
   });
 
-  it('runs a one-shot task exactly once per activation', async () => {
+  it('runs a one-shot task exactly once per session', async () => {
     const data = createLmuRestData();
     const { transport, calls } = makeTransport(() => ok('{"scale":6}'));
     const poller = createLmuRestPoller({
@@ -262,27 +262,6 @@ describe('createLmuRestPoller', () => {
     expect(sessionData.revision).toBe(1);
   });
 
-  it('re-runs one-shot tasks on invalidateOnce, leaving repeats alone', async () => {
-    const { transport, calls } = makeTransport((path) =>
-      path === '/rest/sessions' ? ok('{"scale":6}') : ok('{"total":30}')
-    );
-    const poller = createLmuRestPoller({
-      data: createLmuRestData(),
-      transport,
-      tasks: [sessionTask, repeatTask],
-    });
-
-    poller.setActive(true);
-    await advance(0);
-    const before = calls.filter((p) => p === '/rest/sessions').length;
-    expect(before).toBe(1);
-
-    poller.invalidateOnce();
-    await advance(0);
-
-    expect(calls.filter((p) => p === '/rest/sessions')).toHaveLength(2);
-  });
-
   it('retries a failing task, then gives up and logs once', async () => {
     const logger = { info: vi.fn(), warn: vi.fn() };
     // Timeout rather than refused: a refusal on a first request means the whole
@@ -308,6 +287,76 @@ describe('createLmuRestPoller', () => {
     // Latched off: no further requests however long we wait.
     await advance(60_000);
     expect(calls).toHaveLength(afterGivingUp);
+  });
+
+  it('keeps asking a path that has answered, and only asks less often', async () => {
+    // The refuel target and the pit estimate, mid-stint: three bad requests
+    // used to lose them until the next session. A path that has answered is
+    // there, so it is asked again, backed off, until it answers.
+    const logger = { info: vi.fn(), warn: vi.fn() };
+    let failing = false;
+    let total = 30;
+    const { transport, calls } = makeTransport(() =>
+      failing ? fail('timeout') : ok(JSON.stringify({ total: (total += 1) }))
+    );
+    const data = createLmuRestData();
+    const poller = createLmuRestPoller({
+      data,
+      transport,
+      logger,
+      tasks: [repeatTask],
+    });
+
+    poller.setActive(true);
+    await advance(0);
+    expect(data.cells.pitStopTime).toBeDefined();
+
+    failing = true;
+    const before = calls.length;
+    await advance(10 * 60_000);
+    const during = calls.length - before;
+    // Never given up on, and never hammered: within ten minutes it is down
+    // to one request per ceiling.
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(during).toBeGreaterThan(REST_RETRY_LIMIT);
+    expect(during).toBeLessThan((10 * 60_000) / REST_MAX_INTERVAL_MS + 12);
+    // What it last said stands through the gap.
+    expect(data.cells.pitStopTime).toBeDefined();
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('is not answering (timeout)')
+    );
+
+    failing = false;
+    await advance(REST_MAX_INTERVAL_MS);
+    expect(logger.info).toHaveBeenCalledWith(
+      '[lmuRest] /rest/strategy/pitstop-estimate is answering'
+    );
+  });
+
+  it('still gives up on a path that stops answering in a new session', async () => {
+    // Answered last session, never in this one: the menus, or a build
+    // without it. A session's first three failures are still the limit.
+    const logger = { info: vi.fn(), warn: vi.fn() };
+    let failing = false;
+    const { transport, calls } = makeTransport(() =>
+      failing ? fail('timeout') : ok('{"total":30}')
+    );
+    const poller = createLmuRestPoller({
+      data: createLmuRestData(),
+      transport,
+      logger,
+      tasks: [repeatTask],
+    });
+    poller.setActive(true);
+    await advance(0);
+
+    failing = true;
+    poller.beginSession();
+    const before = calls.length;
+    await advance(0);
+    await advance(60_000);
+    expect(calls.length - before).toBe(REST_RETRY_LIMIT);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
   });
 
   it('logs what an output reports, once per changed response', async () => {
@@ -1392,5 +1441,411 @@ describe('createLmuRestPoller and a failure that is an answer', () => {
       '[lmuRest] Unrecognised GetGameState answer that is not JSON; ' +
         'reading in-car and in-session from shared memory'
     );
+  });
+});
+
+const HOUR_MS = 3_600_000;
+
+/**
+ * LMU stays open across sessions for hours, so the activation is not the
+ * session: the bridge says when one begins and when the player arrives in it.
+ */
+describe('createLmuRestPoller across sessions', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    parseSpy.mockClear();
+    applySpy.mockClear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const estimates = (calls: string[]) =>
+    calls.filter((path) => path === repeatTask.path);
+  const sessions = (calls: string[]) =>
+    calls.filter((path) => path === sessionTask.path);
+
+  it('asks a path that gave up in the menus again when a session begins', async () => {
+    // The bug this exists for. The pit-stop estimate fails while the player
+    // is in the menus, three failures latched it off, and the latch held
+    // until LMU closed -- so the practice, the qualifying and the eight-hour
+    // race that followed never saw an estimate.
+    const logger = { info: vi.fn(), warn: vi.fn() };
+    const data = createLmuRestData();
+    let inSession = false;
+    const { transport, calls } = makeTransport(() =>
+      inSession ? ok('{"total":30}') : fail('status')
+    );
+    const poller = createLmuRestPoller({
+      data,
+      transport,
+      logger,
+      tasks: [repeatTask],
+    });
+
+    poller.setActive(true);
+    await advance(HOUR_MS);
+    expect(calls).toHaveLength(REST_RETRY_LIMIT);
+    expect(logger.warn).toHaveBeenCalledWith(
+      '[lmuRest] Giving up on /rest/strategy/pitstop-estimate after 3 failures (status); ' +
+        'asking again when a session begins'
+    );
+
+    inSession = true;
+    poller.beginSession();
+    await advance(0);
+
+    expect(calls).toHaveLength(REST_RETRY_LIMIT + 1);
+    expect(data.cells.pitStopTime?.value[0]).toBe(30);
+    // So the log says it came back, not only that it went.
+    expect(logger.info).toHaveBeenCalledWith(
+      '[lmuRest] /rest/strategy/pitstop-estimate is answering'
+    );
+
+    // And it is polling again, not answered once.
+    await advance(BASE_MS);
+    expect(calls).toHaveLength(REST_RETRY_LIMIT + 2);
+  });
+
+  it('asks it again when the player arrives in a session, and touches nothing else', async () => {
+    // A session change can come while the session is still loading, and the
+    // retries it hands back are then spent on the same loading screen. The
+    // player arriving is the second chance -- and only that: the session may
+    // be the one the values on screen already describe.
+    const data = createLmuRestData();
+    let loading = true;
+    const { transport, calls } = makeTransport((path) => {
+      if (path === sessionTask.path) return ok('{"scale":6}');
+      return loading ? fail('timeout') : ok('{"total":30}');
+    });
+    const poller = createLmuRestPoller({
+      data,
+      transport,
+      tasks: [repeatTask, sessionTask],
+    });
+
+    poller.setActive(true);
+    await advance(HOUR_MS);
+    expect(estimates(calls)).toHaveLength(REST_RETRY_LIMIT);
+    const revision = data.revision;
+
+    loading = false;
+    poller.retryGivenUp();
+    await advance(0);
+
+    expect(estimates(calls)).toHaveLength(REST_RETRY_LIMIT + 1);
+    expect(data.cells.pitStopTime?.value[0]).toBe(30);
+    // The task that had not given up is not asked again, and what it said is
+    // still there.
+    expect(sessions(calls)).toHaveLength(1);
+    expect(data.session.timeScale).toBe(6);
+    expect(data.revision).toBe(revision);
+  });
+
+  it('still gives up for good inside one session on a path that keeps failing', async () => {
+    // What giving up is for: an endpoint this build of LMU does not have. A
+    // new session, or the player arriving in one, buys it three more requests
+    // -- not a poll that never stops.
+    const logger = { info: vi.fn(), warn: vi.fn() };
+    const { transport, calls } = makeTransport(() => fail('status'));
+    const poller = createLmuRestPoller({
+      data: createLmuRestData(),
+      transport,
+      logger,
+      tasks: [repeatTask],
+    });
+
+    poller.setActive(true);
+    await advance(HOUR_MS);
+    expect(calls).toHaveLength(REST_RETRY_LIMIT);
+
+    poller.beginSession();
+    await advance(8 * HOUR_MS);
+    expect(calls).toHaveLength(REST_RETRY_LIMIT * 2);
+
+    poller.retryGivenUp();
+    await advance(8 * HOUR_MS);
+    expect(calls).toHaveLength(REST_RETRY_LIMIT * 3);
+
+    expect(logger.warn).toHaveBeenCalledTimes(3);
+    expect(logger.info).not.toHaveBeenCalled();
+  });
+
+  it('asks nothing of anyone when no task has given up', async () => {
+    const data = createLmuRestData();
+    const { transport, calls } = makeTransport(() => ok('{"total":30}'));
+    const poller = createLmuRestPoller({
+      data,
+      transport,
+      tasks: [repeatTask],
+    });
+
+    poller.setActive(true);
+    await advance(0);
+    expect(calls).toHaveLength(1);
+
+    poller.retryGivenUp();
+    await advance(BASE_MS - 1);
+
+    // Not due until its own interval, and what it said is untouched.
+    expect(calls).toHaveLength(1);
+    expect(data.cells.pitStopTime?.value[0]).toBe(30);
+  });
+
+  it('forgets what the last session said when a session begins', async () => {
+    // A parser that finds nothing leaves the value it would have written
+    // alone, so a value the next session's answers do not carry outlived the
+    // session it described: the tank of the car before, published as this
+    // one's.
+    const data = createLmuRestData();
+    let estimate = '{"total":30}';
+    let settings = '{"scale":6}';
+    const { transport } = makeTransport((path) =>
+      path === sessionTask.path ? ok(settings) : ok(estimate)
+    );
+    const poller = createLmuRestPoller({
+      data,
+      transport,
+      tasks: [repeatTask, sessionTask],
+    });
+
+    poller.setActive(true);
+    await advance(0);
+    expect(data.cells.pitStopTime?.value[0]).toBe(30);
+    expect(data.session.timeScale).toBe(6);
+    const revision = data.revision;
+    const lastCells = data.cells;
+    const lastSession = data.session;
+
+    estimate = '{}';
+    settings = '{}';
+    poller.beginSession();
+
+    // At once, not when the next answer lands.
+    expect(data.cells.pitStopTime).toBeUndefined();
+    expect(data.session.timeScale).toBeUndefined();
+    // The clear has to reach the renderer too.
+    expect(data.revision).toBeGreaterThan(revision);
+    // Replaced, never emptied: a frame built from the old cells keeps them.
+    expect(lastCells.pitStopTime?.value[0]).toBe(30);
+    expect(lastSession.timeScale).toBe(6);
+
+    await advance(BASE_MS * 5);
+    expect(data.cells.pitStopTime).toBeUndefined();
+    expect(data.session.timeScale).toBeUndefined();
+  });
+
+  it('does not leave them standing when the path fails in the new session', async () => {
+    // The other way a value outlived its session: nothing answered to
+    // replace it. The estimate from a practice was still on screen in the
+    // race, in a different car.
+    const data = createLmuRestData();
+    let answering = true;
+    const { transport, calls } = makeTransport(() =>
+      answering ? ok('{"total":30}') : fail('timeout')
+    );
+    const poller = createLmuRestPoller({
+      data,
+      transport,
+      tasks: [repeatTask],
+    });
+
+    poller.setActive(true);
+    await advance(0);
+    expect(data.cells.pitStopTime?.value[0]).toBe(30);
+
+    answering = false;
+    poller.beginSession();
+    await advance(HOUR_MS);
+
+    expect(data.cells.pitStopTime).toBeUndefined();
+    expect(calls).toHaveLength(1 + REST_RETRY_LIMIT);
+  });
+
+  it('reads an answer again when it is identical to the one before', async () => {
+    // The hash would skip it as unchanged, and the value forgotten with the
+    // session would never come back.
+    const data = createLmuRestData();
+    const { transport } = makeTransport(() => ok('{"total":30}'));
+    const poller = createLmuRestPoller({
+      data,
+      transport,
+      tasks: [repeatTask],
+    });
+
+    poller.setActive(true);
+    await advance(0);
+
+    poller.beginSession();
+    expect(data.cells.pitStopTime).toBeUndefined();
+    await advance(0);
+
+    expect(data.cells.pitStopTime?.value[0]).toBe(30);
+  });
+
+  it('throws away an answer that was on its way when the session changed', async () => {
+    // Sent before the change, so it may describe the car before -- and the
+    // new session's own answer need not carry anything to replace it.
+    let release: ((value: LmuRestResponse) => void) | undefined;
+    let served = 0;
+    const data = createLmuRestData();
+    const poller = createLmuRestPoller({
+      data,
+      transport: () => {
+        served += 1;
+        if (served === 1) {
+          return new Promise<LmuRestResponse>((resolve) => {
+            release = resolve;
+          });
+        }
+        return Promise.resolve(ok('{}'));
+      },
+      tasks: [repeatTask],
+    });
+
+    poller.setActive(true);
+    await advance(0);
+    expect(release).toBeDefined();
+
+    poller.beginSession();
+    release?.(ok('{"total":30}'));
+    await advance(BASE_MS - 1);
+
+    expect(data.cells.pitStopTime).toBeUndefined();
+    // Asked again at once rather than a full interval later.
+    expect(served).toBe(2);
+  });
+
+  it('runs the one-shot tasks again, once', async () => {
+    const { transport, calls } = makeTransport((path) =>
+      path === sessionTask.path ? ok('{"scale":6}') : ok('{"total":30}')
+    );
+    const poller = createLmuRestPoller({
+      data: createLmuRestData(),
+      transport,
+      tasks: [sessionTask, repeatTask],
+    });
+
+    poller.setActive(true);
+    await advance(0);
+    expect(sessions(calls)).toHaveLength(1);
+
+    poller.beginSession();
+    await advance(60_000);
+
+    expect(sessions(calls)).toHaveLength(2);
+  });
+
+  it('returns a backed-off task to its base rate', async () => {
+    // A new session's pit menu is one somebody is about to touch.
+    const { transport, calls } = makeTransport(() => ok('{"total":30}'));
+    const poller = createLmuRestPoller({
+      data: createLmuRestData(),
+      transport,
+      tasks: [repeatTask],
+    });
+
+    poller.setActive(true);
+    await advance(REST_MAX_INTERVAL_MS * 10);
+    const settled = calls.length;
+
+    poller.beginSession();
+    await advance(0);
+    expect(calls).toHaveLength(settled + 1);
+    await advance(BASE_MS);
+    expect(calls).toHaveLength(settled + 2);
+  });
+
+  it('costs the first session nothing', async () => {
+    // The bridge sees a session begin on its first frame, straight after
+    // activating: no republish for a clear of nothing, and no second request.
+    const data = createLmuRestData();
+    const { transport, calls } = makeTransport((path) =>
+      path === sessionTask.path ? ok('{"scale":6}') : ok('{"total":30}')
+    );
+    const poller = createLmuRestPoller({
+      data,
+      transport,
+      tasks: [repeatTask, sessionTask],
+    });
+
+    poller.setActive(true);
+    poller.beginSession();
+    expect(data.revision).toBe(0);
+    await advance(0);
+
+    expect(calls).toEqual([repeatTask.path, sessionTask.path]);
+  });
+
+  it('does nothing while LMU is away', async () => {
+    const data = createLmuRestData();
+    const { transport, calls } = makeTransport(() => ok('{"total":30}'));
+    const poller = createLmuRestPoller({
+      data,
+      transport,
+      tasks: [repeatTask],
+    });
+
+    poller.beginSession();
+    poller.retryGivenUp();
+    await advance(60_000);
+
+    expect(calls).toEqual([]);
+    expect(data.revision).toBe(0);
+  });
+
+  it('keeps what does not belong to a session: the game state, the camera, the flags', async () => {
+    // The game state is read every frame and the camera is a live reading,
+    // so dropping either would flicker the player out of the car. The flags
+    // are asked for only when a driver arrives, and a grid carried from
+    // practice into qualifying has no arrivals to ask for them again.
+    const data = createLmuRestData();
+    const { transport } = makeTransport(() => fail('status'));
+    const poller = createLmuRestPoller({ data, transport, tasks: [] });
+    poller.setActive(true);
+    data.gameState = 'monitor';
+    data.cells = {
+      focusCarIdx: { value: [7] },
+      pitStopTime: { value: [30] },
+      refuelTarget: { value: [45] },
+    };
+    data.session = {
+      nationalities: { 'A Driver': 'FR' },
+      teamNames: { 0: 'Proton Competition' },
+      maxVirtualEnergy: 100,
+    };
+
+    poller.beginSession();
+
+    expect(data.gameState).toBe('monitor');
+    expect(data.cells).toEqual({ focusCarIdx: { value: [7] } });
+    expect(data.session).toEqual({ nationalities: { 'A Driver': 'FR' } });
+  });
+
+  it('leaves a burst to the bridge that started it', async () => {
+    const { transport, calls } = makeTransport(() =>
+      ok('{"codes":{"A":"FR"}}')
+    );
+    const poller = createLmuRestPoller({
+      data: createLmuRestData(),
+      transport,
+      tasks: [burstTask],
+    });
+    poller.setActive(true);
+
+    // No burst asked for, so none is started.
+    poller.beginSession();
+    await advance(60_000);
+    expect(calls).toEqual([]);
+
+    // One that is waiting out its delay still waits it out.
+    poller.burst('burst', { delayMs: 1000, isComplete: () => false });
+    await advance(500);
+    poller.beginSession();
+    await advance(499);
+    expect(calls).toHaveLength(0);
+    await advance(1);
+    expect(calls).toHaveLength(1);
   });
 });

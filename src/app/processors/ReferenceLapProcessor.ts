@@ -72,23 +72,65 @@ const numericValue = (
 /** Where a lap is far enough from the line that LMU's void flag is its own. */
 const INVALIDATION_START_PCT = 0.05;
 
+/** `WeekendInfo.SimMode` as the Le Mans Ultimate session mapping writes it. */
+const LMU_SIM_MODE = 'Le Mans Ultimate';
+
+/**
+ * Whether the session has class references at all: laps kept per class, to
+ * measure a car against before it has a lap of its own.
+ *
+ * Under iRacing they are stored per series, and a session without a series
+ * -- an AI race, a hosted or league session -- keeps the class's best lap of
+ * the session in the stored one's place. Le Mans Ultimate has no series to
+ * store one under, and nothing to key a stand-in by either: its class ids
+ * are the order the sim first listed the classes in, so 0 is a class like
+ * any other, which the store's own rule leaves without a lap, and an id
+ * says nothing from one session to the next. Filled all the same, the
+ * "stored class reference" there was another car's lap from the session for
+ * two classes of a recorded race and absent for the third. So it has none,
+ * and its consumers fall back as they do whenever a class has no lap.
+ */
+const hasClassReferences = (session: Session): boolean =>
+  session.WeekendInfo?.SimMode !== LMU_SIM_MODE;
+
+/**
+ * A lap to sample from this frame on. `crossedAt` is when the car crossed
+ * the line to begin it, or null for a car first seen with its lap already
+ * under way.
+ *
+ * Only a lap begun at a crossing this recorder saw is timed. A car first
+ * seen just past the line looks like one that has just crossed it, but when
+ * it crossed is not known: it may have been standing there, and under Le
+ * Mans Ultimate the position may be the first that scoring has given it
+ * since a rolling start, with the line as much as a fifth of a second
+ * behind. Timed from first sight, the opening lap of a recorded race became
+ * the player's session best at 89.8 s, and the lap after it, 86.7 s, read
+ * three and a half seconds up on a reference that was never a flying lap.
+ */
 const createLap = (
   pointsCount: number,
   interval: number,
-  sessionTime: number,
+  crossedAt: number | null,
   trackPct: number,
   clean: boolean
-): ReferenceLap => ({
-  startTime: trackPct <= interval ? sessionTime : Number.MAX_SAFE_INTEGER,
-  finishTime: -1,
-  times: new Float32Array(pointsCount),
-  pointPos: new Float32Array(pointsCount).fill(-1),
-  tangents: new Float32Array(pointsCount),
-  interval,
-  pointsCount,
-  lastTrackedPct: trackPct,
-  isCleanLap: trackPct <= interval && clean && !isHeldAtLine(trackPct),
-});
+): ReferenceLap => {
+  // The first stretch has to be sampled as well, and exactly 0 after a
+  // crossing is the sim taking the car's position away, not a place past
+  // the line.
+  const timed =
+    crossedAt !== null && trackPct <= interval && !isHeldAtLine(trackPct);
+  return {
+    startTime: timed ? crossedAt : Number.MAX_SAFE_INTEGER,
+    finishTime: -1,
+    times: new Float32Array(pointsCount),
+    pointPos: new Float32Array(pointsCount).fill(-1),
+    tangents: new Float32Array(pointsCount),
+    interval,
+    pointsCount,
+    lastTrackedPct: trackPct,
+    isCleanLap: timed && clean,
+  };
+};
 
 const precomputeTangents = (lap: ReferenceLap): void => {
   const { pointPos: x, times: y, tangents } = lap;
@@ -146,6 +188,8 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
   private bestLaps = new Map<number, ReferenceLap>();
   private persistedLaps = new Map<number, ReferenceLap>();
   private loadedClassIds = new Set<number>();
+  /** False where `persistedLaps` stays empty; see `hasClassReferences`. */
+  private classReferences = true;
   private drivers: (Driver | undefined)[] = [];
   /** Only needed to record speeds — iRacing has no CarIdxSpeed. */
   private playerCarIdx = -1;
@@ -181,6 +225,7 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
       Driver | undefined
     )[];
     this.drivers = drivers;
+    this.classReferences = hasClassReferences(session);
     this.playerCarIdx = session.DriverInfo?.DriverCarIdx ?? -1;
     const player = drivers.find(
       (driver) => driver?.CarIdx === this.playerCarIdx
@@ -274,15 +319,10 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
       const clean = !pitRoad?.[carIdx] && !invalidated;
       const active = this.activeLaps.get(carIdx);
       if (!active) {
+        // First sight of the car: its lap began before anything was seen.
         this.activeLaps.set(
           carIdx,
-          createLap(
-            this.pointsCount,
-            this.interval,
-            sessionTime,
-            trackPct,
-            clean
-          )
+          createLap(this.pointsCount, this.interval, null, trackPct, clean)
         );
         continue;
       }
@@ -369,7 +409,13 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
     // classId > 0 guards persistence only. The disk key is
     // seriesId_trackId_classId, so class-0 laps from different cars in offline
     // test sessions would all collide on one key and overwrite each other.
-    if (classId > 0 && (!persistedTime || lapTime < persistedTime)) {
+    // Where there are no class references, the lap is the car's own best and
+    // nothing more.
+    if (
+      this.classReferences &&
+      classId > 0 &&
+      (!persistedTime || lapTime < persistedTime)
+    ) {
       this.persistedLaps.set(classId, lap);
       if (this.persistenceEnabled && this.seriesId > 0) {
         // speedsKph is dropped on the way to disk. Only the in-session best
@@ -418,6 +464,7 @@ export class ReferenceLapProcessor implements TelemetryProcessor<ReferenceLapsSn
   }
 
   private loadPersistedForDrivers(paceCarIdx: number): boolean {
+    if (!this.classReferences) return false;
     const paceClassId = this.drivers[paceCarIdx]?.CarClassID ?? -1;
     let changed = false;
     for (const driver of this.drivers) {

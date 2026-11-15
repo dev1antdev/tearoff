@@ -591,6 +591,7 @@ Displays per-sector timing deltas for the current lap, colour-coded by performan
 
 - Per-sector deltas coloured green/yellow/red based on performance vs reference
 - Comparison source: ghost lap when available, or session best only
+- Le Mans Ultimate: the three sectors and their times are the game's own, so they match its timing screen; the ghost is your all-time reference lap for the track and car
 - Continuous scrolling strip with the current sector position-pinned to the centre
 - Option to limit the number of visible sectors (sliding carousel)
 - Track incident sectors: sectors where you picked up incidents are flagged with a warning icon
@@ -856,7 +857,7 @@ TV-style overlays for iRacing streams, configured together in **Settings > Broad
   - Configurable key bindings: Rebind shortcuts for global overlay visibility, edit layout, telemetry, layout-profile cycling, and individual widget visibility. Supports keyboard chords, controller buttons, and controller-button combos.
   - Per-widget visibility shortcuts: Show or hide individual widgets without affecting the rest of the dashboard.
   - Overlay on/off: Turn every overlay off and back on, while the sim is running or not, without changing which widgets are enabled. The same switch is the **Overlay** button in the settings window header, **Show Overlay** in the tray menu and the Hide / Show UI shortcut (Alt+H by default), and each follows the others. It applies to this run of the app: the overlay is on again after a restart.
-  - Hidden while paused: The overlay goes off the screen while the game is paused and comes back when you resume, within about a second. On by default; turn it off under **Settings > General > Hide Overlay While the Game Is Paused**. Le Mans Ultimate only: iRacing does not report a pause.
+  - Hidden while paused: The overlay goes off the screen while the game is paused and comes back when you resume, within about a second. The same goes for a screen that stops the session without calling it a pause, such as the pit stop screen in a race against the AI (there it takes about two seconds). On by default; turn it off under **Settings > General > Hide Overlay While the Game Is Paused**. Le Mans Ultimate only: iRacing does not report a pause.
   - Reset widget position: Reset any widget's position to the top-left corner if it gets lost off-screen.
   - Close to tray: Closing the window minimizes to the system tray instead of quitting (configurable).
   - Always on top: Keep your overlays visible even when clicking on other windows.

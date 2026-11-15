@@ -233,7 +233,7 @@ describe('mapLmuTelemetry with a game state', () => {
     );
   });
 
-  it('says the game is paused only on the sim saying so', () => {
+  it('says the game is paused when the sim says so', () => {
     expect(map(fixture(), 'paused').LmuGamePaused?.value[0]).toBe(true);
     // The widgets keep their state through a pause: still in the car.
     expect(map(fixture(), 'paused').IsOnTrack.value[0]).toBe(true);
@@ -247,10 +247,47 @@ describe('mapLmuTelemetry with a game state', () => {
     ] as const) {
       expect(map(fixture(), state).LmuGamePaused?.value[0]).toBe(false);
     }
-    // A block that has stopped being written is also what the end of a
-    // session looks like, so it is not taken for a pause.
-    expect(map(fixture(), undefined, true).LmuGamePaused?.value[0]).toBe(false);
-    expect(map(fixture(), 'driving', true).LmuGamePaused?.value[0]).toBe(false);
+  });
+
+  it('hides on a stopped block alone when the sim says nothing', () => {
+    // No answer from the sim's REST API at all. A block that has stopped
+    // being written is then a pause or the end of a session, and nothing
+    // can say which; neither has anything live to show, and TinyPedal
+    // hides its overlay on the same evidence.
+    expect(map(fixture(), undefined, true).LmuGamePaused?.value[0]).toBe(true);
+    expect(map(fixture(), undefined, false).LmuGamePaused?.value[0]).toBe(
+      false
+    );
+  });
+
+  it('takes a sim that says driving and has stopped writing for paused', () => {
+    // The pit stop screen in a race against the AI: the sim goes on saying
+    // the player is driving and stops the session under them, for as long
+    // as the screen is open -- ten minutes, once, in the log this comes
+    // from. It is a pause in everything but the word, and the overlay sat
+    // on top of the screen throughout.
+    const stopped = map(fixture(), 'driving', true);
+    expect(stopped.LmuGamePaused?.value[0]).toBe(true);
+    // Still in the car, with nothing stale: the widgets keep what they have.
+    expect(stopped.IsOnTrack.value[0]).toBe(true);
+    expect(stopped.LmuDataStale?.value[0]).toBe(false);
+
+    // Writing again, it is driving again.
+    expect(map(fixture(), 'driving', false).LmuGamePaused?.value[0]).toBe(
+      false
+    );
+    // A session that has ended stops writing too, and there the sim does
+    // not say driving.
+    for (const state of ['monitor', 'notInSession', 'notInGame'] as const) {
+      expect(map(fixture(), state, true).LmuGamePaused?.value[0]).toBe(false);
+    }
+    // And with no car there is nobody to be paused.
+    const noCar = {
+      ...fixture(),
+      playerHasVehicle: false,
+      playerVehicleIdx: -1,
+    };
+    expect(map(noCar, 'driving', true).LmuGamePaused?.value[0]).toBe(false);
   });
 
   it('falls back to shared memory when the sim has not said', () => {

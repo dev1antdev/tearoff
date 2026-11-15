@@ -52,9 +52,10 @@ export const isLineCrossing = (
 /**
  * A lap fraction of exactly 0 is not a position. Le Mans Ultimate reports it
  * for a car that has not reached the line yet -- waiting on the grid, or
- * rolling up to the start -- and holds it there until the car crosses. A lap
- * timed from such a frame would count the wait as part of the lap, so no lap
- * starts on one. A moving car is never sampled at exactly 0.
+ * rolling up to the start -- and holds it there until the car crosses, which
+ * the lap-distance estimate leaves as it is rather than advance by speed. A
+ * lap timed from such a frame would count the wait as part of the lap, so no
+ * lap starts on one. A car that is on the lap is never sampled at exactly 0.
  */
 export const isHeldAtLine = (trackPct: number): boolean => trackPct === 0;
 

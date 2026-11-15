@@ -9,6 +9,7 @@ import {
   classColourForRank,
   LMU_CLASS_COLOURS,
   LMU_MANUFACTURERS,
+  TIMED_SESSION_LAPS,
 } from '@irdashies/types';
 import { isLmuAiEntry, lmuPlayerSlot } from './aiControl';
 import { fnv1a32 } from './hash';
@@ -208,6 +209,39 @@ const lmuClassRank = (className: string | undefined): number => {
  * one copy of the thresholds.
  */
 export const isLmuRaceSession = (session: number): boolean => session >= 10;
+
+/**
+ * Whether a session ends after a number of laps rather than at a time.
+ *
+ * Only a race can. Practice and qualifying are always timed, and so is an
+ * endurance race, and in those `mMaxLaps` is not a lap count: rFactor 2
+ * marks `no limit` with a value far beyond any race. The upper bound is the
+ * figure iRacing reports in the same situation, so at or above it the number
+ * cannot be a real lap count whatever encoding LMU chose.
+ */
+export const lmuHasLapLimit = (session: number, maxLaps: number): boolean =>
+  isLmuRaceSession(session) && maxLaps > 0 && maxLaps < TIMED_SESSION_LAPS;
+
+/**
+ * Where the player's pit box is on the lap, as a fraction, or 0 when the
+ * sim has not said. LMU gives it as a distance, which runs past the lap's
+ * length for a box beyond the line.
+ */
+const lmuPitBoxPct = (
+  pitLapDist: number | undefined,
+  trackLength: number
+): number => {
+  if (
+    pitLapDist === undefined ||
+    !Number.isFinite(pitLapDist) ||
+    !(trackLength > 0) ||
+    pitLapDist === 0
+  ) {
+    return 0;
+  }
+  const wrapped = ((pitLapDist % trackLength) + trackLength) % trackLength;
+  return wrapped / trackLength;
+};
 
 function sessionType(session: number): string {
   if (isLmuRaceSession(session)) return 'Race';
@@ -661,7 +695,14 @@ export function mapLmuSession(
       Sessions: [
         {
           SessionNum: raw.session,
-          SessionLaps: `${raw.maxLaps}`,
+          // A number for a race run to a lap count, as iRacing's own session
+          // info parses to, and its word for every session that is not. The
+          // raw figure for a timed session is the largest integer there is,
+          // and published as it stood the fuel calculator took a six-hour
+          // race for one of two thousand million laps.
+          SessionLaps: (lmuHasLapLimit(raw.session, raw.maxLaps)
+            ? raw.maxLaps
+            : 'unlimited') as string,
           SessionTime: '',
           SessionNumLapsToAvg: 0,
           SessionType: currentSessionType,
@@ -720,7 +761,9 @@ export function mapLmuSession(
       DriverCarSLLastRPM: shiftLights.last,
       DriverCarSLBlinkRPM: shiftLights.blink,
       DriverCarVersion: '',
-      DriverPitTrkPct: 0,
+      // Left at 0, the pit lane helper counted down the distance to the
+      // start line instead of to the box.
+      DriverPitTrkPct: lmuPitBoxPct(playerDriver?.pitLapDist, trackLengthM),
       DriverCarEstLapTime: playerDriver?.estimatedLapTime ?? 0,
       DriverSetupName: '',
       DriverSetupIsModified: 0,
@@ -735,7 +778,10 @@ export function mapLmuSession(
       DriverTires: lmuDriverTires(raw.drivers, rest?.tireCompounds),
       Drivers: drivers,
     },
-    // ponytail: nominal thirds only label the direct LMU timing; replace when LMU exposes boundary distances.
+    // Three sectors, which LMU has, at nominal thirds, which it does not
+    // say: it publishes sector times and no boundary distances. The sector
+    // timer takes the times from the sim and learns where the boundaries
+    // are as the car crosses them; these stand until it has.
     SplitTimeInfo: {
       Sectors: [
         { SectorNum: 0, SectorStartPct: 0 },

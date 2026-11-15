@@ -24,7 +24,15 @@ export const lmuRestOrigin = (): string =>
 /** Per-request ceiling. The API is loopback, so a slow reply means trouble. */
 export const REST_TIMEOUT_MS = 1000;
 
-/** Consecutive failures before a task gives up until the next activation. */
+/**
+ * Consecutive failures before a task gives up until the next session.
+ *
+ * Giving up is what keeps an endpoint this build of LMU does not have from
+ * being asked for all day. Until the next session rather than the next
+ * activation, because LMU outlives its sessions by hours and several paths
+ * fail in the menus and behind every loading screen: see
+ * `LmuRestPoller.beginSession`.
+ */
 export const REST_RETRY_LIMIT = 3;
 
 /** Delay between retries of a failing task. */

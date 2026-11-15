@@ -13,6 +13,13 @@ interface FuelStoreState {
   lapHistory: Map<number, FuelLapData>;
   /** Processor history preserves repeated lap numbers across sessions; capped at MAX_LAP_HISTORY. */
   projectionLaps: readonly FuelLapData[];
+  /**
+   * The laps loaded from storage for this track and car, in the order
+   * storage keeps them: the most recently saved first. Beside the map
+   * because the map holds one lap per lap number, and the laps of different
+   * sessions share numbers. Capped at MAX_LAP_HISTORY; storage keeps ten.
+   */
+  storedLaps: readonly FuelLapData[];
   /** Cached sorted array of lap history (most recent first) - invalidated on changes */
   _sortedLapHistoryCache: FuelLapData[] | null;
   /** Track the oldest lap number for efficient pruning */
@@ -125,6 +132,7 @@ export const useFuelStore = create<FuelStore>()((set, get) => ({
   // Initial state
   lapHistory: new Map(),
   projectionLaps: [],
+  storedLaps: [],
   _sortedLapHistoryCache: null,
   _oldestLapNumber: Infinity,
   lastLap: 0,
@@ -198,6 +206,7 @@ export const useFuelStore = create<FuelStore>()((set, get) => ({
     set({
       lapHistory: new Map(),
       projectionLaps: [],
+      storedLaps: [],
       _sortedLapHistoryCache: null,
       _oldestLapNumber: Infinity,
       lastLap: 0,
@@ -263,8 +272,24 @@ export const useFuelStore = create<FuelStore>()((set, get) => ({
     set({ trackId, carName });
   },
 
-  setLapHistory: (laps) => {
+  setLapHistory: (stored) => {
     set(() => {
+      // The same lap can be in storage more than once: it is saved again
+      // when the calculator is mounted afresh while its laps are still
+      // live. Counted twice, it weighs twice in every average.
+      const seen = new Set<string>();
+      const laps = stored.filter((lap) => {
+        const key = [
+          lap.sessionNum,
+          lap.lapNumber,
+          lap.timestamp,
+          lap.fuelUsed,
+          lap.lapTime,
+        ].join('|');
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
       const newHistory = new Map();
       let oldestLapNumber = Infinity;
 
@@ -277,6 +302,9 @@ export const useFuelStore = create<FuelStore>()((set, get) => ({
 
       return {
         lapHistory: newHistory,
+        storedLaps: laps
+          .slice(0, MAX_LAP_HISTORY)
+          .map((lap) => ({ ...lap, isHistorical: true })),
         _sortedLapHistoryCache: null,
         _oldestLapNumber: oldestLapNumber,
         lastLap:

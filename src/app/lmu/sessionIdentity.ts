@@ -31,9 +31,18 @@ import { fnv1a32 } from './hash';
  *
  * Which leaves one case the stamp alone cannot see, and it is the common one
  * online: a server rolling its practice session. Nothing identifying moves --
- * same track, same type, same server, often the same length -- so the stamp is
- * unchanged and every consumer keeps its state. `createLmuSessionIdentity`
- * below closes that, the way TinyPedal's `is_same_session` does.
+ * same track, same type, same server -- so the stamp is unchanged and every
+ * consumer keeps its state. `createLmuSessionIdentity` below closes that, the
+ * way TinyPedal's `is_same_session` does.
+ *
+ * The session's length is not part of it, though it once was. LMU moves a
+ * race's end time while the race is being started: an eight-hour online race
+ * changed it twice in its first three minutes, at the formation lap and at
+ * the green flag, and each move read as a new session -- so the standings,
+ * the lap history, the fuel figures and the lap library all started over
+ * with the field already rolling. A session that really is a different one
+ * at a different length is caught by the sim's own session events and by the
+ * clock going backwards, neither of which a moved end time sets off.
  */
 
 /** Just enough of either raw shape; both come from the addon's `read`. */
@@ -65,8 +74,6 @@ export interface LmuSessionIdentitySample {
   trackName?: string;
   session?: number;
   serverName?: string;
-  /** Session length in seconds; part of the stamp, as TinyPedal has it. */
-  endET?: number;
   /** Seconds into the session. Must not go backwards within one session. */
   currentET?: number;
   /** The player's completed laps, or undefined when there is no player car. */
@@ -138,7 +145,7 @@ export const createLmuSessionIdentity = (): LmuSessionIdentity => {
     observe(sample) {
       const nextStamp =
         `${sample.trackName ?? ''}${SEP}${sample.session ?? -1}` +
-        `${SEP}${sample.serverName ?? ''}${SEP}${Math.round(sample.endET ?? -1)}`;
+        `${SEP}${sample.serverName ?? ''}`;
       const nextElapsed =
         typeof sample.currentET === 'number' &&
         Number.isFinite(sample.currentET)
@@ -159,9 +166,9 @@ export const createLmuSessionIdentity = (): LmuSessionIdentity => {
 
       change = null;
       if (nextStamp !== stamp) {
-        // A different event, or the same one at a different length. The epoch
-        // starts over so returning to a session already seen reuses its id,
-        // and with it whatever was stored under it.
+        // A different event. The epoch starts over so returning to a session
+        // already seen reuses its id, and with it whatever was stored under
+        // it.
         stamp = nextStamp;
         epoch = 0;
         change = 'stamp';
