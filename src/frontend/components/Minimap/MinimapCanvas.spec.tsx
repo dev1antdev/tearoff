@@ -63,16 +63,27 @@ const props: Omit<MinimapCanvasProps, 'cars'> = {
 };
 
 type Op = [name: string, ...args: unknown[]];
+/** What the Path2D stand-in remembers: how many points it was given. */
+interface TrackPath {
+  points: number;
+}
 
 describe('MinimapCanvas', () => {
   let logs: WeakMap<HTMLCanvasElement, Op[]>;
   let callbacks: Map<number, FrameRequestCallback>;
   let now: number;
+  /** Every track path built, in order. */
+  let paths: TrackPath[];
 
   const ops = (canvas: HTMLCanvasElement | null): Op[] =>
     canvas ? (logs.get(canvas) ?? []) : [];
   const named = (canvas: HTMLCanvasElement | null, name: string) =>
     ops(canvas).filter(([op]) => op === name);
+  /** The paths handed to stroke(): the track, not the start/finish line. */
+  const trackStrokes = (canvas: HTMLCanvasElement | null) =>
+    named(canvas, 'stroke')
+      .filter(([, path]) => path !== undefined)
+      .map(([, path]) => path as TrackPath);
   /** Marker centres drawn, rounded: the disc and its ring are at the middle. */
   const markers = (canvas: HTMLCanvasElement | null) =>
     named(canvas, 'arc')
@@ -112,10 +123,14 @@ describe('MinimapCanvas', () => {
       return frameId;
     });
     vi.stubGlobal('cancelAnimationFrame', (id: number) => callbacks.delete(id));
+    paths = [];
     vi.stubGlobal(
       'Path2D',
-      class {
+      class implements TrackPath {
         points = 0;
+        constructor() {
+          paths.push(this);
+        }
         moveTo() {
           this.points += 1;
         }
@@ -166,6 +181,103 @@ describe('MinimapCanvas', () => {
     cleanup();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  /**
+   * Drive for `seconds` from `from`, at `metresPerSecond`: a snapshot every
+   * 40 ms, and a refresh of the display `hz` times a second.
+   */
+  const drive = (
+    view: ReturnType<typeof render>,
+    from: number,
+    metresPerSecond: number,
+    hz: number,
+    seconds = 1
+  ) => {
+    const start = now;
+    let snapshots = 0;
+    for (let index = 1; index <= hz * seconds; index++) {
+      const time = (index * 1000) / hz;
+      while ((snapshots + 1) * 40 <= time) {
+        snapshots++;
+        now = start + snapshots * 40;
+        view.rerender(
+          <Harness
+            cars={field(from + (metresPerSecond * snapshots * 0.04) / LAP_M)}
+          />
+        );
+      }
+      frame(start + time);
+    }
+  };
+
+  describe('the track', () => {
+    it('is stroked from the stretch round the car, not from the whole lap', () => {
+      const view = render(<Harness cars={field(0.1)} />);
+      const canvas = view.container.querySelector('canvas');
+
+      // The edge and the surface, from one path.
+      const strokes = trackStrokes(canvas);
+      expect(strokes).toHaveLength(2);
+      expect(strokes[1]).toBe(strokes[0]);
+      // 200 m either way and a margin, of a lap that is 2000 points round.
+      expect(geometry.count).toBe(2000);
+      // 275 of them as this is written.
+      expect(strokes[0].points).toBeGreaterThan(200);
+      expect(strokes[0].points).toBeLessThan(400);
+    });
+
+    it('is not built again from frame to frame, only stroked', () => {
+      const view = render(<Harness cars={field(0.1)} />);
+      const canvas = view.container.querySelector('canvas');
+      expect(paths).toHaveLength(1);
+      view.rerender(<Harness cars={field(0.1 + 1 / LAP_M)} />);
+      ops(canvas).length = 0;
+
+      // 40 m in a second: well inside the stretch that was built.
+      drive(view, 0.1, 40, 60);
+
+      const frames = named(canvas, 'clearRect').length;
+      expect(frames).toBeGreaterThanOrEqual(59);
+      expect(paths).toHaveLength(1);
+      const strokes = trackStrokes(canvas);
+      expect(strokes).toHaveLength(frames * 2);
+      expect(new Set(strokes).size).toBe(1);
+    });
+
+    it('is built again as the car drives out of each stretch, and for a new range', () => {
+      const view = render(<Harness cars={field(0.1)} />);
+      const canvas = view.container.querySelector('canvas');
+
+      // 70 m/s for five seconds: 350 m, several stretches on.
+      drive(view, 0.1, 70, 60, 5);
+      const built = paths.length;
+      expect(built).toBeGreaterThan(2);
+      // A handful in three hundred frames, each about as long as the first.
+      expect(built).toBeLessThan(12);
+      for (const path of paths) expect(path.points).toBeLessThan(400);
+      expect(trackStrokes(canvas).at(-1)).toBe(paths.at(-1));
+
+      view.rerender(<Harness cars={field(0.1 + 350 / LAP_M)} range={400} />);
+      frame(now + 20);
+      expect(paths).toHaveLength(built + 1);
+      expect(paths.at(-1)?.points).toBeGreaterThan(400);
+    });
+  });
+
+  describe('the frame rate', () => {
+    it.each([60, 144, 240])('is about 60 a second on a %i Hz display', (hz) => {
+      const view = render(<Harness cars={field(0.1)} />);
+      const canvas = view.container.querySelector('canvas');
+      view.rerender(<Harness cars={field(0.1 + 1 / LAP_M)} />);
+      ops(canvas).length = 0;
+
+      drive(view, 0.1, 40, hz);
+
+      const frames = named(canvas, 'clearRect').length;
+      expect(frames).toBeGreaterThanOrEqual(59);
+      expect(frames).toBeLessThanOrEqual(60);
+    });
   });
 
   describe('while the overlay is hidden', () => {
