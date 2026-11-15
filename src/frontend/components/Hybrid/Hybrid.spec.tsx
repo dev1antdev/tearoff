@@ -71,6 +71,8 @@ beforeEach(() => {
   vi.mocked(Context.useDrivingState).mockReturnValue({
     isDriving: true,
     isWatching: false,
+    isWatchingOwnCar: false,
+    isWatchingOtherCar: false,
   });
   vi.mocked(Context.useSessionVisibility).mockReturnValue(true);
   show();
@@ -379,8 +381,11 @@ describe('Hybrid', () => {
     it('is hidden out of the car, and shown there once that is switched off', () => {
       vi.mocked(Context.useDrivingState).mockReturnValue({
         isDriving: false,
-        // The battery is the driver's own: a watched car does not show it.
+        // The battery is the driver's own: a watched car does not show it,
+        // the team car included, whose telemetry block is not read yet.
         isWatching: true,
+        isWatchingOwnCar: true,
+        isWatchingOtherCar: false,
       });
       const { container, rerender } = render(<Hybrid />);
       expect(container).toBeEmptyDOMElement();

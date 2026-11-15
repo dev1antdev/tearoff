@@ -50,6 +50,8 @@ beforeEach(() => {
   vi.mocked(Context.useDrivingState).mockReturnValue({
     isDriving: true,
     isWatching: false,
+    isWatchingOwnCar: false,
+    isWatchingOtherCar: false,
   });
   vi.mocked(Context.useSessionVisibility).mockReturnValue(true);
   withControls({ liftAndCoast: 0 });
@@ -122,8 +124,11 @@ describe('LiftCoast', () => {
   it('is hidden out of the car, and shown there once that is switched off', () => {
     vi.mocked(Context.useDrivingState).mockReturnValue({
       isDriving: false,
-      // The strip is the driver's own aids: watching a car does not show it.
+      // The strip is the driver's own aids: watching a car does not show
+      // it, the team car included, whose telemetry block is not read yet.
       isWatching: true,
+      isWatchingOwnCar: true,
+      isWatchingOtherCar: false,
     });
     const { container, rerender } = render(<LiftCoast />);
     expect(container).toBeEmptyDOMElement();
