@@ -30,10 +30,15 @@ type EventChannelName =
  * enabled Gantry keeps recording with its window closed. `replay.context` is
  * owned by ReplayContextRuntime, which the other runtimes read to pause.
  * `streamchat.*` are published by StreamChatService, which reads no telemetry.
+ * `player-ledger.snapshot` and `player-stint.snapshot` come from
+ * PlayerLedgerRuntime, which follows every lap and stint of the player
+ * whether or not a widget wants them.
  */
 type RuntimeOwnedChannelName =
   | 'lap-history.snapshot'
   | 'pit-stops.snapshot'
+  | 'player-ledger.snapshot'
+  | 'player-stint.snapshot'
   | 'replay.context'
   | 'streamchat.messages'
   | 'streamchat.emotes';
@@ -44,6 +49,7 @@ type SnapshotChannelName = Exclude<
 
 const SNAPSHOT_CHANNELS = [
   'blind-spot.snapshot',
+  'car-pit.snapshot',
   'car-speeds.snapshot',
   'car-systems.snapshot',
   'driver-controls.snapshot',
@@ -60,8 +66,13 @@ const SNAPSHOT_CHANNELS = [
   'session-bar.snapshot',
   'standings.snapshot',
   'track-state.snapshot',
+  'track-profile.snapshot',
   'tyre-state.snapshot',
+  'wheel-dynamics.snapshot',
+  'damage.snapshot',
   'system-performance.snapshot',
+  'g-force.snapshot',
+  'braking.snapshot',
   'minimap.snapshot',
   'lap-delta.snapshot',
   'lap-trace.sample',

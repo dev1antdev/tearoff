@@ -250,9 +250,16 @@ describe.skipIf(!lmuTapeAvailable())(
       expect(race.simLaps[PLAYER][0]).toBeCloseTo(86.66, 2);
 
       // The lap library's recorder, fed in the same order, passed on that
-      // lap and no other.
-      expect(race.libraryLaps).toHaveLength(1);
-      expect(race.libraryLaps[0].lapTime).toBeCloseTo(
+      // lap, and before it the one from the rolling start: opened as the
+      // sim let the car go at the line, and kept without a curve, so it is
+      // a lap in the library and never a reference.
+      expect(race.libraryLaps).toHaveLength(2);
+      expect(race.libraryLaps[0]).toMatchObject({
+        complete: false,
+        curve: null,
+      });
+      expect(race.libraryLaps[1].complete).toBe(true);
+      expect(race.libraryLaps[1].lapTime).toBeCloseTo(
         playerBests[0].lapTime,
         6
       );

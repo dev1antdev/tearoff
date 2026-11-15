@@ -5,9 +5,16 @@ import {
   NO_READING,
   NO_READING_COLOR,
   TYRE_FADE_C,
+  formatDeflection,
+  formatLoadShare,
   formatPressure,
+  formatPressureDeviation,
   formatTemperature,
   formatTread,
+  isLoadLow,
+  isPressureCold,
+  isWheelLifted,
+  loadBarFill,
   mean,
   pressureFromKpa,
   pressureTone,
@@ -23,6 +30,7 @@ const wheel = (over: Partial<TyreWheelState> = {}): TyreWheelState => ({
   carcassTempC: 84,
   optimalTempC: 92,
   pressureKpa: 171.2,
+  pressureDeviationKpa: 1.2,
   treadRemaining: 0.984,
   brakeTempC: 400,
   compound: 0,
@@ -170,6 +178,114 @@ describe('pressureTone', () => {
   it('is plain when no target is set or nothing is read', () => {
     expect(pressureTone(192, 186, 3.5, false)).toBe('plain');
     expect(pressureTone(null, 186, 3.5, true)).toBe('plain');
+  });
+});
+
+describe('a cold tyre', () => {
+  it('is one whose carcass is under the threshold', () => {
+    expect(isPressureCold(78, 65)).toBe(false);
+    expect(isPressureCold(40, 65)).toBe(true);
+    // At the threshold the tyre is warm.
+    expect(isPressureCold(65, 65)).toBe(false);
+    expect(isPressureCold(64.9, 65)).toBe(true);
+  });
+
+  it('is never called with the threshold at 0, or without a reading', () => {
+    expect(isPressureCold(40, 0)).toBe(false);
+    expect(isPressureCold(-5, 0)).toBe(false);
+    expect(isPressureCold(null, 65)).toBe(false);
+    expect(isPressureCold(undefined, 65)).toBe(false);
+  });
+
+  it('draws its pressure as cold whatever the target says', () => {
+    // 192 kPa is over a 186 kPa target, and would be red on a warm tyre.
+    expect(pressureTone(192, 186, 3.5, true, true)).toBe('cold');
+    expect(pressureTone(186, 186, 3.5, true, true)).toBe('cold');
+    // With no target to colour by, too.
+    expect(pressureTone(160, 186, 3.5, false, true)).toBe('cold');
+  });
+
+  it('leaves a warm tyre to the target', () => {
+    expect(pressureTone(192, 186, 3.5, true, false)).toBe('high');
+    expect(pressureTone(192, 186, 3.5, false, false)).toBe('plain');
+  });
+
+  it('does not tint a placeholder', () => {
+    expect(pressureTone(null, 186, 3.5, true, true)).toBe('plain');
+  });
+});
+
+describe('pressure deviation', () => {
+  it('is written as an offset below the highest wheel, in the chosen unit', () => {
+    expect(formatPressureDeviation(1.24, 'kpa')).toBe('-1.2');
+    expect(formatPressureDeviation(1.24, 'psi')).toBe('-0.2');
+    expect(formatPressureDeviation(3, 'bar')).toBe('-0.03');
+  });
+
+  it('reads 0.0 on the highest wheel', () => {
+    expect(formatPressureDeviation(0, 'kpa')).toBe('0.0');
+    expect(formatPressureDeviation(0, 'psi')).toBe('0.0');
+    expect(formatPressureDeviation(0, 'bar')).toBe('0.00');
+  });
+
+  it('never writes a minus in front of a zero', () => {
+    // 0.2 kPa is 0.03 psi: too small to show.
+    expect(formatPressureDeviation(0.2, 'psi')).toBe('0.0');
+    expect(formatPressureDeviation(0.04, 'kpa')).toBe('0.0');
+  });
+
+  it('shows a placeholder until all four wheels have read', () => {
+    expect(formatPressureDeviation(null, 'psi')).toBe(NO_READING);
+    expect(formatPressureDeviation(undefined, 'kpa')).toBe(NO_READING);
+  });
+});
+
+describe('load share', () => {
+  it('is a whole percentage of the load on all four wheels', () => {
+    expect(formatLoadShare(0.34)).toBe('34%');
+    expect(formatLoadShare(0.255)).toBe('26%');
+    expect(formatLoadShare(0)).toBe('0%');
+    expect(formatLoadShare(null)).toBe(NO_READING);
+  });
+
+  it('fills the bar at half the load of the car', () => {
+    expect(loadBarFill(0.34)).toBeCloseTo(0.68);
+    expect(loadBarFill(0.25)).toBe(0.5);
+    expect(loadBarFill(0.5)).toBe(1);
+    // A wheel carrying more than half still has a full bar, not a longer one.
+    expect(loadBarFill(0.7)).toBe(1);
+    expect(loadBarFill(0)).toBe(0);
+  });
+
+  it('is low at or below the threshold, on the figure drawn', () => {
+    expect(isLoadLow(0.005, 1)).toBe(true);
+    expect(isLoadLow(0, 1)).toBe(true);
+    // 1.4 % is drawn as "1%", and "1%" is at the threshold.
+    expect(isLoadLow(0.014, 1)).toBe(true);
+    expect(isLoadLow(0.016, 1)).toBe(false);
+    expect(isLoadLow(0.34, 1)).toBe(false);
+  });
+
+  it('is never low with the threshold below zero', () => {
+    expect(isLoadLow(0, -1)).toBe(false);
+  });
+});
+
+describe('tyre deflection', () => {
+  it('is whole millimetres', () => {
+    expect(formatDeflection(24.3)).toBe('24 mm');
+    expect(formatDeflection(0)).toBe('0 mm');
+    expect(formatDeflection(null)).toBe(NO_READING);
+    expect(formatDeflection(undefined)).toBe(NO_READING);
+  });
+
+  it('says the wheel is lifted at or below the threshold', () => {
+    expect(isWheelLifted(0.6, 1)).toBe(true);
+    // A wheel in the air reads exactly 0.
+    expect(isWheelLifted(0, 1)).toBe(true);
+    expect(isWheelLifted(1.4, 1)).toBe(true);
+    expect(isWheelLifted(1.6, 1)).toBe(false);
+    expect(isWheelLifted(16, 1)).toBe(false);
   });
 });
 

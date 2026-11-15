@@ -106,7 +106,8 @@ export function normalizeLmuTrackMap(
   };
 }
 
-const normalizeTrackName = (value: string) =>
+/** A track name without case, accents or punctuation, to match files by. */
+export const normalizeTrackName = (value: string) =>
   value
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')

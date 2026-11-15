@@ -40,10 +40,17 @@ export interface SimWidgetSupportConfig {
  */
 export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   'battle',
+  // Braking zones from the pedal, the car's speed and its longitudinal
+  // acceleration, with LMU's own impact time to discard a stop that hit
+  // something and its wheel speeds for the lock times iRacing cannot give.
+  'brakeperformance',
   // LMU's own dials, each with the top of its scale: brake bias, ABS, the
   // three traction dials, brake migration and the map, under names the sim
   // fixes for every car. It has a list of rows of its own in the settings.
   'carsystems',
+  // Ride height, camber and toe at each wheel from LMU's per-wheel telemetry
+  // block, and the rake and roll they add up to.
+  'chassis',
   // The cars entered and still running in each class, from LMU's scoring:
   // class, place, garage stall and finish status for every car.
   'classfields',
@@ -51,11 +58,19 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // the corners of the bundled track data: the same data Corner Names uses.
   'cornerdelta',
   'cornername',
+  // Dents, what has come off or gone flat and the last impact from the
+  // player's telemetry block; aero and suspension damage and the repair the
+  // pit menu is set to from LMU's REST API.
+  'damage',
   'deltaspeed',
   'flag',
   // The flag in force and the car a blue is for, from LMU's session phase,
   // sector flags and scoring. Each sim has states the other cannot report.
   'flagpanel',
+  // Lateral and longitudinal g from LMU's own acceleration, in the same
+  // signs as iRacing's, with its impact time to keep a kerb strike out of
+  // the maxima.
+  'frictioncircle',
   // Counts virtual energy in percent for a Hypercar, LMDh or LMGT3, which
   // stop when that runs out, and litres for the fuel-limited classes.
   'fuel',
@@ -106,6 +121,13 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
  * widget lands here only when iRacing does not publish what it draws at all.
  */
 export const IRACING_DISABLED_WIDGETS: readonly string[] = [
+  // iRacing publishes no ride height, camber or toe while the car is moving:
+  // only the shock deflections, and a pitch and roll against the world that
+  // contain the gradient and the banking of the track.
+  'chassis',
+  // iRacing publishes no dent, aero or suspension state: only the seconds
+  // of repair left during a stop, which is a pit-service figure.
+  'damage',
   // iRacing reports tyre temperatures as they were when the car last stopped
   // in the pits, not while it is moving, so there is no live reading.
   'tyres',

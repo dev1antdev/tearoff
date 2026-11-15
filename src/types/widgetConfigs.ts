@@ -1176,9 +1176,112 @@ export interface TyresConfig {
     rear: number;
     tolerance: number;
   };
+  /**
+   * Carcass temperature, Celsius, under which a pressure is drawn as cold
+   * whatever the target says: a cold pressure cannot be judged against a hot
+   * target. 0 switches the tint off.
+   */
+  pressureColdBelow: number;
+  /** Under each pressure, how far it sits below the highest of the four. */
+  showPressureDeviation: boolean;
+  /**
+   * A bar under each tyre for its share of the load on all four. An estimate
+   * where the sim withholds tyre load: the share is then taken from
+   * suspension load, sound between left and right, approximate between front
+   * and rear.
+   */
+  showLoad: boolean;
+  /** Percent of the car's load at or below which the bar turns red. */
+  lowLoadThreshold: number;
+  /** How far each tyre is squashed, millimetres. */
+  showDeflection: boolean;
+  /** Millimetres at or below which the wheel counts as off the ground. */
+  liftOffThreshold: number;
   showBrakes: boolean;
   showWear: boolean;
   showCompound: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
+ * The attitude of the player's car and the alignment of its wheels: ride
+ * height at the four corners, rake, roll, camber, toe and damper travel, a
+ * row each. Le Mans Ultimate only.
+ *
+ * The sim publishes heights in millimetres and no wheelbase or track width,
+ * so the three lengths below are what turns a difference in height into an
+ * angle, and the angles are as good as the numbers entered.
+ */
+export interface ChassisConfig {
+  background: { opacity: number };
+  /** Ride height at the four corners, with a bar each. */
+  showRideHeight: boolean;
+  /** Ride height, millimetres, at which a corner's bar is full. */
+  rideHeightScale: number;
+  /** Below this ride height, millimetres, a front corner is bottoming. */
+  bottomingFront: number;
+  /** The same for a rear corner. */
+  bottomingRear: number;
+  /** Rake as an angle, with the millimetres behind it. */
+  showRake: boolean;
+  /** Millimetres between the axles, for the rake angle. */
+  wheelbase: number;
+  /** Front and rear roll angle. */
+  showRoll: boolean;
+  /** Millimetres between the front wheels, for the front roll angle. */
+  trackFront: number;
+  /** The same between the rear wheels. */
+  trackRear: number;
+  /** The front axle's share of the roll, in percent, after the two angles. */
+  showRollShare: boolean;
+  showCamber: boolean;
+  showToe: boolean;
+  /** Total toe per axle, or toe at each of the four wheels. */
+  toeDisplay: 'axle' | 'wheel';
+  /** Damper position at the four corners. */
+  showSuspension: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
+ * A diagram of the player's car: where the body is dented, what has come off
+ * or gone flat, where it was last hit, and what a repair costs at the next
+ * stop. Le Mans Ultimate only.
+ */
+export interface DamageConfig {
+  background: { opacity: number };
+  diagram: {
+    /** The car seen from above, nose up. */
+    enabled: boolean;
+    /**
+     * The figure in the middle of the car. Aero is the sim's own aero damage
+     * and falls back to the body until its REST API has answered.
+     */
+    reading: 'aero' | 'body' | 'none';
+    /** Count up from 0 % damage instead of down from 100 % integrity. */
+    showDamage: boolean;
+  };
+  /** A red wedge towards where the car was last hit, for 15 s. */
+  impact: { enabled: boolean };
+  /** Pulse a part that has come off. */
+  flashDetached: boolean;
+  /** An icon in the car while the sim shows its overheating warning. */
+  overheating: { enabled: boolean };
+  stats: {
+    /** The Aero, Body, Susp and Tyre figures beside the car. */
+    enabled: boolean;
+    /** Per cent of integrity at or below which each figure turns red. */
+    aeroWarn: number;
+    bodyWarn: number;
+    suspensionWarn: number;
+    tyreWarn: number;
+  };
+  /** The repair the pit menu is set to, and the time it adds to the stop. */
+  repair: { enabled: boolean };
+  /** Draw nothing while the car is sound and no repair is set. */
+  hideWhenUndamaged: boolean;
   sessionVisibility: SessionVisibilitySettings;
   showOnlyWhenOnTrack: boolean;
 }
@@ -1858,6 +1961,57 @@ export interface StrategyTimelineConfig {
   showStops: boolean;
 }
 
+/**
+ * The friction circle: the player's lateral g against longitudinal g, with a
+ * fading trail and the held maxima.
+ */
+export interface FrictionCircleConfig {
+  background: { opacity: number };
+  /** The g at the rim of the circle, 1 to 6. */
+  scaleG: number;
+  /**
+   * Which way the dot goes. 'force' is where the driver is thrown: up under
+   * braking, to the right in a left-hand corner. 'acceleration' is where the
+   * car is being pushed: down under braking, to the left in a left-hand
+   * corner.
+   */
+  orientation: 'force' | 'acceleration';
+  /** The fading trail behind the dot. */
+  showTrace: boolean;
+  /** How many seconds of driving the trail holds, 1 to 10. */
+  traceSeconds: number;
+  /** A ring at each whole g and the centre cross. */
+  showRings: boolean;
+  /** The ring at the best lateral g the car has sustained lately. */
+  showSustainedRing: boolean;
+  /** The four figures in the corners. */
+  showReadings: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
+ * Brake performance: the peak of each braking zone against a best, with the
+ * zone's speeds, distance and time, and how long the wheels were locked.
+ */
+export interface BrakePerformanceConfig {
+  background: { opacity: number };
+  /**
+   * What the delta and the "best" figure are measured against: the best
+   * peak of roughly the last minute, or the best of the session.
+   */
+  reference: 'rolling' | 'session';
+  /** The delta as a share of the best, or in g. */
+  deltaUnit: 'percent' | 'g';
+  /** The line with the speeds, distance, time and average of the zone. */
+  showZoneDetail: boolean;
+  speedUnit: 'auto' | 'km/h' | 'mph';
+  /** Front and rear lock times. Never drawn when the sim gives none. */
+  showLockTime: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
 export interface WidgetConfigMap {
   standings: StandingsConfig;
   relative: RelativeConfig;
@@ -1886,7 +2040,11 @@ export interface WidgetConfigMap {
   deltaspeed: DeltaSpeedConfig;
   carsystems: CarSystemsConfig;
   tyres: TyresConfig;
+  chassis: ChassisConfig;
+  damage: DamageConfig;
   systemperformance: SystemPerformanceConfig;
+  frictioncircle: FrictionCircleConfig;
+  brakeperformance: BrakePerformanceConfig;
   minimap: MinimapConfig;
   lapdelta: LapDeltaConfig;
   cornerdelta: CornerDeltaConfig;
@@ -2019,8 +2177,14 @@ export type SectorDeltaWidgetSettings = BaseWidgetSettings<SectorDeltaConfig>;
 export type DeltaSpeedWidgetSettings = BaseWidgetSettings<DeltaSpeedConfig>;
 export type CarSystemsWidgetSettings = BaseWidgetSettings<CarSystemsConfig>;
 export type TyresWidgetSettings = BaseWidgetSettings<TyresConfig>;
+export type ChassisWidgetSettings = BaseWidgetSettings<ChassisConfig>;
+export type DamageWidgetSettings = BaseWidgetSettings<DamageConfig>;
 export type SystemPerformanceWidgetSettings =
   BaseWidgetSettings<SystemPerformanceConfig>;
+export type FrictionCircleWidgetSettings =
+  BaseWidgetSettings<FrictionCircleConfig>;
+export type BrakePerformanceWidgetSettings =
+  BaseWidgetSettings<BrakePerformanceConfig>;
 export type MinimapWidgetSettings = BaseWidgetSettings<MinimapConfig>;
 export type LapDeltaWidgetSettings = BaseWidgetSettings<LapDeltaConfig>;
 export type CornerDeltaWidgetSettings = BaseWidgetSettings<CornerDeltaConfig>;

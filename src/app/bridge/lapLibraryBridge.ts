@@ -23,6 +23,7 @@ const idOrThrow = (value: unknown, channel: string): number => {
 const CHANNELS = [
   'lapLibrary:listSessions',
   'lapLibrary:listLaps',
+  'lapLibrary:listStints',
   'lapLibrary:deleteLap',
   'lapLibrary:deleteSession',
   'lapLibrary:pinReference',
@@ -54,6 +55,9 @@ export function setupLapLibraryBridge(library: LapLibraryService) {
   );
   ipcMain.handle('lapLibrary:listLaps', (_event, sessionId: unknown) =>
     library.listLaps(idOrThrow(sessionId, 'lapLibrary:listLaps'))
+  );
+  ipcMain.handle('lapLibrary:listStints', (_event, sessionId: unknown) =>
+    library.listStints(idOrThrow(sessionId, 'lapLibrary:listStints'))
   );
   ipcMain.handle('lapLibrary:deleteLap', (_event, lapId: unknown) =>
     library.deleteLap(idOrThrow(lapId, 'lapLibrary:deleteLap'))

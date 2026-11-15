@@ -12,10 +12,14 @@ import { createProcessorDefinitions } from './processorRegistry';
  * must run whether or not a window subscribes.
  * StreamChatService holds the Twitch and YouTube connections and reads no
  * telemetry, so it has nothing to do with the frame loop.
+ * PlayerLedgerRuntime keeps the player's laps and stints, which are stored:
+ * a record with a hole for every minute no widget was showing is no record.
  */
 const RUNTIME_OWNED_CHANNELS = [
   'lap-history.snapshot',
   'pit-stops.snapshot',
+  'player-ledger.snapshot',
+  'player-stint.snapshot',
   'replay.context',
   'streamchat.messages',
   'streamchat.emotes',

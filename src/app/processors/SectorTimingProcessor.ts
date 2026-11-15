@@ -7,6 +7,12 @@ import type {
   Telemetry,
 } from '@irdashies/types';
 import type { TelemetryProcessor } from './TelemetryProcessor';
+import {
+  indexLag,
+  PositionHistory,
+  simSectorStartedAt,
+  simTimeAt,
+} from './sectorIndexLag';
 
 const MIN_PROGRESS = 0.00005;
 /** Where a lap is far enough from the line that LMU's void flag is its own. */
@@ -33,15 +39,6 @@ const NOMINAL_SIM_SECTORS: readonly Sector[] = [
   { SectorNum: 1, SectorStartPct: 1 / 3 },
   { SectorNum: 2, SectorStartPct: 2 / 3 },
 ];
-/**
- * The longest the sim's sector index may trail the crossing it reports. LMU
- * writes the index five times a second, so it is a fifth of a second late at
- * most. A lap clock further than this from the sector times beside it is not
- * timing the same lap.
- */
-const MAX_INDEX_LAG_SECONDS = 0.5;
-/** Frames of position kept to place a crossing the index reported late. */
-const POSITION_HISTORY = 128;
 
 const numericValue = (
   frame: Telemetry,
@@ -65,17 +62,6 @@ const simSectorIdxOf = (frame: Telemetry): number | null => {
     : null;
 };
 
-/** One of the sim's sector times, or null where it has not set one. */
-const simTimeAt = (
-  times: readonly (number | null)[] | undefined,
-  index: number
-): number | null => {
-  const value = times?.[index];
-  return typeof value === 'number' && Number.isFinite(value) && value > 0
-    ? value
-    : null;
-};
-
 /**
  * The lap time the sim's last-lap sector times add up to, or null if one of
  * them is not set.
@@ -89,25 +75,6 @@ const simLapTimeOf = (
   return first !== null && second !== null && third !== null
     ? first + second + third
     : null;
-};
-
-/**
- * How long before this frame the car crossed into the sector the sim's index
- * has just moved to, in seconds; 0 where that cannot be told.
- *
- * LMU's sector index and sector times come from its scoring block, written
- * five times a second, so the index moves up to a fifth of a second after
- * the car did. The lap clock runs at the telemetry rate, and the sim's own
- * sector times say how far into the lap the sector began: the difference is
- * how late the index was.
- */
-const indexLag = (
-  lapClock: number | null,
-  sectorStartedAt: number | null
-): number => {
-  if (lapClock === null || sectorStartedAt === null) return 0;
-  const lag = lapClock - sectorStartedAt;
-  return lag >= 0 && lag <= MAX_INDEX_LAG_SECONDS ? lag : 0;
 };
 
 export const getSectorIdx = (
@@ -183,11 +150,8 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
   private readonly sectorStartSeen = [true, false, false];
   /** The sim's last lap time on the previous frame, to see it move. */
   private simLastLapTime: number | null = null;
-  /** The clock and position of the last frames, oldest overwritten first. */
-  private readonly historyTimes = new Float64Array(POSITION_HISTORY);
-  private readonly historyPcts = new Float64Array(POSITION_HISTORY);
-  private historyHead = 0;
-  private historyCount = 0;
+  /** Where the car was on the last frames, to place a late-reported entry. */
+  private readonly history = new PositionHistory();
   private latest: SectorTimingSnapshot = this.emptySnapshot();
 
   init(session: Session): void {
@@ -417,8 +381,8 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
     this.lastSessionTime = sessionTime;
 
     if (firstFrame) {
-      this.historyCount = 0;
-      this.rememberPosition(sessionTime, lapDistPct);
+      this.history.clear();
+      this.history.remember(sessionTime, lapDistPct);
       this.latest = {
         ...this.latest,
         currentSectorIdx: sectorIdx,
@@ -435,27 +399,20 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
     // started again, or the car is in a sector it did not drive into -- put
     // back in its garage, or moved while the player was out of it.
     if (rewound || (sectorIdx !== previousIdx && (returning || !movedOn))) {
-      this.historyCount = 0;
-      this.rememberPosition(sessionTime, lapDistPct);
+      this.history.clear();
+      this.history.remember(sessionTime, lapDistPct);
       this.abandonSector(sectorIdx, sessionTime, sessionNum);
       return;
     }
-    this.rememberPosition(sessionTime, lapDistPct);
+    this.history.remember(sessionTime, lapDistPct);
     if (sectorIdx === previousIdx) return;
 
     const current = frame.LmuCurrentSectorTimes?.value;
-    const first = simTimeAt(current, 0);
-    const second = simTimeAt(current, 1);
     let sectorTime: number | null;
-    // How far into the lap the sector now entered began, by the sim's times.
-    let sectorStartedAt: number | null;
     if (previousIdx === 0) {
-      sectorTime = first;
-      sectorStartedAt = first;
+      sectorTime = simTimeAt(current, 0);
     } else if (previousIdx === 1) {
-      sectorTime = second;
-      sectorStartedAt =
-        first !== null && second !== null ? first + second : null;
+      sectorTime = simTimeAt(current, 1);
     } else {
       // The last-lap times are this lap's only once the sim has rewritten
       // them, which it does in the update that moves the index. A lap time
@@ -464,13 +421,18 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
         lastLapTime !== null && lastLapTime !== previousLastLapTime
           ? simTimeAt(frame.LmuLastSectorTimes?.value, 2)
           : null;
-      sectorStartedAt = 0;
     }
 
     const entryTime =
       sessionTime -
-      indexLag(numericValue(frame, 'LapCurrentLapTime'), sectorStartedAt);
-    this.placeSectorStart(sectorIdx, this.positionAt(entryTime) ?? lapDistPct);
+      indexLag(
+        numericValue(frame, 'LapCurrentLapTime'),
+        simSectorStartedAt(current, sectorIdx)
+      );
+    this.placeSectorStart(
+      sectorIdx,
+      this.history.positionAt(entryTime) ?? lapDistPct
+    );
     this.completeSector(sectorTime, entryTime, sectorIdx, sectorIdx === 0);
     this.publishEvent(sessionNum);
   }
@@ -497,37 +459,6 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
         sectorIdx === 1 ? (lapDistPct + 1) / 2 : lapDistPct / 2;
     }
     this.latest = { ...this.latest, sectors };
-  }
-
-  private rememberPosition(sessionTime: number, lapDistPct: number): void {
-    this.historyTimes[this.historyHead] = sessionTime;
-    this.historyPcts[this.historyHead] = lapDistPct;
-    this.historyHead = (this.historyHead + 1) % POSITION_HISTORY;
-    if (this.historyCount < POSITION_HISTORY) this.historyCount += 1;
-  }
-
-  /**
-   * Where the car was at a moment within the last few frames, or null when
-   * that moment is not between two of them.
-   */
-  private positionAt(time: number): number | null {
-    let newer = (this.historyHead + POSITION_HISTORY - 1) % POSITION_HISTORY;
-    for (let step = 1; step < this.historyCount; step += 1) {
-      const older = (newer + POSITION_HISTORY - 1) % POSITION_HISTORY;
-      const from = this.historyTimes[older];
-      const to = this.historyTimes[newer];
-      if (time >= from && time <= to) {
-        const fromPct = this.historyPcts[older];
-        const toPct = this.historyPcts[newer];
-        // A step back is the line: no place to read a sector start from.
-        if (toPct < fromPct) return null;
-        return to > from
-          ? fromPct + ((time - from) / (to - from)) * (toPct - fromPct)
-          : toPct;
-      }
-      newer = older;
-    }
-    return null;
   }
 
   /**
@@ -656,7 +587,7 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
     this.wasOnTrack = false;
     this.sectorStartSeen.fill(false, 1);
     this.simLastLapTime = null;
-    this.historyCount = 0;
+    this.history.clear();
     this.latest = this.emptySnapshot(
       sectors,
       sessionNum,

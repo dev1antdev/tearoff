@@ -18,6 +18,7 @@ import type {
   StintClosedBy,
   StintOpenedBy,
 } from '../../../types/ledger';
+import { stintPace } from '../../../shared/stintPace';
 import { MIGRATIONS, type Migration } from './schema';
 import { openLapLibraryFile, type OpenOutcome } from './upgrade';
 
@@ -212,21 +213,10 @@ export const isEligibleLap = (lap: LapInput): boolean =>
 
 /**
  * The two pace figures of a stint that have no column, because they follow
- * from the three that do: the mean of the clean laps other than the best,
- * less the best; and the best over that mean.
+ * from the three that do. Shared with the tracker that works them out as a
+ * stint runs; re-exported here, where they have always been found.
  */
-export const stintPace = (
-  bestLap: number | null,
-  avgLap: number | null,
-  cleanLaps: number
-): Pick<LedgerStint, 'paceDelta' | 'consistency'> => {
-  if (bestLap === null || avgLap === null || cleanLaps < 2) {
-    return { paceDelta: null, consistency: null };
-  }
-  const others = (avgLap * cleanLaps - bestLap) / (cleanLaps - 1);
-  if (!(others > 0)) return { paceDelta: null, consistency: null };
-  return { paceDelta: others - bestLap, consistency: bestLap / others };
-};
+export { stintPace };
 
 const passOf = (value: unknown): LedgerPass | null => {
   if (!value || typeof value !== 'object') return null;

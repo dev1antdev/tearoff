@@ -230,6 +230,11 @@ export interface LapLibraryBridge {
   ) => Promise<LapLibrarySession[]>;
   /** A session's laps in the order they were driven. */
   listLaps: (sessionId: number) => Promise<LapLibraryLap[]>;
+  /**
+   * A session's stints in the order they were driven, each with its row id.
+   * A stint's laps are those of `listLaps` whose ledger names it.
+   */
+  listStints: (sessionId: number) => Promise<LapLibraryStint[]>;
   deleteLap: (lapId: number) => Promise<boolean>;
   /** Deletes a session and every lap in it. */
   deleteSession: (sessionId: number) => Promise<boolean>;

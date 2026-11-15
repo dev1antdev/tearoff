@@ -95,7 +95,18 @@ describe('per-simulator widget support', () => {
       ...IRACING_DISABLED_WIDGETS,
     ]);
     expect(isWidgetDisabledForSim(config, 'tyres', 'iracing')).toBe(true);
+    expect(isWidgetDisabledForSim(config, 'damage', 'iracing')).toBe(true);
+    expect(isWidgetDisabledForSim(config, 'damage', 'lmu')).toBe(false);
     expect(isWidgetDisabledForSim(config, 'standings', 'iracing')).toBe(false);
+  });
+
+  it('shows the friction circle and brake performance under both sims', () => {
+    // Both read the car's acceleration, pedal and speed, which each sim
+    // publishes under the same names.
+    for (const id of ['frictioncircle', 'brakeperformance']) {
+      expect(isWidgetDisabledForSim(config, id, 'iracing')).toBe(false);
+      expect(isWidgetDisabledForSim(config, id, 'lmu')).toBe(false);
+    }
   });
 
   it('never hides a widget under every simulator', () => {

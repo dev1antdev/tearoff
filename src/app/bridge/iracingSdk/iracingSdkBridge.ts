@@ -211,6 +211,9 @@ export async function publishIRacingSDKEvents(
     const flagTuningStorage = channelBus
       ? await import('../../storage/flagTuning')
       : undefined;
+    const trackProfiles = channelBus
+      ? (await import('../../trackProfileRecording')).getTrackProfileSource()
+      : null;
     await radarPoleSideStorage?.loadRadarPoleSideOverrides();
     const racePlanHistory = channelBus
       ? (
@@ -246,6 +249,9 @@ export async function publishIRacingSDKEvents(
             radarPoleSides: radarPoleSideStorage?.radarPoleSideOverrides,
             flagTuning: flagTuningStorage?.getFlagTuning,
             systemLoad: getSystemLoadSampler(),
+            trackProfiles: trackProfiles
+              ? { source: trackProfiles, simulator: 'iracing' }
+              : undefined,
             racePlan: racePlanHistory && {
               getPlan: getActiveRacePlan,
               persistence: {

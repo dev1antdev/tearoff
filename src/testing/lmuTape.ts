@@ -49,6 +49,7 @@ interface LmuTapeSdk {
   stop(): boolean;
   read(): LmuRawTelemetry & { running: boolean };
   readSession(): LmuRawSession;
+  readRest(path: string): string | null;
 }
 
 export interface LmuTapeFrame {
@@ -88,8 +89,15 @@ export interface PlayLmuTapeOptions {
    * The REST cells for each frame, as the bridge's poller would hold them:
    * the camera focus, the pit menu and the rest. Called with the frame after
    * `transformRaw`. Omitted, the channels they feed are absent.
+   *
+   * `readRest` gives the body the recording holds for a REST path as of this
+   * frame, or null where it has none yet, for a caller that wants the cells
+   * the sim's own answers would have made.
    */
-  restCells?: (raw: LmuRawTelemetry) => LmuRestCells | undefined;
+  restCells?: (
+    raw: LmuRawTelemetry,
+    readRest: (path: string) => string | null
+  ) => LmuRestCells | undefined;
   /** Called for every frame. Returning false stops the replay. */
   onFrame: (frame: LmuTapeFrame) => unknown;
 }
@@ -200,6 +208,7 @@ export const playLmuTape = async ({
     LmuSdkNode: new () => LmuTapeSdk;
   };
   const sdk = new LmuSdkNode();
+  const readRest = (restPath: string) => sdk.readRest(restPath);
   const lapDistanceState = createLmuLapDistanceState();
   const opponentState = createLmuOpponentLapDistanceState();
   const energyState = createLmuEnergyState();
@@ -294,7 +303,7 @@ export const playLmuTape = async ({
         raw,
         lapDistanceState,
         opponentState,
-        restCells?.(raw),
+        restCells?.(raw, readRest),
         sessionIdentity,
         undefined,
         undefined,

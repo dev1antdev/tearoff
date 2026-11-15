@@ -48,7 +48,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 1. In LMU, enable **Settings > Gameplay > Enable Plugins**, then restart the simulator.
 2. Start Tearoff and load into an LMU session to receive telemetry.
 
-**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
@@ -174,9 +174,77 @@ Shows the state of your tyres and brakes, one axle per block. Le Mans Ultimate o
 - Choice of which temperature to show: tread surface, the rubber layer under it, or the carcass
 - Working window that follows the temperature the sim states for the fitted compound, or one you set yourself: blue when cold, green in the window, yellow to red when overheating
 - Live tyre pressures in psi, kPa or bar, optionally coloured against a target hot pressure per axle
+- A pressure is drawn blue while its tyre is cold (carcass under 65 °C by default), whatever the target says: a cold pressure cannot be judged against a hot target
+- Optional offset under each pressure, showing how far it sits below the highest of the four, averaged over a few seconds
 - Brake temperature per axle, coloured against its own working window
 - Optional tread remaining per tyre and the compound fitted to each axle
+- Optional load bar under each tyre: its share of the load on all four wheels, growing outwards from the centre of the car and full at 50%, red when the wheel carries next to nothing. Le Mans Ultimate withholds tyre load, so the share is taken from suspension load and is an estimate: the split between left and right is sound, the split between front and rear is approximate
+- Optional tyre deflection in millimetres, red when the wheel is off the ground
 - Adjustable background opacity, session visibility and an option to show only when on track
+
+### Chassis
+
+Shows how your car sits on the road, a row per figure. Le Mans Ultimate only: iRacing publishes no ride height, camber or toe while the car is moving.
+
+**Features:**
+
+- Ride height at the four corners in millimetres, with a bar each and a red warning below a bottoming height you set per axle
+- Rake as an angle and in millimetres, blue when the nose is the higher end
+- Roll at the front and rear axle, positive with the right side higher, and optionally the share of the roll the front axle takes
+- Camber at each wheel, amber when a wheel is upright or leaning out
+- Toe as the total of each axle, in or out, or at each of the four wheels
+- Optional suspension travel at the four corners
+- The sim publishes no wheelbase or track widths, so the rake and roll angles use lengths you enter (2800 mm and 1800 mm by default) and are as good as those numbers; the millimetres are the sim's own
+- Each row can be switched off; adjustable background opacity, session visibility and an option to show only when on track
+
+### Damage
+
+Shows your car from above and what has happened to it. Le Mans Ultimate only: iRacing publishes no body, aero or suspension state.
+
+**Features:**
+
+- Car diagram, nose up: eight body zones around the outline, grey when sound, amber for a light dent, red for a heavy one, and black with a red edge for bodywork that has come off
+- A wheel in each corner, coloured by suspension damage from green through amber and orange to red. A flat tyre is an empty red rim, and a wheel that has come off is black with a red edge. Detached parts pulse, which can be switched off
+- Last impact: a red wedge towards where the car was hit, for 15 seconds. A touch too light to be contact with a car or a wall, such as a kerb or the floor on the road, is not marked unless it leaves damage
+- Aero, body and suspension integrity and the tread left on the most worn tyre, in per cent, each turning red at a threshold you set. The figure in the middle of the car is the aero figure, the body figure or nothing, and can count damage up instead of integrity down
+- Repair line: what the pit menu is set to repair, in the sim's own words, and the time it adds to the next stop. It appears once there is something to repair
+- A thermometer in the car while the sim shows its overheating warning
+- Options to show the widget only when the car is damaged and only when on track, plus background opacity and session visibility
+
+**What is confirmed and what is not.** One recorded race stands behind this widget, with five knocks to the nose. Confirmed on it: a light dent in the front zone, when an impact happened and where it came from, the aero damage figure, and the repair the pit menu offers ("Do Not Repair" and "Repair Body"). Not seen on any recording, and built on how the sim is understood to report them: dents in the other seven zones, heavy dents, a lost rear wing, a lost wheel, a flat tyre, suspension damage and its scale, the overheating warning, and a repair that has actually been chosen, so the repair time has only ever read zero. Any of these may turn out to be drawn in the wrong place or not at all. The force below which an impact is not marked rests on the same five impacts: three knocks against other cars read 1,233 to 3,017 on the sim's own scale, two brushes read 40 and 63, and the line is drawn at 250.
+
+### Friction Circle
+
+Shows how hard your car is cornering against how hard it is braking or accelerating, in g. Works under iRacing and Le Mans Ultimate.
+
+**Features:**
+
+- A dot at the current reading, with a fading trail of the last few seconds (1 to 10, four by default)
+- Rings at each whole g and a cross through the centre; the edge of the circle is a scale you set, from 1 to 6 g. A reading beyond it is drawn on the edge, with the dot in amber
+- Choice of direction: where you are thrown (up under braking, to the right in a left-hand corner) or where the car is being pushed (the other way round)
+- Lateral and longitudinal g as figures in the top corners, and the highest of each over the last five seconds in the bottom corners
+- A dashed ring at the best lateral g the car has held through a corner lately, which a kerb or a single spike does not move
+- For two seconds after an impact the maxima and the ring are not raised, so a knock is not taken for grip. Le Mans Ultimate states when the car was hit; under iRacing the moment your incident count rises stands in, which misses contact that costs no incident points
+- The rings, the trail, the dashed ring and the figures can each be switched off; adjustable background opacity, session visibility and an option to show only when on track
+
+iRacing's readings include gravity and Le Mans Ultimate's do not, so on banking and on a gradient the iRacing dot sits off centre by the slope's share of 1 g.
+
+### Brake Performance
+
+Shows how hard you stopped: the peak deceleration of each braking zone against your best. Works under iRacing and Le Mans Ultimate; the wheel lock times are Le Mans Ultimate only.
+
+**Features:**
+
+- Peak deceleration in g of the braking zone in progress, then of the last one completed. A zone runs from the brake going on to the brake coming off; pumping the pedal within a quarter of a second is one zone, and a stop shorter than 0.3 s or softer than 0.5 g is not counted
+- How the last stop compares with your best, as a percentage or in g: green when harder, amber when softer
+- Choice of what "best" means: the hardest stop of roughly the last minute, which follows the tyres and the fuel load, or the hardest of the session
+- Zone detail: the speed the stop began and ended at, how far and how long it ran, its average deceleration, and how long the ABS was working. While you are on the brakes it shows the entry speed with the distance and time running
+- Speeds in km/h or mph, following the sim or set by hand; the distance follows in metres or feet
+- Wheel lock time: how long a front and a rear wheel were locked under braking on this lap, amber above zero and red from one second. Le Mans Ultimate only, because iRacing publishes no wheel speeds
+- A stop that runs into something is discarded and never becomes a best. Le Mans Ultimate states when the car was hit; under iRacing the moment your incident count rises stands in
+- Adjustable background opacity, session visibility and an option to show only when on track
+
+**What is confirmed and what is not.** On a recorded Le Mans Ultimate race in an LMGT3 the widget finds 26 braking zones in four minutes, with a best of 2.39 g, and discards the two stops that ran into another car. That car has ABS and never locked a wheel, so the lock times have only ever read zero on a recording. On a recorded iRacing race a single frame of 3.68 g, with no incident counted for it, stands as the best stop of the race where the hardest clean stop is 2.16 g: under iRacing a kerb strike or a light touch can still be taken for braking.
 
 ### Standings
 

@@ -177,6 +177,8 @@ export const createMockLapLibrary = (
       Promise.resolve(sessions.slice(offset, offset + limit)),
     listLaps: (sessionId) =>
       Promise.resolve(laps.filter((entry) => entry.sessionId === sessionId)),
+    // The sample laps were stored before there were stints to list.
+    listStints: () => Promise.resolve([]),
     deleteLap: (lapId) => {
       const target = laps.find((entry) => entry.id === lapId);
       if (!target) return Promise.resolve(false);

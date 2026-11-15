@@ -1,10 +1,23 @@
 import type { TyresConfig, TyreWheelState } from '@irdashies/types';
+import {
+  deflectionMillimetres,
+  isLoadLow,
+  isPressureCold,
+  isWheelLifted,
+  loadBarFill,
+  loadSharePercent,
+} from '@irdashies/shared';
 
 /**
  * Pure display logic for the tyre widget: unit conversion, which reading to
  * draw, and what colour it is. Kept apart from the component so each rule can
  * be tested without rendering anything.
+ *
+ * The rules for load, deflection and a cold tyre are shared with the specs
+ * that read a recorded race, and handed on from here so the widget has one
+ * place to look.
  */
+export { isLoadLow, isPressureCold, isWheelLifted, loadBarFill };
 
 const KPA_PER_PSI = 6.894757;
 const KPA_PER_BAR = 100;
@@ -200,20 +213,67 @@ export const temperatureColor = (
   return along(HOT_STOPS, 0);
 };
 
-export type PressureTone = 'low' | 'onTarget' | 'high' | 'plain';
+export type PressureTone = 'low' | 'onTarget' | 'high' | 'plain' | 'cold';
 
-/** Where a pressure sits against its target; plain when there is no target. */
+/**
+ * Where a pressure sits against its target; plain when there is no target.
+ *
+ * A cold tyre comes first, target or no target: its pressure will rise as it
+ * warms, so it cannot be judged against a hot target and is not to be read
+ * as a hot pressure either.
+ */
 export const pressureTone = (
   kpa: number | null | undefined,
   target: number,
   tolerance: number,
-  enabled: boolean
+  enabled: boolean,
+  cold = false
 ): PressureTone => {
-  if (!enabled || typeof kpa !== 'number') return 'plain';
+  if (typeof kpa !== 'number') return 'plain';
+  if (cold) return 'cold';
+  if (!enabled) return 'plain';
   if (kpa < target - tolerance) return 'low';
   if (kpa > target + tolerance) return 'high';
   return 'onTarget';
 };
+
+/**
+ * Decimals for an offset between two pressures. One more than a pressure
+ * gets in kPa: the offsets are a few kPa at most.
+ */
+const DEVIATION_DECIMALS: Record<TyresConfig['pressureUnit'], number> = {
+  psi: 1,
+  kpa: 1,
+  bar: 2,
+};
+
+/**
+ * How far a pressure sits below the highest of the four, written as an
+ * offset from it: "-1.2", and "0.0" for the highest wheel itself.
+ */
+export const formatPressureDeviation = (
+  kpa: number | null | undefined,
+  unit: TyresConfig['pressureUnit']
+): string => {
+  if (typeof kpa !== 'number') return NO_READING;
+  const offset = pressureFromKpa(Math.abs(kpa), unit).toFixed(
+    DEVIATION_DECIMALS[unit]
+  );
+  // An offset too small to show is written as the zero it reads as.
+  return Number(offset) === 0 ? offset : `-${offset}`;
+};
+
+/** A wheel's share of the car's load as a whole percentage. */
+export const formatLoadShare = (share: number | null | undefined): string =>
+  typeof share === 'number' ? `${loadSharePercent(share)}%` : NO_READING;
+
+/** Tyre deflection in whole millimetres, with its unit. */
+export const formatDeflection = (
+  deflectionMm: number | null | undefined
+): string =>
+  typeof deflectionMm === 'number'
+    ? `${deflectionMillimetres(deflectionMm)} mm`
+    : NO_READING;
 
 /** Tread left as a whole percentage, or the placeholder. */
 export const formatTread = (remaining: number | null | undefined): string =>

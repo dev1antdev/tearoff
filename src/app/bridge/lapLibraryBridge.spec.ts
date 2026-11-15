@@ -88,6 +88,7 @@ describe('lap library bridge', () => {
 
     await invoke('lapLibrary:listSessions', 50, 100);
     await invoke('lapLibrary:listLaps', 7);
+    await invoke('lapLibrary:listStints', 12);
     await invoke('lapLibrary:deleteLap', 8);
     await invoke('lapLibrary:deleteSession', 9);
     await invoke('lapLibrary:pinReference', 10);
@@ -95,6 +96,7 @@ describe('lap library bridge', () => {
 
     expect(service.listSessions).toHaveBeenCalledWith(50, 100);
     expect(service.listLaps).toHaveBeenCalledWith(7);
+    expect(service.listStints).toHaveBeenCalledWith(12);
     expect(service.deleteLap).toHaveBeenCalledWith(8);
     expect(service.deleteSession).toHaveBeenCalledWith(9);
     expect(service.pinReference).toHaveBeenCalledWith(10);
@@ -126,6 +128,7 @@ describe('lap library bridge', () => {
 
   it.each([
     'lapLibrary:listLaps',
+    'lapLibrary:listStints',
     'lapLibrary:deleteLap',
     'lapLibrary:deleteSession',
     'lapLibrary:pinReference',
