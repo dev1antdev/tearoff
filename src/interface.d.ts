@@ -23,6 +23,7 @@ declare global {
     /** Absent outside the Electron preload, e.g. the browser server. */
     overlayVisibilityBridge?: import('./types/overlayVisibility').OverlayVisibilityBridge;
     channelBridge: ChannelBridge;
+    windowVisibilityBridge?: import('./types/windowVisibility').WindowVisibilityBridge;
     irsdkBridge: IrSdkBridge;
     telemetryInspectorBridge: TelemetryInspectorBridge;
     dashboardBridge: DashboardBridge;
