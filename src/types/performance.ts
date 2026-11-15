@@ -16,11 +16,12 @@ export interface RendererPerfSample {
   timestamp: string;
   runId: string;
   scenario: string;
-  /** Preload process.pid may be namespace-local; use osPid for OS attribution. */
+  /**
+   * The renderer's `process.pid`, read in the preload: `tools/perf` tells one
+   * window's samples from another's by it. On Windows, where the app runs, it
+   * is the same OS process id the main process's CPU and memory figures carry.
+   */
   pid: number;
-  osPid?: number;
-  webContentsId?: number;
-  windowId?: number;
   route: string;
   /** DOM wrapper IDs at report time; does not prove visible pixels or active input. */
   widgetDomIds?: string[];
