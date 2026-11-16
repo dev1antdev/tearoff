@@ -50,7 +50,7 @@ export const FourRivals: Story = {
 export const OwnCarOnly: Story = {
   ...strategyStory('stinttimeline', {
     config: { rivals: 0, showDrivers: false, showLegend: false },
-    size: { width: 700, height: 70 },
+    size: { width: 700, height: 80 },
   }),
 };
 
