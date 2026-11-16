@@ -8,6 +8,7 @@ import {
   CaptureChannels,
   ChannelSnapshotDecorator,
   buildCaptureSnapshots,
+  buildStoryLapTimes,
 } from '@irdashies/storybook';
 import {
   DashboardProvider,
@@ -391,6 +392,68 @@ export const AverageLapTime: Story = {
         },
       })(Story, context),
   ],
+};
+
+// Fourteen laps a car as the real LapTimesProcessor keeps them. Every third
+// car stopped four laps ago, so its in-lap and out-lap are among its last
+// five; every fourth has been watched for seven laps only.
+const lapAverageSnapshot = buildStoryLapTimes(
+  Array.from({ length: 72 }, (_, idx) => ({
+    slot: idx,
+    bestLap: 90 + idx * 0.15,
+    lastLap: 90.412 + idx * 0.15,
+  })),
+  ({ slot }) =>
+    slot % 4 === 3
+      ? { laps: 7 }
+      : slot % 3 === 1
+        ? { laps: 14, inLaps: [10] }
+        : { laps: 14 }
+);
+
+/**
+ * Avg 5 and Avg 10 beside the Last column, in a Relative widened by the room
+ * three times need: at its default 402 px the names would be squeezed out.
+ * A car that stopped reads like its neighbours over clean laps and seconds
+ * slower over all laps; a car watched for seven laps has no Avg 10.
+ */
+export const LapAverages: Story = {
+  loaders: [async () => ({ capture: await buildCaptureSnapshots() })],
+  args: { averagesOver: 'clean', width: 640 },
+  argTypes: {
+    averagesOver: { control: 'inline-radio', options: ['clean', 'all'] },
+    width: { control: { type: 'number', min: 402, max: 900, step: 10 } },
+  },
+  decorators: [
+    (Story, context) => (
+      <div style={{ width: (context.args as { width: number }).width }}>
+        <Story />
+      </div>
+    ),
+    (Story, context) =>
+      ChannelSnapshotDecorator({
+        ...context.loaded.capture,
+        'lap-times.snapshot': lapAverageSnapshot,
+      })(Story, context),
+    (Story, context) =>
+      TelemetryDecoratorWithConfig(undefined, {
+        relative: {
+          lastTime: { enabled: true, timeFormat: 'full', markInvalid: true },
+          avgLast5: { enabled: true, timeFormat: 'full' },
+          avgLast10: { enabled: true, timeFormat: 'full' },
+          averagesOver: (context.args as { averagesOver: 'clean' | 'all' })
+            .averagesOver,
+          headerBar: { enabled: false },
+          footerBar: { enabled: false },
+        },
+      })(Story, context),
+  ],
+};
+
+/** The same with every lap counted. */
+export const LapAveragesAllLaps: Story = {
+  ...LapAverages,
+  args: { averagesOver: 'all', width: 640 },
 };
 
 export const Primary: Story = {

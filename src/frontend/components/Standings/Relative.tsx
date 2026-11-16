@@ -9,6 +9,7 @@ import {
   useLapTimesStoreUpdater,
   useLapTimeHistory,
   useCarIdxRollingAvgLapTime,
+  useCarIdxLapAverage,
   useFocusCarIdx,
   useFlagStateSnapshot,
   useP2PDisplayStates,
@@ -98,13 +99,23 @@ export const Relative = () => {
   const p2pDisplayStates = useP2PDisplayStates();
 
   const lapTimeDeltasEnabled = settings?.lapTimeDeltas?.enabled ?? false;
+  const avgLast5Enabled = !!settings?.avgLast5?.enabled;
+  const avgLast10Enabled = !!settings?.avgLast10?.enabled;
   useLapTimesStoreUpdater(
-    lapTimeDeltasEnabled || !!settings?.avgLapTime?.enabled
+    lapTimeDeltasEnabled ||
+      !!settings?.avgLapTime?.enabled ||
+      avgLast5Enabled ||
+      avgLast10Enabled
   );
   const avgLapTimes = useCarIdxRollingAvgLapTime(
     settings?.avgLapTime?.numLaps ?? 5,
     settings?.avgLapTime?.excludePitLaps ?? false
   );
+  // Anything but a stored "all" is the default: a saved dashboard is not
+  // trusted to hold one of the two values.
+  const averagesOver = settings?.averagesOver === 'all' ? 'all' : 'clean';
+  const avgLast5 = useCarIdxLapAverage(5, averagesOver, avgLast5Enabled);
+  const avgLast10 = useCarIdxLapAverage(10, averagesOver, avgLast10Enabled);
   const numLapDeltas = settings?.lapTimeDeltas?.numLaps ?? 3;
   const focusCarIdx = useFocusCarIdx();
   const lapTimeHistory = useLapTimeHistory();
@@ -340,6 +351,8 @@ export const Relative = () => {
               ? avgLapTimes[result.carIdx]
               : undefined
           }
+          avgLast5={avgLast5Enabled ? avgLast5[result.carIdx] : undefined}
+          avgLast10={avgLast10Enabled ? avgLast10[result.carIdx] : undefined}
           hiddenColumns={hiddenColumns}
           hasDriverRatings={hasDriverRatings}
           isAI={result.driver?.isAI}
@@ -379,6 +392,10 @@ export const Relative = () => {
     numLapDeltas,
     lapDeltasByCarIdx,
     avgLapTimes,
+    avgLast5Enabled,
+    avgLast5,
+    avgLast10Enabled,
+    avgLast10,
     pitStopDurations,
     pitExitAfterSF,
   ]);

@@ -1,4 +1,8 @@
-import { numberOptions, timeFormatOptions } from './properties';
+import {
+  lapAveragesOverProperty,
+  numberOptions,
+  timeFormatOptions,
+} from './properties';
 import { defineWidgetManifest } from './types';
 
 export default defineWidgetManifest({
@@ -91,6 +95,16 @@ export default defineWidgetManifest({
       timeFormat: 'mixed',
       excludePitLaps: false,
     },
+    // Off by default: the Relative is narrow, and these are two more times.
+    avgLast5: {
+      enabled: false,
+      timeFormat: 'full',
+    },
+    avgLast10: {
+      enabled: false,
+      timeFormat: 'full',
+    },
+    averagesOver: 'clean',
     pushToPass: { enabled: false },
     // Off by default: only LMU reports these, so on iRacing the column
     // would be permanently blank.
@@ -117,6 +131,8 @@ export default defineWidgetManifest({
       'compound',
       'lapTimeDeltas',
       'avgLapTime',
+      'avgLast5',
+      'avgLast10',
       'trackLimits',
       'lmuVirtualEnergy',
       'pushToPass',
@@ -367,6 +383,17 @@ export default defineWidgetManifest({
       description:
         'Average the most recent eligible laps, skipping laps that include pit road. Opponent incident invalidations are not available in iRacing.',
     },
+    'avgLast5.timeFormat': {
+      type: 'enum',
+      label: 'Time Format',
+      options: timeFormatOptions,
+    },
+    'avgLast10.timeFormat': {
+      type: 'enum',
+      label: 'Time Format',
+      options: timeFormatOptions,
+    },
+    averagesOver: lapAveragesOverProperty,
     buffer: {
       type: 'enum',
       control: 'select',

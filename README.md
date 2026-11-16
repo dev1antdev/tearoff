@@ -335,6 +335,8 @@ Displays standings information for the current session.
   - Gap and interval display in practice and qualifying sessions
   - Lapped cars in laps: a car more than a lap behind reads "-2L" instead of a time, while cars on the same lap read in seconds. The gap always works this way; the interval does when **Interval Display** is **Laps When Lapped**, the default for a new dashboard (**Time** keeps "3:35")
   - A last lap the sim gave no time is dimmed and marked with a warning sign: a lap voided for track limits or a cut, or an out-lap (Le Mans Ultimate only; can be switched off)
+  - Optional **Avg 5** and **Avg 10** columns: each car's average lap time over its last 5 and its last 10 laps, each in a time format of its own like Last and Best. A column reads `--` until the car has that many laps; it never shows the average of fewer. Off by default, in iRacing and Le Mans Ultimate
+  - **Averages over** (Options tab) chooses which laps those two columns count. **Clean laps**, the default: laps Tearoff watched from line to line with the car never on pit road, so in-laps and out-laps are left out, and so is the lap a car was on when it was first seen. Nothing else is left out: a lap under yellow counts, and so does a lap Le Mans Ultimate voided for track limits, with the time it took. **All laps**: every lap that has a time, pit laps included
 - Optional column headers
 - Class headers:
   - Estimated race lap counts, or scheduled totals in fixed-lap races
@@ -405,6 +407,7 @@ Displays drive relative delta information for the current session.
 - Relative delta timing display with configurable precision
 - Timing information: best lap time, last lap time (multiple time format options: full, mixed, minutes, seconds-full, seconds-mixed, seconds)
   - A last lap the sim gave no time is dimmed and marked with a warning sign (Le Mans Ultimate only; can be switched off)
+  - Optional **Avg 5** and **Avg 10** columns, the average of each car's last 5 and last 10 laps over clean laps or all laps, as in [Standings](#standings); they need a wider widget than the default
 - Optional Push-to-Pass column, showing a driver's active state and remaining time in supported series
 - Configurable radio icon duration, so recent transmissions remain visible without flickering
 - Lap time delta column (configurable number of laps: 1-5)

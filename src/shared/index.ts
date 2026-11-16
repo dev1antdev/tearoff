@@ -4,6 +4,7 @@ export * from './fuel';
 export * from './pitStop';
 export * from './referenceLap';
 export * from './lapValidity';
+export * from './lapAverage';
 export * from './sectorBests';
 export * from './stintPace';
 export * from './wheelFigures';

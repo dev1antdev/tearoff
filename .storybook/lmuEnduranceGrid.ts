@@ -1,6 +1,12 @@
-import type { Session, StandingsSnapshot, Telemetry } from '@irdashies/types';
+import type {
+  LapTimesSnapshot,
+  Session,
+  StandingsSnapshot,
+  Telemetry,
+} from '@irdashies/types';
 import { LMU_CLASS_COLOURS } from '@irdashies/types';
 import { StandingsProcessor } from '../src/app/processors/StandingsProcessor';
+import { buildStoryLapTimes, type StoryLapPlan } from './lapTimesSnapshot';
 
 /**
  * A made-up multi-class endurance grid for stories: a session and the
@@ -379,6 +385,44 @@ export const lmuEnduranceGrid = buildStoryGrid(
   LMU_STORY_CARS,
   { player: LMU_STORY_PLAYER }
 );
+
+/**
+ * The endurance grid's last laps, as the app has them fourteen laps after it
+ * began watching: `lap-times.snapshot` for the stories of the Avg 5 and
+ * Avg 10 columns.
+ *
+ * Most cars have run all fourteen without stopping. Four have not, and they
+ * are what those columns are there to show:
+ *
+ * - #22 stopped four laps ago: its in-lap and its out-lap are two of its
+ *   last five laps, and of nobody's clean laps.
+ * - #183 is at its box now: the lap that brought it there is its last.
+ * - #311 has been through the pits twice in eleven laps, which leaves it
+ *   short of ten clean ones.
+ * - #61 retired four laps after the app first saw it.
+ */
+const ENDURANCE_LAP_PLANS: Readonly<Record<string, StoryLapPlan>> = {
+  '22': { laps: 14, inLaps: [10] },
+  '183': { laps: 14, inLaps: [14] },
+  '311': { laps: 11, inLaps: [3, 8] },
+  '61': { laps: 4 },
+};
+
+export const lmuEnduranceLapTimes: LapTimesSnapshot = buildStoryLapTimes(
+  LMU_STORY_CARS,
+  (car) => ENDURANCE_LAP_PLANS[car.number] ?? { laps: 14 }
+);
+
+/**
+ * The same laps from a source that publishes no clean history, as a build
+ * from before it existed would.
+ */
+export const lmuEnduranceLapTimesWithoutClean: LapTimesSnapshot = {
+  lapTimes: lmuEnduranceLapTimes.lapTimes,
+  lapTimeHistory: lmuEnduranceLapTimes.lapTimeHistory,
+  sessionNum: lmuEnduranceLapTimes.sessionNum,
+  version: lmuEnduranceLapTimes.version,
+};
 
 const SINGLE_CLASS = {
   GT3: { id: 40, color: 0xff5888, relSpeed: 2 },

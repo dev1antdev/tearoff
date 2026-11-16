@@ -86,6 +86,10 @@ interface DriverRowInfoProps {
   lapTimeDeltas?: number[];
   numLapDeltasToShow?: number;
   avgLapTime?: number;
+  /** Seconds over the car's last 5 laps; null until it has 5. */
+  avgLast5?: number | null;
+  /** Seconds over the car's last 10 laps; null until it has 10. */
+  avgLast10?: number | null;
   isMultiClass: boolean;
   displayOrder?: string[];
   /**
@@ -263,6 +267,8 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
     lapTimeDeltas,
     numLapDeltasToShow,
     avgLapTime,
+    avgLast5,
+    avgLast10,
     isMultiClass,
     displayOrder,
     hiddenColumns,
@@ -746,6 +752,39 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
           />
         ),
       },
+      // Read with a fallback at every step, as a stored config is not
+      // trusted to hold the entry whole: a column without one is off, and a
+      // column without a format takes the Last and Best default.
+      {
+        id: 'avgLast5',
+        shouldRender:
+          (displayOrder ? displayOrder.includes('avgLast5') : false) &&
+          (config?.avgLast5?.enabled ?? false),
+        component: (
+          <AvgLapTimeCell
+            key="avgLast5"
+            column="avgLast5"
+            avgLapTime={avgLast5}
+            timeFormat={config?.avgLast5?.timeFormat ?? 'full'}
+            compactMode={compactMode}
+          />
+        ),
+      },
+      {
+        id: 'avgLast10',
+        shouldRender:
+          (displayOrder ? displayOrder.includes('avgLast10') : false) &&
+          (config?.avgLast10?.enabled ?? false),
+        component: (
+          <AvgLapTimeCell
+            key="avgLast10"
+            column="avgLast10"
+            avgLapTime={avgLast10}
+            timeFormat={config?.avgLast10?.timeFormat ?? 'full'}
+            compactMode={compactMode}
+          />
+        ),
+      },
       {
         id: 'lapCount',
         shouldRender:
@@ -881,6 +920,8 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
     lapTimeDeltas,
     emptyLapDeltaPlaceholders,
     avgLapTime,
+    avgLast5,
+    avgLast10,
     hideCarManufacturer,
     pitExitAfterSF,
     tagSettings,

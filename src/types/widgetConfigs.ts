@@ -212,6 +212,21 @@ export interface LastTimeColumnConfig {
   markInvalid?: boolean;
 }
 
+/**
+ * Which laps the Avg 5 and Avg 10 columns are taken from.
+ *
+ * 'clean' is `cleanLapTimeHistory` of `lap-times.snapshot`: the laps the app
+ * watched from line to line with the car never on pit road. 'all' is every
+ * lap that has a time, pit laps included.
+ */
+export type LapAverageLaps = 'clean' | 'all';
+
+/** A column averaging a car's last laps: Avg 5 and Avg 10. */
+export interface LapAverageColumnConfig {
+  enabled: boolean;
+  timeFormat: TimeFormat;
+}
+
 export interface StandingsConfig {
   customClassOrdering: boolean;
   iratingChange: { enabled: boolean; estimateInPractice?: boolean };
@@ -263,6 +278,12 @@ export interface StandingsConfig {
   radio?: { persistenceSeconds: number };
   lapTimeDeltas: { enabled: boolean; numLaps: number; decimalPlaces: number };
   avgLapTime: AverageLapTimeConfig;
+  /** The average of the car's last 5 laps; nothing until it has 5. */
+  avgLast5: LapAverageColumnConfig;
+  /** The average of the car's last 10 laps; nothing until it has 10. */
+  avgLast10: LapAverageColumnConfig;
+  /** Which laps those two columns count. */
+  averagesOver: LapAverageLaps;
   lapCount: { enabled: boolean };
   /** LMU's track-limits penalty points. Absent on sims without them. */
   trackLimits: { enabled: boolean };
@@ -342,6 +363,12 @@ export interface RelativeConfig {
   driverTag: { enabled: boolean; widthPx?: number };
   lapTimeDeltas: { enabled: boolean; numLaps: number; decimalPlaces: number };
   avgLapTime: AverageLapTimeConfig;
+  /** The average of the car's last 5 laps; nothing until it has 5. */
+  avgLast5: LapAverageColumnConfig;
+  /** The average of the car's last 10 laps; nothing until it has 10. */
+  avgLast10: LapAverageColumnConfig;
+  /** Which laps those two columns count. */
+  averagesOver: LapAverageLaps;
   /** LMU's track-limits penalty points. Absent on sims without them. */
   trackLimits: { enabled: boolean };
   /**

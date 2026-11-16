@@ -13,6 +13,7 @@ import { BadgeFormatPreview } from '../components/BadgeFormatPreview';
 import { FormatSelect } from '../components/FormatSelect';
 import { type RelativeBadgeFormat } from '@irdashies/types';
 import { DEFAULT_SESSION_BAR_DISPLAY_ORDER } from '../sessionBarConstants';
+import { lapAverageHint } from '../lapAverageHint';
 import { SessionVisibility } from '../components/SessionVisibility';
 import { DriverNamePreview } from '../components/DriverNamePreview';
 import { SettingDivider } from '../components/SettingDivider';
@@ -96,6 +97,18 @@ const sortableSettings: SortableSetting[] = [
     configKey: 'avgLapTime',
     hasSubSetting: true,
   },
+  {
+    id: 'avgLast5',
+    label: 'Avg 5 (Last 5 Laps)',
+    configKey: 'avgLast5',
+    hasSubSetting: true,
+  },
+  {
+    id: 'avgLast10',
+    label: 'Avg 10 (Last 10 Laps)',
+    configKey: 'avgLast10',
+    hasSubSetting: true,
+  },
   { id: 'compound', label: 'Tire Compound', configKey: 'compound' },
   {
     id: 'lapTimeDeltas',
@@ -142,7 +155,8 @@ const DisplaySettingsList = ({
       onReorder={(newItems) => onReorder(newItems.map((i) => i.id))}
       renderItem={(setting, sortableProps) => {
         const configValue = settings.config[setting.configKey];
-        const isEnabled = (configValue as { enabled: boolean }).enabled;
+        const isEnabled =
+          (configValue as { enabled: boolean } | undefined)?.enabled ?? false;
 
         return (
           <DraggableSettingItem
@@ -320,6 +334,22 @@ const DisplaySettingsList = ({
                     path="avgLapTime.excludePitLaps"
                     variant="compact"
                   />
+                </>
+              )}
+            {(setting.configKey === 'avgLast5' ||
+              setting.configKey === 'avgLast10') &&
+              settings.config[setting.configKey]?.enabled && (
+                <>
+                  <SettingProp
+                    path={`${setting.configKey}.timeFormat`}
+                    variant="compact"
+                  />
+                  <p className="pl-8 mt-2 text-sm text-slate-500">
+                    {lapAverageHint(
+                      setting.configKey === 'avgLast5' ? 5 : 10,
+                      settings.config.averagesOver
+                    )}
+                  </p>
                 </>
               )}
             {setting.hasSubSetting &&
@@ -503,6 +533,12 @@ export const RelativeSettings = () => {
 
                     <SettingsSection title="Relative Time">
                       <SettingProp path="delta.precision" />
+                    </SettingsSection>
+
+                    <SettingDivider />
+
+                    <SettingsSection title="Lap Averages">
+                      <SettingProp path="averagesOver" />
                     </SettingsSection>
                   </>
                 )}
