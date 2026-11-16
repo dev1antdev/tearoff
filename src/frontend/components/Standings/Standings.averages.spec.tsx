@@ -264,6 +264,19 @@ describe.each([
     expect(column(container, 'avgLast10')).toEqual(['32.000', '--', '--']);
   });
 
+  it('survive an entry stored broken: off without one, full format without a format', () => {
+    configure({
+      avgLast5: null,
+      avgLast10: { enabled: true },
+    } as unknown as Partial<AverageSettings>);
+
+    const { container } = render(widget());
+
+    expect(column(container, 'driverName')).toHaveLength(3);
+    expect(column(container, 'avgLast5')).toEqual([]);
+    expect(column(container, 'avgLast10')).toEqual(['1:32.000', '--', '--']);
+  });
+
   it('can be shown one without the other', () => {
     configure({ avgLast10: { enabled: true, timeFormat: 'full' } });
 

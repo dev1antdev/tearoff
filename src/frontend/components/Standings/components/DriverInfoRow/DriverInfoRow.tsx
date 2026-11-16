@@ -752,21 +752,20 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
           />
         ),
       },
+      // Read with a fallback at every step, as a stored config is not
+      // trusted to hold the entry whole: a column without one is off, and a
+      // column without a format takes the Last and Best default.
       {
         id: 'avgLast5',
         shouldRender:
           (displayOrder ? displayOrder.includes('avgLast5') : false) &&
-          (config && 'avgLast5' in config ? config.avgLast5.enabled : false),
+          (config?.avgLast5?.enabled ?? false),
         component: (
           <AvgLapTimeCell
             key="avgLast5"
             column="avgLast5"
             avgLapTime={avgLast5}
-            timeFormat={
-              config && 'avgLast5' in config
-                ? config.avgLast5.timeFormat
-                : 'full'
-            }
+            timeFormat={config?.avgLast5?.timeFormat ?? 'full'}
             compactMode={compactMode}
           />
         ),
@@ -775,17 +774,13 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
         id: 'avgLast10',
         shouldRender:
           (displayOrder ? displayOrder.includes('avgLast10') : false) &&
-          (config && 'avgLast10' in config ? config.avgLast10.enabled : false),
+          (config?.avgLast10?.enabled ?? false),
         component: (
           <AvgLapTimeCell
             key="avgLast10"
             column="avgLast10"
             avgLapTime={avgLast10}
-            timeFormat={
-              config && 'avgLast10' in config
-                ? config.avgLast10.timeFormat
-                : 'full'
-            }
+            timeFormat={config?.avgLast10?.timeFormat ?? 'full'}
             compactMode={compactMode}
           />
         ),
