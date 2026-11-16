@@ -1,6 +1,7 @@
 import { exposeWindowVisibilityBridge } from './app/bridge/windowVisibilityRendererBridge';
 import { exposeStorageStatusBridge } from './app/bridge/storageStatusRendererBridge';
 import { exposeLapLibraryBridge } from './app/bridge/lapLibraryRendererBridge';
+import { exposeTrackProfileBridge } from './app/bridge/trackProfileRendererBridge';
 import { exposeOverlayVisibilityBridge } from './app/bridge/overlayVisibilityRendererBridge';
 // See the Electron documentation for details on how to use preload scripts:
 // https://www.electronjs.org/docs/latest/tutorial/process-model#preload-scripts
@@ -17,6 +18,7 @@ exposeChannelBridge();
 exposeWidgetPreviewBridge();
 exposeStorageStatusBridge();
 exposeLapLibraryBridge();
+exposeTrackProfileBridge();
 exposeOverlayVisibilityBridge();
 exposeWindowVisibilityBridge();
 

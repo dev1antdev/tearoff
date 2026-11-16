@@ -15,6 +15,14 @@ import { SettingProps, settingPropFor } from '../components/SettingProp';
 const SETTING_ID = 'lapdelta';
 const SettingProp = settingPropFor(SETTING_ID);
 
+/** The laps a delta can be measured against, in the order they are listed. */
+const REFERENCE_KEYS = [
+  'sessionBest',
+  'allTime',
+  'stintBest',
+  'lastLap',
+] as const;
+
 const defaultConfig = getWidgetDefaultConfig('lapdelta');
 
 export const LapDeltaSettings = () => {
@@ -62,6 +70,7 @@ export const LapDeltaSettings = () => {
 
   const { config } = settings;
   const showTrend = config.showTrend ?? defaultConfig.showTrend;
+  const reference = config.reference ?? defaultConfig.reference;
 
   return (
     <BaseSettingsSection
@@ -100,6 +109,20 @@ export const LapDeltaSettings = () => {
                 <>
                   <SettingsSection title="Reference">
                     <SettingProp path="reference" />
+                    <SettingProp path="freezeSeconds" />
+                  </SettingsSection>
+
+                  {/*
+                    The lap the large figure is for is never repeated in the
+                    strip, so its switch is left out rather than offered and
+                    ignored.
+                  */}
+                  <SettingsSection title="Also Show The Delta To">
+                    {REFERENCE_KEYS.filter((key) => key !== reference).map(
+                      (key) => (
+                        <SettingProp key={key} path={`secondary.${key}`} />
+                      )
+                    )}
                   </SettingsSection>
 
                   <SettingsSection title="Display" scaleWidgetId={SETTING_ID}>

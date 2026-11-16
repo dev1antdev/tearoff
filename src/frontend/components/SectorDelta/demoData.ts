@@ -22,6 +22,10 @@ export function demoSectorData(
     previousLapSectorUnclean: sectors.map(() => false),
     sessionBestSectorTimes: best,
     previousSessionBestSectorTimes: best,
+    sessionBestLapSectorTimes: best,
+    allTime: null,
+    lapStartTime: null,
+    sectorEvent: null,
     currentSectorIdx: sectors.length ? tick % sectors.length : 0,
   };
 }

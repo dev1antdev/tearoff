@@ -51,3 +51,4 @@ export * from './streamChat';
 export * from './storageStatus';
 export * from './racePlan';
 export * from './trackProfile';
+export * from './trackProfileBridge';

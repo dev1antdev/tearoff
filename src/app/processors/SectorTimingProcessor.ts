@@ -1,12 +1,25 @@
 import type {
   Sector,
+  SectorAllTimeBestsSnapshot,
   SectorTimingResultSnapshot,
   SectorTimingSnapshot,
   Session,
   SessionLifecycleEvent,
   Telemetry,
 } from '@irdashies/types';
+import { isCleanSector } from '../../shared/lapValidity';
+import {
+  emptySectorBests,
+  isQuickerLap,
+  offerSectorTime,
+  parseSectorBests,
+  sectorBestsKey,
+  sectorLayoutKey,
+  SIM_SECTOR_LAYOUT,
+  type SectorBests,
+} from '../../shared/sectorBests';
 import type { TelemetryProcessor } from './TelemetryProcessor';
+import { isHeldAtLine } from './lapTiming';
 import {
   indexLag,
   PositionHistory,
@@ -14,7 +27,35 @@ import {
   simTimeAt,
 } from './sectorIndexLag';
 
+/**
+ * Where the player's best sectors are kept between sessions: the store of
+ * small values per simulator, track and car.
+ */
+export interface SectorBestsStore {
+  /**
+   * What is kept under a key, as it was stored. Undefined while the store
+   * cannot say yet -- its file is still being read -- and null when it
+   * holds nothing.
+   */
+  load(key: string): unknown;
+  /** Replaces what is kept under a key. Returns at once. */
+  save(key: string, bests: SectorBests): void;
+  /** Moves whenever `load` may answer differently. */
+  revision(): number;
+}
+
+export interface SectorBestsOptions {
+  store: SectorBestsStore;
+  /** 'iracing' or 'lmu': bests of one simulator are not another's. */
+  simulator: string;
+}
+
 const MIN_PROGRESS = 0.00005;
+/**
+ * How long after Le Mans Ultimate lets a car go from the line a crossing of
+ * it is still the start of the race and not a lap begun at speed.
+ */
+const HELD_RELEASE_SECONDS = 2;
 /** Where a lap is far enough from the line that LMU's void flag is its own. */
 const INVALIDATION_START_PCT = 0.05;
 const MAX_FORWARD_JUMP = 0.5;
@@ -103,13 +144,18 @@ export const interpolateSectorCrossingTime = (
   );
 };
 
+const noTimes = (count: number): (number | null)[] =>
+  Array<number | null>(count).fill(null);
+
 const emptyResult = (count: number): SectorTimingResultSnapshot => ({
-  currentLapSectorTimes: Array<number | null>(count).fill(null),
-  previousLapSectorTimes: Array<number | null>(count).fill(null),
+  currentLapSectorTimes: noTimes(count),
+  previousLapSectorTimes: noTimes(count),
   currentLapSectorUnclean: Array<boolean>(count).fill(false),
   previousLapSectorUnclean: Array<boolean>(count).fill(false),
-  sessionBestSectorTimes: Array<number | null>(count).fill(null),
-  previousSessionBestSectorTimes: Array<number | null>(count).fill(null),
+  sessionBestSectorTimes: noTimes(count),
+  previousSessionBestSectorTimes: noTimes(count),
+  sessionBestLapSectorTimes: noTimes(count),
+  finishedLapSectorTimes: noTimes(count),
 });
 
 const cloneResult = (
@@ -121,7 +167,26 @@ const cloneResult = (
   previousLapSectorUnclean: [...result.previousLapSectorUnclean],
   sessionBestSectorTimes: [...result.sessionBestSectorTimes],
   previousSessionBestSectorTimes: [...result.previousSessionBestSectorTimes],
+  // Replaced whole when they change, never written into.
+  sessionBestLapSectorTimes: result.sessionBestLapSectorTimes,
+  finishedLapSectorTimes: result.finishedLapSectorTimes,
 });
+
+const sameTimes = (
+  a: readonly (number | null)[],
+  b: readonly (number | null)[]
+): boolean =>
+  a.length === b.length && a.every((time, index) => time === b[index]);
+
+const sameAllTime = (
+  a: SectorAllTimeBestsSnapshot | null,
+  b: SectorAllTimeBestsSnapshot | null
+): boolean =>
+  a === null || b === null
+    ? a === b
+    : sameTimes(a.bestSectorTimes, b.bestSectorTimes) &&
+      sameTimes(a.previousBestSectorTimes, b.previousBestSectorTimes) &&
+      sameTimes(a.bestLapSectorTimes, b.bestLapSectorTimes);
 
 /**
  * The player's sector times, for the Sector Delta widget and the track map.
@@ -132,6 +197,17 @@ const cloneResult = (
  * which one the car is in, but not where they start. There the times are the
  * sim's, so they are the ones on its own timing screen, and the boundaries
  * are learned from where the car is when the sim moves it to the next sector.
+ *
+ * Beside the session's bests it keeps the player's all-time ones for the
+ * simulator, track and car, through the store it is handed: the quickest
+ * time of each sector, whose sum is the theoretical best lap, and the
+ * sectors of the quickest whole lap. Those are fed more strictly than the
+ * session's: only by a sector entered at a crossing that was seen, driven
+ * without leaving the track, not voided, and not on pit road.
+ *
+ * Only the user's own driving is timed. With a team-mate at the wheel the
+ * user is out of the car, nothing is recorded, and no best of any kind is
+ * theirs.
  */
 export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSnapshot> {
   readonly channel = 'sector-timing.snapshot';
@@ -139,7 +215,38 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
 
   private lastLapDistPct = -1;
   private lastSessionTime = -1;
-  private sectorEntryUnclean = false;
+  /** The car left the track, or the player the car, during the sector. */
+  private sectorOffTrack = false;
+  /** The sim had voided the lap by this point of the sector. */
+  private sectorVoided = false;
+  /** The car was on pit road during the sector, and is on this frame. */
+  private sectorOnPitRoad = false;
+  private onPitRoad = false;
+  /** The lap under way touched pit road. */
+  private lapOnPitRoad = false;
+  /**
+   * Every sector of the lap under way was entered at a crossing that was
+   * seen, from the line on. Only such a lap is a lap of sector times.
+   */
+  private lapWhole = false;
+  /** The lap under way began with the car let go from the line. */
+  private lapFromStart = false;
+  /** When the sim last held the car at the line, on the session clock. */
+  private lastHeldAt: number | null = null;
+  private playerCarIdx = -1;
+  private trackId = -1;
+  private carKey = '';
+  /** What the all-time bests are kept under; '' with nowhere to keep them. */
+  private bestsKey = '';
+  /** The store's revision when it was last read. */
+  private bestsRevision = -1;
+  /** Whether the store has answered for this key. */
+  private bestsLoaded = false;
+  /** The all-time bests: what the store held and what was driven since. */
+  private bests: SectorBests = emptySectorBests(0);
+  private previousBests: (number | null)[] = [];
+  /** The sectors of the lap under way that were fit to be all-time bests. */
+  private lapCleanSectors: (number | null)[] = [];
   private wasOnTrack = false;
   private enabled = true;
   /** The sectors the session describes, which the sim's own timing ignores. */
@@ -154,7 +261,28 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
   private readonly history = new PositionHistory();
   private latest: SectorTimingSnapshot = this.emptySnapshot();
 
+  /**
+   * @param sectorBests Where the all-time bests are kept and which
+   *   simulator they are filed under. Without it there are none.
+   */
+  constructor(private readonly sectorBests?: SectorBestsOptions) {}
+
   init(session: Session): void {
+    const playerCarIdx = session.DriverInfo?.DriverCarIdx ?? -1;
+    const player = session.DriverInfo?.Drivers?.find(
+      (driver) => driver?.CarIdx === playerCarIdx
+    );
+    // The lap library's key for a car: LMU's CarPath is the livery file, so
+    // it names the model separately. iRacing's CarPath is the model.
+    const carKey = player?.CarModel ?? player?.CarPath ?? '';
+    const trackId = session.WeekendInfo?.TrackID ?? -1;
+    // A session that for a moment names no player, car or track -- a roster
+    // being rebuilt -- says nothing new: what was known stands until another
+    // is named, or the sim goes away.
+    if (playerCarIdx >= 0) this.playerCarIdx = playerCarIdx;
+    if (trackId > 0) this.trackId = trackId;
+    if (carKey !== '') this.carKey = carKey;
+
     const sectors = [...(session.SplitTimeInfo?.Sectors ?? [])].sort(
       (a, b) => a.SectorStartPct - b.SectorStartPct
     );
@@ -168,7 +296,12 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
           sector.SectorNum === this.sessionSectors[index].SectorNum &&
           sector.SectorStartPct === this.sessionSectors[index].SectorStartPct
       );
-    if (unchanged) return;
+    if (unchanged) {
+      // The same sectors on another track or in another car are not the
+      // same bests.
+      if (this.refreshBests()) this.publishEvent(this.latest.sessionNum);
+      return;
+    }
     this.sessionSectors = sectors;
     this.resetState(this.startingSectors(), this.latest.sessionNum);
   }
@@ -181,6 +314,9 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
       this.resetState(this.startingSectors(), this.latest.sessionNum);
     }
     if (this.latest.sectors.length === 0) return;
+    // The store has finished reading its file, or its values were changed
+    // from outside.
+    if (this.syncBests()) this.publishEvent(this.latest.sessionNum);
     const lapDistPct = numericValue(frame, 'LapDistPct');
     const sessionTime = numericValue(frame, 'SessionTime');
     const sessionNum = numericValue(frame, 'SessionNum');
@@ -194,11 +330,22 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
       this.resetState(this.startingSectors(), sessionNum);
     }
     if (this.wasOnTrack && !isOnTrack && this.latest.sectorEntryValid) {
-      this.sectorEntryUnclean = true;
+      this.sectorOffTrack = true;
     }
     if (!isOnTrack) {
       this.wasOnTrack = false;
       return;
+    }
+    // The pit lane is not the track. The session's own bests take a sector
+    // driven through it as they always have; the all-time ones and a best
+    // lap do not.
+    this.onPitRoad =
+      frame.OnPitRoad?.value?.[0] === true ||
+      (this.playerCarIdx >= 0 &&
+        frame.CarIdxOnPitRoad?.value?.[this.playerCarIdx] === true);
+    if (this.onPitRoad) {
+      this.sectorOnPitRoad = true;
+      this.lapOnPitRoad = true;
     }
     // Back in the car after more than a moment out of it. A brief exit is an
     // incident inside the sector, which stays timed and is marked unclean.
@@ -214,7 +361,8 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
         sessionTime < this.lastSessionTime)
     ) {
       this.lastLapDistPct = -1;
-      this.sectorEntryUnclean = false;
+      this.clearSectorFacts();
+      this.lapWhole = false;
       this.latest = { ...this.latest, sectorEntryValid: false };
     }
     const returning = !this.wasOnTrack;
@@ -228,7 +376,7 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
       lapDistPct >= INVALIDATION_START_PCT &&
       this.latest.sectorEntryValid
     ) {
-      this.sectorEntryUnclean = true;
+      this.sectorVoided = true;
     }
     if (simSectorIdx !== null) {
       this.onSimTimedFrame(
@@ -336,14 +484,20 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
   onLifecycle(event: SessionLifecycleEvent): void {
     if (event.type === 'enter') {
       this.enabled = !event.replay;
+      // A replay is not driven: nothing of it is timed, and the all-time
+      // bests are neither read nor written.
       if (!this.enabled) this.resetState(this.startingSectors(), null);
+      else if (this.refreshBests()) this.publishEvent(this.latest.sessionNum);
       return;
     }
     if (event.type === 'disconnect') {
       // Whatever connects next says for itself what it is and what its
-      // sectors are.
+      // sectors are, and which track and car its bests belong to.
       this.sessionSectors = [];
       this.simTimed = false;
+      this.playerCarIdx = -1;
+      this.trackId = -1;
+      this.carKey = '';
     }
     this.resetState(this.startingSectors(), null);
   }
@@ -379,6 +533,12 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
     this.simLastLapTime = lastLapTime;
     this.lastLapDistPct = lapDistPct;
     this.lastSessionTime = sessionTime;
+    // Held at the line on the grid, or rolling up to the start: the lap
+    // that follows begins by the car being let go, not at speed.
+    if (isHeldAtLine(lapDistPct)) {
+      this.lapFromStart = true;
+      this.lastHeldAt = sessionTime;
+    }
 
     if (firstFrame) {
       this.history.clear();
@@ -475,7 +635,9 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
     (inclusive.currentLapSectorTimes as (number | null)[])[currentSectorIdx] =
       null;
     (clean.currentLapSectorTimes as (number | null)[])[currentSectorIdx] = null;
-    this.sectorEntryUnclean = false;
+    this.clearSectorFacts();
+    // Whatever is driven from here to the line is not a lap.
+    this.lapWhole = false;
     this.latest = {
       ...this.latest,
       inclusive,
@@ -500,28 +662,47 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
     resetLap: boolean
   ): void {
     const completedIdx = this.latest.currentSectorIdx;
-    const timed = this.latest.sectorEntryValid ? sectorTime : null;
-    const resetCurrentLap = (result: SectorTimingResultSnapshot) => ({
-      ...result,
-      currentLapSectorTimes: Array<number | null>(
-        this.latest.sectors.length
-      ).fill(null),
-      currentLapSectorUnclean: Array<boolean>(this.latest.sectors.length).fill(
-        false
-      ),
-    });
-    const inclusive =
-      timed !== null
-        ? this.record(this.latest.inclusive, completedIdx, timed, resetLap)
-        : resetLap
-          ? resetCurrentLap(this.latest.inclusive)
-          : this.latest.inclusive;
-    const clean =
-      timed !== null && !this.sectorEntryUnclean
-        ? this.record(this.latest.clean, completedIdx, timed, resetLap)
-        : resetLap
-          ? resetCurrentLap(this.latest.clean)
-          : this.latest.clean;
+    const entered = this.latest.sectorEntryValid;
+    const timed = entered ? sectorTime : null;
+    const unclean = this.sectorOffTrack || this.sectorVoided;
+    // At the line, whether what has just ended is a lap to keep the sectors
+    // of: driven from the line through every boundary in turn, never on pit
+    // road, and not begun on the grid.
+    const lapCounts =
+      resetLap && this.lapWhole && !this.lapOnPitRoad && !this.lapFromStart;
+    const inclusive = this.advance(
+      this.latest.inclusive,
+      completedIdx,
+      timed,
+      unclean,
+      resetLap,
+      lapCounts
+    );
+    const clean = this.advance(
+      this.latest.clean,
+      completedIdx,
+      unclean ? null : timed,
+      false,
+      resetLap,
+      lapCounts
+    );
+    // The all-time bests take less than the session's clean view does: no
+    // sector on pit road, and not the one a race starts in.
+    const fitForAllTime =
+      timed !== null &&
+      isCleanSector({
+        enteredAtCrossing: entered,
+        offTrack: this.sectorOffTrack,
+        voided: this.sectorVoided,
+        onPitRoad: this.sectorOnPitRoad,
+      }) &&
+      !(completedIdx === 0 && this.lapFromStart);
+    const allTimeMoved = this.offerAllTime(
+      completedIdx,
+      fitForAllTime ? timed : null,
+      resetLap,
+      lapCounts
+    );
     this.latest = {
       ...this.latest,
       inclusive,
@@ -530,43 +711,229 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
       sectorEntryTime: crossingTime,
       sectorEntryValid: true,
     };
-    this.sectorEntryUnclean = false;
+    if (allTimeMoved) this.applyAllTime();
+    this.clearSectorFacts();
+    if (resetLap) {
+      this.lapWhole = true;
+      this.lapOnPitRoad = this.onPitRoad;
+      this.lapFromStart =
+        this.lastHeldAt !== null &&
+        Math.abs(crossingTime - this.lastHeldAt) <= HELD_RELEASE_SECONDS;
+    }
   }
 
-  private record(
+  /**
+   * One view after a sector has ended: its time recorded where it has one,
+   * and at the line the lap closed.
+   */
+  private advance(
     source: SectorTimingResultSnapshot,
     sectorIdx: number,
-    sectorTime: number,
-    resetLap: boolean
+    sectorTime: number | null,
+    unclean: boolean,
+    resetLap: boolean,
+    lapCounts: boolean
   ): SectorTimingResultSnapshot {
+    if (sectorTime === null && !resetLap) return source;
     const result = cloneResult(source);
-    const current = result.currentLapSectorTimes as (number | null)[];
-    const previous = result.previousLapSectorTimes as (number | null)[];
-    const currentUnclean = result.currentLapSectorUnclean as boolean[];
-    const previousUnclean = result.previousLapSectorUnclean as boolean[];
-    const bests = result.sessionBestSectorTimes as (number | null)[];
-    const previousBests = result.previousSessionBestSectorTimes as (
-      number | null
-    )[];
-    const oldBest = bests[sectorIdx];
-    if (oldBest === null || sectorTime < oldBest) {
-      previousBests[sectorIdx] = oldBest;
-      bests[sectorIdx] = sectorTime;
+    if (sectorTime !== null) {
+      const bests = result.sessionBestSectorTimes as (number | null)[];
+      const previousBests = result.previousSessionBestSectorTimes as (
+        number | null
+      )[];
+      const oldBest = bests[sectorIdx];
+      if (oldBest === null || sectorTime < oldBest) {
+        previousBests[sectorIdx] = oldBest;
+        bests[sectorIdx] = sectorTime;
+      }
+      (result.previousLapSectorTimes as (number | null)[])[sectorIdx] =
+        sectorTime;
+      (result.previousLapSectorUnclean as boolean[])[sectorIdx] = unclean;
     }
-    previous[sectorIdx] = sectorTime;
-    previousUnclean[sectorIdx] = this.sectorEntryUnclean;
-    if (resetLap) {
-      result.currentLapSectorTimes = Array<number | null>(
-        this.latest.sectors.length
-      ).fill(null);
-      result.currentLapSectorUnclean = Array<boolean>(
-        this.latest.sectors.length
-      ).fill(false);
-    } else {
-      current[sectorIdx] = sectorTime;
-      currentUnclean[sectorIdx] = this.sectorEntryUnclean;
+    if (!resetLap) {
+      (result.currentLapSectorTimes as (number | null)[])[sectorIdx] =
+        sectorTime;
+      (result.currentLapSectorUnclean as boolean[])[sectorIdx] = unclean;
+      return result;
     }
+    // The lap that has just ended, as this view holds it.
+    const lap = [...source.currentLapSectorTimes];
+    lap[sectorIdx] = sectorTime;
+    result.finishedLapSectorTimes = lap;
+    if (lapCounts && isQuickerLap(lap, result.sessionBestLapSectorTimes)) {
+      result.sessionBestLapSectorTimes = lap;
+    }
+    const count = this.latest.sectors.length;
+    result.currentLapSectorTimes = noTimes(count);
+    result.currentLapSectorUnclean = Array<boolean>(count).fill(false);
     return result;
+  }
+
+  /**
+   * Offers a sector that has just ended, and at the line the lap, to the
+   * all-time bests. Returns whether what is published has moved.
+   */
+  private offerAllTime(
+    sectorIdx: number,
+    sectorTime: number | null,
+    resetLap: boolean,
+    lapCounts: boolean
+  ): boolean {
+    if (this.bestsKey === '') return false;
+    let improved = false;
+    if (sectorTime !== null) {
+      const before = this.bests.bestSectorTimes[sectorIdx] ?? null;
+      if (offerSectorTime(this.bests.bestSectorTimes, sectorIdx, sectorTime)) {
+        this.previousBests[sectorIdx] = before;
+        improved = true;
+      }
+      this.lapCleanSectors[sectorIdx] = sectorTime;
+    }
+    if (resetLap) {
+      if (
+        lapCounts &&
+        isQuickerLap(this.lapCleanSectors, this.bests.bestLapSectorTimes)
+      ) {
+        this.bests.bestLapSectorTimes = [...this.lapCleanSectors];
+        improved = true;
+      }
+      this.lapCleanSectors.fill(null);
+    }
+    // Until the store has answered, what it holds is not known: what is
+    // driven meanwhile is kept here and set against it when it does.
+    if (!improved || !this.bestsLoaded) return false;
+    this.saveBests();
+    return true;
+  }
+
+  private saveBests(): void {
+    const store = this.sectorBests?.store;
+    if (!store) return;
+    store.save(this.bestsKey, {
+      bestSectorTimes: [...this.bests.bestSectorTimes],
+      bestLapSectorTimes: [...this.bests.bestLapSectorTimes],
+    });
+    // What was just written here is not news from the store.
+    this.bestsRevision = store.revision();
+  }
+
+  /**
+   * Reads the store again where it may answer differently. Returns whether
+   * what is published has moved.
+   */
+  private syncBests(): boolean {
+    const store = this.sectorBests?.store;
+    if (!store || this.bestsKey === '') return false;
+    const revision = store.revision();
+    if (revision === this.bestsRevision) return false;
+    this.bestsRevision = revision;
+    const stored = store.load(this.bestsKey);
+    if (stored === undefined) return false;
+    const count = this.latest.sectors.length;
+    const held = parseSectorBests(stored, count) ?? emptySectorBests(count);
+
+    if (this.bestsLoaded) {
+      // From its first answer on the store is the truth: what differs from
+      // it now was changed from outside, and is taken as it stands.
+      if (
+        sameTimes(held.bestSectorTimes, this.bests.bestSectorTimes) &&
+        sameTimes(held.bestLapSectorTimes, this.bests.bestLapSectorTimes)
+      ) {
+        return false;
+      }
+      this.bests = held;
+      this.previousBests = noTimes(count);
+      return this.applyAllTime();
+    }
+
+    // The first answer: what was driven while waiting for it is set
+    // against what was kept, sector by sector.
+    this.bestsLoaded = true;
+    const driven = this.bests;
+    let improved = false;
+    for (let index = 0; index < count; index += 1) {
+      const kept = held.bestSectorTimes[index];
+      const time = driven.bestSectorTimes[index];
+      if (time !== null && offerSectorTime(held.bestSectorTimes, index, time)) {
+        const before = this.previousBests[index];
+        this.previousBests[index] =
+          before === null || kept === null
+            ? (before ?? kept)
+            : Math.min(before, kept);
+        improved = true;
+      } else {
+        this.previousBests[index] = null;
+      }
+    }
+    if (isQuickerLap(driven.bestLapSectorTimes, held.bestLapSectorTimes)) {
+      held.bestLapSectorTimes = driven.bestLapSectorTimes;
+      improved = true;
+    }
+    this.bests = held;
+    if (improved) this.saveBests();
+    this.applyAllTime();
+    return true;
+  }
+
+  /**
+   * Settles which key the all-time bests are kept under -- the simulator,
+   * the track, the car and the sector layout -- and reads them. Returns
+   * whether what is published has moved.
+   */
+  private refreshBests(): boolean {
+    const count = this.latest.sectors.length;
+    const options = this.sectorBests;
+    const key =
+      options &&
+      this.enabled &&
+      count > 0 &&
+      this.trackId > 0 &&
+      this.carKey !== ''
+        ? sectorBestsKey(
+            options.simulator,
+            this.trackId,
+            this.carKey,
+            // The sim's own three sectors start where the sim says, which is
+            // not where a session's thirds do.
+            this.simTimed
+              ? SIM_SECTOR_LAYOUT
+              : sectorLayoutKey(
+                  this.sessionSectors.map((sector) => sector.SectorStartPct)
+                )
+          )
+        : '';
+    if (key !== this.bestsKey || this.bests.bestSectorTimes.length !== count) {
+      this.bestsKey = key;
+      this.bestsLoaded = false;
+      this.bestsRevision = -1;
+      this.bests = emptySectorBests(count);
+      this.previousBests = noTimes(count);
+      this.lapCleanSectors = noTimes(count);
+    }
+    const synced = this.syncBests();
+    return this.applyAllTime() || synced;
+  }
+
+  /** Puts the all-time bests as they stand into the snapshot. */
+  private applyAllTime(): boolean {
+    const next: SectorAllTimeBestsSnapshot | null =
+      this.bestsKey !== '' && this.bestsLoaded
+        ? {
+            bestSectorTimes: [...this.bests.bestSectorTimes],
+            previousBestSectorTimes: [...this.previousBests],
+            bestLapSectorTimes: [...this.bests.bestLapSectorTimes],
+          }
+        : null;
+    if (sameAllTime(this.latest.allTime, next)) return false;
+    this.latest = { ...this.latest, allTime: next };
+    return true;
+  }
+
+  /** A new sector starts with nothing against it but the pit lane. */
+  private clearSectorFacts(): void {
+    this.sectorOffTrack = false;
+    this.sectorVoided = false;
+    this.sectorOnPitRoad = this.onPitRoad;
   }
 
   private publishEvent(sessionNum: number | null): void {
@@ -583,7 +950,12 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
   ): void {
     this.lastLapDistPct = -1;
     this.lastSessionTime = -1;
-    this.sectorEntryUnclean = false;
+    this.onPitRoad = false;
+    this.clearSectorFacts();
+    this.lapOnPitRoad = false;
+    this.lapWhole = false;
+    this.lapFromStart = false;
+    this.lastHeldAt = null;
     this.wasOnTrack = false;
     this.sectorStartSeen.fill(false, 1);
     this.simLastLapTime = null;
@@ -593,6 +965,9 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
       sessionNum,
       this.latest.version + 1
     );
+    // The session's bests go; the all-time ones are the same as before
+    // unless the track, the car or the sector layout is another.
+    this.refreshBests();
   }
 
   /**
@@ -618,6 +993,7 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
       sectorEntryValid: false,
       inclusive: emptyResult(sectors.length),
       clean: emptyResult(sectors.length),
+      allTime: null,
       sessionNum,
       version,
     };

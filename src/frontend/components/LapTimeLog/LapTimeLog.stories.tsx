@@ -2,6 +2,17 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { LapTimeLogDisplay } from './LapTimeLog';
 import type { LapTimeLogConfig } from '@irdashies/types';
 import { TelemetryDecorator } from '@irdashies/storybook';
+import { isCleanLap } from '@irdashies/shared';
+import {
+  lapEntries,
+  liveLapEntry,
+  shownLapTime,
+} from '@irdashies/domain/ledger';
+import {
+  ENDURANCE_SAMPLE_STINTS,
+  sampleLedger,
+  type SampleLedgerOptions,
+} from '@irdashies/domain/ledger/ledgerSample';
 import type { LapEntry } from './demoData';
 
 const meta: Meta<typeof LapTimeLogDisplay> = {
@@ -12,8 +23,9 @@ const meta: Meta<typeof LapTimeLogDisplay> = {
   },
   decorators: [
     TelemetryDecorator(),
-    (Story) => (
-      <div style={{ width: '250px' }}>
+    // The widget's default width, unless a story asks for another.
+    (Story, context) => (
+      <div style={{ width: `${context.parameters.widgetWidth ?? 250}px` }}>
         <Story />
       </div>
     ),
@@ -319,5 +331,143 @@ export const NoDelta: Story = {
     settings: mockConfig({
       delta: { enabled: false, method: 'bestlap' },
     }),
+  },
+};
+
+// --- The history as the player's ledger gives it ---
+
+/** The width that suits every column of the history. */
+const WIDE = { widgetWidth: 320 };
+
+/**
+ * An endurance race two stops in, as the ledger rows it: a stint from the
+ * start, one with a yellow and a full-course caution, one into the rain with
+ * a lap the sim voided, and five laps into the fourth.
+ */
+const ledgerStory = (
+  sample: Partial<SampleLedgerOptions>,
+  history: Partial<LapTimeLogConfig['history']>,
+  config: Partial<LapTimeLogConfig> = {}
+): Story => {
+  const { ledger, live } = sampleLedger({
+    stints: ENDURANCE_SAMPLE_STINTS,
+    ...sample,
+  });
+  const entries = lapEntries(ledger.laps, {
+    sessionNum: ledger.sessionNum,
+    deltaMethod: 'bestlap',
+    wearMode: history.wearMode,
+  });
+  const cleanTimes = ledger.laps
+    .filter((lap) => isCleanLap(lap.flags))
+    .map(shownLapTime);
+  const best = Math.min(...cleanTimes);
+  return {
+    parameters: WIDE,
+    args: {
+      current: 41.7,
+      lastlap: entries[0].time,
+      bestlap: best,
+      alltimelap: best - 0.4,
+      reference: best,
+      delta: 0.31,
+      overall: best - 0.9,
+      history: entries,
+      currentRow: liveLapEntry(live, history.wearMode),
+      settings: mockConfig({
+        ...config,
+        history: { enabled: true, count: 8, ...history },
+      }),
+    },
+  };
+};
+
+const everyCell = {
+  showStintLap: true,
+  showFuel: true,
+  showWear: true,
+  showFlags: true,
+  showCurrentRow: true,
+};
+
+/**
+ * Every cell on for a car that runs on virtual energy, counted in percent
+ * of it. The newest rows: the lap under way, four laps of the stint, the
+ * out-lap after the stop and, past the line that ends the stint before, its
+ * in-lap and two laps in the rain.
+ */
+export const AllCellsEnergyCar: Story = {
+  name: 'All Cells: Energy Car',
+  ...ledgerStory({}, everyCell),
+};
+
+/** The same race in a car that runs on fuel, in litres. */
+export const AllCellsFuelCar: Story = {
+  name: 'All Cells: Fuel Car',
+  ...ledgerStory({ budget: 'fuel' }, everyCell),
+};
+
+/** A fuel car in gallons, with the wear of the worst tyre. */
+export const AllCellsGallonsHighestWear: Story = {
+  name: 'All Cells: Gallons, Highest Wear',
+  ...ledgerStory(
+    { budget: 'fuel' },
+    { ...everyCell, wearMode: 'highest' },
+    { fuelUnits: 'gal' }
+  ),
+};
+
+/**
+ * iRacing reads tread only in the pits: the wear cell keeps its place with
+ * a dash.
+ */
+export const AllCellsNoLiveWear: Story = {
+  name: 'All Cells: No Live Wear',
+  ...ledgerStory({ budget: 'fuel', treadPerLap: null }, everyCell),
+};
+
+/**
+ * The marks alone, as a saved dashboard gets them: the start of the race,
+ * the stops, the yellow, the two laps under a full-course caution, the
+ * voided lap and the wet ones, with a line where a stint ends.
+ */
+export const LapMarks: Story = {
+  name: 'Lap Marks (default)',
+  ...ledgerStory({}, { count: 20 }, { showCurrentLap: false }),
+  // At the default width: the marks need no more room.
+  parameters: {},
+};
+
+/**
+ * In reverse order the newest lap is at the bottom, and the line where a
+ * stint ends is still between its last lap and the next stint's first.
+ */
+export const AllCellsReversed: Story = {
+  name: 'All Cells: Reverse Order',
+  ...ledgerStory({}, { ...everyCell, count: 6 }, { reverse: true }),
+};
+
+/**
+ * A team-mate has the car. The timer runs on their lap; the list is the
+ * laps the user drove, says so, and has no row for the lap under way.
+ */
+export const TeamMateDriving: Story = {
+  name: 'Team-mate Driving',
+  ...ledgerStory({}, everyCell),
+  render: (args) => (
+    <LapTimeLogDisplay {...args} currentRow={undefined} teamMateDriving />
+  ),
+};
+
+/** Every cell on before a lap has been driven. */
+export const AllCellsNoLaps: Story = {
+  name: 'All Cells: No Laps Yet',
+  parameters: WIDE,
+  args: {
+    current: 12.4,
+    settings: mockConfig({
+      history: { enabled: true, count: 8, ...everyCell },
+    }),
+    history: [],
   },
 };

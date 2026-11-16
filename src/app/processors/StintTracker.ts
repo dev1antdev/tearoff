@@ -8,6 +8,11 @@ import type {
 import { isCleanLap } from '../../shared/lapValidity';
 import { stintPace } from '../../shared/stintPace';
 import type { LapCostMeter } from './LapCostMeter';
+import { Standstill } from './pitVisit';
+
+// The standstill is the one definition of standing the pit trackers share;
+// it is still reached from here by what was written against this module.
+export { Standstill };
 
 /**
  * Follows the player's car from one service to the next.
@@ -25,10 +30,6 @@ import type { LapCostMeter } from './LapCostMeter';
  * says what happened through its listener.
  */
 
-/** Below this the car is standing in the pit lane... */
-const STANDING_BELOW_MS = 0.5;
-/** ...until it is above this again. */
-const MOVING_ABOVE_MS = 1;
 /** The most pit lane visits kept on a stint; the latest are the ones kept. */
 const MAX_PASSES = 10;
 /**
@@ -124,41 +125,6 @@ type OpenStint = { -readonly [Key in keyof LedgerStint]: LedgerStint[Key] } & {
   passes: LedgerPass[];
 };
 
-/**
- * Time spent standing still, with a hysteresis: from below half a metre per
- * second until above one again, so a car creeping in its box is not counted
- * as stopping and starting.
- *
- * The pit stop and car pit trackers are to share one definition of a stop
- * with this (`pitVisit.ts`, not written yet); until then this is the
- * player's half of it.
- */
-export class Standstill {
-  /** Seconds at a standstill so far. */
-  seconds = 0;
-  private standing = false;
-  private since = 0;
-
-  reset(): void {
-    this.seconds = 0;
-    this.standing = false;
-  }
-
-  update(speed: number | null, time: number): void {
-    if (speed === null) return;
-    const pace = Math.abs(speed);
-    if (this.standing) {
-      const elapsed = time - this.since;
-      if (elapsed > 0) this.seconds += elapsed;
-      this.since = time;
-      if (pace > MOVING_ABOVE_MS) this.standing = false;
-    } else if (pace < STANDING_BELOW_MS) {
-      this.standing = true;
-      this.since = time;
-    }
-  }
-}
-
 export class StintTracker {
   private stateNow: StintState = 'idle';
   private open: OpenStint | null = null;
@@ -199,6 +165,11 @@ export class StintTracker {
   /** The id of the open stint, or '' with none. */
   openStintId(): string {
     return this.open?.id ?? '';
+  }
+
+  /** The open stint's ordinal in its session, from 1; 0 with none. */
+  openStintOrdinal(): number {
+    return this.open?.ordinal ?? 0;
   }
 
   /** How many line crossings the open stint has seen. */

@@ -12,6 +12,7 @@ import logger from '../../logger';
 import type { SessionLifecycle } from '../../sessionLifecycle';
 import type { ChannelBus } from '../channelBridge';
 import { createDefaultProcessorHost } from '../../processors/processorRegistry';
+import { livePlayerStintSource } from '../../processors/livePlayerStint';
 import { sessionSecondsFrameClock } from '../../processors/ProcessorHost';
 import { getSystemLoadSampler } from '../../services/systemLoadSampler';
 import { mapLmuSession } from '../../lmu/mapSession';
@@ -267,12 +268,27 @@ export async function publishLmuSDKEvents(
   const lapLibrary = channelBus
     ? (await import('../../storage/lapLibrary')).getLapLibrary()
     : null;
+  const sectorBests =
+    channelBus && !isTapeReplay
+      ? (await import('../../storage/sectorBestsStore')).getSectorBestsStore()
+      : null;
   const flagTuningStorage = channelBus
     ? await import('../../storage/flagTuning')
     : undefined;
   const trackProfiles = channelBus
     ? (await import('../../trackProfileRecording')).getTrackProfileSource()
     : null;
+  // Nor are a tape's metres the player's to add to their own.
+  const drivingTotals =
+    channelBus && !isTapeReplay
+      ? (await import('../../storage/drivingTotals')).getDrivingTotalsStore()
+      : null;
+  // A tape is somebody's old session: the pit lane it shows is learned for
+  // the run and not kept.
+  const pitLaneStorage =
+    channelBus && !isTapeReplay
+      ? await import('../../storage/pitLaneData')
+      : undefined;
   const processorHost =
     channelBus && referenceLapStorage
       ? createDefaultProcessorHost({
@@ -296,11 +312,24 @@ export async function publishLmuSDKEvents(
                 revision: () => lapLibrary.referenceRevision(),
               }
             : undefined,
+          playerStints: livePlayerStintSource,
+          // A tape is somebody's old session: its sectors are not kept.
+          sectorBests: sectorBests
+            ? { store: sectorBests, simulator: 'lmu' }
+            : undefined,
           flagTuning: flagTuningStorage?.getFlagTuning,
           systemLoad: getSystemLoadSampler(),
           trackProfiles: trackProfiles
             ? { source: trackProfiles, simulator: 'lmu' }
             : undefined,
+          drivingTotals: drivingTotals
+            ? { persistence: drivingTotals, simulator: 'lmu' }
+            : undefined,
+          pitLaneModel: pitLaneStorage && {
+            get: pitLaneStorage.peekPitLaneDataForTrack,
+            save: pitLaneStorage.savePitLaneModelForTrack,
+            revision: pitLaneStorage.pitLaneDataRevision,
+          },
         })
       : undefined;
 

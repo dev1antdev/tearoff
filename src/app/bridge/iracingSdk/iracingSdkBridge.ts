@@ -16,6 +16,7 @@ import logger from '../../logger';
 import type { SessionLifecycle } from '../../sessionLifecycle';
 import type { ChannelBus } from '../channelBridge';
 import { createDefaultProcessorHost } from '../../processors/processorRegistry';
+import { livePlayerStintSource } from '../../processors/livePlayerStint';
 import { getSystemLoadSampler } from '../../services/systemLoadSampler';
 import { getActiveRacePlan } from '../../services/racePlanSource';
 
@@ -202,6 +203,10 @@ export async function publishIRacingSDKEvents(
     const lapLibrary = channelBus
       ? (await import('../../storage/lapLibrary')).getLapLibrary()
       : null;
+    const sectorBests =
+      channelBus && !isTapeReplay
+        ? (await import('../../storage/sectorBestsStore')).getSectorBestsStore()
+        : null;
     const radarTuningStorage = channelBus
       ? await import('../../storage/radarTuning')
       : undefined;
@@ -214,6 +219,14 @@ export async function publishIRacingSDKEvents(
     const trackProfiles = channelBus
       ? (await import('../../trackProfileRecording')).getTrackProfileSource()
       : null;
+    // A tape's metres are not the player's to add to their own.
+    const drivingTotals =
+      channelBus && !isTapeReplay
+        ? (await import('../../storage/drivingTotals')).getDrivingTotalsStore()
+        : null;
+    const pitLaneStorage = channelBus
+      ? await import('../../storage/pitLaneData')
+      : undefined;
     await radarPoleSideStorage?.loadRadarPoleSideOverrides();
     const racePlanHistory = channelBus
       ? (
@@ -245,6 +258,11 @@ export async function publishIRacingSDKEvents(
                   revision: () => lapLibrary.referenceRevision(),
                 }
               : undefined,
+            playerStints: livePlayerStintSource,
+            // A tape is somebody's old session: its sectors are not kept.
+            sectorBests: sectorBests
+              ? { store: sectorBests, simulator: 'iracing' }
+              : undefined,
             radarTuning: radarTuningStorage?.getRadarTuning,
             radarPoleSides: radarPoleSideStorage?.radarPoleSideOverrides,
             flagTuning: flagTuningStorage?.getFlagTuning,
@@ -252,6 +270,17 @@ export async function publishIRacingSDKEvents(
             trackProfiles: trackProfiles
               ? { source: trackProfiles, simulator: 'iracing' }
               : undefined,
+            drivingTotals: drivingTotals
+              ? { persistence: drivingTotals, simulator: 'iracing' }
+              : undefined,
+            // The pit stop channel's lane model, in the calibration file the
+            // pit lane helper keeps. A tape is told apart by the host, which
+            // then keeps nothing.
+            pitLaneModel: pitLaneStorage && {
+              get: pitLaneStorage.peekPitLaneDataForTrack,
+              save: pitLaneStorage.savePitLaneModelForTrack,
+              revision: pitLaneStorage.pitLaneDataRevision,
+            },
             racePlan: racePlanHistory && {
               getPlan: getActiveRacePlan,
               persistence: {

@@ -84,6 +84,15 @@ export const getTrackProfileSource = (): TrackProfileSource | null => {
 };
 
 /**
+ * The track of the running session as a profile is filed under it, or null
+ * while no session names one: what the notes editor starts a track that has
+ * nothing stored yet from. Known from a tape, a replay and demo mode too,
+ * where nothing is recorded: a note can be written for any track on screen.
+ */
+export const getSessionTrackKey = (): TrackProfileKey | null =>
+  activeRecorder?.trackKey() ?? null;
+
+/**
  * Builds each track's profile from the laps the player drives, for as long
  * as the app runs.
  *

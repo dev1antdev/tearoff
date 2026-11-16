@@ -37,6 +37,24 @@ export const SectorDeltaSettings = () => {
       defaultConfig,
   });
 
+  // Same guarded set-during-render sync as the other widget settings sections:
+  // useState only reads its initialiser once, so mounting before the dashboard
+  // has loaded would otherwise persist defaults over the saved config on the
+  // next edit.
+  const [prevSaved, setPrevSaved] = useState(savedSettings);
+  if (JSON.stringify(savedSettings) !== JSON.stringify(prevSaved)) {
+    setPrevSaved(savedSettings);
+    if (savedSettings) {
+      setSettings({
+        id: SETTING_ID,
+        enabled: savedSettings.enabled ?? false,
+        config:
+          (savedSettings.config as SectorDeltaWidgetSettings['config']) ??
+          defaultConfig,
+      });
+    }
+  }
+
   const [activeTab, setActiveTab] = useState<SettingsTabType>(
     () =>
       (localStorage.getItem('sectorDeltaTab') as SettingsTabType) || 'options'
@@ -111,6 +129,15 @@ export const SectorDeltaSettings = () => {
                           handleConfigChange({ maxSectorsShown: v })
                         }
                       />
+                    )}
+                  </SettingsSection>
+
+                  <SettingDivider />
+
+                  <SettingsSection title="Target Lap">
+                    <SettingProp path="showTargetLap" />
+                    {settings.config.showTargetLap === true && (
+                      <SettingProp path="targetFreezeSeconds" />
                     )}
                   </SettingsSection>
 

@@ -25,6 +25,8 @@ const copyResult = (
   previousLapSectorUnclean: [...result.previousLapSectorUnclean],
   sessionBestSectorTimes: [...result.sessionBestSectorTimes],
   previousSessionBestSectorTimes: [...result.previousSessionBestSectorTimes],
+  sessionBestLapSectorTimes: [...result.sessionBestLapSectorTimes],
+  finishedLapSectorTimes: [...result.finishedLapSectorTimes],
 });
 
 const copySnapshot = (

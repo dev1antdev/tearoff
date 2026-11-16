@@ -11,8 +11,12 @@ import type {
   Session,
   StintInput,
   Telemetry,
+  BrakeLimitStore,
+  WearForecastTuning,
+  WearSnapshot,
 } from '@irdashies/types';
 import {
+  DEFAULT_WEAR_TUNING,
   EMPTY_PLAYER_STINT,
   PLAYER_LEDGER_MAX_LAPS,
   PLAYER_LEDGER_MAX_STINTS,
@@ -46,6 +50,7 @@ import {
 } from './ledgerRates';
 import { PlayerLapRecorder, type ClosedLap } from './PlayerLapRecorder';
 import { createStintFrame, StintTracker } from './StintTracker';
+import { createWearFrame, WearForecast } from './WearForecast';
 
 /**
  * The player's ledger: what every lap cost and which stint it belongs to,
@@ -66,6 +71,11 @@ import { createStintFrame, StintTracker } from './StintTracker';
  * stints that are over; `player-stint.snapshot` is the stint under way. A
  * window that subscribes late is sent both as they stand, so a widget shown
  * in the middle of a stint still sees all of it.
+ *
+ * A third, `wear.snapshot`, is the forecast made from them: how long the
+ * tyres and the brake discs last at what the laps so far have cost. It is
+ * here and not under the host because those laps have to have been measured
+ * before the widget that shows it is on screen.
  */
 
 /** Where the ledger's laps and stints are kept: the lap library. */
@@ -94,10 +104,18 @@ export interface PlayerLedgerRuntimeOptions {
   /** Where the line about a stint opening or closing goes. */
   log?: (message: string) => void;
   logError?: (message: string, error: unknown) => void;
+  /** What the wear forecast takes from outside; defaults without. */
+  wear?: {
+    /** Where a tyre and a disc are finished, from the current dashboard. */
+    tuning?: () => WearForecastTuning;
+    /** Where a failure thickness learned from a failed brake is kept. */
+    limits?: BrakeLimitStore;
+  };
 }
 
 const LEDGER_CHANNEL = 'player-ledger.snapshot';
 const STINT_CHANNEL = 'player-stint.snapshot';
+const WEAR_CHANNEL = 'wear.snapshot';
 
 /**
  * How long after the line the sim's own lap time is read. It can arrive a
@@ -109,6 +127,8 @@ const SIM_LAP_TIME_DELAY_S = 3;
 const SIM_LAP_TIME_MATCH_S = 0.5;
 /** The stint under way is looked at this often, in session seconds. */
 const STINT_REFRESH_S = 0.2;
+/** So is the wear forecast, while a window reads it. */
+const WEAR_REFRESH_S = 0.2;
 
 type Cells = Record<string, { value?: readonly unknown[] } | undefined>;
 
@@ -184,6 +204,8 @@ export class PlayerLedgerRuntime {
   private readonly rateBook = new LedgerRateBook();
   private readonly reading = createMeterReading();
   private readonly stintFrame = createStintFrame();
+  private readonly wear: WearForecast;
+  private readonly wearFrame = createWearFrame();
   private readonly disconnects: (() => void)[];
 
   /** Newest first. */
@@ -207,6 +229,11 @@ export class PlayerLedgerRuntime {
   private stintDirty = true;
   private ledgerSubscribers = 0;
   private stintSubscribers = 0;
+
+  private wearSubscribers = 0;
+  private publishedWearVersion = -1;
+  private wearRefreshedAt = Number.NEGATIVE_INFINITY;
+  private wearDirty = true;
 
   private pending: PendingRow | null = null;
   /** Moves on every reset, so an answer from storage for the old state is dropped. */
@@ -264,6 +291,17 @@ export class PlayerLedgerRuntime {
     this.meter = new LapCostMeter({
       liveTread: options.simulator !== 'iracing',
     });
+    const limits = options.wear?.limits;
+    this.wear = new WearForecast(this.meter, {
+      simulator: options.simulator,
+      // What a tape, a replay source or demo mode learns is not kept.
+      limits: limits && {
+        get: (key) => limits.get(key),
+        set: (key, mm) => {
+          if (this.persisting) limits.set(key, mm);
+        },
+      },
+    });
     this.tracker = new StintTracker(
       this.meter,
       {
@@ -310,6 +348,14 @@ export class PlayerLedgerRuntime {
             this.publishStint(true);
           }
         }
+        if (channel === WEAR_CHANNEL) {
+          const gained = count > 0 && this.wearSubscribers === 0;
+          this.wearSubscribers = count;
+          if (gained) {
+            this.refreshWear();
+            this.publishWear(true);
+          }
+        }
       }),
     ];
   }
@@ -335,8 +381,10 @@ export class PlayerLedgerRuntime {
     this.settlePending(null);
     this.meter.reset();
     this.tracker.reset();
+    this.wear.reset();
     this.hasCar = false;
     this.stintDirty = true;
+    this.wearDirty = true;
     this.publish();
   }
 
@@ -379,6 +427,12 @@ export class PlayerLedgerRuntime {
         : [];
 
     this.meter.setCurvePoints(this.recorder.curvePoints());
+    this.wear.setCar({
+      carKey: this.recorder.currentSession()?.carKey ?? '',
+      className: player?.CarClassShortName || null,
+      brakeDiscNewMm: session.LmuRest?.brakeDiscNewMm ?? null,
+    });
+    this.wearDirty = true;
     this.requestBaseline();
   }
 
@@ -402,6 +456,11 @@ export class PlayerLedgerRuntime {
     return this.stint;
   }
 
+  /** How long the tyres and the brake discs last, as it stands now. */
+  wearSnapshot(): WearSnapshot {
+    return this.refreshWear();
+  }
+
   /** Per-lap rates with the wheels, for the forecasts that want them. */
   currentRates(): LedgerRates {
     return this.currentLedgerRates();
@@ -410,6 +469,19 @@ export class PlayerLedgerRuntime {
   /** The wear curve of the last lap fit to be one, for the wear forecast. */
   referenceWearCurves(): WearCurves | null {
     return this.meter.referenceCurves();
+  }
+
+  /**
+   * The stint under way, or '' with none: where the best lap of a stint
+   * ends, for the recorder of the player's reference laps.
+   */
+  stintId(): string {
+    return this.tracker.openStintId();
+  }
+
+  /** That stint's ordinal in its session, from 1; 0 with none. */
+  stintOrdinal(): number {
+    return this.tracker.openStintOrdinal();
   }
 
   /**
@@ -458,12 +530,14 @@ export class PlayerLedgerRuntime {
     this.meter.reset();
     this.tracker.reset();
     this.rateBook.reset();
+    this.wear.reset();
     this.rates = null;
     this.watch.open = false;
     this.sessionNum = null;
     this.lapNumber = null;
     this.hasCar = false;
     this.stintDirty = true;
+    this.wearDirty = true;
   }
 
   private process(frame: Telemetry): void {
@@ -551,7 +625,9 @@ export class PlayerLedgerRuntime {
       const changed = this.meter.takeTyreChanges();
       if (changed !== 0) {
         this.rateBook.noteTyreChange(changed);
+        this.wear.noteTyreChange(changed);
         this.rates = null;
+        this.wearDirty = true;
       }
     }
 
@@ -594,6 +670,20 @@ export class PlayerLedgerRuntime {
 
     this.closedOnFrame = false;
     this.recorder.onFrame(frame);
+
+    // After the recorder, so that the lap the wear is counted over is the
+    // one this frame is in.
+    const wearFrame = this.wearFrame;
+    if (hasCar !== wearFrame.hasCar) this.wearDirty = true;
+    wearFrame.hasCar = hasCar;
+    wearFrame.lapOpen = watch.open;
+    wearFrame.lapPct = pct;
+    wearFrame.brakePedal = numberAt(cells, 'Brake');
+    wearFrame.wearablesSeq = numberAt(cells, 'LmuRestWearablesSeq');
+    for (let wheel = 0; wheel < WHEEL_COUNT; wheel += 1) {
+      wearFrame.flat[wheel] = flagAt(cells, 'LmuTyreFlat', wheel);
+    }
+    this.wear.observe(reading, wearFrame);
 
     const stintFrame = this.stintFrame;
     stintFrame.sessionTime = sessionTime;
@@ -675,6 +765,7 @@ export class PlayerLedgerRuntime {
     watch.prevPct = numberAt(cells, 'CarIdxLapDistPct', player) ?? -1;
     watch.prevTime = this.sessionTime;
     this.meter.openLap();
+    this.wear.noteLapOpened();
     // A crossing that ended no lap is still a lap of the stint: the stretch
     // from the pit exit, or from joining, to the line.
     if (!fromStart && !this.closedOnFrame) this.tracker.noteCrossing();
@@ -737,9 +828,11 @@ export class PlayerLedgerRuntime {
       this.laps.length = PLAYER_LEDGER_MAX_LAPS;
     }
     this.rateBook.noteLap(row);
+    this.wear.noteLap(row.treadUsed, row.brakeUsed, !pitLap && lap.own);
     this.rates = null;
     this.ledgerVersion += 1;
     this.stintDirty = true;
+    this.wearDirty = true;
     this.pending = {
       row,
       dueAt: closed.endTime + SIM_LAP_TIME_DELAY_S,
@@ -958,6 +1051,7 @@ export class PlayerLedgerRuntime {
         this.rateBook.setBaseline(baselineFrom(laps));
         this.rates = null;
         this.stintDirty = true;
+        this.wearDirty = true;
       })
       .catch((error: unknown) => {
         this.options.logError?.('[Ledger] Could not read a baseline:', error);
@@ -976,6 +1070,17 @@ export class PlayerLedgerRuntime {
 
   private publish(): void {
     this.publishLedger(false);
+    // Like the stint under way below, the wear forecast is only put
+    // together while a window reads it; the frames are watched all the same.
+    if (
+      this.wearSubscribers > 0 &&
+      (this.wearDirty ||
+        this.sessionTime - this.wearRefreshedAt >= WEAR_REFRESH_S ||
+        this.sessionTime < this.wearRefreshedAt)
+    ) {
+      this.refreshWear();
+      this.publishWear(false);
+    }
     // The stint under way is only put together while a window reads it; the
     // stint itself is followed all the same.
     if (this.stintSubscribers === 0) return;
@@ -1017,6 +1122,65 @@ export class PlayerLedgerRuntime {
   }
 
   /**
+   * Tread worn so far on the lap under way, per wheel and rounded to 0.001;
+   * null for a wheel that is not read live, as a closed lap's row has it.
+   */
+  private lapTreadUsed(): (number | null)[] {
+    const live = this.options.simulator !== 'iracing';
+    const used = this.meter.lapTreadUsed();
+    return this.meter
+      .treadLevels()
+      .map((level, wheel) =>
+        live && level !== null ? roundTo(used[wheel], 3) : null
+      );
+  }
+
+  /**
+   * Laps until the fuel or the energy runs out at the ledger's rates,
+   * whichever is first; null without a level and a rate for either.
+   */
+  private budgetLapsLeft(rates: LedgerRates): number | null {
+    const fuel = this.meter.fuelLevel();
+    const energy = this.meter.energyLevel();
+    const lapsOnFuel =
+      fuel !== null && rates.fuel !== null && rates.fuel > 0
+        ? fuel / rates.fuel
+        : null;
+    const lapsOnEnergy =
+      energy !== null && rates.energy !== null && rates.energy > 0
+        ? energy / rates.energy
+        : null;
+    return lapsOnFuel !== null && lapsOnEnergy !== null
+      ? Math.min(lapsOnFuel, lapsOnEnergy)
+      : (lapsOnFuel ?? lapsOnEnergy);
+  }
+
+  /**
+   * Rebuilds the wear forecast from the frames it has seen and the ledger's
+   * rates as they stand now.
+   */
+  private refreshWear(): WearSnapshot {
+    this.wearRefreshedAt = this.sessionTime;
+    this.wearDirty = false;
+    const rates = this.currentLedgerRates();
+    return this.wear.refresh({
+      rates,
+      budgetLapsLeft: this.budgetLapsLeft(rates),
+      sessionNum: this.sessionNum,
+      tuning: this.options.wear?.tuning?.() ?? DEFAULT_WEAR_TUNING,
+    });
+  }
+
+  private publishWear(force: boolean): void {
+    const snapshot = this.wear.snapshot();
+    if (!force && snapshot.version === this.publishedWearVersion) return;
+    this.publishedWearVersion = snapshot.version;
+    this.metrics.markStart('playerLedgerPublication');
+    this.bus.publish(WEAR_CHANNEL, snapshot);
+    this.metrics.markEnd('playerLedgerPublication');
+  }
+
+  /**
    * Rebuilds the stint under way with its figures rounded -- time to whole
    * seconds, litres to 0.01, energy to 0.0001, tread to 0.001 -- and moves
    * the version only when one of them moved.
@@ -1034,20 +1198,7 @@ export class PlayerLedgerRuntime {
       endBrake: roundWheels(present.endBrake, 4),
     };
     const rates = this.currentLedgerRates();
-    const fuel = this.meter.fuelLevel();
-    const energy = this.meter.energyLevel();
-    const lapsOnFuel =
-      fuel !== null && rates.fuel !== null && rates.fuel > 0
-        ? fuel / rates.fuel
-        : null;
-    const lapsOnEnergy =
-      energy !== null && rates.energy !== null && rates.energy > 0
-        ? energy / rates.energy
-        : null;
-    const lapsLeft =
-      lapsOnFuel !== null && lapsOnEnergy !== null
-        ? Math.min(lapsOnFuel, lapsOnEnergy)
-        : (lapsOnFuel ?? lapsOnEnergy);
+    const lapsLeft = this.budgetLapsLeft(rates);
     const watch = this.watch;
     const body: Omit<PlayerStintSnapshot, 'version'> = {
       available: this.hasCar,
@@ -1059,6 +1210,7 @@ export class PlayerLedgerRuntime {
         stintLap: this.tracker.openStintLaps() + 1,
         fuelUsed: roundTo(this.meter.lapFuelUsed(), 2),
         energyUsed: roundTo(this.meter.lapEnergyUsed(), 4),
+        ...(watch.open ? { treadUsed: this.lapTreadUsed() } : {}),
         flags: watch.open
           ? lapFlagsOf({
               inLap: watch.inLap,

@@ -356,7 +356,7 @@ describe('CarPitProcessor', () => {
   describe("the player's own car", () => {
     const player = { playerCarIdx: 1, isOnTrack: true };
 
-    it('stands when it is slower than 0.1 m/s, whatever the surface says', () => {
+    it('stands by its own speed, whatever the surface says', () => {
       const processor = start();
       // Rolling through its own stall on the way down the lane.
       run(processor, 100, 110, AT_BOX, { ...player, speed: 16 });

@@ -12,6 +12,7 @@ import { createSessionLifecycle } from '../sessionLifecycle';
 import {
   PlayerLedgerRuntime,
   type PlayerLedgerPersistence,
+  type PlayerLedgerRuntimeOptions,
 } from './playerLedgerRuntime';
 
 /**
@@ -120,6 +121,8 @@ export class LedgerSim {
   /** Seconds after the line that the sim's lap time appears. */
   simLapDelay = 0;
   speed = 0;
+  /** More cells for the frame, by key, for what the car has no field for. */
+  extra: Record<string, unknown[]> = {};
 
   readonly lapTime: number;
   readonly step: number;
@@ -279,6 +282,9 @@ export class LedgerSim {
       ...(this.pitStopEstimate === null
         ? {}
         : { LmuPitStopTime: { value: [this.pitStopEstimate] } }),
+      ...Object.fromEntries(
+        Object.entries(this.extra).map(([key, value]) => [key, { value }])
+      ),
     } as unknown as Telemetry;
   }
 }
@@ -289,6 +295,8 @@ export interface LedgerHarnessOptions extends LedgerSimOptions {
   baseline?: LapLibraryLap[];
   /** Leave the session for the spec to send. */
   withoutSession?: boolean;
+  /** What the wear forecast is given from outside; nothing without. */
+  wear?: PlayerLedgerRuntimeOptions['wear'];
 }
 
 /** A runtime on a real bus and lifecycle, storage that only takes notes. */
@@ -325,6 +333,7 @@ export const createLedgerHarness = (options: LedgerHarnessOptions = {}) => {
       bootId: 'boot',
       now: () => (clock += 1000),
       log: (message) => logs.push(message),
+      wear: options.wear,
     }
   );
   const sim = new LedgerSim((frame) => runtime.onFrame(frame), options);

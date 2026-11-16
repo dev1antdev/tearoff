@@ -327,12 +327,14 @@ const LiveTiming = ({ settings, isDriving, isLapLive }: LiveTimingProps) => {
 /**
  * A block of tiles for the lap in one glance: the lap being driven, the delta
  * to a reference lap, the last and best laps and the sector times, with the
- * current, predicted, session-best, all-time and pace figures as optional
- * rows.
+ * current, predicted, session-best, all-time, stint-best and pace figures as
+ * optional rows.
  *
  * It adds no data of its own: every figure is one a channel already carries.
- * The reference is the one the settings choose and only that one; before it
- * exists, and on a lap that was not seen from its start, the delta is dashes.
+ * The reference is the one the settings choose and only that one -- the best
+ * lap of the session, of all time or of the stint, or the last lap; before
+ * it exists, and on a lap that was not seen from its start, the delta is
+ * dashes.
  *
  * Through a team-mate's stint the lap, the delta and the lap times are the
  * team car's, live; the sector times are held from the user's own last lap.

@@ -18,8 +18,11 @@ import type { WeatherForecastSnapshot } from './weatherForecast';
 import type { RacePlanProgressSnapshot } from './racePlanProgress';
 import type { PitStopsSnapshot } from './pitStops';
 import type { PlayerLedgerSnapshot, PlayerStintSnapshot } from './playerLedger';
+import type { WearSnapshot } from './wear';
 import type { CarPitSnapshot } from './carPit';
+import type { PitStopSnapshot } from './pitStop';
 import type { TrackProfileSnapshot } from './trackProfile';
+import type { CruiseSnapshot } from './cruise';
 import type { PitLaneCalibration } from '../pitLane';
 
 export type SessionLifecycleEvent =
@@ -72,8 +75,11 @@ export interface ChannelPayloads {
   'pit-stops.snapshot': PitStopsSnapshot;
   'player-ledger.snapshot': PlayerLedgerSnapshot;
   'player-stint.snapshot': PlayerStintSnapshot;
+  'wear.snapshot': WearSnapshot;
   'car-pit.snapshot': CarPitSnapshot;
+  'pit-stop.snapshot': PitStopSnapshot;
   'track-profile.snapshot': TrackProfileSnapshot;
+  'cruise.snapshot': CruiseSnapshot;
 }
 
 export interface TrackStateSnapshot {
@@ -819,6 +825,31 @@ export interface SectorTimingResultSnapshot {
   previousLapSectorUnclean: readonly boolean[];
   sessionBestSectorTimes: readonly (number | null)[];
   previousSessionBestSectorTimes: readonly (number | null)[];
+  /**
+   * Sector times, s, of the quickest lap of this session that has every
+   * sector in this view. Never a lap that touched pit road or began on the
+   * grid: such a lap is not one to be measured against.
+   */
+  sessionBestLapSectorTimes: readonly (number | null)[];
+  /**
+   * Sector times, s, of the lap that ended at the last line crossing; null
+   * where a sector of it has no time in this view. What a lap is summed
+   * from once the line has cleared `currentLapSectorTimes`.
+   */
+  finishedLapSectorTimes: readonly (number | null)[];
+}
+
+/**
+ * The player's best sectors on this track in this car, kept between
+ * sessions. Fed only by sectors the player drove clean and off pit road.
+ */
+export interface SectorAllTimeBestsSnapshot {
+  /** Quickest time of each sector on any lap, s: the parts of the theoretical best. */
+  bestSectorTimes: readonly (number | null)[];
+  /** What bestSectorTimes held before each sector's latest improvement, s. */
+  previousBestSectorTimes: readonly (number | null)[];
+  /** Sector times, s, of the quickest whole lap. */
+  bestLapSectorTimes: readonly (number | null)[];
 }
 
 export interface SectorTimingSnapshot {
@@ -830,6 +861,11 @@ export interface SectorTimingSnapshot {
   inclusive: SectorTimingResultSnapshot;
   /** Timing view which ignores sectors completed after leaving the track. */
   clean: SectorTimingResultSnapshot;
+  /**
+   * Kept between sessions for this sim, track and car. Null until the store
+   * has answered, and where nothing is kept at all: a tape, a replay, demo.
+   */
+  allTime: SectorAllTimeBestsSnapshot | null;
   sessionNum: number | null;
   version: number;
 }
@@ -857,6 +893,22 @@ export interface ReferenceLapsSnapshot {
    * Optional so snapshot literals written before it compile unchanged.
    */
   playerAllTimeLap?: ReferenceLap | null;
+  /**
+   * The lap the player last drove from line to line off pit road, voided by
+   * the sim or not: what was just driven, to compare the next lap with. Kept
+   * across a stop and an out-lap. Never a team-mate's lap.
+   */
+  playerLastLap?: ReferenceLap | null;
+  /**
+   * The player's best clean lap of the stint under way. Dropped when a new
+   * stint begins.
+   */
+  playerStintBestLap?: ReferenceLap | null;
+  /**
+   * Which stint `playerStintBestLap` belongs to: the ordinal of the player's
+   * stint in the session, 0 before the first. Moves when the lap is dropped.
+   */
+  playerStintId?: number;
   sessionNum: number | null;
   version: number;
 }
@@ -877,12 +929,28 @@ export interface LapDeltaReference {
   trend: number | null;
 }
 
+/** How a completed lap compared with each reference, at the line. */
+export interface LapDeltaFinal {
+  /** The lap just completed, s, from wrap to wrap by this processor's clock. */
+  lapTime: number;
+  /** SessionTime of the crossing that ended it, s. */
+  completedAt: number;
+  /**
+   * lapTime minus each reference's lap time as it stood before the crossing,
+   * s; null where there was none.
+   */
+  sessionBest: number | null;
+  allTime: number | null;
+  stintBest: number | null;
+  lastLap: number | null;
+}
+
 /**
  * The player's current lap against their own reference laps.
  *
- * Both references travel together and the widget picks one, so changing the
- * setting needs no round trip and a missing reference is never quietly
- * replaced by the other. The predicted lap is `lapTime + delta`, left to the
+ * The four references travel together and the widget picks one, so changing
+ * the setting needs no round trip and a missing reference is never quietly
+ * replaced by another. The predicted lap is `lapTime + delta`, left to the
  * renderer because it is one addition.
  */
 export interface LapDeltaSnapshot {
@@ -890,6 +958,17 @@ export interface LapDeltaSnapshot {
   sessionBest: LapDeltaReference;
   /** Against the best clean lap ever kept for this track and car. */
   allTime: LapDeltaReference;
+  /** Against the best clean lap of the stint under way. */
+  stintBest: LapDeltaReference;
+  /** Against the previous complete lap, voided or not. */
+  lastLap: LapDeltaReference;
+  /**
+   * The result of the lap that ended at the last crossing; null until a
+   * timed lap has ended.
+   */
+  lastLapFinal: LapDeltaFinal | null;
+  /** The stint the stint best belongs to; moves when that lap is dropped. */
+  stintId: number;
   sessionNum: number | null;
   version: number;
 }
@@ -932,6 +1011,27 @@ export interface FuelProjectionEngineSnapshot {
  */
 export type FuelBudget = 'fuel' | 'virtualEnergy';
 
+/**
+ * What the race-distance projection of `fuel.projection` is worked out
+ * from. Published so that anything else projecting the end of the race
+ * starts from the same pace and the same progress, and cannot disagree with
+ * `estimatedLapsRemaining` about when it ends.
+ */
+export interface FuelRaceInputs {
+  /** The car in first place overall; -1 when the sim names none. */
+  leaderCarIdx: number;
+  /** Seconds a lap, the leader's class and the player's; 0 when unknown. */
+  leaderPaceS: number;
+  playerPaceS: number;
+  /** Laps completed plus the fraction of the lap under way. */
+  leaderProgress: number;
+  playerProgress: number;
+  /** Seconds left on the clock; 0 in a race run to a lap count. */
+  timeRemainingS: number;
+  /** The race's lap limit; 0 for a race run to the clock. */
+  lapLimit: number;
+}
+
 export interface FuelProjectionSnapshot {
   /** True for recorded tape sources; recorded laps must not touch live storage. */
   isReplay: boolean;
@@ -968,6 +1068,11 @@ export interface FuelProjectionSnapshot {
   estimatedLapsRemaining: number;
   hasValidRaceEstimate: boolean;
   isFixedLapRace: boolean;
+  /**
+   * The inputs of the three figures above. In a race only; absent in every
+   * other session, where there is no distance to project.
+   */
+  race?: FuelRaceInputs;
   sessionType?: string;
   isOnTrack: boolean;
   /**
@@ -1225,12 +1330,28 @@ export const channelRegistry = {
     defaultRateHz: 5,
     maxRateHz: 10,
   },
+  // Tread and brake disc left and how long they last. Its figures are
+  // rounded to what is shown, so it moves a couple of times a second while
+  // driving and not at all in the pits.
+  'wear.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 2,
+    maxRateHz: 5,
+  },
   // Publishes on change: a car in the pit lane moves its timer five times a
   // second, and with nobody in the lane a lap completion is all that does.
   'car-pit.snapshot': {
     kind: 'snapshot',
     defaultRateHz: 2,
     maxRateHz: 5,
+  },
+  // The player's next stop and the cars around its pit exit. Its timer is
+  // anchors on the session clock, so a stop under way publishes nothing; in
+  // a race the gaps to the cars around move it most ticks.
+  'pit-stop.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 5,
+    maxRateHz: 10,
   },
   // Publishes when the track changes, when its stored profile does, and at
   // each 5 % of the lap recording a track's first profile. The cap only
@@ -1239,6 +1360,13 @@ export const channelRegistry = {
     kind: 'snapshot',
     defaultRateHz: 2,
     maxRateHz: 5,
+  },
+  // A heading, a height and an odometer: figures to read. The dial eases
+  // between snapshots, so five a second is enough.
+  'cruise.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 5,
+    maxRateHz: 10,
   },
 } as const satisfies ChannelRegistry;
 

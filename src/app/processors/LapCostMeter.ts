@@ -28,7 +28,7 @@ const TREAD_CHANGE_RISE = 0.005;
 /** Tread falling by more than this in one reading there is a used tyre. */
 const TREAD_CHANGE_FALL = 0.01;
 /** A disc reading rising by more than this, millimetres, is another disc. */
-const BRAKE_CHANGE_RISE_MM = 0.1;
+export const BRAKE_CHANGE_RISE_MM = 0.1;
 /** Two battery readings further apart than this are not neighbours. */
 const BATTERY_MAX_STEP_S = 1;
 

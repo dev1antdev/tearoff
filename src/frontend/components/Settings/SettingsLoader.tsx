@@ -18,6 +18,8 @@ import { FasterCarsFromBehindSettings } from './sections/FasterCarsFromBehindSet
 import { FuelSettings } from './sections/FuelSettings';
 import { RejoinIndicatorSettings } from './sections/RejoinIndicatorSettings';
 import { PitlaneHelperSettings } from './sections/PitlaneHelperSettings';
+import { PitStopSettings } from './sections/PitStopSettings';
+import { FuelSaverSettings } from './sections/FuelSaverSettings';
 import { GeneralSettings } from './sections/GeneralSettings';
 import { BlindSpotMonitorSettings } from './sections/BlindSpotMonitorSettings';
 import { RadarSettings } from './sections/RadarSettings';
@@ -32,6 +34,7 @@ import { DriverTagsSettings } from './sections/DriverTagsSettings';
 import { KeybindingsSettings } from './sections/KeybindingsSettings';
 import { RacePlanSettings } from './sections/RacePlanSettings';
 import { LapTimeLogSettings } from './sections/LapTimeLogSettings';
+import { StintHistorySettings } from './sections/StintHistorySettings';
 import { InformationBarSettings } from './sections/InformationBarSettings';
 import { useDashboard } from '@irdashies/context';
 import { SlowCarAheadSettings } from './sections/SlowCarAheadSettings';
@@ -39,6 +42,7 @@ import { SectorDeltaSettings } from './sections/SectorDeltaSettings';
 import { DeltaSpeedSettings } from './sections/DeltaSpeedSettings';
 import { CarSystemsSettings } from './sections/CarSystemsSettings';
 import { TyresSettings } from './sections/TyresSettings';
+import { WearSettings } from './sections/WearSettings';
 import { ChassisSettings } from './sections/ChassisSettings';
 import { DamageSettings } from './sections/DamageSettings';
 import { LiftCoastSettings } from './sections/LiftCoastSettings';
@@ -50,6 +54,9 @@ import { LapDeltaSettings } from './sections/LapDeltaSettings';
 import { CornerDeltaSettings } from './sections/CornerDeltaSettings';
 import { TimingSettings } from './sections/TimingSettings';
 import { MinimapSettings } from './sections/MinimapSettings';
+import { ElevationSettings } from './sections/ElevationSettings';
+import { CruiseSettings } from './sections/CruiseSettings';
+import { TrackNotesSettings } from './sections/TrackNotes/TrackNotesSettings';
 import { HeartRateSettings } from './sections/HeartRateSettings';
 import { CornerNameSettings } from './sections/CornerNameSettings';
 import { LapTraceSettings } from './sections/LapTraceSettings';
@@ -82,6 +89,8 @@ export const WIDGET_SETTINGS: Record<
   tachometer: TachometerSettings,
   shiftlight: ShiftLightSettings,
   pitlanehelper: PitlaneHelperSettings,
+  pitstop: PitStopSettings,
+  fuelsaver: FuelSaverSettings,
   rejoin: RejoinIndicatorSettings,
   fastercarsfrombehind: FasterCarsFromBehindSettings,
   blindspotmonitor: BlindSpotMonitorSettings,
@@ -91,12 +100,14 @@ export const WIDGET_SETTINGS: Record<
   flagpanel: FlagPanelSettings,
   streamchat: StreamChatSettings,
   laptimelog: LapTimeLogSettings,
+  stinthistory: StintHistorySettings,
   infobar: InformationBarSettings,
   slowcarahead: SlowCarAheadSettings,
   sectordelta: SectorDeltaSettings,
   deltaspeed: DeltaSpeedSettings,
   carsystems: CarSystemsSettings,
   tyres: TyresSettings,
+  wear: WearSettings,
   chassis: ChassisSettings,
   damage: DamageSettings,
   liftcoast: LiftCoastSettings,
@@ -108,6 +119,9 @@ export const WIDGET_SETTINGS: Record<
   cornerdelta: CornerDeltaSettings,
   timing: TimingSettings,
   minimap: MinimapSettings,
+  elevation: ElevationSettings,
+  cruise: CruiseSettings,
+  tracknotes: TrackNotesSettings,
   heartrate: HeartRateSettings,
   cornername: CornerNameSettings,
   laptrace: LapTraceSettings,

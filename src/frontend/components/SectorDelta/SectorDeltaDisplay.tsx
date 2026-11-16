@@ -9,9 +9,19 @@ import { useReferenceLapSectorTimes } from '@irdashies/context';
 import type { SectorDeltaConfig } from '@irdashies/types';
 import type { TimeFormat } from '@irdashies/types';
 import type { SectorColor } from '@irdashies/context';
+import type { LapTimeDecimals } from '@irdashies/domain/lapTiming/deltaDisplay';
+import {
+  sectorCardReading,
+  sectorReference,
+  sectorSum,
+} from '@irdashies/domain/sectors/sectorTargets';
 import { useCarouselWindow } from './hooks/useCarouselWindow';
 import { LiveDelta } from './components/LiveDelta';
 import { SectorProgressIndicator } from './components/SectorProgressIndicator';
+import {
+  SectorTargetRow,
+  SectorTargetView,
+} from './components/SectorTargetRow';
 import { computeGhostSectorColor } from './sectorColorUtils';
 
 type SectorDeltaProps = SectorDeltaConfig;
@@ -75,6 +85,8 @@ export const SectorDeltaDisplay = ({
   sessionVisibility,
   timeFormat = 'seconds-full',
   ghostComparison = 'prefer-ghost',
+  showTargetLap = false,
+  targetFreezeSeconds = 5,
   thresholds,
   maxSectorsShown,
   alwaysScroll = false,
@@ -90,6 +102,10 @@ export const SectorDeltaDisplay = ({
     previousLapSectorUnclean,
     sessionBestSectorTimes,
     previousSessionBestSectorTimes,
+    sessionBestLapSectorTimes,
+    allTime,
+    lapStartTime,
+    sectorEvent,
     currentSectorIdx,
   } = data;
   const isOnTrack = useTrackStateSelector(trackStateSelectors.isOnTrack);
@@ -97,6 +113,21 @@ export const SectorDeltaDisplay = ({
 
   const useGhost =
     !demo && ghostComparison === 'prefer-ghost' && hasReferenceLap;
+  // What the sectors are held against. The sample data of demo mode has
+  // session bests and nothing else.
+  const comparison = demo ? 'session-best-only' : ghostComparison;
+  const ghost = useGhost ? refSectorTimes : null;
+  const reference = sectorReference(comparison, {
+    ghost,
+    sessionBestSectorTimes,
+    previousSessionBestSectorTimes,
+    sessionBestLapSectorTimes,
+    allTime,
+  });
+  // The session's best sectors are coloured by the store, with the
+  // thresholds every widget that shows sectors shares. Any other reference
+  // is coloured here, from its own times.
+  const againstSessionBests = reference.times === sessionBestSectorTimes;
 
   const currentSectorStart = sectors[currentSectorIdx]?.SectorStartPct ?? 0;
   const currentSectorEnd = sectors[currentSectorIdx + 1]?.SectorStartPct ?? 1;
@@ -142,19 +173,20 @@ export const SectorDeltaDisplay = ({
         ? currentLapSectorUnclean[i]
         : previousLapSectorUnclean[i];
 
-    const colorKey: SectorColor = useGhost
-      ? computeGhostSectorColor(
+    const colorKey: SectorColor = againstSessionBests
+      ? (sectorColors[i] ?? 'default')
+      : computeGhostSectorColor(
           displayTime,
-          refSectorTimes[i] ?? null,
+          reference.times[i] ?? null,
           thresholds
-        )
-      : (sectorColors[i] ?? 'default');
+        );
 
-    const refTime = useGhost
-      ? (refSectorTimes[i] ?? null)
-      : colorKey === 'purple'
+    // A sector that has just set a best is shown against the best before.
+    const refTime = againstSessionBests
+      ? colorKey === 'purple'
         ? (previousSessionBestSectorTimes[i] ?? null)
-        : (sessionBestSectorTimes[i] ?? null);
+        : (sessionBestSectorTimes[i] ?? null)
+      : sectorCardReading(displayTime, reference, i).referenceTime;
 
     const fallback = formatDelta(displayTime, refTime, timeFormat);
     const cardStyle = SECTOR_CARD[colorKey];
@@ -206,31 +238,83 @@ export const SectorDeltaDisplay = ({
     );
   };
 
+  /** The row above the cards: what the comparison adds up to, and the lap. */
+  const renderTarget = () => {
+    const decimals = Math.max(1, dp) as LapTimeDecimals;
+    if (demo) {
+      // A still from the middle of the sector being driven.
+      const sectorTime = previousLapSectorTimes[currentSectorIdx] ?? 0;
+      const before =
+        currentSectorIdx === 0
+          ? 0
+          : sectorSum(previousLapSectorTimes, currentSectorIdx - 1);
+      return (
+        <SectorTargetView
+          label={reference.label}
+          target={sectorSum(reference.times, currentSectorIdx)}
+          frozen={false}
+          lapTime={before === null ? null : before + sectorTime * 0.4}
+          decimals={decimals}
+        />
+      );
+    }
+    // The comparison as it stood while the sector that last ended was being
+    // driven: a new best is measured against the one it replaced.
+    const before = sectorEvent
+      ? sectorReference(comparison, {
+          ghost,
+          sessionBestSectorTimes: sectorEvent.before.sessionBestSectorTimes,
+          previousSessionBestSectorTimes: null,
+          sessionBestLapSectorTimes:
+            sectorEvent.before.sessionBestLapSectorTimes,
+          allTime: sectorEvent.before.allTime,
+        }).times
+      : reference.times;
+    return (
+      <SectorTargetRow
+        label={reference.label}
+        targetTimes={reference.times}
+        targetTimesBefore={before}
+        currentSectorIdx={currentSectorIdx}
+        lapStartTime={lapStartTime}
+        sectorEnd={sectorEvent}
+        previousTimeOfCurrentSector={
+          previousLapSectorTimes[currentSectorIdx] ?? null
+        }
+        freezeSeconds={targetFreezeSeconds}
+        decimals={decimals}
+      />
+    );
+  };
+
   return (
     <div
-      className="flex flex-row items-center gap-1 p-1 rounded-sm"
+      className="flex flex-col gap-1 p-1 rounded-sm"
       style={{ backgroundColor: `rgba(15, 23, 42, ${opacity})` }}
     >
-      {useGhost && (
-        <div className="flex items-center justify-center px-1 text-slate-400 flex-shrink-0">
-          <GhostIcon size={14} weight="fill" />
-        </div>
-      )}
-
-      {isWindowed ? (
-        <div ref={containerRef} className="flex-1 overflow-hidden relative">
-          <div ref={stripRef} className="flex flex-row gap-1">
-            {extendedIndices.map((sectorIdx, slotPosition) =>
-              renderCard(sectorIdx, slotPosition, slotPosition === centerSlot)
-            )}
+      {showTargetLap && renderTarget()}
+      <div className="flex flex-row items-center gap-1">
+        {useGhost && (
+          <div className="flex items-center justify-center px-1 text-slate-400 flex-shrink-0">
+            <GhostIcon size={14} weight="fill" />
           </div>
-          <div className="absolute inset-y-0 left-1/2 w-px bg-sky-400/60 pointer-events-none" />
-        </div>
-      ) : (
-        sectors.map((sector, i) =>
-          renderCard(i, sector.SectorNum, i === currentSectorIdx)
-        )
-      )}
+        )}
+
+        {isWindowed ? (
+          <div ref={containerRef} className="flex-1 overflow-hidden relative">
+            <div ref={stripRef} className="flex flex-row gap-1">
+              {extendedIndices.map((sectorIdx, slotPosition) =>
+                renderCard(sectorIdx, slotPosition, slotPosition === centerSlot)
+              )}
+            </div>
+            <div className="absolute inset-y-0 left-1/2 w-px bg-sky-400/60 pointer-events-none" />
+          </div>
+        ) : (
+          sectors.map((sector, i) =>
+            renderCard(i, sector.SectorNum, i === currentSectorIdx)
+          )
+        )}
+      </div>
     </div>
   );
 };

@@ -2,6 +2,7 @@ import type {
   FuelBudget,
   FuelLapData,
   FuelProjectionSnapshot,
+  FuelRaceInputs,
   Session,
   SessionLifecycleEvent,
   Telemetry,
@@ -441,6 +442,9 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
       estimatedLapsRemaining: raceProjection.lapsRemaining,
       hasValidRaceEstimate: raceProjection.hasValidEstimate,
       isFixedLapRace: raceProjection.isFixedLapRace,
+      // Left out outside a race, so every other session publishes exactly
+      // what it did before there was such a block.
+      ...(raceProjection.race ? { race: raceProjection.race } : {}),
       sessionType: sessionInfo?.SessionType,
       isOnTrack: booleanValue(frame, 'IsOnTrack'),
       // Left out at the wheel, so that snapshot is the one it always was.
@@ -615,6 +619,8 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
     lapsRemaining: number;
     hasValidEstimate: boolean;
     isFixedLapRace: boolean;
+    /** What the three were worked out from; in a race only. */
+    race?: FuelRaceInputs;
   } {
     const timeRemaining = value(frame, 'SessionTimeRemain');
     const isFixedLapRace = !(timeRemaining > 0 && timeRemaining !== 604800);
@@ -668,6 +674,21 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
     // Ultimate has said 2147483647, and read as a lap count that was the
     // length of the race from the moment its clock ran out.
     const configuredLaps = sessionLapLimit(sessionLaps);
+    // The same pace and progress the projection below is made of, for a
+    // reader that projects the end of the race itself.
+    const race: FuelRaceInputs = {
+      leaderCarIdx,
+      leaderPaceS: leaderLapTime >= 10 ? leaderLapTime : 0,
+      playerPaceS: playerLapTime >= 10 ? playerLapTime : 0,
+      leaderProgress:
+        Math.max(0, (carLaps[leaderCarIdx] ?? playerLap) - 1) +
+        (lapDistances[paceCarIdx] ?? 0),
+      playerProgress:
+        Math.max(0, playerLap - 1) +
+        (lapDistances[playerCarIdx] ?? value(frame, 'LapDistPct')),
+      timeRemainingS: isFixedLapRace ? 0 : timeRemaining,
+      lapLimit: configuredLaps,
+    };
 
     if (value(frame, 'SessionState') >= 5) {
       return {
@@ -675,13 +696,14 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
         lapsRemaining: 0,
         hasValidEstimate: true,
         isFixedLapRace,
+        race,
       };
     }
     if (isFixedLapRace) {
       // Neither a lap limit nor a clock to project from: a timed race whose
       // time is up, with the leader still to reach the line. There is no
       // distance to give, and the renderer counts down the lap under way.
-      if (configuredLaps === 0) return emptyProjection;
+      if (configuredLaps === 0) return { ...emptyProjection, race };
       let totalRaceLaps = configuredLaps;
       const leaderLap = carLaps[leaderCarIdx] ?? 0;
       const leaderDistance = lapDistances[leaderCarIdx] ?? 0;
@@ -698,9 +720,12 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
         lapsRemaining: Math.max(0, totalRaceLaps - playerProgress),
         hasValidEstimate: configuredLaps > 0,
         isFixedLapRace,
+        race,
       };
     }
-    if (leaderLapTime < 10 || playerLapTime < 10) return emptyProjection;
+    if (leaderLapTime < 10 || playerLapTime < 10) {
+      return { ...emptyProjection, race };
+    }
 
     const leaderLap = carLaps[leaderCarIdx] ?? playerLap;
     const leaderDistance = lapDistances[paceCarIdx] ?? 0;
@@ -745,6 +770,7 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
       lapsRemaining: Math.max(0, playerFinishProgress - playerProgress),
       hasValidEstimate: true,
       isFixedLapRace,
+      race,
     };
   }
 

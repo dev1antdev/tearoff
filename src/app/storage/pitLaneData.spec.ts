@@ -368,6 +368,170 @@ describe('reloading a repaired initial calibration file', () => {
   );
 });
 
+describe('the measured timings of a track', () => {
+  const timing = {
+    speedLimitMs: 16.6,
+    driveS: [24, 25.5],
+    standingS: { 'Ferrari 296 LMGT3': [18, 31.2] },
+  };
+  const timed = { '47': { ...original['47'], timing }, '181': original['181'] };
+
+  it('loads them with the positions and keeps them through a calibration update', async () => {
+    await writeFile(file, JSON.stringify(timed));
+    expect(await store.get('47')).toEqual(timed['47']);
+    expect(await store.get('181')).toEqual(original['181']);
+
+    // As the renderer saves a re-learned line: two keys at most, no timing.
+    await store.update('47', { pitEntryPct: 0.93 });
+    await store.flush();
+    expect(JSON.parse(await readFile(file, 'utf8'))).toEqual({
+      ...timed,
+      '47': { pitEntryPct: 0.93, pitExitPct: 0.05, timing },
+    });
+  });
+
+  it('writes timings learned for a track that had none', async () => {
+    await writeFile(file, JSON.stringify(original));
+    await store.update('181', { timing });
+    await store.update('321', { timing: { ...timing, speedLimitMs: null } });
+    await store.flush();
+    expect(JSON.parse(await readFile(file, 'utf8'))).toEqual({
+      ...original,
+      '181': { ...original['181'], timing },
+      '321': {
+        pitEntryPct: null,
+        pitExitPct: null,
+        timing: { ...timing, speedLimitMs: null },
+      },
+    });
+    // And reads its own file back.
+    expect(await new PitLaneDataStore(file).get('181')).toEqual({
+      ...original['181'],
+      timing,
+    });
+  });
+
+  it('clears them with the positions on a reset', async () => {
+    await writeFile(file, JSON.stringify(timed));
+    await store.clear('47');
+    expect(JSON.parse(await readFile(file, 'utf8'))).toEqual({
+      '181': original['181'],
+    });
+    expect(await store.get('47')).toBeNull();
+  });
+
+  it.each([
+    ['an unknown key', { ...timing, extra: 1 }],
+    ['a missing key', { speedLimitMs: 16.6, driveS: [] }],
+    ['a limit that is not a speed', { ...timing, speedLimitMs: 0 }],
+    ['a limit that is text', { ...timing, speedLimitMs: '16.6' }],
+    ['a negative time', { ...timing, driveS: [-1] }],
+    [
+      'more drive times than are kept',
+      { ...timing, driveS: [1, 2, 3, 4, 5, 6] },
+    ],
+    ['a list that is not one', { ...timing, driveS: 24 }],
+    [
+      'standing times that are not lists',
+      { ...timing, standingS: { car: 18 } },
+    ],
+    [
+      'more cars than are kept',
+      {
+        ...timing,
+        standingS: Object.fromEntries(
+          Array.from({ length: 13 }, (_, car) => [`car ${car}`, [18]])
+        ),
+      },
+    ],
+    ['a timing that is not an object', [timing]],
+  ])(
+    'keeps a file with %s read-only and rejects it on reload',
+    async (_, bad) => {
+      const bytes = JSON.stringify({
+        ...original,
+        '47': { ...original['47'], timing: bad },
+      });
+      await writeFile(file, bytes);
+      // Dropped on the first read, without dropping the other track...
+      expect(await store.get('47')).toBeNull();
+      expect(await store.get('181')).toEqual(original['181']);
+      // ...and never written over.
+      await expect(store.update('181', { timing })).rejects.toThrow(
+        'could not be read safely'
+      );
+      await expect(store.reload()).rejects.toThrow('timing');
+      await store.flush();
+      expect(await readFile(file, 'utf8')).toBe(bytes);
+    }
+  );
+
+  it('applies timings edited by hand on a reload', async () => {
+    await writeFile(file, JSON.stringify(timed));
+    await store.get('47');
+    const edited = {
+      ...timed,
+      '47': { ...timed['47'], timing: { ...timing, speedLimitMs: null } },
+    };
+    await writeFile(file, JSON.stringify(edited));
+    // The positions did not move, so no overlay has anything to be told.
+    expect(await store.reload()).toEqual([]);
+    expect(await store.get('47')).toEqual(edited['47']);
+  });
+});
+
+describe("the main process's own reads of the calibration", () => {
+  it('answers from memory, starting the first read itself', async () => {
+    await writeFile(file, JSON.stringify(original));
+    const before = store.revision();
+    expect(store.peek('47')).toBeNull();
+
+    await vi.waitFor(() => expect(store.revision()).toBeGreaterThan(before));
+    expect(store.peek('47')).toEqual(original['47']);
+    expect(store.peek('999')).toBeNull();
+  });
+
+  it('moves its revision on every change a reader could see', async () => {
+    await writeFile(file, JSON.stringify(original));
+    await store.get('47');
+    const loaded = store.revision();
+
+    await store.update('47', { pitEntryPct: 0.93 });
+    const updated = store.revision();
+    expect(updated).toBeGreaterThan(loaded);
+    expect(store.peek('47')?.pitEntryPct).toBe(0.93);
+
+    await store.clear('181');
+    const cleared = store.revision();
+    expect(cleared).toBeGreaterThan(updated);
+    expect(store.peek('181')).toBeNull();
+
+    await writeFile(file, JSON.stringify(original));
+    await store.reload();
+    expect(store.revision()).toBeGreaterThan(cleared);
+    expect(store.peek('181')).toEqual(original['181']);
+    expect(store.peek('47')).toEqual(original['47']);
+  });
+
+  it('gives back what a failed reset could not remove', async () => {
+    await writeFile(file, JSON.stringify(original));
+    await store.get('47');
+    vi.spyOn(fsp, 'writeFile').mockRejectedValueOnce(new Error('disk full'));
+    await expect(store.clear('47')).rejects.toThrow('disk full');
+    expect(store.peek('47')).toEqual(original['47']);
+  });
+
+  it('answers with what an unreadable file did hold', async () => {
+    await writeFile(
+      file,
+      JSON.stringify({ ...original, '5': { pitEntryPct: 3, pitExitPct: 0.1 } })
+    );
+    expect(await store.get('181')).toEqual(original['181']);
+    expect(store.peek('181')).toEqual(original['181']);
+    expect(store.peek('5')).toBeNull();
+  });
+});
+
 describe('protecting external calibration edits from automatic learning', () => {
   it('drains old atomic writes before opening and pauses every later learning write until reload', async () => {
     await writeFile(file, JSON.stringify(original));

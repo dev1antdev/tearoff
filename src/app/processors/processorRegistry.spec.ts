@@ -14,12 +14,14 @@ import { createProcessorDefinitions } from './processorRegistry';
  * telemetry, so it has nothing to do with the frame loop.
  * PlayerLedgerRuntime keeps the player's laps and stints, which are stored:
  * a record with a hole for every minute no widget was showing is no record.
+ * Its wear forecast is made from those laps, so it is published from there.
  */
 const RUNTIME_OWNED_CHANNELS = [
   'lap-history.snapshot',
   'pit-stops.snapshot',
   'player-ledger.snapshot',
   'player-stint.snapshot',
+  'wear.snapshot',
   'replay.context',
   'streamchat.messages',
   'streamchat.emotes',

@@ -165,6 +165,74 @@ describe('Compound', () => {
     expect(colors(container)).toContain('#4d4d4d');
   });
 
+  describe('given compound names', () => {
+    // The player's ledger records a stint's compounds by name.
+    it('draws one glyph for a set that agrees, in the name’s colour', () => {
+      const { container } = render(
+        <Compound
+          tireCompound={-1}
+          compoundNames={['Medium', 'Medium', 'Medium', 'Medium']}
+          mockTires={TIRES}
+        />
+      );
+      expect(shape(container)).toEqual({ glyphs: 1, dots: 0 });
+      expect(colors(container)).toContain('#f0d700');
+    });
+
+    it('draws four dots for a mixed set, each from its own wheel', () => {
+      const { container } = render(
+        <Compound
+          tireCompound={-1}
+          compoundNames={['Wet', 'Wet', 'Hard', null]}
+          mockTires={TIRES}
+        />
+      );
+      expect(shape(container)).toEqual({ glyphs: 0, dots: 4 });
+      expect(colors(container)).toEqual([
+        'rgb(7, 140, 209)',
+        'rgb(7, 140, 209)',
+        'rgb(255, 255, 255)',
+        'rgb(77, 77, 77)',
+      ]);
+    });
+
+    it('needs no tyre list from the session', () => {
+      const { container } = render(
+        <Compound
+          tireCompound={-1}
+          compoundNames={['Soft', 'Soft', 'Soft', 'Soft']}
+          mockTires={[]}
+        />
+      );
+      expect(colors(container)).toContain('#d40000');
+    });
+
+    it('keeps iRacing’s two-compound Hard-is-Dry labelling', () => {
+      const { container } = render(
+        <Compound
+          tireCompound={-1}
+          compoundNames={['Hard', 'Hard', 'Hard', 'Hard']}
+          mockTires={[
+            { TireIndex: 0, TireCompoundType: 'Hard' },
+            { TireIndex: 1, TireCompoundType: 'Wet' },
+          ]}
+        />
+      );
+      expect(colors(container)).toContain('#4d4d4d');
+    });
+
+    it('renders nothing with no compound at all', () => {
+      const { container } = render(
+        <Compound
+          tireCompound={0}
+          compoundNames={[null, null, null, null]}
+          mockTires={TIRES}
+        />
+      );
+      expect(container).toBeEmptyDOMElement();
+    });
+  });
+
   it('ignores a wheel array that is not four long', () => {
     const { container } = render(
       <Compound tireCompound={1} wheelCompounds={[3, 3]} mockTires={TIRES} />

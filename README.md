@@ -50,6 +50,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Hybrid (for cars that have the system), Lift and Coast Lights, Weather Forecast, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Tyre & Brake Wear, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Elevation, Cruise, Track Notes, Lap Delta, Corner Delta, Timing, Lap Timer, Car Systems, Fuel Calculator, Fuel Saver, Pit Stop, and Stint History. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
@@ -182,6 +183,25 @@ Shows the state of your tyres and brakes, one axle per block. Le Mans Ultimate o
 - Optional load bar under each tyre: its share of the load on all four wheels, growing outwards from the centre of the car and full at 50%, red when the wheel carries next to nothing. Le Mans Ultimate withholds tyre load, so the share is taken from suspension load and is an estimate: the split between left and right is sound, the split between front and rear is approximate
 - Optional tyre deflection in millimetres, red when the wheel is off the ground
 - Adjustable background opacity, session visibility and an option to show only when on track
+
+### Tyre & Brake Wear
+
+Shows how long your tyres and brake discs will last: what is left on each wheel, what a lap costs and the laps that makes. Le Mans Ultimate only: iRacing refreshes tread only while the car is in the pits and publishes nothing about brake discs.
+
+**Features:**
+
+- The four wheels as the car has them, the front axle above the rear, with the compound fitted between each pair of tyres
+- Tread left on each tyre in percent, amber at or below 30 and red at or below 15, with the wear per lap and the whole laps left under it, red at five laps or fewer. Optionally the minutes those laps take at your pace, and the tread expected when the fuel or virtual energy on board runs out
+- The wear per lap is the middle one of your last five clean laps on that tyre, so one lock-up does not swing the forecast; it can be switched to what the lap under way is heading for. A tyre without a lap of its own starts from the session's laps on the same compound, then from what the compound cost in earlier sessions on this track in this car. Such estimates are drawn in grey italics
+- Before any of that exists the widget shows the tread with `--/lap`, and from a quarter of the way round the first lap what that lap is heading for, in italics. The first clean lap replaces it
+- Brake disc thickness on each wheel in millimetres, or the share of usable disc left, with the wear per lap and the laps left to the failure thickness once they are below 999. `FAIL` marks a disc at or below its failure thickness, or one that no longer wears under braking
+- A flat tyre is marked `FLAT`
+- Disc thickness comes from the REST API of Le Mans Ultimate. Where it does not answer the brake section shows dashes; when it stops answering mid-session the section says so instead of holding the last reading, which would look like a disc that had stopped wearing
+- Each section can be switched off; adjustable warnings, background opacity, session visibility and an option to show only when on track. While a team-mate drives the car the sim publishes no wheel data, and the widget hides
+
+**What is yours to set.** Le Mans Ultimate states neither the tread at which a tyre is finished nor the thickness at which a disc fails, so both are settings. _End Of Life_ is 0 % by default: the laps are counted to a tyre with no tread at all, which no tyre reaches in practice, so raise it to the tread at which your tyres stop working. The two failure thicknesses are 0 by default, which leaves them to a thickness the widget saw a disc of that car stop wearing at, and failing that to 25 mm for a Hypercar or LMP2 and 30 mm for an LMGT3 or GTE car. Those two figures are TinyPedal's and have not been confirmed under Le Mans Ultimate. An LMP3 has none, and shows thickness and wear without life or laps left.
+
+**What is confirmed and what is not.** One recorded race stands behind this widget: an LMGT3 on mediums that wears about half a percent of tread a lap, some two hundred laps to nothing, and loses one to three micrometres of its 36 and 32 mm discs a lap, which puts their laps left far beyond the cap. Not seen on any recording: a tyre change, wets, a set run to a low tread, a prototype's carbon discs, a brake change, a flat tyre and a failed brake, so how a failure reads is built on how the sim is understood to report it.
 
 ### Chassis
 
@@ -468,6 +488,61 @@ A close-range map of the track around the car you are watching, with the cars ne
 - In Le Mans Ultimate the map comes with the session; a circuit without a bundled map appears after one full lap has been driven
 - Adjustable track width, marker size, background opacity, session visibility and an option to show only when on track
 
+### Elevation
+
+The height of the track along the lap as a filled profile, with your car's place on it. Works in iRacing and Le Mans Ultimate.
+
+**Features:**
+
+- The whole lap from the start/finish line to the start/finish line, the part already driven tinted, with a mark and a dot where the car is
+- The height where the car is, read off the profile, measured from the lowest point of the lap or from the start/finish line (then signed), in metres or feet
+- The lap's height range, and a dashed line where each sector starts
+- The profile is recorded once for each track, from the first lap you drive from the line to the line without visiting the pits, and kept. Until there is one the widget says so, and shows how far round the recording lap you are
+- In Le Mans Ultimate the profile is the height of the road as the sim states it, and a TinyPedal track map of the same name on your computer is used until your own lap replaces it
+- iRacing states no height while the car is driven, so the profile there is worked out from the car's motion over the first three clean laps: the shape of the lap rather than a survey of it
+- **Record again** in the widget's settings drops the stored profile, so the next clean lap records a new one
+- While you watch another car the mark is that car's
+- Adjustable background opacity, session visibility and an option to show only when on track
+
+### Cruise
+
+Where your car points and how far you have driven it: a compass heading, the height of the road, the distance and the time you have driven on this track in this car, and the distance into the lap. Works in iRacing and Le Mans Ultimate.
+
+**Features:**
+
+- Compass heading as three digits with its bearing ("045° NE")
+- Distance driven and time on track, for this track and car over every session or for this session only. The time counts while the car is moving, the distance in the pits as well
+- Elevation and distance into the lap, in metres or feet; distance driven in kilometres or miles
+- An optional compass dial: the rose turns under the car, the white line is the car's own axis, and an amber needle shows the way the car is going. The needle turns red when the two are more than 10 degrees apart
+- Cells can be reordered and switched off, as a grid of three over two or as one strip
+- The totals count while the widget is enabled, and are kept in Tearoff's settings folder. A dash is shown until they have been read, and while you are out of the car or watching another one: the figures are of your own driving
+
+**Limitations:**
+
+- Le Mans Ultimate states no north, so the compass takes the track model's own +Z axis for it. Whether that agrees with a map of the real circuit depends on how the track was modelled
+- Elevation is the height in the track model's own coordinates, not an altitude above the sea, and can be negative
+- iRacing states no height while the car is driven, so the elevation cell is not drawn there
+
+### Track Notes
+
+Your own notes for the track, shown when the car reaches the point each was written for. Works in iRacing and Le Mans Ultimate.
+
+**Features:**
+
+- Two kinds of note, each on its own line: a track note says where you are, a pace note says what is coming and can be shown early, by a distance in metres and by a time in seconds at the speed you are doing
+- A note stays up until the next of its kind is reached, so the last note of the lap carries over the line; optionally it hides a set time after it appeared
+- Notes marked Pit are shown on pit road only, in place of the others, or "Pit lane" where the track has none
+- Optional comment under the note, up to three lines, and the distance to the next note
+- The notes editor is the first tab of the widget's settings: a table of distance, kind, text, comment and pit mark for the track of the running session or any track you have notes for. Add a note, add one where the car is now, start from the corners of the track, shift every note along the lap, and delete. Changes are saved as you make them and reach the overlay at once
+- TinyPedal's notes files (`.tptn` track notes, `.tppn` pace notes, or the same as `.csv`) can be imported, and your notes exported in the same layout, one file for each kind. Distances are metres into the lap, so a file written for Le Mans Ultimate comes in as it is; one written for another sim's version of a circuit will not line up
+- Notes are kept per simulator and track, with at most 500 for a track
+- While you watch another car the notes are for where that car is
+
+**Limitations:**
+
+- Pace notes are shown, not spoken
+- At the wheel a note appears within a twenty-fifth of a second of the car reaching it. The place of a car you are watching is known to a thousandth of a lap, so its notes can be about 2 m early or late at Laguna Seca and 7 m at Le Mans
+
 ### Flat Track Map
 
 Displays a simplified horizontal track map showing driver positions along a flat line representation of the track. Similar to Track Map but uses a linear horizontal layout.
@@ -602,6 +677,70 @@ Displays comprehensive fuel management information including current fuel level,
 
 <img src="./docs/assets/fuelcalculator-default.png" alt="Default Fuel Calculator showing the basic strategy information" width="324">
 
+### Pit Stop
+
+Answers the question asked before every stop: how long will it take, and where do I come out. Out on the circuit it shows what the visit costs against staying out, large, with the standing time and the pit lane time it is made of. In the pit lane it becomes a countdown, and for a few seconds after the exit it shows how the stop went against its plan. Both simulators, with less under iRacing.
+
+**Features:**
+
+- The loss: the time through the pit lane, the standing time and a configurable extra for reaction and the crew, less what the same stretch of track costs on the racing line
+- The standing time of the next stop. Under Le Mans Ultimate it is the sim's own estimate, with a chip for each part that takes time: fuel, virtual energy, tyres, repairs, a driver change, brakes and a penalty. A drive-through to serve is shown as one chip and costed as a pass with no stop. It turns red at a threshold you set
+- What the stop adds in fuel or virtual energy, how many laps and minutes the level set lasts, and what the race still needs when that level falls short of it
+- In a race, your position after the stop, in class or overall, and the car numbers and gaps of the cars you will come out between. Cars close enough to pass you that are in the pits themselves are not counted and are shown as a count
+- Cars standing in the pit lane over cars in it, and under Le Mans Ultimate how many stops are requested
+- In the pit lane: the standing time still to go, counting down and on below zero in red if the stop overruns, a progress bar, the time in the lane and the planned standing time
+- After the exit, for a time you set: the stop as it was, green within a second of its plan and amber beyond
+- An option to show the widget only when a stop is requested, in the pit lane and for the result
+- It describes your own entry: it stays up while a team-mate drives the car, and hides with the camera on another car
+- Adjustable background opacity, session visibility and an option to show only when on track
+
+**The pit lane is learned, per track.** Its entry and exit lines come from the first car seen crossing each of them, the same calibration the Pitlane Helper uses. Its speed limit is read off your limiter the first time you hold it flat out in the lane (Le Mans Ultimate states no limit; until then 60 km/h is assumed). Its drive time, with the braking into the box and the pulling away, is the median of your own last five stops there. These are kept in `pitLaneData.json` with the calibration, and a track reset in the Pitlane Helper settings clears them. A version of Tearoff older than this one reads a file that holds them as read-only.
+
+**What is reckoned is marked.** A figure that is not measured or stated by the sim is written with a `~`: the loss and the lane time until one of your stops has been timed, a standing time learned from earlier stops, and a rejoin position that turns on a car within a few seconds or, under Le Mans Ultimate, is counted across classes, where the race gaps are approximate. Until both pit lines have been seen the loss cannot be worked out, and the widget shows the standing time alone and says "lane not measured yet". The rejoin assumes no rival stops in the meantime.
+
+**Under iRacing** the sim gives no estimate, so the standing time is the median of your own earlier stops on that track in that car, never less than the required repair, and a dash before the first one. The only parts named are the required and optional repairs, the fuel shown is the amount the pit service is set to add, and there are no stop requests.
+
+**Not yet verified.** No recording of a real pit stop exists, so everything that happens from the pit entry line on has been tested on hand-built data and on a stop staged in a recorded race, not on a stop: the countdown, the measured lane time, the speed limit measurement, and what the sim's estimate does while the car is being serviced. On the one recording there is, the stop is fuel and virtual energy only and its total is the longer of the two; how the sim adds tyres, repairs, brakes and a driver change into a total has not been seen. Whether Le Mans Ultimate goes on publishing the estimate while a team-mate drives is not known either.
+
+### Fuel Saver
+
+A small table for the braking zone: what a lap may cost for the fuel or the energy to last longer. The column in the middle is the laps it lasts now, counted from the start of the lap you are on; each column to its right is one lap more. Each shows the consumption per lap that makes it and, under it, how far above that you are running. Both simulators.
+
+**Features:**
+
+- Virtual energy in percent for a Le Mans Ultimate car that runs on it, litres or gallons otherwise: the same figures the Fuel Calculator counts
+- One to five columns for laps more and up to three for laps fewer, each captioned with the stint length it stands for; the middle one reads as laps done over the total
+- The saving is green when you are already inside the target, amber when it is within reach, and grey beyond a share of your current consumption that you set (15 % by default)
+- The consumption the targets are compared with: a projection that follows the lap you are on, so lifting and coasting shows before the line, the last lap, or an average of up to ten laps that leaves out laps through the pits
+- A reserve that is kept back and never counted
+- An option to count the last lap of the stint only as far as the pit entry, once that is known for the track
+- In a race that still needs a stop, a line for the consumption that would make one stop fewer enough, with the saving and its share. It is left out when it would take more than half of what the car uses
+- It describes your own entry: it stays up while a team-mate drives the car, for as long as the sim publishes its energy, and hides with the camera on another car
+- Adjustable background opacity, session visibility and an option to show only when on track
+
+The table has been checked against the one recorded race, where the car's 38.7 % lasts 17 laps. The "one stop fewer" line has been checked by arithmetic only: no recorded race is long enough to need two stops, and none is of a car on fuel.
+
+### Stint History
+
+A table of your stints: the one you are driving at the top and the last few finished ones under it, one row each. It is what you read after a stint to see what it cost and how it went. Both simulators, with fewer figures under iRacing.
+
+A stint runs from one service to the next. It starts when the car leaves the pit lane, or at the green flag of a race, and ends when the car is refuelled, gets tyres or another driver, goes back to the garage, or the session ends. A drive-through or a stop that services nothing ends nothing. Tearoff records every stint you drive whether or not the widget is on screen.
+
+**Features:**
+
+- Laps completed and time on track for each stint
+- Fuel used in litres or gallons, or percent of virtual energy for a Le Mans Ultimate car that runs on it, with an optional per-lap figure
+- The compound the stint was driven on, drawn as four dots for a mixed set
+- Tyre wear over the stint as the average of the four tyres or the worst of them: amber when a tyre lost more than 30 points, red above 50
+- The stint's best clean lap, purple when it is your best of the session, with an optional consistency figure
+- The stop that ended the stint: seconds in the pit lane, how much fuel or energy went in, and marks for a tyre change, a brake change and a driver change. A garage marks a stint that ended in the garage, a chequered flag one that ended with its session
+- Optional columns for brake disc wear and the driver's surname
+- Choice of how many finished stints to list, the shortest stint worth listing, newest first or last, and whether to include the earlier sessions of the event
+- The stints listed are your own. While a team-mate drives the car the widget stays up, says so, and shows your stints so far; with the camera on another car it hides
+- Adjustable background opacity, session visibility and an option to show only when on track
+
+Under iRacing there is no virtual energy and no brake disc reading, and tread is only read in the pits, so the wear cells show a dash.
+
 ### Blind Spot Monitor
 
 Displays visual indicators on the left and right sides of the screen when cars are detected in your blind spots. The indicator position dynamically adjusts based on the distance to the detected car.
@@ -735,8 +874,13 @@ Helps you manage your pit stops with clear visual guidance. It assists with spee
 - Predicted lap: Shows an estimate of the lap time based on the current delta.
 - Best and last lap: Display the best and last lap times.
 - Personal best lap: Optionally show the best lap ever recorded by Tearoff for the current car and track combo, persisted across sessions.
-- Lap history: Show a history of your most recent lap times along with optional deltas.
-- Optionally hide pit laps from the lap history list and graph.
+- Lap history: Show a history of your most recent lap times along with optional deltas. The list is read from the record Tearoff keeps of every lap you drive, so it has the laps driven while the widget was hidden and is still there after the overlay reloads.
+- What each lap cost, as optional columns: the lap's number within its stint, the fuel it used (percent of virtual energy for a Le Mans Ultimate car that runs on it, litres or gallons otherwise), and the tread it wore as the average of the four tyres or the worst of them, amber when well above the other laps shown. Tyre wear per lap is Le Mans Ultimate only: iRacing reads tread in the pits, not lap by lap. With every column on the widget wants about 320 px of width.
+- Lap marks beside the lap number: a garage for an in-lap or an out-lap, a cross for a lap the sim voided or one with an incident, a yellow flag for a yellow (with FCY for a full-course caution), a drop for a wet lap, and a green flag for the first lap of a race. A line across the list marks where one stint ends and the next begins.
+- Optional first row for the lap under way, with its running time and what it has used so far, and an option to list only the laps of the current stint.
+- A lap is a lap from the line to the line. The run from the garage to the line is not listed; under Le Mans Ultimate the first lap of a race is, with the time the sim gives it, which runs from the green flag.
+- The laps listed are the ones you drove. While a team-mate has the car the timer follows their lap and the list stays as it was.
+- Optionally hide pit laps and laps under a full-course caution from the lap history list and graph.
 - Fully configurable: Decide which laps your interested in and toggle them on and off individually.
 - Fully customisable: Resize, scale and align to position the widget to your taste.
 
@@ -749,7 +893,9 @@ Displays per-sector timing deltas for the current lap, colour-coded by performan
 **Features:**
 
 - Per-sector deltas coloured green/yellow/red based on performance vs reference
-- Comparison source: ghost lap when available, or session best only
+- Comparison source: the ghost lap when available, your best sectors of the session, the sectors of your best lap of the session, your all-time best sectors, or the sectors of your all-time best lap. Where the chosen one does not exist yet a card shows the sector's time rather than a delta to something else
+- All-time best sectors: your best time for each sector on this track in this car, kept between sessions, with the sectors of your best whole lap beside them. Only a sector you drove yourself counts: entered at a boundary you were seen to cross, without leaving the track, not on a lap the game had voided, and not on pit road. A lap that touched pit road or began on the grid is never the best lap. They are gathered while a widget that shows sector times is on the dashboard
+- Target lap (optional row): the time the comparison adds up to as far as the sector you are in, with your running lap time beside it. With best sectors that is the theoretical best lap, marked TB; a best lap is marked PB and the ghost REF. For a few seconds after each sector the row shows how far up or down the lap is on the target so far, green or red, and the lap time at that point
 - Le Mans Ultimate: the three sectors and their times are the game's own, so they match its timing screen; the ghost is your all-time reference lap for the track and car
 - Continuous scrolling strip with the current sector position-pinned to the centre
 - Option to limit the number of visible sectors (sliding carousel)
@@ -769,8 +915,11 @@ Your current lap against your own best: how far up or down you are, whether you 
 - The delta to the reference lap at the point of the track you are at, green when ahead and red when behind, to two or three decimals
 - A trend bar that fills green while you are gaining on the reference and red while you are losing to it, with adjustable sensitivity
 - Predicted lap time: the reference lap plus the current delta
-- A choice of reference: your best clean lap of this session, or your all-time reference on this track in this car, which comes from the [lap library](#lap-library) and is kept between sessions
+- A choice of four references: your best clean lap of this session; your all-time reference on this track in this car, which comes from the [lap library](#lap-library) and is kept between sessions; your best clean lap of the stint, which starts again after a stop for fuel, energy, tyres or a driver change and not after a drive-through; or the lap you have just driven, clean or not
+- The other references beside it: an optional strip under the trend bar with the delta to each of the other laps you switch on, marked S (session), A (all-time), T (stint) and L (last lap)
+- The result after the line: for a few seconds after you cross the line (three by default, adjustable, or off) the figure is how the lap you just finished ended against the reference, with its lap time, before the live delta takes over again
 - Dashes rather than a guess: before the chosen reference exists, and on a lap that was not seen from its start (the out-lap, or after a return to the pits), nothing is shown in its place
+- The references are your own: a lap a team-mate drove in your car is never a best of yours or your last lap, and neither is a lap that touched pit road or the lap that opens a race
 - The all-time reference is your quickest clean lap: one you drove yourself from line to line, without a pit visit, not voided by the sim for track limits and without an incident. In **Settings > Laps** you can pin a different lap as the reference, or delete a lap you do not want to count
 - Adjustable background opacity, session visibility and an option to show only when on track
 
@@ -799,12 +948,12 @@ The lap in one glance: a block of tiles with the lap you are on, the delta to a 
 **Features:**
 
 - Lap: the lap you are driving, on a blue tile
-- Delta: how far up or down you are on the reference lap at this point of the track, green when ahead and red when behind, to two or three decimals. The reference is your best clean lap of this session or your all-time reference on this track in this car, from the [lap library](#lap-library); before the chosen one exists the tile shows dashes
+- Delta: how far up or down you are on the reference lap at this point of the track, green when ahead and red when behind, to two or three decimals. The reference is your best clean lap of this session, your all-time reference on this track in this car from the [lap library](#lap-library), your best clean lap of the stint, or the lap you have just driven; before the chosen one exists the tile shows dashes
 - Last lap: purple when it is the best of the session, green when it is your own best. In Le Mans Ultimate a lap the game gave no time, such as one voided for track limits, is still shown, timed from line to line, greyed and marked with a warning sign
 - Best lap: your best of the session, on a purple tile, with a crown when it is also the best of the session in your class, or of every car if you choose so
 - Sector times: one tile per sector with a bar coloured against your own best for that sector (purple at your best, then green, yellow and red). A tile shows this lap's time once the sector is done and the previous lap's, dimmed, until then; for five seconds after the line all of them show the lap just finished. They can also show this lap only, or your best sectors
 - A lap in progress that the game has voided greys the delta and says so in its label, and a sector with an incident in it carries a warning sign, or is left out if you prefer
-- Optional rows: current lap time, predicted lap, session best, all-time best and your recent pace
+- Optional rows: current lap time, predicted lap, session best, all-time best, stint best and your recent pace
 - Tracks with more than three sectors (iRacing) get a tile per sector, up to a number you choose; past it the row follows you round the lap
 - Adjustable precision for the delta, the lap times and the sector times, text size, background opacity, session visibility and an option to show only when on track
 

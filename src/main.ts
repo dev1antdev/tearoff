@@ -65,6 +65,7 @@ import {
   startLapLibrary,
 } from './app/storage/lapLibrary';
 import { PlayerLedgerRuntime } from './app/processors/playerLedgerRuntime';
+import { setLivePlayerStintSource } from './app/processors/livePlayerStint';
 import { wirePlayerLapRecording } from './app/playerLapRecording';
 import { setupLapLibraryBridge } from './app/bridge/lapLibraryBridge';
 import { flushLapTracesOnShutdown } from './app/storage/lapTraces';
@@ -80,11 +81,14 @@ import {
 } from './app/storage/settingsWindowBounds';
 import { flushSimulatorUsageOnShutdown } from './app/storage/simulatorUsage';
 import { flushTrackCarStoreOnShutdown } from './app/storage/trackCarStore';
+import { brakeLimitStore, getWearTuning } from './app/storage/wearForecast';
 import { flushTrackProfilesOnShutdown } from './app/storage/trackProfiles';
 import {
+  getSessionTrackKey,
   setupTrackProfileRecording,
   startTrackProfiles,
 } from './app/trackProfileRecording';
+import { setupTrackProfileBridge } from './app/bridge/trackProfileBridge';
 import { setupChromiumFlagsBridge } from './app/bridge/chromiumFlagsBridge';
 import { getHiddenWidgets } from './app/widgetVisibility';
 import { setupRaceControlBridge } from './app/bridge/raceControlBridge';
@@ -327,6 +331,9 @@ function setupLapLibraryRecording(replayContext: ReplayContextRuntime): void {
           now: () => Date.now(),
           log: (message) => log.info(message),
           logError: (message, error) => log.error(message, error),
+          // Where a tyre and a disc are finished is the wear widget's to
+          // say; what a failed brake taught is kept per car.
+          wear: { tuning: getWearTuning, limits: brakeLimitStore },
         }
       );
     },
@@ -334,6 +341,8 @@ function setupLapLibraryRecording(replayContext: ReplayContextRuntime): void {
       // The one before stores what it has in hand and lets go.
       ledger?.dispose();
       ledger = next;
+      // Its stints are where the best lap of a stint ends.
+      setLivePlayerStintSource(next);
       applyEnabled();
     },
   });
@@ -348,6 +357,7 @@ function setupLapLibraryRecording(replayContext: ReplayContextRuntime): void {
     disposeBridge();
     ledger?.dispose();
     ledger = undefined;
+    setLivePlayerStintSource(undefined);
   };
 }
 
@@ -436,13 +446,21 @@ function setupLapHistoryRuntime(
  * starts) from the laps the player drives. Always on and outside the
  * ProcessorHost, like the lap library and for the same reason; like it, it
  * takes nothing from a tape, a replay or demo mode.
+ *
+ * The settings window reaches the same profiles over a bridge of their own:
+ * the notes editor, and the elevation widget's "record again".
  */
 function setupTrackProfiles(replayContext: ReplayContextRuntime): void {
   const isTapeReplay = Boolean(
     process.env.IRDASHIES_TELEMETRY_REPLAY || process.env.IRDASHIES_LMU_REPLAY
   );
-  disposeTrackProfileRecording = setupTrackProfileRecording({
-    store: startTrackProfiles(),
+  const profiles = startTrackProfiles();
+  const disposeBridge = setupTrackProfileBridge({
+    store: profiles,
+    getSessionTrackKey,
+  });
+  const disposeRecording = setupTrackProfileRecording({
+    store: profiles,
     getBridge: getCurrentBridge,
     getSimulator: getActiveSimulator,
     onBridgeChanged,
@@ -455,6 +473,10 @@ function setupTrackProfiles(replayContext: ReplayContextRuntime): void {
     logInfo: (message) => log.info(message),
     logError: (message, error) => log.error(message, error),
   });
+  disposeTrackProfileRecording = () => {
+    disposeBridge();
+    disposeRecording();
+  };
 }
 
 const pitStopPersistence: PitStopPersistence = {

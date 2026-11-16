@@ -58,11 +58,19 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // the corners of the bundled track data: the same data Corner Names uses.
   'cornerdelta',
   'cornername',
+  // The heading from the car's orientation, with the track model's +Z axis
+  // standing for north, the height from its world position, and the metres
+  // and seconds driven from its speed and the session clock.
+  'cruise',
   // Dents, what has come off or gone flat and the last impact from the
   // player's telemetry block; aero and suspension damage and the repair the
   // pit menu is set to from LMU's REST API.
   'damage',
   'deltaspeed',
+  // The height of the road from the car's world position, recorded on the
+  // first clean lap of a track, with the sector starts learned on the same
+  // lap. Under iRacing the profile is added up from the car's motion.
+  'elevation',
   'flag',
   // The flag in force and the car a blue is for, from LMU's session phase,
   // sector flags and scoring. Each sim has states the other cannot report.
@@ -74,6 +82,9 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // Counts virtual energy in percent for a Hypercar, LMDh or LMGT3, which
   // stop when that runs out, and litres for the fuel-limited classes.
   'fuel',
+  // The fuel projection's own figures, read again as targets per lap:
+  // percent of virtual energy for a car that runs on it, litres otherwise.
+  'fuelsaver',
   'garagecover',
   // The battery charge and the motor's state from LMU's telemetry block. It
   // draws nothing for a car that shows neither, which is most of them.
@@ -91,6 +102,10 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // drawings the two full-size maps need.
   'minimap',
   'pitlanehelper',
+  // LMU's own estimate of the stop and its eight parts from REST, the pit
+  // menu's level, and a pit lane learned from the cars seen crossing its
+  // lines. Under iRacing the stop is learned from the player's own.
+  'pitstop',
   'relative',
   // LMU's own sector times, which it publishes for the player. It gives no
   // boundary distances, so where the sectors start is learned from where
@@ -100,6 +115,11 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // limit. LMU publishes no shift point of its own.
   'shiftlight',
   'standings',
+  // The player's own stints from the always-on ledger: laps, time, fuel or
+  // virtual energy, compounds, tread and brake discs read live, and the
+  // stop that ended each. Under iRacing the same widget has no energy, no
+  // discs and no wear on track.
+  'stinthistory',
   // The machine's and Tearoff's own CPU and memory, which come from the
   // operating system. LMU publishes no frame rate and no CPU or GPU meters,
   // so the widget leaves its Sim row out here.
@@ -113,8 +133,15 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // channels the lap and sector widgets above already read. A last lap the
   // sim gave no time is shown as the measured one, marked.
   'timing',
+  // The driver's own notes by distance into the lap, which is LMU's lap
+  // distance, so a TinyPedal notes file comes in as it is. Pit notes follow
+  // the pit-road flag.
+  'tracknotes',
   // Tyre and brake temperatures from LMU's per-wheel telemetry block.
   'tyres',
+  // Tread from the same block, which LMU writes while the car is moving, and
+  // disc thickness from its REST API; forecast from the player's own laps.
+  'wear',
   // Without its wind cell, which the widget drops under LMU.
   'weather',
   // LMU's own forecast for the session, from its REST API: five points
@@ -148,6 +175,9 @@ export const IRACING_DISABLED_WIDGETS: readonly string[] = [
   // iRacing publishes the weather as it is and the session's settings, but
   // no forecast: there would be a "Now" column and nothing after it.
   'weatherforecast',
+  // Nor does it refresh tread anywhere but in the pits, so there is no wear
+  // per lap to forecast from; and it publishes nothing about brake discs.
+  'wear',
 ];
 
 /** Everything else, hidden while LMU is the running sim. */

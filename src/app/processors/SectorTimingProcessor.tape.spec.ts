@@ -4,6 +4,7 @@ import {
   lmuTapeAvailable,
   playLmuTape,
 } from '../../testing/lmuTape';
+import { sectorSum, type SectorBests } from '../../shared/sectorBests';
 import { SectorTimingProcessor } from './SectorTimingProcessor';
 
 /**
@@ -13,6 +14,9 @@ import { SectorTimingProcessor } from './SectorTimingProcessor';
  * LMU times its own sectors, which start 39 % and 79 % round this lap. The
  * session can only say thirds, and timed between those the widget showed
  * 28.98, 25.32 and 32.37 s for a lap the sim split 32.74, 35.07 and 18.85.
+ *
+ * The same run feeds the all-time bests, into a stand-in for the store that
+ * keeps them: what a first session on a track leaves behind for the next.
  *
  * Windows only, like the other tape specs.
  */
@@ -31,7 +35,22 @@ describe.skipIf(!lmuTapeAvailable())(
   'sector timing on a recorded LMU race',
   () => {
     it("reports the sim's own sectors, lap after lap", async () => {
-      const processor = new SectorTimingProcessor();
+      // The store, empty and already read: nothing was ever driven here.
+      const saves: { key: string; bests: SectorBests }[] = [];
+      const kept = new Map<string, SectorBests>();
+      let revision = 1;
+      const processor = new SectorTimingProcessor({
+        simulator: 'lmu',
+        store: {
+          load: (key) => kept.get(key) ?? null,
+          save: (key, bests) => {
+            kept.set(key, bests);
+            saves.push({ key, bests });
+            revision += 1;
+          },
+          revision: () => revision,
+        },
+      });
       processor.onLifecycle({ type: 'enter', replay: false });
       const laps: TimedLap[] = [];
       /** Every sector entry the processor dated, beside the sim's own moment. */
@@ -134,6 +153,46 @@ describe.skipIf(!lmuTapeAvailable())(
       for (const entry of entries) {
         expect(Math.abs(entry.dated - entry.sim)).toBeLessThan(0.005);
       }
+
+      // The best lap of the session is the flying lap, sector for sector:
+      // the lap from the rolling start has no first sector and is no lap.
+      const bestLap = final.clean.sessionBestLapSectorTimes as number[];
+      expect(bestLap[0]).toBeCloseTo(32.739, 2);
+      expect(bestLap[1]).toBeCloseTo(35.07, 2);
+      expect(bestLap[2]).toBeCloseTo(18.851, 2);
+      expect(sectorSum(bestLap)).toBeCloseTo(flying.lapTime, 2);
+      expect(final.inclusive.sessionBestLapSectorTimes).toEqual(bestLap);
+      expect(final.clean.finishedLapSectorTimes).toEqual(bestLap);
+
+      // The theoretical best is quicker than any lap driven: the third
+      // lap's first sector with the flying lap's other two.
+      const theoretical = sectorSum(final.clean.sessionBestSectorTimes);
+      expect(theoretical).toBeCloseTo(86.382, 2);
+      expect(theoretical).toBeLessThan(flying.lapTime);
+
+      // Nothing left the track, was voided or touched pit road, so the
+      // all-time bests are the session's, and what they replaced with them.
+      expect(final.allTime?.bestSectorTimes).toEqual(
+        final.clean.sessionBestSectorTimes
+      );
+      expect(final.allTime?.bestLapSectorTimes).toEqual(bestLap);
+      expect(final.allTime?.previousBestSectorTimes[0]).toBe(bestLap[0]);
+      expect(final.allTime?.previousBestSectorTimes[1]).toBeCloseTo(
+        fromGrid.sim[1],
+        3
+      );
+
+      // And they are in the store, under the simulator, the track, the car
+      // model and the sim's own sector layout: written at each improvement,
+      // the last of them the third lap's first sector.
+      expect(saves.length).toBeGreaterThanOrEqual(5);
+      const stored = saves.at(-1);
+      expect(stored?.key).toMatch(/^lmu\|\d+\|Ferrari 296 LMGT3 Evo\|sim3$/);
+      expect(new Set(saves.map((save) => save.key)).size).toBe(1);
+      expect(stored?.bests.bestSectorTimes[0]).toBeCloseTo(32.461, 2);
+      expect(stored?.bests.bestSectorTimes[1]).toBeCloseTo(35.07, 2);
+      expect(stored?.bests.bestSectorTimes[2]).toBeCloseTo(18.851, 2);
+      expect(stored?.bests.bestLapSectorTimes).toEqual(bestLap);
     }, 90_000);
   }
 );

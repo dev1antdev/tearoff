@@ -14,6 +14,13 @@ export default defineWidgetManifest({
   config: {
     background: { opacity: 80 },
     reference: 'sessionBest',
+    secondary: {
+      sessionBest: false,
+      allTime: false,
+      stintBest: false,
+      lastLap: false,
+    },
+    freezeSeconds: 3,
     decimals: 2,
     showTrend: true,
     // A car a third of a second a second off its reference is deep in a
@@ -44,11 +51,44 @@ export default defineWidgetManifest({
       type: 'enum',
       label: 'Reference Lap',
       description:
-        'Session best is your best clean lap since the session began. All-time best is your best clean lap on this track in this car, kept between sessions. Until the chosen lap exists the widget shows dashes.',
+        'The lap the large figure, the trend bar and the predicted lap are measured against. Session best is your best clean lap since the session began. All-time best is your best clean lap on this track in this car, kept between sessions. Stint best is your best clean lap since your last stop. Last lap is the lap you have just driven, clean or not. Until the chosen lap exists the widget shows dashes.',
       options: [
         { value: 'sessionBest', label: 'Session Best' },
         { value: 'allTime', label: 'All-Time Best' },
+        { value: 'stintBest', label: 'Stint Best' },
+        { value: 'lastLap', label: 'Last Lap' },
       ],
+    },
+    'secondary.sessionBest': {
+      type: 'boolean',
+      label: 'Session Best',
+      description: 'S: the delta to your best clean lap of the session.',
+    },
+    'secondary.allTime': {
+      type: 'boolean',
+      label: 'All-Time Best',
+      description:
+        'A: the delta to your best clean lap on this track in this car.',
+    },
+    'secondary.stintBest': {
+      type: 'boolean',
+      label: 'Stint Best',
+      description: 'T: the delta to your best clean lap since your last stop.',
+    },
+    'secondary.lastLap': {
+      type: 'boolean',
+      label: 'Last Lap',
+      description: 'L: the delta to the lap you have just driven.',
+    },
+    freezeSeconds: {
+      type: 'number',
+      label: 'Hold The Result After The Line',
+      description:
+        'For this long after the line the widget shows how the lap you just finished ended against each lap, before going back to the live delta. 0 switches it off.',
+      min: 0,
+      max: 10,
+      step: 1,
+      units: 's',
     },
     decimals: {
       type: 'enum',

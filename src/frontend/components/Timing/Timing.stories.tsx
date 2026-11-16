@@ -94,10 +94,29 @@ const lapLog = (overrides: Partial<LapLogSnapshot> = {}): LapLogSnapshot => ({
 
 const none: LapDeltaReference = { lapTime: null, delta: null, trend: null };
 
+/**
+ * The four references of the delta channel. The stint is three laps old: its
+ * best is a little off the session's, and the last lap a little off that.
+ */
 const lapDelta = (
   sessionBest: LapDeltaReference,
-  allTime: LapDeltaReference = { lapTime: 103.87, delta: 0.268, trend: 0 }
-): LapDeltaSnapshot => ({ sessionBest, allTime, sessionNum: 0, version: 1 });
+  allTime: LapDeltaReference = { lapTime: 103.87, delta: 0.268, trend: 0 },
+  stintBest: LapDeltaReference = sessionBest.lapTime === null
+    ? none
+    : { lapTime: 104.312, delta: -0.174, trend: 0.02 },
+  lastLap: LapDeltaReference = sessionBest.lapTime === null
+    ? none
+    : { lapTime: 104.53, delta: -0.392, trend: 0.02 }
+): LapDeltaSnapshot => ({
+  sessionBest,
+  allTime,
+  stintBest,
+  lastLap,
+  lastLapFinal: null,
+  stintId: 2,
+  sessionNum: 0,
+  version: 1,
+});
 
 interface SectorStory {
   currentSectorIdx: number;
@@ -129,6 +148,8 @@ const sectorTiming = ({
     ),
     sessionBestSectorTimes: bests,
     previousSessionBestSectorTimes: bests,
+    sessionBestLapSectorTimes: previous,
+    finishedLapSectorTimes: previous,
   };
   return {
     sectors: Array.from({ length: count }, (_, index) => ({
@@ -140,6 +161,7 @@ const sectorTiming = ({
     sectorEntryValid: true,
     inclusive: result,
     clean: result,
+    allTime: null,
     sessionNum: 0,
     version: 1,
   };
@@ -221,10 +243,7 @@ export const Gaining: Story = {
   }),
 };
 
-/**
- * Every tile the settings offer, in a box three rows taller. The stint best
- * is not offered yet, so the pace has its row to itself.
- */
+/** Every tile the settings offer, in a box three rows taller. */
 export const AllTiles: Story = {
   ...story(
     midLap,
@@ -234,6 +253,7 @@ export const AllTiles: Story = {
         predictedLap: true,
         sessionBest: true,
         allTimeBest: true,
+        stintBest: true,
         pace: true,
       },
     },
@@ -394,14 +414,49 @@ export const AgainstAllTimeBest: Story = {
 };
 
 /**
- * A reference the delta channel does not carry yet, as a config saved by a
- * later build would ask for: dashes, and no other lap in its place.
+ * Against the best lap of the stint under way, with the stint best beside
+ * the pace: up on the stint, on a lap heading for a time near its best.
+ */
+export const AgainstStintBest: Story = {
+  ...story(
+    midLap,
+    {
+      deltaReference: 'stintBest',
+      tiles: { predictedLap: true, currentLap: true, stintBest: true },
+    },
+    boxWithRows(2)
+  ),
+};
+
+/** Against the lap before this one, whatever it was. */
+export const AgainstLastLap: Story = {
+  ...story(
+    midLap,
+    { deltaReference: 'lastLap', tiles: { predictedLap: true } },
+    boxWithRows(1)
+  ),
+};
+
+/**
+ * The first lap of a stint, straight out of the pits: the session best
+ * stands, and the stint has no best yet. Dashes, and no other lap in its
+ * place.
  */
 export const ReferenceNotAvailable: Story = {
   ...story(
-    midLap,
-    { deltaReference: 'stintBest', tiles: { predictedLap: true } },
-    boxWithRows(1)
+    {
+      ...midLap,
+      'lap-delta.snapshot': lapDelta(
+        { lapTime: 104.054, delta: 0.084, trend: 0.02 },
+        undefined,
+        none
+      ),
+    },
+    {
+      deltaReference: 'stintBest',
+      tiles: { predictedLap: true, stintBest: true },
+    },
+    boxWithRows(2)
   ),
 };
 

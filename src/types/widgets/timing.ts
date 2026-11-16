@@ -123,8 +123,12 @@ export default defineWidgetManifest({
       description:
         'Your best clean lap on this track in this car, kept between sessions.',
     },
-    // No row for tiles.stintBest yet: the stint best arrives with the
-    // extended lap delta, and until then the tile could only show dashes.
+    'tiles.stintBest': {
+      type: 'boolean',
+      label: 'Stint Best',
+      description:
+        'Your best clean lap since the stint began: since your last stop for fuel, energy, tyres or a driver change.',
+    },
     'tiles.pace': {
       type: 'boolean',
       label: 'Pace',
@@ -134,12 +138,12 @@ export default defineWidgetManifest({
       type: 'enum',
       label: 'Reference Lap',
       description:
-        'The lap the delta and the predicted lap are measured against. Session best is your best clean lap since the session began. All-time best is your best clean lap on this track in this car, kept between sessions. Until the chosen lap exists the tiles show dashes.',
-      // The stint best and the last lap are valid values of the setting and
-      // join this list when the lap delta channel carries them.
+        'The lap the delta and the predicted lap are measured against. Session best is your best clean lap since the session began. All-time best is your best clean lap on this track in this car, kept between sessions. Stint best is your best clean lap since your last stop. Last lap is the lap you have just driven, clean or not. Until the chosen lap exists the tiles show dashes.',
       options: [
         { value: 'sessionBest', label: 'Session Best' },
         { value: 'allTime', label: 'All-Time Best' },
+        { value: 'stintBest', label: 'Stint Best' },
+        { value: 'lastLap', label: 'Last Lap' },
       ],
     },
     deltaDecimals: {
