@@ -105,6 +105,15 @@ interface DriverStatusBadgesProps {
   lastPitLap?: number;
   pitStopDuration?: number | null;
   showPitTime?: boolean;
+  /**
+   * The time in the pit lane, already formatted, printed beside PIT while
+   * the car is in the lane and beside OUT on the lap it leaves on. For a
+   * caller that has the running time of the visit; `pitStopDuration` is the
+   * finished stop, which PIT never shows.
+   */
+  pitTime?: string;
+  /** The car is parked in its garage: neither in the lane nor out of it. */
+  garage?: boolean;
   className?: string;
   pitLapDisplayMode?: string;
   pitExitAfterSF?: boolean;
@@ -128,6 +137,8 @@ export const DriverStatusBadges = memo(
     lastPitLap,
     pitStopDuration,
     showPitTime = false,
+    pitTime,
+    garage,
     className = '',
     pitLapDisplayMode,
     pitExitAfterSF,
@@ -150,13 +161,17 @@ export const DriverStatusBadges = memo(
       tow ||
       out ||
       pit ||
+      garage ||
       lastPit;
 
     if (!hasStatus) {
       return null;
     }
 
-    const pitDuration = (
+    const runningPitTime = pitTime ? (
+      <span className="text-yellow-500 tabular-nums">{pitTime}</span>
+    ) : null;
+    const pitDuration = runningPitTime ?? (
       <>
         {showPitTime && lastPitLap && lastPitLap > 1 && pitStopDuration && (
           <span className="text-yellow-500">
@@ -253,6 +268,14 @@ export const DriverStatusBadges = memo(
             animate
           >
             PIT
+            {runningPitTime && <> {runningPitTime}</>}
+          </StatusBadge>
+        )}
+        {garage && (
+          <StatusBadge
+            borderColorClass={isMinimal ? muted : 'border-slate-500'}
+          >
+            GAR
           </StatusBadge>
         )}
         {lastPit && !out && (

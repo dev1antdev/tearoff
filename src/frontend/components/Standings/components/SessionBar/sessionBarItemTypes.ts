@@ -20,6 +20,8 @@ export const SESSION_BAR_ITEM_KEYS = [
   'bestLap',
   'manufacturerPosition',
   'classRank',
+  'position',
+  'positionChange',
   'topSpeed',
   'trackLimits',
 ] as const;

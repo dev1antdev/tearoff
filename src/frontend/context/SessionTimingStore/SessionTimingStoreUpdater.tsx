@@ -22,6 +22,13 @@ export const useSessionTimingStoreUpdater = (enabled: boolean) => {
       totalRaceLaps: snapshot.totalRaceLaps,
       totalRaceTime: snapshot.totalRaceTime,
       adjustedRaceTime: snapshot.adjustedRaceTime,
+      // Defaulted: a recorded or mocked source from before these existed
+      // carries none of them.
+      lapsCompleted: snapshot.lapsCompleted ?? 0,
+      lapProgress: snapshot.lapProgress ?? 0,
+      projectedLaps: snapshot.projectedLaps ?? 0,
+      projectedLapsExact: snapshot.projectedLapsExact ?? false,
+      extraLaps: snapshot.extraLaps ?? 0,
     });
   }, [enabled, snapshot, update]);
 };

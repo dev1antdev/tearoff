@@ -1,7 +1,7 @@
 import { memo, useRef, useLayoutEffect } from 'react';
 import type { LmuFinishState, LmuPenaltyKind } from '@irdashies/types';
 import { SpeakerHighIcon } from '@phosphor-icons/react';
-import { DriverStatusBadges } from './DriverStatusBadges';
+import { DriverStatusBadges } from '../../../../shared/DriverStatusBadges/DriverStatusBadges';
 import {
   DriverName as formatDriverName,
   extractDriverName,

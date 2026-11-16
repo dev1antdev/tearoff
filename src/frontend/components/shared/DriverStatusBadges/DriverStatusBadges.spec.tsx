@@ -65,6 +65,41 @@ describe('DriverStatusBadges', () => {
     expect(container.textContent).toContain('1:15');
   });
 
+  it('prints nothing beside PIT unless it is given the running time', () => {
+    // The standings pass none: their PIT badge is as it was.
+    const { container } = render(<DriverStatusBadges pit />);
+
+    expect(container.textContent).toBe('PIT');
+  });
+
+  it('prints the running time in the lane beside PIT', () => {
+    const { container } = render(<DriverStatusBadges pit pitTime="12.3" />);
+
+    expect(container.textContent).toBe('PIT 12.3');
+  });
+
+  it('prints the time the visit took beside OUT, over the finished stop', () => {
+    const { container } = render(
+      <DriverStatusBadges
+        out
+        pitTime="41.2"
+        lastPitLap={4}
+        pitStopDuration={75}
+        showPitTime
+      />
+    );
+
+    expect(container.textContent).toContain('OUT');
+    expect(container.textContent).toContain('41.2');
+    expect(container.textContent).not.toContain('1:15');
+  });
+
+  it('badges a car parked in its garage', () => {
+    const { container } = render(<DriverStatusBadges garage />);
+
+    expect(container.textContent).toBe('GAR');
+  });
+
   it('renders repair, penalty, and slowdown badges', () => {
     const { container } = render(
       <DriverStatusBadges repair penalty slowdown />

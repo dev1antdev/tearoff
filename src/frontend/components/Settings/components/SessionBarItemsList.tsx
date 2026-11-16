@@ -20,10 +20,17 @@ export interface SessionBarItemConfig {
   speedPosition?: 'left' | 'right';
   hideIfSingleMake?: boolean;
   hideIfSingleDriver?: boolean;
-  /** The in-game clock: how it is written. */
-  format?: TrackClockFormat;
+  /**
+   * How the item is written. The in-game clock: locale, 24 h or 12 h.
+   * Session laps: the lap number, or laps done against the projection.
+   */
+  format?: TrackClockFormat | 'lap' | 'progress';
   /** The in-game clock: when the day's speed is shown beside it. */
   timeScale?: TrackClockTimeScaleDisplay;
+  /** Session laps, progress format: the "+1" / "-1" at the flag. */
+  showExtraLaps?: boolean;
+  /** Position change: which grid it is measured on. */
+  scope?: 'class' | 'overall';
 }
 
 interface SessionBarItemsListProps {
@@ -195,6 +202,57 @@ export const SessionBarItemsList = ({
                   >
                     <option value="Elapsed">Elapsed</option>
                     <option value="Remaining">Remaining</option>
+                  </select>
+                </label>
+                <label className="flex min-w-0 flex-col gap-1 text-xs text-slate-400">
+                  <span>Format</span>
+                  <select
+                    aria-label={`${SESSION_BAR_ITEM_LABELS[item.id]} format`}
+                    value={itemConfig.format ?? 'lap'}
+                    onChange={(e) =>
+                      updateItemConfig(item.id, {
+                        format: e.target.value as 'lap' | 'progress',
+                      })
+                    }
+                    className="settings-field w-full"
+                  >
+                    <option value="lap">Lap (L3 / 11.6)</option>
+                    <option value="progress">Progress (2.72 / ~10.3)</option>
+                  </select>
+                </label>
+                {itemConfig.format === 'progress' && (
+                  <div className="col-span-full flex items-center justify-between gap-3">
+                    <span className="text-sm text-slate-300">
+                      Show laps added or taken at the flag (+1 / -1)
+                    </span>
+                    <ToggleSwitch
+                      ariaLabel={`${SESSION_BAR_ITEM_LABELS[item.id]} extra laps`}
+                      enabled={itemConfig.showExtraLaps ?? true}
+                      onToggle={(v) =>
+                        updateItemConfig(item.id, { showExtraLaps: v })
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {item.id === 'positionChange' && itemConfig.enabled && (
+              <div className="mt-2 grid max-w-xl grid-cols-2 gap-3 pl-8 sm:grid-cols-3">
+                <label className="flex min-w-0 flex-col gap-1 text-xs text-slate-400">
+                  <span>Measured on</span>
+                  <select
+                    aria-label={`${SESSION_BAR_ITEM_LABELS[item.id]} scope`}
+                    value={itemConfig.scope ?? 'class'}
+                    onChange={(e) =>
+                      updateItemConfig(item.id, {
+                        scope: e.target.value as 'class' | 'overall',
+                      })
+                    }
+                    className="settings-field w-full"
+                  >
+                    <option value="class">Class grid</option>
+                    <option value="overall">Overall grid</option>
                   </select>
                 </label>
               </div>

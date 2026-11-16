@@ -1,439 +1,57 @@
-import { memo, useMemo } from 'react';
-import { resolveSpeedUnit, speedFromKph } from '@irdashies/utils/units';
-import type { SpeedUnit } from '@irdashies/utils/units';
+import { resolveSpeedUnit } from '@irdashies/utils/units';
 import {
   useDrivingState,
   useSessionVisibility,
-  usePitLap,
-  useCarLap,
-  useFocusCarIdx,
   useGeneralSettings,
-  useLapHistorySnapshot,
   useWeekendInfoNumCarClasses,
   useCarIdxSpeed,
   useTrackStateSelector,
   trackStateSelectors,
-  useSessionStore,
 } from '@irdashies/context';
-import { formatTime } from '@irdashies/utils/time';
-import { getTailwindStyle } from '@irdashies/utils/colors';
-import { LastTimeCell } from '../shared/LastTimeCell/LastTimeCell';
+import { useClassRivals, useHighlightColor } from '@irdashies/domain';
 import { useBattleSettings } from './hooks/useBattleSettings';
-import {
-  useHighlightColor,
-  useDriverRelatives,
-  useDriverStandings,
-  useDriverLivePositions,
-  lastLineGap,
-  type Standings,
-} from '@irdashies/domain';
-
-// Format an absolute gap value for display
-const formatGap = (gap: number | null | undefined, dp: number): string => {
-  if (gap == null || !isFinite(gap)) return '—';
-  return `${Math.abs(gap).toFixed(dp)}s`;
-};
-
-type Trend = 'good' | 'bad' | 'flat' | 'none';
+import { resolveBattleColumns } from './battleColumns';
+import { RivalRow } from './components/RivalRow';
+import { RivalsHeader } from './components/RivalsHeader';
 
 /**
- * Delta for the AHEAD car.
- * Gap closing (absolute value shrinking) = GOOD (green).
+ * The rivals box: the class car one place ahead of the focus car, the focus
+ * car, and the class car one place behind.
+ *
+ * Each rival's row says what decides the fight with it: the gap as the race
+ * counts it (laps once more than a lap apart, never the short way round the
+ * track), the gap over the line last lap, how the gap has moved a lap over
+ * the recent laps, and about how many laps until it is gone; then the stint
+ * it is on, the stops it has made, what it has left, and whether it is in
+ * the pits. The focus car's own row carries the same figures to read them
+ * against.
+ *
+ * The focus car is the car being driven, and while watching, the car the
+ * camera is on.
  */
-const aheadDelta = (
-  liveGap: number | null,
-  prevGap: number | null,
-  dp: number
-): { text: string; trend: Trend } => {
-  if (liveGap == null || prevGap == null) return { text: '', trend: 'none' };
-  const delta = Math.abs(liveGap) - Math.abs(prevGap);
-  if (Math.abs(delta) < 0.005) return { text: '—', trend: 'flat' };
-  return {
-    text: `${Math.abs(delta).toFixed(dp)}s`,
-    trend: delta < 0 ? 'good' : 'bad',
-  };
-};
-
-/**
- * Delta for the BEHIND car.
- * Gap shrinking (car behind catching up) = BAD (red).
- */
-const behindDelta = (
-  liveGap: number | null,
-  prevGap: number | null,
-  dp: number
-): { text: string; trend: Trend } => {
-  if (liveGap == null || prevGap == null) return { text: '', trend: 'none' };
-  const delta = Math.abs(liveGap) - Math.abs(prevGap);
-  if (Math.abs(delta) < 0.005) return { text: '—', trend: 'flat' };
-  return {
-    text: `${Math.abs(delta).toFixed(dp)}s`,
-    trend: delta < 0 ? 'bad' : 'good',
-  };
-};
-
-const trendClass = (trend: Trend) => {
-  if (trend === 'good') return 'text-green-400';
-  if (trend === 'bad') return 'text-red-400';
-  if (trend === 'flat') return 'text-slate-400';
-  return 'text-transparent';
-};
-
-interface BattleRowProps {
-  entry?: Standings;
-  liveClassPosition?: number;
-  gap?: string;
-  prevGap?: string;
-  delta?: { text: string; trend: Trend };
-  isPlayer?: boolean;
-  highlightColor?: number;
-  isMultiClass: boolean;
-  settings?: ReturnType<typeof useBattleSettings>;
-  displayOrder?: string[];
-  showGapColumns: boolean;
-  stintLaps?: number;
-  lastTimeFormat?: import('@irdashies/types').TimeFormat;
-  speedKph?: number;
-  speedUnit?: SpeedUnit;
-  rowIndex: number;
-}
-
-const BattleRow = memo(
-  ({
-    entry,
-    liveClassPosition,
-    gap,
-    prevGap,
-    delta,
-    isPlayer,
-    highlightColor,
-    isMultiClass,
-    settings,
-    displayOrder = [],
-    showGapColumns,
-    stintLaps,
-    lastTimeFormat = 'mixed',
-    speedKph,
-    speedUnit = 'km/h',
-    rowIndex,
-  }: BattleRowProps) => {
-    const onTrack = entry?.onTrack ?? true;
-    const onPitRoad = entry?.onPitRoad ?? false;
-    const isLapped = entry?.lappedState === 'behind';
-    const isLappingAhead = entry?.lappedState === 'ahead';
-    const offTrack = entry?.carTrackSurface === 0;
-
-    // Match Relative/DriverInfoRow row className pattern exactly.
-    const rowClasses = [
-      !onTrack || onPitRoad ? 'text-white/60' : '',
-      isPlayer ? 'text-amber-300' : '',
-      isPlayer
-        ? 'bg-yellow-500/20'
-        : rowIndex % 2 === 0
-          ? 'bg-slate-800/70'
-          : 'bg-slate-900/70',
-      !isPlayer && isLapped ? 'text-blue-400' : '',
-      !isPlayer && isLappingAhead ? 'text-red-400' : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-    const mutedColor = 'text-white/55';
-    const tailwindStyles = useMemo(
-      () =>
-        getTailwindStyle(entry?.carClass?.color, highlightColor, isMultiClass),
-      [entry?.carClass?.color, highlightColor, isMultiClass]
-    );
-
-    const cols: React.JSX.Element[] = [];
-    const ordered = displayOrder.length
-      ? displayOrder
-      : [
-          'position',
-          'carNumber',
-          'driverName',
-          'stint',
-          'lastTime',
-          'speed',
-          'gap',
-        ];
-
-    for (const key of ordered) {
-      if (key === 'position' && settings?.position?.enabled) {
-        // Match PositionCell: plain number, class-colour bg for player,
-        // off-track yellow override. No P/C prefix.
-        const positionBg = offTrack
-          ? 'bg-yellow-400'
-          : isPlayer
-            ? tailwindStyles.classHeader
-            : '';
-        const positionText = offTrack ? 'text-yellow-900' : 'text-white';
-        cols.push(
-          <td
-            key="pos"
-            className={`w-auto text-center px-2 whitespace-nowrap ${positionBg} ${positionText}`}
-          >
-            {(() => {
-              const p = liveClassPosition ?? entry?.classPosition;
-              return p !== undefined && isFinite(p) ? p : '—';
-            })()}
-          </td>
-        );
-      } else if (key === 'carNumber' && settings?.carNumber?.enabled) {
-        cols.push(
-          <td
-            key="carnum"
-            className={`w-auto ${entry != null ? `${tailwindStyles.driverIcon} border-l-4` : ''} text-white text-right px-1 whitespace-nowrap`}
-          >
-            {entry != null ? `#${entry.driver?.carNum}` : ''}
-          </td>
-        );
-      } else if (key === 'driverName' && settings?.driverName?.enabled) {
-        cols.push(
-          <td key="name" className="px-1 py-0.5 w-full truncate max-w-0">
-            {entry?.driver?.name || '—'}
-          </td>
-        );
-      } else if (key === 'stint' && settings?.stint?.enabled) {
-        cols.push(
-          <td
-            key="stint"
-            className={`px-2 whitespace-nowrap tabular-nums text-center w-auto ${mutedColor}`}
-          >
-            {stintLaps != null && stintLaps > 0 ? `${stintLaps}L` : '—'}
-          </td>
-        );
-      } else if (key === 'lastTime' && settings?.lastTime?.enabled) {
-        // The cell the standings and the relative draw: session-fastest
-        // purple, personal-best green, a lap that did not count dimmed and
-        // marked.
-        const hasLastTime = !!entry?.lastTime && entry.lastTime > 0;
-        cols.push(
-          <LastTimeCell
-            key="last"
-            lastTimeString={
-              hasLastTime ? formatTime(entry?.lastTime, lastTimeFormat) : '—'
-            }
-            lastTimeState={entry?.lastTimeState}
-            invalid={
-              hasLastTime &&
-              !!entry?.lastLapInvalid &&
-              (settings.lastTime.markInvalid ?? true)
-            }
-          />
-        );
-      } else if (key === 'speed' && settings?.speed?.enabled) {
-        const displaySpeed =
-          speedKph != null && speedKph > 0
-            ? Math.round(speedFromKph(speedKph, speedUnit))
-            : null;
-        cols.push(
-          <td
-            key="speed"
-            className={`px-1.5 whitespace-nowrap tabular-nums text-right w-0 ${mutedColor}`}
-          >
-            {displaySpeed != null ? `${displaySpeed}` : '—'}
-          </td>
-        );
-      } else if (key === 'gap' && settings?.gap?.enabled) {
-        const deltaVal = delta ?? { text: '', trend: 'none' as Trend };
-        const showData = !isPlayer && showGapColumns;
-        cols.push(
-          <td
-            key="gap"
-            className={`px-1.5 whitespace-nowrap tabular-nums text-right w-0 border-l border-white/10 ${showData ? 'text-white/85' : 'text-transparent'}`}
-          >
-            {showData ? (gap ?? '—') : '—'}
-          </td>,
-          <td
-            key="prev"
-            className={`px-1.5 whitespace-nowrap tabular-nums text-right w-0 text-white/40 ${!showData ? 'text-transparent' : ''}`}
-          >
-            {showData ? (prevGap ?? '—') : '—'}
-          </td>,
-          <td
-            key="delta"
-            className={`pr-2 whitespace-nowrap tabular-nums text-right w-0 ${showData ? trendClass(deltaVal.trend) : 'text-transparent'}`}
-          >
-            {showData &&
-            deltaVal.trend !== 'none' &&
-            deltaVal.trend !== 'flat' ? (
-              <>
-                {deltaVal.trend === 'good' ? '\u25BC' : '\u25B2'}{' '}
-                {deltaVal.text}
-              </>
-            ) : showData ? (
-              deltaVal.text
-            ) : (
-              '—'
-            )}
-          </td>
-        );
-      }
-    }
-
-    return <tr className={rowClasses}>{cols}</tr>;
-  }
-);
-BattleRow.displayName = 'BattleRow';
-
 export const Battle = () => {
   const settings = useBattleSettings();
   const generalSettings = useGeneralSettings();
   const { isDriving, isWatching } = useDrivingState();
   const isSessionVisible = useSessionVisibility(settings?.sessionVisibility);
-  const focusCarIdx = useFocusCarIdx();
   const highlightColor = useHighlightColor();
   const numCarClasses = useWeekendInfoNumCarClasses();
   const isMultiClass = (numCarClasses ?? 0) > 1;
 
-  // Full driver list with metadata (name, car class, etc.). NOTE: this list's
-  // ordering is by SDK CarIdxPosition which only updates at the start/finish line,
-  // so we never use its index ordering — we re-sort by live class position below.
-  const allStandings = useDriverStandings();
-
-  // Live class positions: derived from CarIdxLapCompleted + CarIdxLapDistPct,
-  // updates every frame, grouped by class, pace car already excluded.
-  // This is what makes mid-lap overtakes appear immediately in the widget.
-  const liveClassPositions = useDriverLivePositions({ enabled: true });
-
-  // useDriverRelatives provides live 5 Hz, reference-lap-interpolated gap timing.
-  // Use a large buffer so the entire field is included with live deltas attached —
-  // we look up the position-neighbours by carIdx, so they must always be present
-  // regardless of physical track proximity.
-  const relatives = useDriverRelatives({ buffer: 64 });
-
-  // Pace car must be excluded from neighbour selection. useDriverStandings does
-  // not filter it (only useDriverRelatives does), so we filter it here too.
-  const paceCarIdx =
-    useSessionStore((s) => s.session?.DriverInfo?.PaceCarIdx) ?? -1;
-
-  const pitLaps = usePitLap();
-  const carLaps = useCarLap();
-
-  // Build a carIdx → live delta map from relatives for O(1) lookups.
-  // Updates when the relative-gaps channel publishes.
-  const relativeDeltaMap = useMemo(() => {
-    const map = new Map<number, number>();
-    for (const r of relatives) {
-      if (r.delta != null && Number.isFinite(r.delta)) {
-        map.set(r.carIdx, r.delta);
-      }
-    }
-    return map;
-  }, [relatives]);
-
-  // Identify player and position-neighbours by LIVE class position.
-  // Steps:
-  //   1. Find the player in allStandings (just to grab their class id + entry).
-  //   2. Filter standings to the player's class, exclude pace car.
-  //   3. Sort by liveClassPositions[carIdx] — this updates every frame.
-  //   4. Pick the entries immediately above and below the player.
-  // Falls back to standings classPosition (CarIdxClassPosition) when live positions
-  // are unavailable (non-race sessions, replay, etc).
-  const { playerEntry, aheadEntry, behindEntry, positionFor } = useMemo(() => {
-    const player = allStandings.find((s) => s.isPlayer);
-    if (!player)
-      return {
-        playerEntry: undefined,
-        aheadEntry: undefined,
-        behindEntry: undefined,
-      };
-
-    const playerClassId = player.carClass?.id;
-    const hasLivePositions = Object.keys(liveClassPositions).length > 0;
-
-    const sameClass = allStandings.filter(
-      (s) => s.carIdx !== paceCarIdx && s.carClass?.id === playerClassId
-    );
-
-    const positionFor = (carIdx: number): number | undefined => {
-      const pos = hasLivePositions
-        ? liveClassPositions[carIdx]
-        : sameClass.find((s) => s.carIdx === carIdx)?.classPosition;
-      return pos !== undefined && isFinite(pos) ? pos : undefined;
-    };
-
-    sameClass.sort((a, b) => {
-      const pa = positionFor(a.carIdx) ?? Infinity;
-      const pb = positionFor(b.carIdx) ?? Infinity;
-      return pa - pb;
-    });
-
-    const playerIdx = sameClass.findIndex((s) => s.isPlayer);
-    if (playerIdx === -1)
-      return {
-        playerEntry: player,
-        aheadEntry: undefined,
-        behindEntry: undefined,
-      };
-
-    return {
-      playerEntry: sameClass[playerIdx],
-      aheadEntry: playerIdx > 0 ? sameClass[playerIdx - 1] : undefined,
-      behindEntry:
-        playerIdx < sameClass.length - 1 ? sameClass[playerIdx + 1] : undefined,
-      positionFor,
-    };
-  }, [allStandings, liveClassPositions, paceCarIdx]);
-
-  // Live gaps from the reference-lap-interpolated deltas (updates every frame).
-  // relatives delta: positive = car is ahead of player, negative = car is behind.
-  const liveGapAhead = useMemo(() => {
-    if (!aheadEntry) return null;
-    const d = relativeDeltaMap.get(aheadEntry.carIdx);
-    return d != null ? Math.abs(d) : null;
-  }, [aheadEntry, relativeDeltaMap]);
-
-  const liveGapBehind = useMemo(() => {
-    if (!behindEntry) return null;
-    const d = relativeDeltaMap.get(behindEntry.carIdx);
-    return d != null ? Math.abs(d) : null;
-  }, [behindEntry, relativeDeltaMap]);
-
-  // Prev: gap over the line on the last lap both cars completed, from real
-  // crossing times - same as the sim's own timing. A live-delta snapshot taken
-  // at the line inherits the reference-lap estimate's error on early laps.
   const gapEnabled = settings?.gap?.enabled ?? true;
-  const lapHistory = useLapHistorySnapshot(gapEnabled);
-  // Keyed on carIdx: the entries themselves are rebuilt every frame.
-  const playerCarIdx = playerEntry?.carIdx;
-  const aheadCarIdx = aheadEntry?.carIdx;
-  const behindCarIdx = behindEntry?.carIdx;
-  const prevGapAhead = useMemo(
-    () =>
-      playerCarIdx !== undefined && aheadCarIdx !== undefined
-        ? lastLineGap(lapHistory, playerCarIdx, aheadCarIdx)
-        : null,
-    [lapHistory, playerCarIdx, aheadCarIdx]
-  );
-  const prevGapBehind = useMemo(
-    () =>
-      playerCarIdx !== undefined && behindCarIdx !== undefined
-        ? lastLineGap(lapHistory, behindCarIdx, playerCarIdx)
-        : null,
-    [lapHistory, playerCarIdx, behindCarIdx]
-  );
+  const forecastEnabled = settings?.forecast?.enabled ?? true;
+  const rivals = useClassRivals({
+    decimalPlaces: settings?.gap?.decimalPlaces ?? 2,
+    // The line gaps feed the gap's second and third cells and the forecast.
+    history: gapEnabled || forecastEnabled,
+  });
 
   // Speed: derived from CarIdxLapDistPct movement, in km/h.
   const carSpeeds = useCarIdxSpeed(settings?.speed?.enabled ?? false);
   // The one field, not the snapshot: that is republished 25 times a second
   // with every car's position in it, and would render the widget as often.
   const displayUnits = useTrackStateSelector(trackStateSelectors.displayUnits);
-  const resolvedSpeedUnit = resolveSpeedUnit(
-    settings?.speed?.unit,
-    displayUnits
-  );
-
-  const stintLaps = (carIdx: number) => {
-    const currentLap = carLaps?.[carIdx] ?? 0;
-    const lastPit = pitLaps?.[carIdx] ?? 0;
-    if (currentLap <= 0) return undefined;
-    return lastPit > 0 ? currentLap - lastPit : currentLap;
-  };
-
-  const dp = settings?.gap?.decimalPlaces ?? 2;
-  const timeFormat = settings?.lastTime?.timeFormat ?? 'mixed';
-  const displayOrder = settings?.displayOrder;
+  const speedUnit = resolveSpeedUnit(settings?.speed?.unit, displayUnits);
 
   const isCompact =
     generalSettings?.compactMode === 'compact' ||
@@ -444,15 +62,26 @@ export const Battle = () => {
 
   if (!isSessionVisible) return <></>;
   // On track is driving, or watching a car that is out of its garage: the
-  // battle is the focus car's, which is then the car being watched.
+  // rivals are the focus car's, which is then the car being watched.
   if (settings?.showOnlyWhenOnTrack && !(isDriving || isWatching)) {
     return <></>;
   }
-  if (!playerEntry && focusCarIdx === undefined) return <></>;
+
+  const columns = resolveBattleColumns(settings, rivals);
+  const rowProps = {
+    columns,
+    settings,
+    highlightColor,
+    isMultiClass,
+    trackLimitsPointsMax: rivals.trackLimitsPointsMax,
+    speedUnit,
+  };
+  const speedOf = (carIdx: number | undefined) =>
+    carIdx === undefined ? undefined : carSpeeds[carIdx];
 
   return (
     <div
-      className={`w-full bg-slate-800/(--bg-opacity) rounded-sm ${!isCompact ? 'p-2' : ''} overflow-hidden`}
+      className={`w-full bg-slate-800/(--bg-opacity) rounded-sm ${!isCompact ? 'p-2' : ''} overflow-hidden text-white`}
       style={{
         ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 80}%`,
       }}
@@ -460,76 +89,31 @@ export const Battle = () => {
       <table
         className={`w-full table-auto text-sm border-separate ${tableBorderSpacing}`}
       >
+        {(settings?.header?.enabled ?? true) && (
+          <RivalsHeader columns={columns} speedUnit={speedUnit} />
+        )}
         <tbody>
-          <BattleRow
-            entry={aheadEntry}
-            liveClassPosition={
-              aheadEntry ? positionFor?.(aheadEntry.carIdx) : undefined
-            }
-            gap={gapEnabled ? formatGap(liveGapAhead, dp) : undefined}
-            prevGap={gapEnabled ? formatGap(prevGapAhead, dp) : undefined}
-            delta={
-              gapEnabled
-                ? aheadDelta(liveGapAhead, prevGapAhead, dp)
-                : undefined
-            }
-            isPlayer={false}
-            highlightColor={highlightColor}
-            isMultiClass={isMultiClass}
-            settings={settings}
-            displayOrder={displayOrder}
-            showGapColumns={aheadEntry != null}
-            stintLaps={aheadEntry ? stintLaps(aheadEntry.carIdx) : undefined}
-            lastTimeFormat={timeFormat}
-            speedKph={
-              aheadEntry != null ? carSpeeds[aheadEntry.carIdx] : undefined
-            }
-            speedUnit={resolvedSpeedUnit}
+          <RivalRow
+            {...rowProps}
+            side="ahead"
+            car={rivals.ahead}
+            rival={rivals.ahead}
+            speedKph={speedOf(rivals.ahead?.carIdx)}
             rowIndex={0}
           />
-          <BattleRow
-            entry={playerEntry}
-            liveClassPosition={
-              playerEntry ? positionFor?.(playerEntry.carIdx) : undefined
-            }
-            isPlayer
-            highlightColor={highlightColor}
-            isMultiClass={isMultiClass}
-            settings={settings}
-            displayOrder={displayOrder}
-            showGapColumns={false}
-            stintLaps={playerEntry ? stintLaps(playerEntry.carIdx) : undefined}
-            lastTimeFormat={timeFormat}
-            speedKph={
-              playerEntry != null ? carSpeeds[playerEntry.carIdx] : undefined
-            }
-            speedUnit={resolvedSpeedUnit}
+          <RivalRow
+            {...rowProps}
+            side="focus"
+            car={rivals.focus}
+            speedKph={speedOf(rivals.focus?.carIdx)}
             rowIndex={1}
           />
-          <BattleRow
-            entry={behindEntry}
-            liveClassPosition={
-              behindEntry ? positionFor?.(behindEntry.carIdx) : undefined
-            }
-            gap={gapEnabled ? formatGap(liveGapBehind, dp) : undefined}
-            prevGap={gapEnabled ? formatGap(prevGapBehind, dp) : undefined}
-            delta={
-              gapEnabled
-                ? behindDelta(liveGapBehind, prevGapBehind, dp)
-                : undefined
-            }
-            isPlayer={false}
-            highlightColor={highlightColor}
-            isMultiClass={isMultiClass}
-            settings={settings}
-            displayOrder={displayOrder}
-            showGapColumns={behindEntry != null}
-            stintLaps={behindEntry ? stintLaps(behindEntry.carIdx) : undefined}
-            lastTimeFormat={timeFormat}
-            speedKph={
-              behindEntry != null ? carSpeeds[behindEntry.carIdx] : undefined
-            }
-            speedUnit={resolvedSpeedUnit}
+          <RivalRow
+            {...rowProps}
+            side="behind"
+            car={rivals.behind}
+            rival={rivals.behind}
+            speedKph={speedOf(rivals.behind?.carIdx)}
             rowIndex={2}
           />
         </tbody>

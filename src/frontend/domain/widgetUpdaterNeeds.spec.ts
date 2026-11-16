@@ -51,10 +51,11 @@ describe('individual-widget updater needs', () => {
       expect(widgetUpdaterNeeds(widget(type)).sectorTiming).toBe(true);
     }
   );
-  it('keeps Battle stint tracking and rejects malformed enable flags', () => {
+  it('runs no pit-lap updater for Battle and rejects malformed enable flags', () => {
+    // Its stints come from the car-pit channel.
     expect(
       widgetUpdaterNeeds(widget('battle', { stint: { enabled: true } })).pitLap
-    ).toBe(true);
+    ).toBe(false);
     expect(
       widgetUpdaterNeeds(
         widget('relative', { pitStatus: true, pushToPass: { enabled: 'true' } })

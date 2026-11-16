@@ -35,6 +35,7 @@ export * from './useGForceSnapshot';
 export * from './useBrakingSnapshot';
 export * from './useWeatherForecastSnapshot';
 export * from './useFlagStateSnapshot';
+export * from './useTrafficSnapshot';
 export * from './useLapDeltaSnapshot';
 export * from './useMinimapSnapshot';
 export * from './useSessionLifecycle';

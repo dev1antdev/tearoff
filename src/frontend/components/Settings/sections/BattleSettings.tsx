@@ -17,35 +17,92 @@ import { SettingProps, settingPropFor } from '../components/SettingProp';
 const SETTING_ID = 'battle';
 const SettingProp = settingPropFor(SETTING_ID);
 
+type BattleConfigShape = BattleWidgetSettings['config'];
+
+/** The columns of the box: every config key that is a column to switch. */
+type ColumnKey =
+  | 'position'
+  | 'positionChange'
+  | 'carNumber'
+  | 'driverName'
+  | 'status'
+  | 'compound'
+  | 'stint'
+  | 'pitStops'
+  | 'energy'
+  | 'energyUse'
+  | 'bestTime'
+  | 'lastTime'
+  | 'speed'
+  | 'trackLimits'
+  | 'gap'
+  | 'forecast';
+
 interface SortableSetting {
-  id: string;
+  id: ColumnKey;
   label: string;
-  configKey: keyof BattleWidgetSettings['config'];
-  hasSubSetting?: boolean;
+  /** What the column shows, where its name does not say. */
+  description?: string;
 }
 
 const sortableSettings: SortableSetting[] = [
-  { id: 'position', label: 'Position', configKey: 'position' },
-  { id: 'carNumber', label: 'Car Number', configKey: 'carNumber' },
-  { id: 'driverName', label: 'Driver Name', configKey: 'driverName' },
-  { id: 'stint', label: 'Stint', configKey: 'stint' },
+  { id: 'position', label: 'Position' },
   {
-    id: 'lastTime',
-    label: 'Last Time',
-    configKey: 'lastTime',
-    hasSubSetting: true,
+    id: 'positionChange',
+    label: 'Position Change',
+    description: 'Places gained or lost against the class grid. Races only.',
+  },
+  { id: 'carNumber', label: 'Car Number' },
+  { id: 'driverName', label: 'Driver Name' },
+  {
+    id: 'status',
+    label: 'Status',
+    description:
+      'PIT while the car is in the pit lane, OUT on the lap it leaves on, a penalty, and finished, DNF or DQ.',
+  },
+  { id: 'compound', label: 'Tyre Compound' },
+  {
+    id: 'stint',
+    label: 'Stint',
+    description: 'Laps since the car last stopped.',
   },
   {
-    id: 'speed',
-    label: 'Speed',
-    configKey: 'speed',
-    hasSubSetting: true,
+    id: 'pitStops',
+    label: 'Pit Stops',
+    description:
+      'Stops made, green while the car has asked for one. Le Mans Ultimate only.',
+  },
+  {
+    id: 'energy',
+    label: 'Energy Left',
+    description:
+      'Virtual energy or fuel remaining, percent. Le Mans Ultimate only.',
+  },
+  {
+    id: 'energyUse',
+    label: 'Energy per Lap',
+    description:
+      "The last lap's usage, percent of a full allocation. Le Mans Ultimate only.",
+  },
+  { id: 'bestTime', label: 'Best Time' },
+  { id: 'lastTime', label: 'Last Time' },
+  { id: 'speed', label: 'Speed' },
+  {
+    id: 'trackLimits',
+    label: 'Track Limits',
+    description: 'Track-limits penalty points. Le Mans Ultimate only.',
   },
   {
     id: 'gap',
-    label: 'Gap / Prev / Delta',
-    configKey: 'gap',
-    hasSubSetting: true,
+    label: 'Gap / Line / Per Lap',
+    description:
+      'The gap now, the gap over the line last lap, and how much the gap has moved a lap over the last three laps. More than a lap apart it reads in laps.',
+  },
+  {
+    id: 'forecast',
+    label: 'Catch Forecast',
+    description:
+      'About how many laps until the gap is gone: green for a car you are catching, red for one catching you. Shown only after three laps in a row without a pit stop, and only while the gap is closing. Races only.',
   },
 ];
 
@@ -55,9 +112,7 @@ interface DisplaySettingsListProps {
   itemsOrder: string[];
   onReorder: (newOrder: string[]) => void;
   settings: BattleWidgetSettings;
-  handleConfigChange: (
-    changes: Partial<BattleWidgetSettings['config']>
-  ) => void;
+  handleConfigChange: (changes: Partial<BattleConfigShape>) => void;
 }
 
 const DisplaySettingsList = ({
@@ -66,7 +121,15 @@ const DisplaySettingsList = ({
   settings,
   handleConfigChange,
 }: DisplaySettingsListProps) => {
-  const items = itemsOrder
+  // A saved order lists the columns it knew; the rest follow in their
+  // default order, so a column added since is there to switch on.
+  const order = [
+    ...itemsOrder,
+    ...sortableSettings
+      .map((setting) => setting.id)
+      .filter((id) => !itemsOrder.includes(id)),
+  ];
+  const items = order
     .map((id) => sortableSettings.find((s) => s.id === id))
     .filter((s): s is SortableSetting => s != null);
 
@@ -75,8 +138,8 @@ const DisplaySettingsList = ({
       items={items}
       onReorder={(newItems) => onReorder(newItems.map((i) => i.id))}
       renderItem={(setting, sortableProps) => {
-        const configValue = settings.config[setting.configKey];
-        const isEnabled = (configValue as { enabled: boolean }).enabled;
+        const column = settings.config[setting.id] ?? defaultConfig[setting.id];
+        const isEnabled = column.enabled;
 
         return (
           <DraggableSettingItem
@@ -84,38 +147,48 @@ const DisplaySettingsList = ({
             label={setting.label}
             enabled={isEnabled}
             onToggle={(enabled) => {
-              const cv = settings.config[setting.configKey] as {
-                enabled: boolean;
-                [key: string]: unknown;
-              };
               handleConfigChange({
-                [setting.configKey]: { ...cv, enabled },
+                [setting.id]: { ...column, enabled },
               });
             }}
             sortableProps={sortableProps}
           >
-            {setting.hasSubSetting &&
-              setting.configKey === 'lastTime' &&
-              settings.config.lastTime.enabled && (
-                <div className="pl-8 mt-2">
-                  <SettingProp path="lastTime.timeFormat" />
-                  <SettingProp path="lastTime.markInvalid" />
-                </div>
-              )}
-            {setting.hasSubSetting &&
-              setting.configKey === 'speed' &&
-              settings.config.speed.enabled && (
-                <div className="pl-8 mt-2">
-                  <SettingProp path="speed.unit" />
-                </div>
-              )}
-            {setting.hasSubSetting &&
-              setting.configKey === 'gap' &&
-              settings.config.gap.enabled && (
-                <div className="pl-8 mt-2">
-                  <SettingProp path="gap.decimalPlaces" />
-                </div>
-              )}
+            {setting.description && (
+              <p className="pl-8 mt-1 text-xs text-slate-400">
+                {setting.description}
+              </p>
+            )}
+            {isEnabled && setting.id === 'status' && (
+              <div className="pl-8 mt-2">
+                <SettingProp path="status.showPitTime" />
+              </div>
+            )}
+            {isEnabled && setting.id === 'stint' && (
+              <div className="pl-8 mt-2">
+                <SettingProp path="stint.showEstimate" />
+              </div>
+            )}
+            {isEnabled && setting.id === 'bestTime' && (
+              <div className="pl-8 mt-2">
+                <SettingProp path="bestTime.timeFormat" />
+              </div>
+            )}
+            {isEnabled && setting.id === 'lastTime' && (
+              <div className="pl-8 mt-2">
+                <SettingProp path="lastTime.timeFormat" />
+                <SettingProp path="lastTime.markInvalid" />
+              </div>
+            )}
+            {isEnabled && setting.id === 'speed' && (
+              <div className="pl-8 mt-2">
+                <SettingProp path="speed.unit" />
+              </div>
+            )}
+            {isEnabled && setting.id === 'gap' && (
+              <div className="pl-8 mt-2">
+                <SettingProp path="gap.decimalPlaces" />
+              </div>
+            )}
           </DraggableSettingItem>
         );
       }}
@@ -151,7 +224,7 @@ export const BattleSettings = () => {
   return (
     <BaseSettingsSection
       title="Battle"
-      description="Shows the cars immediately ahead and behind the player with gap information"
+      description="Your rivals: the car ahead of you and the car behind you in your class, with the gap to each, how it is moving, and their stint, stops and energy."
       settings={settings as BattleWidgetSettings}
       onSettingsChange={(s) => setSettings(s as BattleWidgetSettings)}
       widgetId={SETTING_ID}
@@ -214,6 +287,10 @@ export const BattleSettings = () => {
               {/* OPTIONS TAB */}
               {activeTab === 'options' && (
                 <SettingsSection title="Options">
+                  <SettingProp path="header.enabled" />
+
+                  <SettingDivider />
+
                   <SettingProp path="background.opacity" />
 
                   <SettingDivider />

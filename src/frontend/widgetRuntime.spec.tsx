@@ -124,6 +124,7 @@ describe('widget runtime metadata', () => {
   it('declares car-speed consumers at the processor rate', () => {
     expect(getWidgetRuntimeDefinition('battle')).toMatchObject({
       channels: [
+        'car-pit.snapshot',
         'car-speeds.snapshot',
         'lap-history.snapshot',
         'relative-gaps.snapshot',
@@ -131,8 +132,10 @@ describe('widget runtime metadata', () => {
         'track-state.snapshot',
       ],
       channelRates: {
+        'car-pit.snapshot': 5,
         'car-speeds.snapshot': 10,
         'lap-history.snapshot': 2,
+        'relative-gaps.snapshot': 10,
         'standings.snapshot': 5,
       },
     });
