@@ -11,6 +11,7 @@ import { SettingActionButton } from '../components/SettingActionButton';
 import { SettingDivider } from '../components/SettingDivider';
 import { SettingProps, settingPropFor } from '../components/SettingProp';
 import { SettingsSection } from '../components/SettingSection';
+import { PitWallBrowserAccess } from './PitWallBrowserAccess';
 
 const SETTING_ID = PIT_WALL_WIDGET_ID;
 const SettingProp = settingPropFor(SETTING_ID);
@@ -86,14 +87,17 @@ export const PitWallSettings = () => {
               <SettingProp path="layout" />
             </SettingsSection>
 
+            <PitWallBrowserAccess />
+
             <SettingsSection title="What this is">
               <div className="space-y-3 text-sm text-slate-400">
                 <p>
                   This is the first stage of the Pit Wall. What is built: the
-                  window, the header, the three layouts, and panels that show
-                  widgets Tearoff already has, each with the settings you gave
-                  that widget, whether or not it is switched on for the overlay.
-                  A panel&apos;s gear opens that widget&apos;s settings.
+                  window, the same page in a browser, the header, the three
+                  layouts, and panels that show widgets Tearoff already has,
+                  each with the settings you gave that widget, whether or not it
+                  is switched on for the overlay. A panel&apos;s gear opens that
+                  widget&apos;s settings.
                 </p>
                 <p>
                   What is not built yet: the endurance timing tower with lap

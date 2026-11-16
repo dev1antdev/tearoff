@@ -744,8 +744,10 @@ export const GeneralSettings = ({ previewMode }: GeneralSettingsProps = {}) => {
                   <p className="text-sm text-slate-400">
                     When enabled, the component server binds to all network
                     interfaces (0.0.0.0), allowing other devices on your network
-                    to access the dashboard. When disabled, only localhost
-                    connections are allowed. (requires restart)
+                    to access the dashboard. They need a link with the key in
+                    it, shown under Pit Wall and Profiles; a device without the
+                    key is refused. When disabled, only localhost connections
+                    are allowed. (requires restart)
                   </p>
                 </div>
                 <ToggleSwitch

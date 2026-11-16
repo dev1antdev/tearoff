@@ -217,3 +217,107 @@ describe('ProfileSettings browser layout URLs', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('ProfileSettings links for other devices', () => {
+  const KEY = 'device-key-0123456789abcdefghijk';
+  const keyed = (profile: string) => `${expectedUrl(profile, 4321)}&key=${KEY}`;
+  const masked = `${expectedUrl('default', 4321)}&key=••••••••`;
+  const access = (key: string | null) => ({
+    listening: true,
+    port: 4321,
+    networkAccess: key !== null,
+    host: key === null ? null : '192.168.1.50',
+    key,
+    devices: 0,
+  });
+
+  /** The server as the main process reports it to the settings window. */
+  const serverHas = (key: string | null) => {
+    window.browserAccessBridge = {
+      getAccess: async () => access(key),
+      replaceKey: async () => access(key),
+      onDevicesChanged: () => () => undefined,
+    };
+  };
+
+  afterEach(() => {
+    delete window.browserAccessBridge;
+  });
+
+  it('carries the key in the link by network address, and keeps it off the screen', async () => {
+    serverHas(KEY);
+    render(<ProfileSettings />);
+
+    await screen.findByDisplayValue(masked);
+    expect(document.body.innerHTML).not.toContain(KEY);
+    expect(
+      screen.getByText(/It carries the key a device that is not this PC needs/)
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy for OBS' }));
+    expect(mocks.writeText).toHaveBeenLastCalledWith(keyed('default'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Show key' }));
+    expect(screen.getByDisplayValue(keyed('default'))).toBeInTheDocument();
+  });
+
+  it('copies each profile’s URL with the key', async () => {
+    serverHas(KEY);
+    render(<ProfileSettings />);
+    await screen.findByDisplayValue(masked);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Copy URL' })[1]);
+
+    expect(mocks.writeText).toHaveBeenLastCalledWith(keyed('race + night'));
+  });
+
+  it('leaves the links this PC opens without the key', async () => {
+    serverHas(KEY);
+    render(<ProfileSettings />);
+    await screen.findByDisplayValue(masked);
+
+    // The localhost link, and the page opened from here in this PC's browser.
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    expect(mocks.writeText).toHaveBeenLastCalledWith(
+      expectedUrl('default', 4321, 'localhost')
+    );
+    fireEvent.click(screen.getAllByRole('button', { name: 'Actions' })[1]);
+    expect(
+      screen.getByRole('link', { name: 'Edit Browser Layout' })
+    ).toHaveAttribute('href', expectedUrl('race + night', 4321));
+  });
+
+  it('carries no key while the server answers this PC only', async () => {
+    serverHas(null);
+    mocks.getComponentServerHost.mockResolvedValue('localhost');
+    render(<ProfileSettings />);
+    await screen.findAllByDisplayValue(
+      expectedUrl('default', 4321, 'localhost')
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Copy for OBS' }));
+
+    expect(mocks.writeText).toHaveBeenLastCalledWith(
+      expectedUrl('default', 4321, 'localhost')
+    );
+    expect(screen.queryByRole('button', { name: 'Show key' })).toBeNull();
+    expect(screen.queryByText(/It carries the key/)).toBeNull();
+  });
+
+  it('never puts the key on a link that names this PC itself', async () => {
+    // Network access is on, yet no address was found: the link says localhost.
+    serverHas(KEY);
+    mocks.getComponentServerHost.mockResolvedValue('localhost');
+    render(<ProfileSettings />);
+    await screen.findAllByDisplayValue(
+      expectedUrl('default', 4321, 'localhost')
+    );
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Copy URL' })[0]);
+
+    expect(mocks.writeText).toHaveBeenLastCalledWith(
+      expectedUrl('default', 4321, 'localhost')
+    );
+    expect(document.body.innerHTML).not.toContain(KEY);
+  });
+});

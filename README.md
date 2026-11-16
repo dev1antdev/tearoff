@@ -1267,8 +1267,9 @@ This is its first stage, and nothing of it has been seen in a live game yet: it 
 - A widget wider than its panel is drawn smaller to fit, and one taller than its panel scrolls inside it
 - Full screen with F11 or the button in the header; the window remembers its place, its size, its monitor and whether it was maximised
 - The page's own scale, in its settings
+- The same page in an ordinary browser, at `http://localhost:3000/pitwall` on this PC. With **Enable Network Access** on, a tablet or a second PC on your network opens it too, by the link under **Settings > Pit Wall > In a browser**. That link carries a key: a device that is not this PC is refused everything the web server has without it, and **New key** there replaces it at once and disconnects whoever held the old one. A layout chosen in a browser is kept by that browser and leaves the window as it is; a browser has no settings window to open, so the page there has no gears
 
-**What is not there yet:** the endurance timing tower with lap averages, the class rivals table, the crew and stint timeline, the race log and the pace chart. Panels cannot be moved or resized, and the page is not served to a browser.
+**What is not there yet:** the endurance timing tower with lap averages, the class rivals table, the crew and stint timeline, the race log and the pace chart. Panels cannot be moved or resized. The page is for your own devices on your own network: nothing reaches it from outside.
 
 ### Broadcast overlays
 
@@ -1311,8 +1312,8 @@ TV-style overlays for iRacing streams, configured together in **Settings > Broad
   - Separate browser layouts: Each profile stores its browser widget positions independently of the desktop layout. Use **Settings > Profiles > Actions > Edit Browser Layout** to arrange widgets for OBS. Set the browser source's width and height to match your intended canvas.
   - Single Widget URLs: `http://localhost:3000/widget/<widgetId>` shows one widget filling the page, including widgets hidden from the desktop layout, for hosts that take one page per source such as OpenKneeboard in VR. `http://localhost:3000` lists the URL for every widget in the active dashboard; older component links redirect to the widget pages.
   - Optional Web Server: Disable the built-in server when browser sources are not needed; restart the app to free its port.
-  - Network Access: Enable network access in settings to allow other devices on your local network to access the dashboard (useful for dual-PC streaming setups).
-  - Who the server answers: only its own pages, opened by this PC's name or address. A page from another website cannot connect to it, and a browser page can change nothing but where its widgets sit and the pit lane it measured; every other setting is changed in the app.
+  - Network Access: Enable network access in settings to allow other devices on your local network to access the dashboard (useful for dual-PC streaming setups). A device that is not this PC needs a link with the key in it: copy it from **Settings > Profiles** or **Settings > Pit Wall**. This PC needs no key, by `localhost` or by its own network address, so browser sources on it work as before.
+  - Who the server answers: only its own pages, opened by this PC's name or address. A page from another website cannot connect to it, a device on the network is refused everything until it shows the key, and a browser page can change nothing but where its widgets sit and the pit lane it measured; every other setting is changed in the app.
   - Garage Cover: Automatically hide your screen with a custom image when you enter the garage to keep your car setup private.
   - Transparent backgrounds: All overlays are designed to look great on top of your game or stream.
   - Reduced GPU usage: Overlay windows are sized to fit only the widgets on each display, rather than covering the full screen.
