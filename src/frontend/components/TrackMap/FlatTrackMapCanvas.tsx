@@ -8,9 +8,16 @@ import {
   useProgressAnimation,
 } from '@irdashies/domain/track/useProgressAnimation';
 import { getCachedTextVisualOffset } from './trackDrawingUtils';
+import type { LapSpan } from '@irdashies/domain/track';
+
+const NO_SPANS: readonly LapSpan[] = [];
 
 export interface FlatTrackMapCanvasProps {
-  trackDrawing: TrackDrawing;
+  /**
+   * Not drawn from: the lap is a straight line whatever the circuit. A
+   * caller with a drawing may pass it; one whose track has none need not.
+   */
+  trackDrawing?: TrackDrawing;
   drivers: TrackDriver[];
   highlightColor?: number;
   invertLeaderColor?: boolean;
@@ -24,6 +31,8 @@ export interface FlatTrackMapCanvasProps {
   invertTrackColors?: boolean;
   driverLivePositions?: Record<number, number>;
   carIdxIsOnPitRoad?: readonly boolean[];
+  /** Stretches of the lap under a yellow flag, as lap fractions. */
+  yellowSpans?: readonly LapSpan[];
   /** Caps redraws, e.g. for a map docked in the Gantry. */
   maxFps?: number;
 }
@@ -44,6 +53,7 @@ export const FlatTrackMapCanvas = ({
   invertTrackColors = false,
   driverLivePositions = [0, 0],
   carIdxIsOnPitRoad = [],
+  yellowSpans = NO_SPANS,
   maxFps,
 }: FlatTrackMapCanvasProps) => {
   const widgetScale = useWidgetScale();
@@ -183,6 +193,26 @@ export const FlatTrackMapCanvas = ({
     ctx.moveTo(trackStartX, centerY);
     ctx.lineTo(trackEndX, centerY);
     ctx.stroke();
+
+    // A stretch under a yellow flag, over the whole width of the line and
+    // its outline, cut square where the stretch ends.
+    if (yellowSpans.length > 0) {
+      ctx.strokeStyle = getColor('yellow', 400);
+      ctx.lineWidth = Math.max(scaledTrackLineWidth, scaledOutlineWidth);
+      ctx.lineCap = 'butt';
+      for (const span of yellowSpans) {
+        ctx.beginPath();
+        ctx.moveTo(
+          progressToFlatX(span.from, HORIZONTAL_PADDING, usableWidth),
+          centerY
+        );
+        ctx.lineTo(
+          progressToFlatX(span.to, HORIZONTAL_PADDING, usableWidth),
+          centerY
+        );
+        ctx.stroke();
+      }
+    }
 
     // Draw start/finish line
     ctx.strokeStyle = getColor('red');

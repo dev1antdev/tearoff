@@ -120,6 +120,7 @@ describe('TrackProfileProcessor', () => {
       elevationSource: null,
       recordingProgress: null,
       sectorStartPct: [],
+      sectorSource: 'nominal',
       notes: [],
       sessionNum: null,
       version: 0,
@@ -137,6 +138,8 @@ describe('TrackProfileProcessor', () => {
       elevationRangeM: 0,
       elevationSource: null,
       sectorStartPct: [0, 1 / 3, 2 / 3],
+      // LMU's session places no sector: those thirds are a placeholder.
+      sectorSource: 'nominal',
       notes: [],
     });
     expect(processor.snapshot().version).toBe(1);
@@ -158,6 +161,7 @@ describe('TrackProfileProcessor', () => {
     expect(snapshot.elevationRangeM).toBe(55.2);
     expect(snapshot.elevationSource).toBe('recorded');
     expect(snapshot.sectorStartPct).toEqual([0, 0.39, 0.792]);
+    expect(snapshot.sectorSource).toBe('learned');
     expect(snapshot.notes).toEqual([NOTE]);
   });
 
@@ -178,7 +182,66 @@ describe('TrackProfileProcessor', () => {
       elevationSource: null,
       // Nothing learned: the session's own stand.
       sectorStartPct: [0, 1 / 3, 2 / 3],
+      sectorSource: 'nominal',
       notes: [NOTE],
+    });
+  });
+
+  describe('where the sector starts came from', () => {
+    const iracing = (stored: TrackProfile | null = null) => {
+      const { source } = createSource(stored);
+      const processor = new TrackProfileProcessor(source, 'iracing');
+      processor.init(session({ sectors: [0, 0.25, 0.5, 0.75] }));
+      return processor;
+    };
+
+    it("says a sim's own starts are the session's", () => {
+      // iRacing states where its sectors start; nothing has to be learned.
+      expect(iracing().snapshot()).toMatchObject({
+        sectorStartPct: [0, 0.25, 0.5, 0.75],
+        sectorSource: 'session',
+      });
+    });
+
+    it('says so too for the ones a profile kept from the session', () => {
+      const processor = iracing(
+        profile({
+          simulator: 'iracing',
+          sectorStartPct: [0, 0.3, 0.6],
+          sectorSource: 'session',
+        })
+      );
+
+      expect(processor.snapshot()).toMatchObject({
+        sectorStartPct: [0, 0.3, 0.6],
+        sectorSource: 'session',
+      });
+    });
+
+    it('moves from nominal to learned when the lap that crossed them is kept', () => {
+      const { processor, state } = start();
+      processor.onFrame(frame());
+      expect(processor.snapshot().sectorSource).toBe('nominal');
+
+      state.profile = profile();
+      state.revision += 1;
+      processor.onFrame(frame());
+
+      expect(processor.snapshot()).toMatchObject({
+        sectorStartPct: [0, 0.39, 0.792],
+        sectorSource: 'learned',
+      });
+    });
+
+    it('is nominal for a session with no sectors at all', () => {
+      const { source } = createSource();
+      const processor = new TrackProfileProcessor(source, 'iracing');
+      processor.init(session({ sectors: [] }));
+
+      expect(processor.snapshot()).toMatchObject({
+        sectorStartPct: [],
+        sectorSource: 'nominal',
+      });
     });
   });
 
@@ -378,6 +441,7 @@ describe('TrackProfileProcessor', () => {
         elevationSource: null,
         recordingProgress: null,
         sectorStartPct: [],
+        sectorSource: 'nominal',
         notes: [],
         sessionNum: null,
         version: before + 1,

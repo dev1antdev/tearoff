@@ -1,4 +1,8 @@
-import type { TrackElevationSource, TrackNote } from '../trackProfile';
+import type {
+  TrackElevationSource,
+  TrackNote,
+  TrackSectorSource,
+} from '../trackProfile';
 
 /**
  * The profile of the track being driven: its height along the lap, where its
@@ -34,6 +38,14 @@ export interface TrackProfileSnapshot {
    * where the car has been seen crossing them, the session's otherwise.
    */
   sectorStartPct: readonly number[];
+  /**
+   * Where those starts came from. 'nominal' ones are a placeholder and not
+   * places on the track: a sim that times its sectors without saying where
+   * they start (Le Mans Ultimate) has its session carry even thirds until
+   * the car has been seen crossing them. A reader that draws a boundary on
+   * the road waits for 'learned' or 'session'.
+   */
+  sectorSource: TrackSectorSource;
   /** Every note of the track, sorted by distanceM. */
   notes: readonly TrackNote[];
   /**

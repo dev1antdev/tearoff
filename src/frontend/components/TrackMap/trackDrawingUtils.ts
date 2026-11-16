@@ -2,6 +2,7 @@ import { getColor } from '@irdashies/utils/colors';
 import { TrackDrawing, TrackDriver, TurnLabels } from './TrackCanvas';
 import type { Sector } from '@irdashies/types';
 import type { SectorColor } from '@irdashies/context';
+import type { LapSpan } from '@irdashies/domain/track';
 
 export interface TextMetricsCache {
   font: string;
@@ -492,6 +493,94 @@ export const drawSectorColors = (
       }
     }
 
+    ctx.stroke();
+  }
+
+  ctx.restore();
+};
+
+// ---------------------------------------------------------------------------
+// Stretches of the lap
+// ---------------------------------------------------------------------------
+
+/** What is left of a stretch below this is rounding, not road. */
+const SPAN_EPSILON = 1e-9;
+
+/**
+ * Stroke stretches of the lap, given as lap fractions, along the track path:
+ * a sector under a yellow flag, say.
+ *
+ * Each stretch is walked in the direction the lap is driven, through every
+ * path point between its two ends, and both ends are placed between points
+ * rather than at the nearest one, so it stops where the stretch does. A path
+ * closes on itself: its last point is its first again, and a stretch that
+ * runs through the place where the array ends carries on from the other end.
+ */
+export const drawLapSpans = (
+  ctx: CanvasRenderingContext2D,
+  trackPathPoints: { x: number; y: number }[],
+  totalLength: number,
+  intersectionLength: number,
+  direction: 'clockwise' | 'anticlockwise',
+  spans: readonly LapSpan[],
+  color: string,
+  lineWidth: number
+) => {
+  const last = trackPathPoints.length - 1;
+  if (last < 1 || spans.length === 0) return;
+  const forward = direction !== 'clockwise';
+
+  const lineToIndex = (floatIndex: number, move = false) => {
+    const lower = Math.min(Math.floor(floatIndex), last);
+    const upper = Math.min(lower + 1, last);
+    const share = floatIndex - lower;
+    const from = trackPathPoints[lower];
+    const to = trackPathPoints[upper];
+    const x = from.x + (to.x - from.x) * share;
+    const y = from.y + (to.y - from.y) * share;
+    if (move) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  };
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  // Cut square at the ends, which are sector boundaries; a round cap would
+  // carry the colour half its width into the next sector.
+  ctx.lineCap = 'butt';
+  ctx.lineJoin = 'round';
+
+  for (const span of spans) {
+    const from = Math.min(Math.max(span.from, 0), 1);
+    const to = Math.min(Math.max(span.to, 0), 1);
+    if (!(to > from)) continue;
+
+    let index = progressToFloatIndex(
+      from,
+      trackPathPoints,
+      totalLength,
+      intersectionLength,
+      direction
+    );
+    // A lap is `last` indices long, whichever way it runs through them.
+    let remaining = (to - from) * last;
+
+    ctx.beginPath();
+    lineToIndex(index, true);
+    while (remaining > SPAN_EPSILON) {
+      // Off the end of the array is the start of it: the path is a loop.
+      if (forward && index >= last) index = 0;
+      else if (!forward && index <= 0) index = last;
+      const next = forward ? Math.floor(index) + 1 : Math.ceil(index) - 1;
+      const step = Math.abs(next - index);
+      if (step >= remaining) {
+        lineToIndex(forward ? index + remaining : index - remaining);
+        break;
+      }
+      remaining -= step;
+      index = next;
+      lineToIndex(index);
+    }
     ctx.stroke();
   }
 

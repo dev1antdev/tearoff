@@ -4,9 +4,11 @@ import type {
   Telemetry,
   TrackProfile,
   TrackProfileSnapshot,
+  TrackSectorSource,
 } from '@irdashies/types';
 import { pointsCountFor, trackLengthFrom } from './lapTiming';
 import type { TelemetryProcessor } from './TelemetryProcessor';
+import { sessionStatesSectorStarts } from './TrackProfileRecorder';
 
 /** Where the profile comes from. Answers from memory: a processor cannot wait. */
 export interface TrackProfileSource {
@@ -68,7 +70,9 @@ const sectorStartsOf = (session: Session): number[] =>
  * it the player is goes out too, in steps of 5 %.
  *
  * The sector starts are the stored ones where the car has been seen
- * crossing them, and otherwise the session's own.
+ * crossing them, and otherwise the session's own. Which of the two they are
+ * goes out with them, and whether the session's own are places on the track
+ * at all: under a sim that states none they are even thirds, 'nominal'.
  */
 export class TrackProfileProcessor implements TelemetryProcessor<
   TrackProfileSnapshot,
@@ -95,6 +99,7 @@ export class TrackProfileProcessor implements TelemetryProcessor<
     elevationSource: null,
     recordingProgress: null,
     sectorStartPct: [],
+    sectorSource: 'nominal',
     notes: [],
     sessionNum: null,
     version: 0,
@@ -199,6 +204,18 @@ export class TrackProfileProcessor implements TelemetryProcessor<
       : null;
   }
 
+  /**
+   * What the session's own sector starts are worth: the sim's word for
+   * where they are, or a placeholder where it gives none or the session has
+   * no sectors at all.
+   */
+  private sessionSectorSource(): TrackSectorSource {
+    return this.sessionSectors.length > 0 &&
+      sessionStatesSectorStarts(this.simulator)
+      ? 'session'
+      : 'nominal';
+  }
+
   /** Rewrites everything in the snapshot that comes from the profile. */
   private rebuild(profile: TrackProfile | null): void {
     this.profile = profile;
@@ -210,12 +227,18 @@ export class TrackProfileProcessor implements TelemetryProcessor<
     // As the driver entered them; absent where they did not.
     latest.sunriseMinutes = profile?.sunriseMinutes;
     latest.sunsetMinutes = profile?.sunsetMinutes;
-    latest.sectorStartPct =
+    const stored =
       profile &&
       profile.sectorSource !== 'nominal' &&
       profile.sectorStartPct.length > 0
-        ? profile.sectorStartPct
-        : this.sessionSectors;
+        ? profile
+        : null;
+    latest.sectorStartPct = stored
+      ? stored.sectorStartPct
+      : this.sessionSectors;
+    latest.sectorSource = stored
+      ? stored.sectorSource
+      : this.sessionSectorSource();
 
     const heights = profile?.elevationM;
     if (!heights || heights.length === 0) {

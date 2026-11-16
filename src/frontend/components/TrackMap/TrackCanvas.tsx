@@ -1,7 +1,11 @@
 import { useWidgetScale } from '@irdashies/domain/widgetPresentation/WidgetScale';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Driver } from '@irdashies/types';
-import { useTrackDrawing, type TrackDrawing } from '@irdashies/domain/track';
+import {
+  useTrackDrawing,
+  type LapSpan,
+  type TrackDrawing,
+} from '@irdashies/domain/track';
 export type { TrackDrawing } from '@irdashies/domain/track';
 import { getColor, getTailwindStyle } from '@irdashies/utils/colors';
 import { validateImageDataUrl } from '@irdashies/utils/imageDataUrl';
@@ -16,6 +20,7 @@ import {
   drawDrivers,
   drawSectorColors,
   drawSectorDividers,
+  drawLapSpans,
   compareDriverDrawOrder,
   type PositionedTrackDriver,
 } from './trackDrawingUtils';
@@ -41,6 +46,11 @@ export interface DriverIdentity {
 
 export interface TrackProps {
   trackId: number;
+  /**
+   * The drawing, from a caller that already holds it: a session that carries
+   * its own outline. Left out, the one shipped for `trackId` is loaded.
+   */
+  trackDrawing?: TrackDrawing | null;
   drivers: TrackDriver[];
   driverIdentities?: DriverIdentity[];
   turnLabels?: {
@@ -65,6 +75,11 @@ export interface TrackProps {
   sectors?: Sector[];
   sectorColors?: SectorColor[];
   currentSectorIdx?: number;
+  /**
+   * Stretches of the lap under a yellow flag, as lap fractions. Drawn over
+   * the road at its full width, whatever `sectors` is set to.
+   */
+  yellowSpans?: readonly LapSpan[];
   playerIconDataUrl?: string | null;
   driverLivePositions?: Record<number, number>;
   /** Caps redraws, e.g. for a map docked in the Gantry. */
@@ -96,7 +111,11 @@ const DEFAULT_TURN_LABELS: TurnLabels = {
 
 /** Mount canvas effects only once the requested drawing is available. */
 export const TrackCanvas = (props: TrackProps) => {
-  const drawing = useTrackDrawing(props.trackId);
+  // Nothing is loaded for a caller that brought its own.
+  const loaded = useTrackDrawing(
+    props.trackDrawing ? undefined : props.trackId
+  );
+  const drawing = props.trackDrawing ?? loaded;
   return drawing ? (
     <LoadedTrackCanvas key={props.trackId} {...props} trackDrawing={drawing} />
   ) : null;
@@ -123,6 +142,7 @@ const LoadedTrackCanvas = ({
   sectors,
   sectorColors,
   currentSectorIdx,
+  yellowSpans,
   playerIconDataUrl: rawPlayerIconDataUrl = null,
   driverLivePositions = {},
   maxFps,
@@ -344,13 +364,12 @@ const LoadedTrackCanvas = ({
     );
 
     if (
-      sectors &&
       trackPathPoints &&
       totalLength &&
       sfIntersectionLength !== undefined &&
       sfDirection
     ) {
-      if (sectorColors) {
+      if (sectors && sectorColors) {
         drawSectorColors(
           cacheCtx,
           trackPathPoints,
@@ -363,15 +382,33 @@ const LoadedTrackCanvas = ({
           currentSectorIdx
         );
       }
-      drawSectorDividers(
-        cacheCtx,
-        trackPathPoints,
-        totalLength,
-        sfIntersectionLength,
-        sfDirection,
-        sectors,
-        trackLineWidth
-      );
+      if (yellowSpans && yellowSpans.length > 0) {
+        // The whole width of the road, outline included, so a sector under
+        // a flag cannot be taken for one coloured yellow for its pace: that
+        // is the line alone, inside a dark edge. Under the dividers, which
+        // would otherwise be half covered where a flagged sector ends.
+        drawLapSpans(
+          cacheCtx,
+          trackPathPoints,
+          totalLength,
+          sfIntersectionLength,
+          sfDirection,
+          yellowSpans,
+          getColor('yellow', 400),
+          Math.max(trackLineWidth, trackOutlineWidth)
+        );
+      }
+      if (sectors) {
+        drawSectorDividers(
+          cacheCtx,
+          trackPathPoints,
+          totalLength,
+          sfIntersectionLength,
+          sfDirection,
+          sectors,
+          trackLineWidth
+        );
+      }
     }
 
     drawStartFinishLine(cacheCtx, startFinishLine);
@@ -407,6 +444,7 @@ const LoadedTrackCanvas = ({
     sectors,
     sectorColors,
     currentSectorIdx,
+    yellowSpans,
     trackPathPoints,
     totalLength,
     sfDirection,

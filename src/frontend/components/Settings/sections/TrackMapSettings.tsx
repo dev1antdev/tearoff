@@ -127,7 +127,7 @@ export const TrackMapSettings = () => {
   return (
     <BaseSettingsSection
       title="Track Map"
-      description="Configure track map visualization settings."
+      description="Configure track map visualization settings. Under Le Mans Ultimate the circuit is drawn from the map that comes with the session: bundled for most circuits, otherwise drawn from your first full lap. A sector under a yellow flag is marked there once the sectors are known, and cars are never ringed as off track, which that sim does not report."
       settings={settings}
       onSettingsChange={setSettings}
       widgetId="map"
@@ -254,7 +254,7 @@ export const TrackMapSettings = () => {
 
                     <SettingToggleRow
                       title="Sector Colors"
-                      description={`Color each sector based on your session performance (purple: session best, green: within ${greenPct}%, yellow: within ${yellowPct}%, red: ${yellowPct}%+ off pace). Thresholds are set in Sector Delta settings.`}
+                      description={`Color each sector based on your session performance (purple: session best, green: within ${greenPct}%, yellow: within ${yellowPct}%, red: ${yellowPct}%+ off pace). Thresholds are set in Sector Delta settings. Le Mans Ultimate does not say where its sectors start, so there they are drawn once you have driven one clean lap of the circuit, and kept for it from then on.`}
                       enabled={settings.config.sectorColoring?.enabled ?? false}
                       onToggle={(newValue) =>
                         handleConfigChange({
@@ -269,7 +269,7 @@ export const TrackMapSettings = () => {
 
                     <SettingToggleRow
                       title="Enable Turn Labels"
-                      description="Show turn numbers and names on the track map"
+                      description="Show turn numbers and names on the track map. Under Le Mans Ultimate only the circuits whose bundled map has them are labelled."
                       enabled={settings.config.turnLabels?.enabled ?? false}
                       onToggle={(newValue) =>
                         handleConfigChange({

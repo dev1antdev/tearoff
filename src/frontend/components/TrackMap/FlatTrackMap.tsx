@@ -2,7 +2,7 @@ import { useDriverProgress } from './hooks/useDriverProgress';
 import { useFlatTrackMapSettings } from './hooks/useFlatTrackMapSettings';
 import { useHighlightColor } from './hooks/useHighlightColor';
 import { useTrackId } from './hooks/useTrackId';
-import { FlatTrackMapCanvas } from './FlatTrackMapCanvas';
+import { FlatTrackMapView } from './FlatTrackMapView';
 import { useTrackDrawing } from '@irdashies/domain/track';
 import {
   useSessionVisibility,
@@ -12,9 +12,10 @@ import { useDriverLivePositions } from '@irdashies/domain';
 
 const debug = import.meta.env.DEV || import.meta.env.MODE === 'storybook';
 
-/** Redraw rate for a map docked in the Gantry, which shares the GPU with the overlays. */
-const EMBEDDED_MAX_FPS = 30;
-
+/**
+ * The Flat Track Map for a track with a drawing shipped for its id: an
+ * iRacing track. `FlatTrackMapWidget` decides when this is the one mounted.
+ */
 export const FlatTrackMap = ({ embedded = false }: { embedded?: boolean }) => {
   const trackId = useTrackId();
   const { drivers: driversTrackData } = useDriverProgress();
@@ -50,25 +51,13 @@ export const FlatTrackMap = ({ embedded = false }: { embedded?: boolean }) => {
   }
 
   return (
-    <div className="w-full h-full">
-      <FlatTrackMapCanvas
-        trackDrawing={trackDrawing}
-        drivers={driversTrackData}
-        highlightColor={
-          settings?.useHighlightColor ? highlightColor : undefined
-        }
-        invertLeaderColor={settings?.invertLeaderColor ?? false}
-        showCarNumbers={settings?.showCarNumbers ?? true}
-        displayMode={settings?.displayMode ?? 'carNumber'}
-        driverCircleSize={settings?.driverCircleSize ?? 40}
-        playerCircleSize={settings?.playerCircleSize ?? 40}
-        trackmapFontSize={settings?.trackmapFontSize ?? 100}
-        trackLineWidth={settings?.trackLineWidth ?? 20}
-        trackOutlineWidth={settings?.trackOutlineWidth ?? 40}
-        invertTrackColors={settings?.invertTrackColors ?? false}
-        driverLivePositions={driverLivePositions}
-        maxFps={embedded ? EMBEDDED_MAX_FPS : undefined}
-      />
-    </div>
+    <FlatTrackMapView
+      settings={settings}
+      embedded={embedded}
+      trackDrawing={trackDrawing}
+      drivers={driversTrackData}
+      highlightColor={highlightColor}
+      driverLivePositions={driverLivePositions}
+    />
   );
 };

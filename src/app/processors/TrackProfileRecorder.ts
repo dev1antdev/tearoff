@@ -41,6 +41,15 @@ export const trackProfileLapSource = (
 ): TrackProfileLap['source'] =>
   simulator === 'lmu' ? 'recorded' : 'integrated';
 
+/**
+ * Whether a simulator's session says where its sectors start. iRacing's
+ * does. Le Mans Ultimate times three sectors and places none of them, so the
+ * session mapped from it carries even thirds and the real starts are learned
+ * from the car: the same sim whose position is read rather than added up.
+ */
+export const sessionStatesSectorStarts = (simulator: string): boolean =>
+  trackProfileLapSource(simulator) !== 'recorded';
+
 /** Where a lap is far enough from the line that LMU's void flag is its own. */
 const INVALIDATION_START_PCT = 0.05;
 /**

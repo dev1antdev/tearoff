@@ -84,6 +84,10 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // The flag in force and the car a blue is for, from LMU's session phase,
   // sector flags and scoring. Each sim has states the other cannot report.
   'flagpanel',
+  // Every car on a straight line by its lap fraction, which needs no map of
+  // the circuit, with cars in the pit lane greyed and the sector under
+  // yellow marked once the track profile has learned where sectors start.
+  'flatmap',
   // Lateral and longitudinal g from LMU's own acceleration, in the same
   // signs as iRacing's, with its impact time to keep a kerb strike out of
   // the maxima.
@@ -107,8 +111,12 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   'laptrace',
   // LMU's own lift-and-coast light, with the traction control and ABS flags.
   'liftcoast',
-  // Drawn from the map LMU sends with the session, not from the iRacing
-  // drawings the two full-size maps need.
+  // The whole circuit from the map LMU sends with the session, in place of
+  // the iRacing drawing. LMU says where none of its sectors starts, so the
+  // sector marks and the sector under yellow wait for the track profile to
+  // learn that from a clean lap; a circuit with no map yet says so.
+  'map',
+  // Drawn from the same map, sent with the session.
   'minimap',
   'pitlanehelper',
   // LMU's own estimate of the stop and its eight parts from REST, the pit
@@ -210,10 +218,8 @@ export const LMU_DISABLED_WIDGETS: readonly string[] = [
   'broadcastpodium',
   'broadcastticker',
   'broadcastweather',
-  'flatmap',
   'gantry',
   'heartrate',
-  'map',
   'radar',
   // Race plans name drivers by iRacing customer id.
   'stintplan',
@@ -252,7 +258,7 @@ export const DEFAULT_SIM_WIDGET_SUPPORT: SimWidgetSupportConfig = {
  * it did, which costs a user their hand edits once per change and is why the
  * number is bumped only for a real one.
  */
-export const SIM_WIDGET_SUPPORT_VERSION = 14;
+export const SIM_WIDGET_SUPPORT_VERSION = 15;
 
 /**
  * Whether a widget is unavailable under the running sim.

@@ -5,14 +5,16 @@ export default [
   {
     id: 'map',
     component: lazyWidget(() =>
-      import('./TrackMap').then((module) => ({ default: module.TrackMap }))
+      import('./MapWidgets').then((module) => ({
+        default: module.TrackMapWidget,
+      }))
     ),
   },
   {
     id: 'flatmap',
     component: lazyWidget(() =>
-      import('./FlatTrackMap').then((module) => ({
-        default: module.FlatTrackMap,
+      import('./MapWidgets').then((module) => ({
+        default: module.FlatTrackMapWidget,
       }))
     ),
   },
