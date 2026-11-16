@@ -28,7 +28,7 @@ const MAX_FRAME_GAP_SECONDS = 2;
  * thirds of a tank. A second later the reading is the car's own again, and
  * every sample is still exactly one lap long.
  */
-const ENERGY_SETTLE_SECONDS = 1;
+export const ENERGY_SETTLE_SECONDS = 1;
 /** LMU's pit state for a car that has asked for a stop. */
 const PIT_STATE_REQUESTED = 1;
 /** LMU's pit state for a car stationary at its box. */

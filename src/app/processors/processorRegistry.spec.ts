@@ -15,6 +15,8 @@ import { createProcessorDefinitions } from './processorRegistry';
  * PlayerLedgerRuntime keeps the player's laps and stints, which are stored:
  * a record with a hole for every minute no widget was showing is no record.
  * Its wear forecast is made from those laps, so it is published from there.
+ * RaceHistoryRuntime keeps every lap of every car for the whole race, which
+ * is stored too, and publishes what it holds of each car.
  */
 const RUNTIME_OWNED_CHANNELS = [
   'lap-history.snapshot',
@@ -22,6 +24,7 @@ const RUNTIME_OWNED_CHANNELS = [
   'player-ledger.snapshot',
   'player-stint.snapshot',
   'wear.snapshot',
+  'race-history.summary',
   'replay.context',
   'streamchat.messages',
   'streamchat.emotes',

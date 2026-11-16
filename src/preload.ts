@@ -1,6 +1,7 @@
 import { exposeWindowVisibilityBridge } from './app/bridge/windowVisibilityRendererBridge';
 import { exposeStorageStatusBridge } from './app/bridge/storageStatusRendererBridge';
 import { exposeLapLibraryBridge } from './app/bridge/lapLibraryRendererBridge';
+import { exposeRaceHistoryBridge } from './app/bridge/raceHistoryRendererBridge';
 import { exposeTrackProfileBridge } from './app/bridge/trackProfileRendererBridge';
 import { exposeOverlayVisibilityBridge } from './app/bridge/overlayVisibilityRendererBridge';
 // See the Electron documentation for details on how to use preload scripts:
@@ -18,6 +19,7 @@ exposeChannelBridge();
 exposeWidgetPreviewBridge();
 exposeStorageStatusBridge();
 exposeLapLibraryBridge();
+exposeRaceHistoryBridge();
 exposeTrackProfileBridge();
 exposeOverlayVisibilityBridge();
 exposeWindowVisibilityBridge();

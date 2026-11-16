@@ -10,3 +10,17 @@ export const isTapeReplaySource = (
   env: NodeJS.ProcessEnv = process.env
 ): boolean =>
   Boolean(env.IRDASHIES_TELEMETRY_REPLAY || env.IRDASHIES_LMU_REPLAY);
+
+/**
+ * Whether telemetry comes from a recording of any kind: a tape, or a
+ * capture played through the isolated SDK addon, which looks like iRacing
+ * to the bridge and is no more a race being driven than a tape is.
+ *
+ * Wider than the tape test above, which the stores of the player's own
+ * laps go by. This is for a record of a whole race that outlives the app:
+ * one made from any recording would sit in the file as a race the player
+ * was in.
+ */
+export const isRecordedSource = (
+  env: NodeJS.ProcessEnv = process.env
+): boolean => isTapeReplaySource(env) || env.IRDASHIES_IRSDK_REPLAY === '1';

@@ -11,6 +11,7 @@ import {
   LAP_HISTORY_CAPACITY,
   TrackLocation,
 } from '@irdashies/types';
+import { LapCounterWatch, NO_CROSSING } from './lapCrossing';
 import type { TelemetryProcessor } from './TelemetryProcessor';
 
 /** Car slots the buffers are sized for. iRacing's hard limit is 64. */
@@ -36,8 +37,8 @@ export class LapHistoryProcessor implements TelemetryProcessor<LapHistorySnapsho
   private readonly classPosition = zeroes(MAX_CARS * LAP_HISTORY_CAPACITY);
   private readonly flags = zeroes(MAX_CARS * LAP_HISTORY_CAPACITY);
 
-  /** Last seen lap per car, used to detect a crossing. -1 = no baseline yet. */
-  private readonly previousLap = new Array<number>(MAX_CARS).fill(-1);
+  /** Says which cars crossed the line on a frame; see lapCrossing.ts. */
+  private readonly lapCounters = new LapCounterWatch(MAX_CARS);
 
   private sessionNum: number | null = null;
   private version = 0;
@@ -91,12 +92,10 @@ export class LapHistoryProcessor implements TelemetryProcessor<LapHistorySnapsho
     const cars = Math.min(carIdxLap.length, MAX_CARS);
     for (let carIdx = 0; carIdx < cars; carIdx += 1) {
       const lap = toInt(carIdxLap[carIdx]);
-      const previous = this.previousLap[carIdx];
-      this.previousLap[carIdx] = lap;
-
       // A car with no baseline yet, or one that went backwards (tow, reset),
       // establishes a new baseline instead of recording a crossing.
-      if (previous < 0 || lap <= previous) continue;
+      const previous = this.lapCounters.take(carIdx, lap);
+      if (previous === NO_CROSSING) continue;
 
       const surface = toInt(trackSurface?.[carIdx] ?? TrackLocation.OnTrack);
       let crossingFlags = 0;
@@ -148,7 +147,7 @@ export class LapHistoryProcessor implements TelemetryProcessor<LapHistorySnapsho
    * the first frame would otherwise record a crossing at the wrong time.
    */
   rebaseline(): void {
-    this.previousLap.fill(-1);
+    this.lapCounters.rebaseline();
   }
 
   snapshot(): LapHistorySnapshot {
@@ -195,7 +194,7 @@ export class LapHistoryProcessor implements TelemetryProcessor<LapHistorySnapsho
     this.sessionNum = sessionNum;
     this.count.fill(0);
     this.start.fill(0);
-    this.previousLap.fill(-1);
+    this.lapCounters.rebaseline();
     this.publish();
   }
 }

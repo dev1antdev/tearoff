@@ -64,11 +64,16 @@ import {
 import {
   closeLapLibraryOnShutdown,
   startLapLibrary,
+  startRaceHistoryStore,
 } from './app/storage/lapLibrary';
 import { PlayerLedgerRuntime } from './app/processors/playerLedgerRuntime';
 import { setLivePlayerStintSource } from './app/processors/livePlayerStint';
 import { wirePlayerLapRecording } from './app/playerLapRecording';
 import { setupLapLibraryBridge } from './app/bridge/lapLibraryBridge';
+import { RaceHistoryRuntime } from './app/processors/raceHistoryRuntime';
+import { watchRaceHistoryDemand } from './app/raceHistoryDemand';
+import { setupRaceHistoryBridge } from './app/bridge/raceHistoryBridge';
+import { isRecordedSource } from './app/tapeReplaySource';
 import { flushLapTracesOnShutdown } from './app/storage/lapTraces';
 import { flushPitLaneDataOnShutdown } from './app/storage/pitLaneData';
 import {
@@ -236,6 +241,7 @@ let disposeLapHistoryRuntime: (() => void) | undefined;
 let disposeLapLibraryRecording: (() => void) | undefined;
 let disposeTrackProfileRecording: (() => void) | undefined;
 let disposePitStopRuntime: (() => void) | undefined;
+let disposeRaceHistory: (() => void) | undefined;
 let disposeStreamChat: (() => void) | undefined;
 let disposeReplayContextRuntime: (() => void) | undefined;
 const knownLocalUserIds = createKnownLocalUserIdStore();
@@ -551,6 +557,105 @@ function setupPitStopRuntime(
 }
 
 /**
+ * Records every lap of every car for the whole race, stores it in the lap
+ * library's file, and carries it on when the app is started again in the
+ * middle of the race.
+ *
+ * Hosted outside the ProcessorHost for the lap library's reason. It records
+ * while the Pit Wall is switched on and the running simulator can show it,
+ * or while something reads its summary; with neither it reads no frame. A
+ * recording of any kind, a replay source and demo mode are recorded and can
+ * be read, but none of it is a race the player was in: nothing of it is
+ * written. With a replay file loaded nothing is recorded at all.
+ *
+ * Its bridge answers the app's own windows over IPC. The one instance is
+ * what `setupRaceHistoryBridge` returns, for whatever else comes to serve
+ * the same answers.
+ */
+function setupRaceHistory(
+  initialDashboard: DashboardLayout,
+  replayContext: ReplayContextRuntime
+): void {
+  const lifecycle = getSessionLifecycle();
+  const runtime = new RaceHistoryRuntime(
+    channelBus,
+    lifecycle,
+    runtimePerfMetrics,
+    startRaceHistoryStore(),
+    {
+      // Read when a race begins: left on auto-detect the simulator is named
+      // only once a game is found, and frames only flow after that.
+      simulator: () => getActiveSimulator() ?? '',
+      sessionIdsAreUnique: sessionIdNamesOneEvent,
+      now: () => Date.now(),
+      bootId: Date.now().toString(36),
+      log: (message) => log.info(message),
+      logError: (message, error) => log.error(message, error),
+    }
+  );
+  const { dispose: disposeBridge } = setupRaceHistoryBridge(runtime);
+
+  let replaySource = false;
+  const applyEnabled = () => {
+    runtime.setPersisting(
+      !isRecordedSource() && !replaySource && !getIsDemoMode()
+    );
+    runtime.setPaused(replayContext.isReplayFile());
+  };
+  applyEnabled();
+  const unsubscribeEnter = lifecycle.onEnter(({ replay }) => {
+    replaySource = replay;
+    applyEnabled();
+  });
+  const unsubscribeReplayContext = replayContext.onChange(applyEnabled);
+
+  const unsubscribeDemand = watchRaceHistoryDemand({
+    bus: channelBus,
+    initialLayout: initialDashboard,
+    onDashboardUpdated,
+    getSimulator: getActiveSimulator,
+    onSimulatorChanged: onActiveSimulatorChanged,
+    getSupport: getSimWidgetSupport,
+    onChange: (needed) => runtime.updateEnabled(needed),
+    resolveLayout: (layout) => createPerfDashboard(layout, perfRun),
+  });
+
+  let unsubscribeSession: (() => void) | undefined;
+  let unsubscribeTelemetry: (() => void) | undefined;
+  const wireToTelemetryBridge = () => {
+    unsubscribeSession?.();
+    unsubscribeTelemetry?.();
+    // Whether the source is the player's own racing can change with it.
+    applyEnabled();
+    const bridge = getCurrentBridge();
+    if (!bridge) return;
+    unsubscribeSession =
+      bridge.onSessionData((session) => runtime.onSession(session)) ??
+      undefined;
+    unsubscribeTelemetry =
+      bridge.onTelemetry((telemetry) => runtime.onFrame(telemetry)) ??
+      undefined;
+  };
+  wireToTelemetryBridge();
+  const unsubscribeBridgeChanged = onBridgeChanged(wireToTelemetryBridge);
+
+  // Before the library closes: the laps still waiting for their time are
+  // handed on by this, and written with the rest when the file is closed.
+  disposeRaceHistory = () => {
+    unsubscribeSession?.();
+    unsubscribeTelemetry?.();
+    unsubscribeSession = undefined;
+    unsubscribeTelemetry = undefined;
+    unsubscribeBridgeChanged?.();
+    unsubscribeDemand();
+    unsubscribeEnter();
+    unsubscribeReplayContext();
+    disposeBridge();
+    runtime.dispose();
+  };
+}
+
+/**
  * Hosts the replay context outside the ProcessorHost. It is created before the
  * incident and lap-history runtimes and wired to the bridge first, so a
  * replay file is recognised before they see its session. Frames are only read
@@ -769,6 +874,7 @@ void app.whenReady().then(async () => {
   setupLapLibraryRecording(replayContextRuntime);
   setupTrackProfiles(replayContextRuntime);
   setupPitStopRuntime(dashboard, replayContextRuntime);
+  setupRaceHistory(dashboard, replayContextRuntime);
   disposeStreamChat = setupStreamChat(channelBus, listDashboards);
   // Returns false when the Gantry widget is disabled, so Settings can explain
   // why the button did nothing instead of appearing to be broken.
@@ -990,6 +1096,7 @@ const handleBeforeQuit = createBeforeQuitHandler({
     disposeLapLibraryRecording?.();
     disposeTrackProfileRecording?.();
     disposePitStopRuntime?.();
+    disposeRaceHistory?.();
     disposeOverlayVisibility?.();
     disposeStreamChat?.();
     disposeReplayContextRuntime?.();

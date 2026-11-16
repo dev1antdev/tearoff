@@ -24,6 +24,7 @@ export * from './lapTrace';
 export * from './lapTraceLayout';
 export * from './lapLibrary';
 export * from './ledger';
+export * from './raceHistory';
 export * from './overlayVisibility';
 export * from './layoutTree';
 export * from './lmu';

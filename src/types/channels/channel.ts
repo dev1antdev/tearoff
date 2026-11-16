@@ -26,6 +26,7 @@ import type { CruiseSnapshot } from './cruise';
 import type { PitLaneCalibration } from '../pitLane';
 import type { TrafficSnapshot } from './traffic';
 import type { FinishProjectionSnapshot } from './finishProjection';
+import type { RaceHistorySummarySnapshot } from './raceHistory';
 
 export type SessionLifecycleEvent =
   | { type: 'enter'; replay: boolean }
@@ -84,6 +85,7 @@ export interface ChannelPayloads {
   'cruise.snapshot': CruiseSnapshot;
   'traffic.snapshot': TrafficSnapshot;
   'finish-projection.snapshot': FinishProjectionSnapshot;
+  'race-history.summary': RaceHistorySummarySnapshot;
 }
 
 export interface TrackStateSnapshot {
@@ -1425,6 +1427,13 @@ export const channelRegistry = {
     kind: 'snapshot',
     defaultRateHz: 1,
     maxRateHz: 2,
+  },
+  // Counts and the current stint for every car. Rebuilt at most once a
+  // second, and only when a lap, a stint or a driver changed.
+  'race-history.summary': {
+    kind: 'snapshot',
+    defaultRateHz: 1,
+    maxRateHz: 1,
   },
 } as const satisfies ChannelRegistry;
 
