@@ -7,7 +7,8 @@ const meta: Meta<typeof PitWallPanel> = {
   parameters: { layout: 'fullscreen' },
   decorators: [
     (Story) => (
-      <div className="h-[320px] w-[460px] bg-settings-page p-3">
+      // A grid, as the page is: the panel takes the size of its cell.
+      <div className="grid h-[320px] w-[460px] bg-settings-page p-3">
         <Story />
       </div>
     ),
@@ -42,7 +43,7 @@ export const LongTitle: Story = {
   },
   decorators: [
     (Story) => (
-      <div className="w-[240px]">
+      <div className="grid w-[240px]">
         <Story />
       </div>
     ),
