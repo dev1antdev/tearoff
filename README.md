@@ -50,7 +50,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Track Map, Flat Track Map, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Hybrid (for cars that have the system), Lift and Coast Lights, Weather Forecast, Minimap, Track Map, Flat Track Map, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
-**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Tyre & Brake Wear, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Track Map, Flat Track Map, Elevation, Cruise, Track Notes, Lap Delta, Corner Delta, Timing, Timing Tower, Lap Timer, Car Systems, Fuel Calculator, Fuel Saver, Pit Stop, Finish Projection, Our Car, Class Rivals, Stint Timeline, and Stint History. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Radar, Gantry, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Tyre & Brake Wear, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Track Map, Flat Track Map, Elevation, Cruise, Track Notes, Lap Delta, Corner Delta, Timing, Timing Tower, Lap Timer, Car Systems, Fuel Calculator, Fuel Saver, Pit Stop, Finish Projection, Our Car, Class Rivals, Stint Timeline, Crew and Stints, Car Laps, and Stint History. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Radar, Gantry, Tachometer, and Shift Light.
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Traffic, Faster Cars From Behind, Slow Car Ahead, Rejoin Indicator, Information Bar, System Performance (without its Sim row), Tyres, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Track Map, Flat Track Map, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
@@ -859,6 +859,45 @@ Your car and a few class rivals as bars from the start of the race to the flag: 
 
 The stints driven are the race history's records, kept from the moment the Pit Wall or this widget is switched on: a stint driven before that, or while Tearoff was not running, is a gap in the bar and is not filled in. The stints to come are laid out from the forecast (see [Our Car](#our-car)): the lap the next stop is due, then a full stint and a stop at a time for as many stops as the car owes, the last one running to the flag. Where the forecast cannot say when a car stops there are no dashed bars for it at all, since an unbroken one would say it does not stop. Who drives a stint to come is not known and is not shown.
 
+### Crew and Stints
+
+Who has driven a car for how long and how fast, and every stint it has run with the stop that ended it. It is made for a panel of [the Pit Wall](#the-pit-wall) and can be put on the overlay as well. Both simulators, with less under iRacing.
+
+**Features:**
+
+- It is about your own car, the one you drive or share, until you choose another in its header: your car first, then the cars of your class in the order of their places, then the other classes. The choice lasts while the panel is on screen and is not saved
+- A row for each driver who has been at the wheel: stints, time at the wheel, the mean of their clean laps and their best lap. The driver in the car now is highlighted. Your car's drivers take the colours the [Stint Timeline](#stint-timeline) gives them
+- Optional drive-time limits, off by default: enter the most one driver may drive and the least each must, and every driver gets a bar of time driven against the maximum with a mark at the minimum, and beside it what they still owe ("needs 0:31"), what they have left before the maximum, or how far past it they are, in red. The limits are your league's: neither simulator states any
+- Every stint, newest first: its number, driver, laps, time, mean clean lap, best lap and what a lap of it used
+- The stop that ended each stint: how long the car stood still, and what can be seen to have been done. **driver** is another name at the wheel, **tyres** another compound on a wheel, **energy** or **fuel** more aboard at the line after the stop than at the line before it
+- The stint under way reads "under way", with its pace against the last stint another driver drove: the [Timing Tower](#timing-tower)'s **vs stint** figure held against the previous driver, green when quicker, and shown once the stint has three clean laps
+- The drivers or the stint list can be switched off; adjustable background opacity, session visibility and an option to show only when on track
+
+**What it counts.** Time at the wheel runs from where a stint began, which after a stop is the pit exit, to where it ended, which is the pit entry; the stint under way runs to the session clock, to the minute. A stint that began in the garage is counted from its first crossing of the line, since when the car left the garage is not recorded. What a lap used is the mean of the drops in what the car had left between one lap's line and the next, in percent of a full budget: virtual energy for a car that runs on it, fuel otherwise.
+
+**What it cannot see.** A new set of tyres of the same compound, a top-up smaller than what the lap of the stop used, and anything done in the garage are not shown, because nothing in the records tells them apart from nothing having been done. Only drivers who have driven are listed: neither simulator's session names the rest of an entry's crew, so a driver who has yet to take the car does not appear, and what such a driver still owes of a minimum is not shown until they do.
+
+**Under iRacing** there is no column for what a lap used and a stop reads its standing time and "driver" only: iRacing publishes neither another car's fuel nor a compound for each wheel.
+
+**What it knows, and from when.** Everything is the race history's, kept from the moment the Pit Wall or this widget is switched on. What was driven before that, or while Tearoff was not running, is not counted: a stint that was under way then ends "laps after it not recorded", and the header says how many laps are missing. No recording of a race with a pit stop or a driver change exists, so the stops and the driver totals have been checked on staged data only. In a browser the page says the race history is not available yet.
+
+### Car Laps
+
+The laps of one car, newest first, with its sectors, what each lap used and a note on what happened on it. It is made for a panel of [the Pit Wall](#the-pit-wall). Both simulators, with less under iRacing.
+
+**Features:**
+
+- Your own car until you choose another in its header, as in [Crew and Stints](#crew-and-stints)
+- **Lap** and **Time**, as the sim timed it. The best clean lap of each stint is green, once the stint has two clean laps; it is purple where it is also the best lap of the car's class in the session. A lap that is not a clean one, in the pits, under a full-course yellow or untimed, is written quieter
+- **S1**, **S2**, **S3** (Le Mans Ultimate), with the best of the stint in each sector green
+- **Energy** (Le Mans Ultimate): what the lap used, in percent of a full budget, and "refilled" for a lap the car ended with more aboard than it began. The column is headed **Fuel** for a car that runs on fuel
+- **Note**: "in lap", "out lap", "through the pit lane" for a drive-through, the stop with how long the car stood and what can be seen to have been done ("stop 58 s: energy, tyres, driver change"), "driver change, no stop seen", "from the grid", "yellow", "full-course yellow" and "no time from the sim"
+- Laps the car completed while nothing was recording are one quiet line where they would have been: "laps 41 to 47 were not recorded"
+- The newest 150 rows are drawn; a button at the foot draws the rest
+- The sector and energy columns can be switched off; adjustable background opacity, session visibility and an option to show only when on track
+
+The stop is noted on the lap the car stood still on, which is the lap after the last one of the stint it ended: the in-lap where a circuit's boxes are before the line, the out-lap where they are after it. A note says what the lap's own flags and the car's stints show and nothing else: why a lap was slow, traffic or cold tyres, is not recorded and is not guessed at. Under iRacing the sector and energy columns are left out. The laps are the race history's, as in [Crew and Stints](#crew-and-stints), and the notes about a stop or a driver change have been checked on staged data only.
+
 ### Stint History
 
 A table of your stints: the one you are driving at the top and the last few finished ones under it, one row each. It is what you read after a stint to see what it cost and how it went. Both simulators, with fewer figures under iRacing.
@@ -1356,7 +1395,7 @@ This is its first stage, and nothing of it has been seen in a live game yet: it 
 - The page's own scale, in its settings
 - The same page in an ordinary browser, at `http://localhost:3000/pitwall` on this PC. With **Enable Network Access** on, a tablet or a second PC on your network opens it too, by the link under **Settings > Pit Wall > In a browser**. That link carries a key: a device that is not this PC is refused everything the web server has without it, and **New key** there replaces it at once and disconnects whoever held the old one. A layout chosen in a browser is kept by that browser and leaves the window as it is; a browser has no settings window to open, so the page there has no gears
 
-**What is not there yet:** the [Timing Tower](#timing-tower) as a panel of this page (the widget exists, and none of the three layouts holds it yet), the class rivals table, the crew and stint timeline, the race log and the pace chart. Panels cannot be moved or resized. The page is for your own devices on your own network: nothing reaches it from outside.
+**What is not there yet:** the [Timing Tower](#timing-tower), [Crew and Stints](#crew-and-stints) and [Car Laps](#car-laps) as panels of this page (the widgets exist, and none of the three layouts holds them yet), the class rivals table, the stint timeline, the race log and the pace chart. Panels cannot be moved or resized. The page is for your own devices on your own network: nothing reaches it from outside.
 
 ### Broadcast overlays
 

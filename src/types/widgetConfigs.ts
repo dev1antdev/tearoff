@@ -2761,6 +2761,50 @@ export interface StintTimelineConfig {
   showOnlyWhenOnTrack: boolean;
 }
 
+/** The longest a drive-time limit can be set to, minutes: a 24-hour race. */
+export const CREW_DRIVE_TIME_MAX_MINUTES = 1440;
+
+/**
+ * Crew and Stints: who has driven a car for how long and how fast, and
+ * every stint it has run with the stop that ended it. About the own entry
+ * unless another car is chosen in the widget's header.
+ */
+export interface CrewConfig {
+  background: { opacity: number };
+  /**
+   * Drive-time limits for each driver, as the user's league sets them:
+   * neither sim states any. Off by default.
+   */
+  driveTime: {
+    enabled: boolean;
+    /** The most one driver may drive, minutes. */
+    maxMinutes: number;
+    /** The least each driver must drive, minutes; 0 for no minimum. */
+    minMinutes: number;
+  };
+  /** The table of drivers. */
+  showDrivers: boolean;
+  /** The list of stints. */
+  showStints: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
+ * Car Laps: the laps of one car, newest first, with sectors, what each lap
+ * used and a note. About the own entry unless another car is chosen in the
+ * widget's header.
+ */
+export interface CarLapsConfig {
+  background: { opacity: number };
+  /** S1, S2 and S3, under a sim that times them for every car. */
+  showSectors: boolean;
+  /** What each lap used of the car's energy or fuel, likewise. */
+  showEnergy: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
 export interface WidgetConfigMap {
   standings: StandingsConfig;
   relative: RelativeConfig;
@@ -2789,6 +2833,8 @@ export interface WidgetConfigMap {
   ourcar: OurCarConfig;
   classrivals: ClassRivalsConfig;
   stinttimeline: StintTimelineConfig;
+  crew: CrewConfig;
+  carlaps: CarLapsConfig;
   streamchat: StreamChatConfig;
   laptimelog: LapTimeLogConfig;
   stinthistory: StintHistoryConfig;
@@ -2946,6 +2992,8 @@ export type OurCarWidgetSettings = BaseWidgetSettings<OurCarConfig>;
 export type ClassRivalsWidgetSettings = BaseWidgetSettings<ClassRivalsConfig>;
 export type StintTimelineWidgetSettings =
   BaseWidgetSettings<StintTimelineConfig>;
+export type CrewWidgetSettings = BaseWidgetSettings<CrewConfig>;
+export type CarLapsWidgetSettings = BaseWidgetSettings<CarLapsConfig>;
 export type StreamChatWidgetSettings = BaseWidgetSettings<StreamChatConfig>;
 export type LapTimeLogWidgetSettings = BaseWidgetSettings<LapTimeLogConfig>;
 export type StintHistoryWidgetSettings = BaseWidgetSettings<StintHistoryConfig>;

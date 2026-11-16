@@ -87,6 +87,12 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   'ourcar',
   'classrivals',
   'stinttimeline',
+  // Two panels about one car, read from the race history: who has driven
+  // it and every stint, and its laps one by one. LMU alone gives the sector
+  // times and what each car has left to run on, so under iRacing they have
+  // no sector and no energy columns.
+  'crew',
+  'carlaps',
   'flag',
   // The flag in force and the car a blue is for, from LMU's session phase,
   // sector flags and scoring. Each sim has states the other cannot report.

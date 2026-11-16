@@ -24,6 +24,8 @@ import { FinishProjectionSettings } from './sections/FinishProjectionSettings';
 import { OurCarSettings } from './sections/OurCarSettings';
 import { ClassRivalsSettings } from './sections/ClassRivalsSettings';
 import { StintTimelineSettings } from './sections/StintTimelineSettings';
+import { CrewSettings } from './sections/CrewSettings';
+import { CarLapsSettings } from './sections/CarLapsSettings';
 import { GeneralSettings } from './sections/GeneralSettings';
 import { BlindSpotMonitorSettings } from './sections/BlindSpotMonitorSettings';
 import { RadarSettings } from './sections/RadarSettings';
@@ -102,6 +104,8 @@ export const WIDGET_SETTINGS: Record<
   ourcar: OurCarSettings,
   classrivals: ClassRivalsSettings,
   stinttimeline: StintTimelineSettings,
+  crew: CrewSettings,
+  carlaps: CarLapsSettings,
   rejoin: RejoinIndicatorSettings,
   fastercarsfrombehind: FasterCarsFromBehindSettings,
   blindspotmonitor: BlindSpotMonitorSettings,
