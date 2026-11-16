@@ -38,6 +38,7 @@ export * from './useWeatherForecastSnapshot';
 export * from './useFlagStateSnapshot';
 export * from './useTrafficSnapshot';
 export * from './useFinishProjectionSnapshot';
+export * from './useRaceForecastSnapshot';
 export * from './useLapDeltaSnapshot';
 export * from './useMinimapSnapshot';
 export * from './useSessionLifecycle';

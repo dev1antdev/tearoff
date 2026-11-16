@@ -79,6 +79,47 @@ export interface FinishProjectionDependencies {
   standings?: () => StandingsSnapshot | undefined;
 }
 
+/**
+ * What stands behind one rival's row and is not published with it: for a
+ * reader that forecasts further from the same reckoning.
+ */
+export interface FinishRivalReckoning {
+  rival: FinishRival;
+  /** The pace its finish is counted at, s a lap: its own, or the class's. */
+  paceS: number;
+  /** Laps completed plus the fraction of the lap under way. */
+  progress: number;
+  /** Laps a full stint lasts it, on the basis its stops are reckoned from. */
+  stintLaps: number;
+  /** Laps what it has aboard lasts, or what is left of its stint. */
+  lapsInHand: number;
+  /**
+   * False where those laps rest on a stint whose start was not seen: the
+   * car had stopped before it was first watched, and is counted as if its
+   * stint had just begun.
+   */
+  stintSeen: boolean;
+}
+
+/**
+ * The reckoning behind the snapshot last published, for the processors
+ * that carry it further. Null while there is nothing to project.
+ */
+export interface FinishReckoning {
+  /** The user's own entry. */
+  own: number;
+  /** When the flag falls with nobody stopping again. */
+  flag: FlagTime;
+  /** Laps to the own entry's finish, as the stops owed are counted to. */
+  playerLapsLeft: number;
+  /** Laps a full stint lasts it; 0 where the car's capacity is not known. */
+  playerStintLaps: number;
+  /** Laps what it has aboard lasts; null while that is not read. */
+  playerLapsInHand: number | null;
+  /** As `rivals` of the snapshot: those ahead, then those behind. */
+  rivals: readonly FinishRivalReckoning[];
+}
+
 /** Everything published but the session and the version. */
 type Projection = Omit<FinishProjectionSnapshot, 'sessionNum' | 'version'>;
 
@@ -213,8 +254,18 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
     sessionNum: null,
     version: 0,
   };
+  /** What the last frame's projection was made of; null with none. */
+  private reckoned: FinishReckoning | null = null;
 
-  constructor(dependencies: FinishProjectionDependencies = {}) {
+  /**
+   * `rivalsPerSide` is how many class cars each way the reckoning covers.
+   * The channel's own instance is left at the three it publishes; the race
+   * forecast runs one of its own over the whole class.
+   */
+  constructor(
+    dependencies: FinishProjectionDependencies = {},
+    private readonly rivalsPerSide = FINISH_RIVALS_PER_SIDE
+  ) {
     this.fuel = dependencies.fuel ?? (() => undefined);
     this.lapTimes = dependencies.lapTimes ?? (() => undefined);
     this.pitStop = dependencies.pitStop ?? (() => undefined);
@@ -258,6 +309,7 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
       this.classIdByCar = [];
       this.pitService = undefined;
     }
+    this.reckoned = null;
     this.publish(
       nothing('notRace'),
       event.type === 'sessionNumChange' ? this.latest.sessionNum : null
@@ -266,6 +318,11 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
 
   snapshot(): FinishProjectionSnapshot {
     return this.latest;
+  }
+
+  /** What the snapshot was last made of: see `FinishReckoning`. */
+  reckoning(): FinishReckoning | null {
+    return this.reckoned;
   }
 
   /** Replaces what is published when a figure of it has moved. */
@@ -283,6 +340,7 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
   }
 
   private project(frame: Telemetry): Projection {
+    this.reckoned = null;
     const fuel = this.fuel();
     const race = fuel?.race;
     // The block is there in a race and nowhere else.
@@ -394,6 +452,32 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
       lastStopLossS: lastStopLossS(carIdx, runner.paceS),
     });
 
+    const rivals =
+      standings && flag
+        ? this.rivals(frame, {
+            own,
+            race,
+            standings,
+            carPit,
+            flag,
+            lapLimit,
+            pit,
+            playerLapsLeft,
+            playerStopsOwed,
+            playerStintLaps,
+          })
+        : [];
+    if (flag) {
+      this.reckoned = {
+        own,
+        flag,
+        playerLapsLeft,
+        playerStintLaps,
+        playerLapsInHand: energy ? energy.aboard / energy.perLap : null,
+        rivals,
+      };
+    }
+
     return {
       valid: true,
       reason: null,
@@ -415,21 +499,7 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
       separateS: round(separateS, 1),
       overlapS: round(overlapS, 1),
       playerStopsOwed,
-      rivals:
-        standings && flag
-          ? this.rivals(frame, {
-              own,
-              race,
-              standings,
-              carPit,
-              flag,
-              lapLimit,
-              pit,
-              playerLapsLeft,
-              playerStopsOwed,
-              playerStintLaps,
-            })
-          : [],
+      rivals: rivals.map((entry) => entry.rival),
     };
   }
 
@@ -566,7 +636,7 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
       playerStopsOwed: number;
       playerStintLaps: number;
     }
-  ): FinishRival[] {
+  ): FinishRivalReckoning[] {
     const ownGap = standings.carIdxF2Time[own];
     if (!Number.isFinite(ownGap)) return [];
     const positions = classPositionsByCar(standings);
@@ -580,8 +650,8 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
       );
     };
     const around = classNeighbourhood(own, this.classIdByCar, positions, {
-      ahead: FINISH_RIVALS_PER_SIDE,
-      behind: FINISH_RIVALS_PER_SIDE,
+      ahead: this.rivalsPerSide,
+      behind: this.rivalsPerSide,
       isRunning,
     });
     if (around.ahead.length === 0 && around.behind.length === 0) return [];
@@ -619,7 +689,7 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
           ? null
           : playerStopsOwed * playerStopLossS;
 
-    const rivals: FinishRival[] = [];
+    const rivals: FinishRivalReckoning[] = [];
     const add = (carIdx: number, ahead: boolean): void => {
       const gap = standings.carIdxF2Time[carIdx];
       const progress = this.progressOf(frame, carIdx);
@@ -628,21 +698,15 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
       // The overall leader finishes on the flag's own lap; any other car at
       // its next crossing after it, at its own pace or failing one the
       // class's, which is the pace the player is projected at.
-      const finish =
-        carIdx === race.leaderCarIdx
-          ? leaderFinish(
-              { paceS: race.leaderPaceS, progress: race.leaderProgress },
-              flag
-            )
-          : carFinish(
-              {
-                paceS: measuredS > 0 ? measuredS : race.playerPaceS,
-                progress,
-              },
-              flag.tFlagS,
-              0,
-              lapLimit
-            );
+      const isLeader = carIdx === race.leaderCarIdx;
+      const paceS = isLeader
+        ? race.leaderPaceS
+        : measuredS > 0
+          ? measuredS
+          : race.playerPaceS;
+      const finish = isLeader
+        ? leaderFinish({ paceS, progress: race.leaderProgress }, flag)
+        : carFinish({ paceS, progress }, flag.tFlagS, 0, lapLimit);
       if (!finish) return;
       const lapsLeft = finish.lapsToGo;
 
@@ -651,15 +715,18 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
       const longestStint = carPit?.longestStintLaps[carIdx] ?? 0;
       // Not known for a car that had stopped before it was first seen:
       // counted as a stint just begun, which owes the fewest stops.
-      const stintLapsDone = Math.max(0, carPit?.stintLaps[carIdx] ?? 0);
+      const stintLapsSeen = carPit?.stintLaps[carIdx] ?? 0;
+      const stintLapsDone = Math.max(0, stintLapsSeen);
       let basis: FinishRivalBasis;
       let stintLaps: number;
       let lapsInHand: number;
+      let stintSeen = true;
       if (remaining >= 0 && usage > 0) {
         basis = 'energy';
         stintLaps = 1 / usage;
         lapsInHand = remaining / usage;
       } else {
+        stintSeen = stintLapsSeen >= 0;
         basis = longestStint > 0 ? 'observed' : 'assumed';
         stintLaps =
           longestStint > 0
@@ -684,28 +751,36 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
       const gapS = gap - ownGap;
 
       rivals.push({
-        carIdx,
-        classPosition: positions[carIdx] ?? 0,
-        ahead,
-        gapS: round(gapS, 1),
-        lapsLeft: round(lapsLeft, 2),
-        stopsOwed,
-        stopLossS: rounded(stopLossS, 1),
-        basis,
-        projectedGapS:
-          rivalPartS === null || playerPartS === null
-            ? null
-            : round(gapS + rivalPartS - playerPartS, 1),
-        paceDeltaS:
-          measuredS > 0 && ownMeasuredS > 0
-            ? round(
-                (measuredS - ownMeasuredS) * Math.min(lapsLeft, playerLapsLeft),
-                1
-              )
-            : 0,
-        inPit:
-          carPit?.where[carIdx] === CAR_PIT_IN_LANE ||
-          standings.carIdxOnPitRoad[carIdx] === true,
+        rival: {
+          carIdx,
+          classPosition: positions[carIdx] ?? 0,
+          ahead,
+          gapS: round(gapS, 1),
+          lapsLeft: round(lapsLeft, 2),
+          stopsOwed,
+          stopLossS: rounded(stopLossS, 1),
+          basis,
+          projectedGapS:
+            rivalPartS === null || playerPartS === null
+              ? null
+              : round(gapS + rivalPartS - playerPartS, 1),
+          paceDeltaS:
+            measuredS > 0 && ownMeasuredS > 0
+              ? round(
+                  (measuredS - ownMeasuredS) *
+                    Math.min(lapsLeft, playerLapsLeft),
+                  1
+                )
+              : 0,
+          inPit:
+            carPit?.where[carIdx] === CAR_PIT_IN_LANE ||
+            standings.carIdxOnPitRoad[carIdx] === true,
+        },
+        paceS,
+        progress: isLeader ? race.leaderProgress : progress,
+        stintLaps,
+        lapsInHand,
+        stintSeen,
       });
     };
     for (const carIdx of around.ahead) add(carIdx, true);

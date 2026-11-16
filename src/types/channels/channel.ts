@@ -26,6 +26,7 @@ import type { CruiseSnapshot } from './cruise';
 import type { PitLaneCalibration } from '../pitLane';
 import type { TrafficSnapshot } from './traffic';
 import type { FinishProjectionSnapshot } from './finishProjection';
+import type { RaceForecastSnapshot } from './raceForecast';
 import type { RaceHistorySummarySnapshot } from './raceHistory';
 
 export type SessionLifecycleEvent =
@@ -85,6 +86,7 @@ export interface ChannelPayloads {
   'cruise.snapshot': CruiseSnapshot;
   'traffic.snapshot': TrafficSnapshot;
   'finish-projection.snapshot': FinishProjectionSnapshot;
+  'race-forecast.snapshot': RaceForecastSnapshot;
   'race-history.summary': RaceHistorySummarySnapshot;
 }
 
@@ -1424,6 +1426,13 @@ export const channelRegistry = {
   // Laps to a finish that is minutes or hours away: worked out once a
   // second, and nothing in it is read faster than that.
   'finish-projection.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 1,
+    maxRateHz: 2,
+  },
+  // The same reckoning over the whole class, with the order it puts the
+  // cars in at the flag: worked out once a second like the projection.
+  'race-forecast.snapshot': {
     kind: 'snapshot',
     defaultRateHz: 1,
     maxRateHz: 2,
