@@ -149,7 +149,10 @@ app.
 6. **Captures** (three times by default): each overlay window whole, then each
    widget's box. Where boxes overlap, the others are hidden for the instant of
    the picture so each widget is on its own. A dark sheet is put behind the
-   transparent overlay while pictures are taken.
+   transparent overlay while pictures are taken. A widget that is a window of
+   its own (the Gantry, the Pit Wall) is photographed as that window, whole:
+   a fresh profile switches both on where the simulator supports them, so
+   their windows open with the overlay.
 7. **Walks the settings window** page by page, scrolling long pages, then
    **flips** the overlay switch, one widget's switch in the menu and the first
    on/off setting on that widget's page, checking the overlay each time and
@@ -185,9 +188,9 @@ a run fails.
 
 The widget table has one line per widget: `rendered`, `empty`, `error`,
 `missing` (switched on, supported, never on screen), `off`, `not for this
-simulator`, `own window` (the Gantry), with what the box read and a link to
-each picture. **Look at the pictures.** The tool can tell an empty box from a
-drawn one; it cannot tell a drawn one from a right one.
+simulator`, `own window` (the Gantry, the Pit Wall), with what the box read
+and a link to each picture. **Look at the pictures.** The tool can tell an
+empty box from a drawn one; it cannot tell a drawn one from a right one.
 
 The verdict counts every console error. Errors that are already known and
 accepted are not filtered out: read the list, it groups repeats.

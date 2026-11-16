@@ -10,6 +10,7 @@ import {
   isNoise,
   widgetFromText,
   windowKind,
+  isOwnWindowWidget,
   type PageProblem,
   type WindowKind,
 } from './errors.ts';
@@ -720,8 +721,10 @@ async function main(): Promise<number> {
       phase = 'setting up the dashboard';
       const disabled = new Set(state.disabledForSim);
       const typeOf = (w: { id: string; type?: string }) => w.type ?? w.id;
+      // A widget with a window of its own is switched on with the rest, and
+      // has no place in the grid of overlay boxes.
       const onOverlay = state.dashboard.widgets.filter(
-        (w) => !disabled.has(typeOf(w)) && typeOf(w) !== 'gantry'
+        (w) => !disabled.has(typeOf(w)) && !isOwnWindowWidget(typeOf(w))
       );
       const plan = planGrid(
         display,
@@ -853,12 +856,13 @@ async function main(): Promise<number> {
           const file = path.join(dir, `window-${name}.png`);
           if (await capture(window.session, file))
             addWindowShot(window.label, file);
-          if (window.kind === 'gantry') {
+          if (isOwnWindowWidget(window.kind)) {
+            // The whole window is the widget: its picture is the one above.
             const text = await window.session.evaluate<string>(
               `(document.body.innerText || '').replace(/\\s+/g, ' ').trim().slice(0, 600)`
             );
-            captures.set('gantry', [
-              ...(captures.get('gantry') ?? []),
+            captures.set(window.kind, [
+              ...(captures.get(window.kind) ?? []),
               {
                 round,
                 drawn: text.length > 0,
@@ -1338,7 +1342,7 @@ async function main(): Promise<number> {
           type,
           enabled: widget.enabled,
           disabledForSim: disabled.has(type),
-          ownWindow: type === 'gantry' || widget.placement === 'gantry',
+          ownWindow: isOwnWindowWidget(type) || widget.placement === 'gantry',
           captures: shots,
           errors,
           hints: [

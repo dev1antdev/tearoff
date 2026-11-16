@@ -1,23 +1,13 @@
 import { memo } from 'react';
-import {
-  CaretDownIcon,
-  CaretRightIcon,
-  GearIcon,
-  WarningIcon,
-} from '@phosphor-icons/react';
+import { CaretDownIcon, CaretRightIcon, GearIcon } from '@phosphor-icons/react';
 import {
   GANTRY_DOCK_PANEL_LABELS,
   type ResolvedDockPanel,
 } from '@irdashies/types';
-import { getWidget } from '../../../WidgetIndex';
-import { WidgetScale } from '@irdashies/domain/widgetPresentation/WidgetScale';
-import { WidgetRuntimeProvider } from '../../../widgetRuntime';
-import { ErrorBoundary } from '../../ErrorBoundary/ErrorBoundary';
-
-const widgetType = (resolved: ResolvedDockPanel) =>
-  resolved.status === 'ready'
-    ? resolved.widget.type || resolved.widget.id
-    : resolved.panel.type;
+import {
+  HostedPanelMessage,
+  HostedWidget,
+} from '../../WidgetPanelHost/HostedWidget';
 
 /** The settings page the gear button opens. */
 export const dockPanelSettingsTarget = (resolved: ResolvedDockPanel) =>
@@ -76,32 +66,6 @@ export const DockPanelHeader = memo(
 );
 DockPanelHeader.displayName = 'DockPanelHeader';
 
-const PanelMessage = ({
-  message,
-  action,
-}: {
-  message: string;
-  action?: { label: string; onClick: () => void };
-}) => (
-  <div className="h-full flex flex-col items-center justify-center gap-2 p-3 text-center text-xs text-slate-400">
-    <WarningIcon size={18} className="text-slate-500" />
-    <p>{message}</p>
-    {action && (
-      <button
-        type="button"
-        onClick={action.onClick}
-        className="text-sky-400 hover:text-sky-300 underline"
-      >
-        {action.label}
-      </button>
-    )}
-  </div>
-);
-
-const PANEL_ERROR = (
-  <PanelMessage message="This panel hit a problem. It will try again shortly." />
-);
-
 interface DockPanelContentProps {
   resolved: ResolvedDockPanel;
   running: boolean;
@@ -109,8 +73,8 @@ interface DockPanelContentProps {
 }
 
 /**
- * Renders the widget the way the overlay does: through the registry, inside
- * its own error boundary and its own channel rates.
+ * What a docked panel shows: its widget, drawn by the host the Pit Wall
+ * shares, or why there is none.
  */
 export const DockPanelContent = memo(
   ({ resolved, running, onOpenSettings }: DockPanelContentProps) => {
@@ -122,7 +86,7 @@ export const DockPanelContent = memo(
             ? 'The fuel layout this panel used was removed.'
             : `The ${dockPanelLabel(resolved)} widget is missing from this profile.`;
       return (
-        <PanelMessage
+        <HostedPanelMessage
           message={message}
           action={{
             label:
@@ -135,27 +99,13 @@ export const DockPanelContent = memo(
       );
     }
 
-    const type = widgetType(resolved);
-    const Widget = getWidget(type);
-    if (!Widget) return null;
-
-    if (!running && !resolved.widget.alwaysEnabled) {
-      return <PanelMessage message="Waiting for iRacing." />;
-    }
-
     return (
-      <ErrorBoundary
-        label={`gantry-dock:${type}`}
-        resetAfterMs={2000}
-        fallback={PANEL_ERROR}
-      >
-        <WidgetRuntimeProvider widgetType={type}>
-          <WidgetScale scale={resolved.widget.scale}>
-            {/* embedded: this copy must never write to disk. */}
-            <Widget {...resolved.widget.config} embedded />
-          </WidgetScale>
-        </WidgetRuntimeProvider>
-      </ErrorBoundary>
+      <HostedWidget
+        widget={resolved.widget}
+        running={running}
+        host="gantry-dock"
+        waitingMessage="Waiting for iRacing."
+      />
     );
   }
 );

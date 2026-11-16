@@ -1,11 +1,23 @@
 /** What a window of the app is, told from the address it loaded. */
 export type WindowKind =
-  'overlay' | 'widget' | 'settings' | 'gantry' | 'tape' | 'other';
+  'overlay' | 'widget' | 'settings' | 'gantry' | 'pitwall' | 'tape' | 'other';
+
+/**
+ * The widgets that are a page in a window of their own instead of a box on
+ * the overlay. The kind of such a window is the widget's type.
+ */
+export const OWN_WINDOW_WIDGETS = ['gantry', 'pitwall'] as const;
+
+export const isOwnWindowWidget = (
+  type: string
+): type is (typeof OWN_WINDOW_WIDGETS)[number] =>
+  (OWN_WINDOW_WIDGETS as readonly string[]).includes(type);
 
 export function windowKind(url: string): WindowKind {
   const hash = url.includes('#') ? url.slice(url.indexOf('#')) : '';
   if (hash.startsWith('#/tape-replay')) return 'tape';
   if (hash.startsWith('#/gantry')) return 'gantry';
+  if (hash.startsWith('#/pitwall')) return 'pitwall';
   if (hash.startsWith('#/settings')) return 'settings';
   if (hash === '#/overlay-widget') return 'widget';
   // The overlay loads the renderer's index with no route; anything else

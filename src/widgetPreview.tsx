@@ -40,6 +40,13 @@ const GantryPreview = lazy(() =>
     default: module.GantryContent,
   }))
 );
+// Like the Gantry, the Pit Wall is a page with hosts of its own: the bare
+// registered component would show its panels empty.
+const PitWallPreview = lazy(() =>
+  import('./frontend/windows/PitWallWindow').then((module) => ({
+    default: module.PitWallContent,
+  }))
+);
 
 // This entry has no preload. Its only data source is its owning preview host.
 const send = (request: WidgetPreviewRequest) =>
@@ -59,6 +66,7 @@ const storage = createPreviewStorage();
 window.fuelCalculatorBridge = storage.fuel;
 window.lapTraceBridge = storage.lapTrace;
 window.raceControlBridge = storage.raceControl;
+window.pitWallBridge = storage.pitWall;
 const personalBests = new Map<string, number>();
 window.personalBestBridge = {
   getPersonalBest: async (track, car) =>
@@ -161,6 +169,8 @@ function renderPreview(config: WidgetPreviewConfig, session?: Session) {
                 >
                   {type === 'gantry' ? (
                     <GantryPreview />
+                  ) : type === 'pitwall' ? (
+                    <PitWallPreview />
                   ) : (
                     <Widget {...value.widgets[0].config} />
                   )}

@@ -4,6 +4,7 @@ import { ErrorBoundary } from './components/ErrorBoundary/ErrorBoundary';
 
 const SettingsWindow = lazy(() => import('./windows/SettingsWindow'));
 const GantryWindow = lazy(() => import('./windows/GantryWindow'));
+const PitWallWindow = lazy(() => import('./windows/PitWallWindow'));
 const OverlayWindow = lazy(() => import('./windows/OverlayWindow'));
 const IndividualWidgetWindow = lazy(
   () => import('./windows/IndividualWidgetWindow')
@@ -18,24 +19,29 @@ const App = () => {
   const hash = window.location.hash;
   const isTape = hash.startsWith('#/tape-replay');
   const isGantry = hash.startsWith('#/gantry');
+  const isPitWall = hash.startsWith('#/pitwall');
   const isSettings = hash.startsWith('#/settings');
   const isIndividual = hash === '#/overlay-widget';
   const Content = isTape
     ? TapeReplay
     : isGantry
       ? GantryWindow
-      : isSettings
-        ? SettingsWindow
-        : isIndividual
-          ? IndividualWidgetWindow
-          : OverlayWindow;
+      : isPitWall
+        ? PitWallWindow
+        : isSettings
+          ? SettingsWindow
+          : isIndividual
+            ? IndividualWidgetWindow
+            : OverlayWindow;
   const label = isTape
     ? 'tape replay'
     : isGantry
       ? 'gantry'
-      : isSettings
-        ? 'settings'
-        : 'overlay';
+      : isPitWall
+        ? 'pit wall'
+        : isSettings
+          ? 'settings'
+          : 'overlay';
   return (
     <ErrorBoundary label={label} resetAfterMs={isTape ? undefined : 2000}>
       <Suspense fallback={null}>

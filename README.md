@@ -1245,6 +1245,28 @@ A race control window with live standings, an automatic incident feed, and a per
 
 ![Gantry Lap Graph](./docs/assets/gantry-chart.png)
 
+### The Pit Wall
+
+One page about the race from your own car's side, in an ordinary window of its own: made for a second monitor, and for the hours of an endurance race when a team-mate drives and you sit at the monitor. Switch it on in Settings (it is under Standings); the window opens once, and **Show Window** on its settings page or **Pit Wall** in the tray menu brings it back after you close it. It works under Le Mans Ultimate and iRacing.
+
+This is its first stage, and nothing of it has been seen in a live game yet: it has been checked on staged data only.
+
+**What is there:**
+
+- A header with the simulator that is connected, the session and the track, the time left, the in-game clock, the flag, your car's number, class, place in class and overall, who is at the wheel, and "You are watching" while that is not you
+- Three fixed layouts, switched in the header and remembered: **Race** for a full second monitor, **Watching** for a team-mate's stint, **Compact** for a small or touch screen
+- Panels that host the widgets Tearoff already has, each with the settings you gave that widget, whether or not it is switched on for the overlay. A gear on each panel opens that widget's settings
+  - Race: Standings, Fuel Calculator, Pit Stop, Flag Panel, Finish Projection, Stint History, Weather Forecast, Track Map, Traffic, Tyre & Brake Wear
+  - Watching: Finish Projection, Stint History, Pit Stop, Timing, Lap Timer, Tyres, Damage, Standings, Weather Forecast
+  - Compact: Standings, Fuel Calculator, Pit Stop, Finish Projection, Weather
+- A panel whose widget the running simulator does not support is left out and its neighbours take the room. Under Le Mans Ultimate that is the Track Map for now; under iRacing it is Tyre & Brake Wear, Weather Forecast, Tyres and Damage
+- On this page the widgets ignore their "show only when on track" and session switches. Those keep a widget off the game's screen, and this is a screen of its own
+- A widget wider than its panel is drawn smaller to fit, and one taller than its panel scrolls inside it
+- Full screen with F11 or the button in the header; the window remembers its place, its size, its monitor and whether it was maximised
+- The page's own scale, in its settings
+
+**What is not there yet:** the endurance timing tower with lap averages, the class rivals table, the crew and stint timeline, the race log and the pace chart. Panels cannot be moved or resized, and the page is not served to a browser.
+
 ### Broadcast overlays
 
 TV-style overlays for iRacing streams, configured together in **Settings > Broadcast**. Each is an independent widget with its own position and browser-source URL.

@@ -34,6 +34,8 @@ class Taskbar {
     this.buildContextMenu();
     // The tick has to follow the shortcut and the settings window too.
     this.overlayVisibility.onChange(() => this.buildContextMenu());
+    // The Pit Wall is listed only while its widget is switched on.
+    this.overlayManager.onPitWallEnabledChange(() => this.buildContextMenu());
   }
 
   private createTray(): Tray {
@@ -60,6 +62,17 @@ class Taskbar {
           this.overlayManager.focusSettingsWindow();
         },
       },
+      // Opens the Pit Wall window, or brings back one that was closed.
+      ...(this.overlayManager.isPitWallEnabled()
+        ? [
+            {
+              label: 'Pit Wall',
+              click: () => {
+                this.overlayManager.showPitWallWindow();
+              },
+            },
+          ]
+        : []),
       {
         // Ticked while the overlay is on. A paused game can still have it
         // off the screen; this is the driver's own switch.

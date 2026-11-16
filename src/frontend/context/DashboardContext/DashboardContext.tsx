@@ -1,6 +1,7 @@
 import React, {
   createContext,
   useContext,
+  useMemo,
   useState,
   ReactNode,
   useEffect,
@@ -297,6 +298,38 @@ export const useDashboard = (): DashboardContextProps => {
     throw new Error('useDashboard must be used within a DashboardProvider');
   }
   return context;
+};
+
+/**
+ * Hands the widgets below a changed copy of the dashboard, for a host that
+ * shows them under rules of its own: a page that is always on screen has no
+ * use for a widget's "only on track" switch.
+ *
+ * What is below can read the copy and nothing more. It gets no way to save,
+ * so a setting changed for the host can never reach the user's file.
+ */
+export const HostedDashboardProvider = ({
+  dashboard,
+  children,
+}: {
+  dashboard: DashboardLayout | undefined;
+  children: ReactNode;
+}) => {
+  const parent = useDashboard();
+  const value = useMemo(
+    () => ({
+      ...parent,
+      currentDashboard: dashboard,
+      editMode: false,
+      onDashboardUpdated: undefined,
+    }),
+    [parent, dashboard]
+  );
+  return (
+    <DashboardContext.Provider value={value}>
+      {children}
+    </DashboardContext.Provider>
+  );
 };
 
 /**

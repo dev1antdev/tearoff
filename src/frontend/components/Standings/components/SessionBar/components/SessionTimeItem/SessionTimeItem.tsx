@@ -1,80 +1,19 @@
 import { memo } from 'react';
 import { useSessionTimeTiming } from '@irdashies/context';
-import { SessionState } from '@irdashies/types';
+import { sessionClock } from '@irdashies/domain/sessionClock/sessionClock';
 import { formatTotalTime } from '../../formatTotalTime';
 import { sessionBarItemWrapperClass } from '../../sessionBarItemWrapperClass';
 import type { SessionBarItemProps } from '../../sessionBarItemTypes';
 
 export const SessionTimeItem = memo(
   ({ settings, standalone }: SessionBarItemProps) => {
+    const timing = useSessionTimeTiming();
+    const { sessionType: session, state, isFixedLapRace } = timing;
     const {
-      sessionType: session,
-      time,
-      timeRemaining,
-      timeTotal,
-      state,
-      greenFlagTimestamp,
-      isFixedLapRace,
-      totalRaceTime,
-      adjustedRaceTime,
-    } = useSessionTimeTiming();
-
-    let elapsedTime: number;
-    let remainingTime: number;
-    let totalTime: number;
-    if (session === 'Race') {
-      switch (state) {
-        case SessionState.GetInCar:
-          // Before grid, there is a ~2min countdown
-          elapsedTime = time;
-          remainingTime = timeRemaining;
-          totalTime = time + timeRemaining;
-          break;
-        case SessionState.Warmup:
-        case SessionState.ParadeLaps:
-          // Freeze the race timers until green
-          elapsedTime = 0;
-          if (isFixedLapRace) {
-            remainingTime = adjustedRaceTime;
-            totalTime = adjustedRaceTime;
-          } else {
-            remainingTime = timeRemaining;
-            totalTime = timeTotal;
-          }
-          break;
-        case SessionState.Racing:
-        case SessionState.Checkered:
-          // Session timer does not restart at green
-          elapsedTime = time - greenFlagTimestamp;
-          if (isFixedLapRace) {
-            remainingTime = totalRaceTime - elapsedTime;
-            totalTime = totalRaceTime;
-          } else {
-            remainingTime = timeTotal - elapsedTime;
-            totalTime = timeTotal;
-          }
-          break;
-        case SessionState.CoolDown:
-          elapsedTime = time - greenFlagTimestamp;
-          if (isFixedLapRace) {
-            remainingTime = adjustedRaceTime - elapsedTime;
-            totalTime = adjustedRaceTime;
-          } else {
-            remainingTime = 0;
-            totalTime = timeTotal;
-          }
-          break;
-        default:
-          elapsedTime = 0;
-          remainingTime = 0;
-          totalTime = 0;
-          break;
-      }
-    } else {
-      elapsedTime = time;
-      remainingTime = timeRemaining;
-      totalTime = timeTotal;
-    }
+      elapsed: elapsedTime,
+      remaining: remainingTime,
+      total: totalTime,
+    } = sessionClock(timing);
 
     const sessionTimeSettings = settings?.sessionTime;
     const totalFormat = sessionTimeSettings?.totalFormat ?? 'minimal';

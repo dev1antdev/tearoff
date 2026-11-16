@@ -66,6 +66,7 @@ import { BattleSettings } from './sections/BattleSettings';
 import { ClassFieldsSettings } from './sections/ClassFieldsSettings';
 import { BroadcastSettingsPage } from './sections/BroadcastGroupSettings';
 import { GantrySettings } from './sections/GantrySettings';
+import { PitWallSettings } from './sections/PitWallSettings';
 import { SettingsPreviewContext } from '@irdashies/domain/widgetPreview/settingsPreviewContext';
 import { widgetSettingsType } from './widgetSettingsType';
 import { StintPlanSettings } from './sections/StintPlanSettings';
@@ -138,6 +139,7 @@ export const WIDGET_SETTINGS: Record<
   broadcastweather: BroadcastSettingsPage,
   broadcastpodium: BroadcastSettingsPage,
   gantry: GantrySettings,
+  pitwall: PitWallSettings,
   stintplan: StintPlanSettings,
   strategytimeline: StrategyTimelineSettings,
 };

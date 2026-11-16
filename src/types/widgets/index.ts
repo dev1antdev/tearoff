@@ -46,6 +46,7 @@ export const WIDGET_ORDER: readonly WidgetId[] = [
   'cornername',
   'laptrace',
   'gantry',
+  'pitwall',
   'stintplan',
   'strategytimeline',
 ];

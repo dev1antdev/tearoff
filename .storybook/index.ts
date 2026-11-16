@@ -17,3 +17,4 @@ export * from './raceControlDecorator';
 export * from './lapHistorySnapshot';
 export * from './gantryDecorator';
 export * from './racePlanDecorator';
+export * from './pitWallStage';

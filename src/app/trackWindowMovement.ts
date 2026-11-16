@@ -4,8 +4,11 @@ import { saveSettingsWindowBounds as persistBounds } from './storage/settingsWin
 const DEBOUNCE_MS = 200;
 const pendingSaves = new Set<() => void>();
 
-/** Drain movement timers before the asynchronous storage shutdown flush. */
-export const flushSettingsWindowMovementOnShutdown = (): void => {
+/**
+ * Drain movement timers before the asynchronous storage shutdown flush, for
+ * every window whose place is remembered.
+ */
+export const flushWindowMovementOnShutdown = (): void => {
   for (const save of pendingSaves) save();
 };
 
@@ -42,16 +45,36 @@ export const markCorrectedBounds = (
 };
 
 /**
- * Track settings window position and size changes
+ * Whether these bounds are where the app itself last put the window, and so
+ * not a place the user chose.
  */
-export const trackSettingsWindowMovement = (browserWindow: BrowserWindow) => {
+export const wasMovedByApp = (
+  browserWindow: BrowserWindow,
+  bounds: Electron.Rectangle
+): boolean => {
+  const corrected = correctedBounds.get(browserWindow);
+  return !!corrected && sameRect(bounds, corrected);
+};
+
+/** The window events that end a move or a resize made by the user. */
+type PlacementEvent = 'moved' | 'resized' | 'maximize' | 'unmaximize';
+
+/**
+ * Calls `persist` shortly after the user has moved or resized a window, once
+ * for a burst of events, and before the window closes if one is pending.
+ */
+export const trackWindowMovement = (
+  browserWindow: BrowserWindow,
+  persist: (browserWindow: BrowserWindow) => void,
+  events: readonly PlacementEvent[] = ['moved', 'resized']
+) => {
   let debounceTimer: ReturnType<typeof setTimeout> | undefined;
   const flush = () => {
     if (!debounceTimer) return;
     clearTimeout(debounceTimer);
     debounceTimer = undefined;
     pendingSaves.delete(flush);
-    if (!browserWindow.isDestroyed()) saveSettingsWindowBounds(browserWindow);
+    if (!browserWindow.isDestroyed()) persist(browserWindow);
   };
   const debouncedSave = () => {
     if (debounceTimer) clearTimeout(debounceTimer);
@@ -59,8 +82,10 @@ export const trackSettingsWindowMovement = (browserWindow: BrowserWindow) => {
     debounceTimer = setTimeout(flush, DEBOUNCE_MS);
   };
 
-  browserWindow.on('moved', debouncedSave);
-  browserWindow.on('resized', debouncedSave);
+  // One listener per event: `on` is typed per event name.
+  for (const event of events) {
+    browserWindow.on(event as 'moved', debouncedSave);
+  }
   // Drain the movement debounce while the native rectangle is still readable.
   // The storage writer is flushed by the before-quit coordinator.
   browserWindow.on('close', flush);
@@ -70,6 +95,12 @@ export const trackSettingsWindowMovement = (browserWindow: BrowserWindow) => {
   });
 };
 
+/**
+ * Track settings window position and size changes
+ */
+export const trackSettingsWindowMovement = (browserWindow: BrowserWindow) =>
+  trackWindowMovement(browserWindow, saveSettingsWindowBounds);
+
 function saveSettingsWindowBounds(browserWindow: BrowserWindow): void {
   const bounds = browserWindow.getBounds();
 
@@ -78,8 +109,7 @@ function saveSettingsWindowBounds(browserWindow: BrowserWindow): void {
   // A user who drags the window to exactly the corrected position is not saved
   // either, which costs nothing — that position is on-screen and the next
   // launch would place the window there regardless.
-  const corrected = correctedBounds.get(browserWindow);
-  if (corrected && sameRect(bounds, corrected)) return;
+  if (wasMovedByApp(browserWindow, bounds)) return;
 
   persistBounds(bounds);
 }

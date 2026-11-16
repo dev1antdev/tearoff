@@ -6,16 +6,27 @@ import {
   summariseLog,
   widgetFromText,
   windowKind,
+  isOwnWindowWidget,
 } from './errors.ts';
 
 const PACKAGED =
   'file:///W:/app/resources/app.asar/.vite/renderer/main_window/index.html';
+
+describe('isOwnWindowWidget', () => {
+  it('names the widgets that are a window of their own', () => {
+    expect(isOwnWindowWidget('gantry')).toBe(true);
+    expect(isOwnWindowWidget('pitwall')).toBe(true);
+    expect(isOwnWindowWidget('standings')).toBe(false);
+    expect(isOwnWindowWidget('overlay')).toBe(false);
+  });
+});
 
 describe('windowKind', () => {
   it('tells the windows of a packaged build apart by their route', () => {
     expect(windowKind(PACKAGED)).toBe('overlay');
     expect(windowKind(`${PACKAGED}#/settings/relative`)).toBe('settings');
     expect(windowKind(`${PACKAGED}#/gantry`)).toBe('gantry');
+    expect(windowKind(`${PACKAGED}#/pitwall`)).toBe('pitwall');
     expect(windowKind(`${PACKAGED}#/overlay-widget`)).toBe('widget');
     expect(windowKind(`${PACKAGED}#/tape-replay`)).toBe('tape');
   });
@@ -23,6 +34,8 @@ describe('windowKind', () => {
   it('knows the dev server address as the overlay', () => {
     expect(windowKind('http://localhost:5173/')).toBe('overlay');
     expect(windowKind('http://localhost:5173/#/settings')).toBe('settings');
+    // Not the overlay, which is what a route nobody listed would be taken for.
+    expect(windowKind('http://localhost:5173/#/pitwall')).toBe('pitwall');
   });
 
   it('does not take another page for a window of widgets', () => {

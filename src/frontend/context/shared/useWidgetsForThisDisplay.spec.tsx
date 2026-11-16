@@ -41,6 +41,7 @@ vi.mock('../DashboardContext/DashboardContext', () => ({
 }));
 
 import {
+  isPitWallPage,
   rendersInOwnWindow,
   useWidgetsForThisDisplay,
 } from './useWidgetsForThisDisplay';
@@ -190,6 +191,17 @@ describe('useWidgetsForThisDisplay', () => {
     }
   );
 
+  it.each([false, true])(
+    'leaves out the Pit Wall, which has a window of its own (browser=%s)',
+    async (browser) => {
+      dashboard.widgets = [widget('input', 0), widget('pitwall', 0)];
+
+      const { result } = renderHook(() => useWidgetsForThisDisplay(browser));
+
+      await waitFor(() => expect(ids(result.current)).toEqual(['input']));
+    }
+  );
+
   it('applies the Gantry-only and compatibility filters together', async () => {
     main.simulator = 'iracing';
     dashboard.widgets = [
@@ -206,6 +218,13 @@ describe('useWidgetsForThisDisplay', () => {
 
 describe('rendersInOwnWindow', () => {
   const layout = { x: 0, y: 0, width: 100, height: 100 };
+
+  it('is true for the Pit Wall', () => {
+    const pitWall = { id: 'pitwall', enabled: true, layout };
+    expect(rendersInOwnWindow(pitWall)).toBe(true);
+    expect(isPitWallPage(pitWall)).toBe(true);
+    expect(isPitWallPage({ id: 'gantry', enabled: true, layout })).toBe(false);
+  });
 
   it('is true for the Gantry and for Gantry-only widgets', () => {
     expect(rendersInOwnWindow({ id: 'gantry', enabled: true, layout })).toBe(
