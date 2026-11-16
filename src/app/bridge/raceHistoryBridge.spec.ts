@@ -31,6 +31,7 @@ const source = () =>
     getCarStints: vi.fn(async () => []),
     getDriverChanges: vi.fn(async () => []),
     listRaces: vi.fn(async () => []),
+    getEvents: vi.fn(async () => []),
   }) satisfies RaceHistorySource;
 
 const invoke = (channel: string, ...args: unknown[]) => {
@@ -67,6 +68,22 @@ const NOT_A_RACE = [
   [7],
 ];
 
+/**
+ * Everything the number of an event is not, short of leaving it out. Events
+ * are numbered from 1.
+ */
+const NOT_AN_EVENT = [
+  0,
+  -3,
+  10.5,
+  Number.NaN,
+  Number.POSITIVE_INFINITY,
+  '200',
+  true,
+  {},
+  [200],
+];
+
 const untouched = (service: ReturnType<typeof source>) => {
   for (const method of Object.values(service)) {
     expect(method).not.toHaveBeenCalled();
@@ -91,11 +108,65 @@ describe('race history bridge over IPC', () => {
     await invoke('raceHistory:getCarStints', 0, 12);
     await invoke('raceHistory:getDriverChanges', 12);
     await invoke('raceHistory:listRaces');
+    await invoke('raceHistory:getEvents', 12, 801);
 
     expect(service.getCarLaps).toHaveBeenCalledWith(7, 12);
     expect(service.getCarStints).toHaveBeenCalledWith(0, 12);
     expect(service.getDriverChanges).toHaveBeenCalledWith(12);
     expect(service.listRaces).toHaveBeenCalledWith();
+    expect(service.getEvents).toHaveBeenCalledWith(12, 801);
+  });
+
+  it('asks for the latest of the log being kept when nothing is named', async () => {
+    const service = source();
+    setupRaceHistoryBridge(service);
+
+    await invoke('raceHistory:getEvents');
+    await invoke('raceHistory:getEvents', undefined, undefined);
+    await invoke('raceHistory:getEvents', null, null);
+    // The page before the events a window holds, of the race under way.
+    await invoke('raceHistory:getEvents', undefined, 801);
+    // And the latest page of a race in the file.
+    await invoke('raceHistory:getEvents', 12);
+    // The first event there can be: nothing lies before it, which is an
+    // answer and not a mistake.
+    await invoke('raceHistory:getEvents', undefined, 1);
+
+    expect(service.getEvents.mock.calls).toEqual([
+      [undefined, undefined],
+      [undefined, undefined],
+      [undefined, undefined],
+      [undefined, 801],
+      [12, undefined],
+      [undefined, 1],
+    ]);
+  });
+
+  it('refuses the log of anything but a row id, before anything but an event', async () => {
+    const service = source();
+    setupRaceHistoryBridge(service);
+
+    for (const bad of NOT_A_RACE) {
+      await expect(
+        invoke('raceHistory:getEvents', bad),
+        String(bad)
+      ).rejects.toThrow(TypeError);
+      await expect(
+        invoke('raceHistory:getEvents', bad, 801),
+        String(bad)
+      ).rejects.toThrow(TypeError);
+    }
+    for (const bad of NOT_AN_EVENT) {
+      await expect(
+        invoke('raceHistory:getEvents', 12, bad),
+        String(bad)
+      ).rejects.toThrow(TypeError);
+      await expect(
+        invoke('raceHistory:getEvents', undefined, bad),
+        String(bad)
+      ).rejects.toThrow(TypeError);
+    }
+    untouched(service);
   });
 
   it('asks about the race being recorded when no race is named', async () => {
@@ -195,12 +266,15 @@ describe('race history bridge over IPC', () => {
     await expect(invoke('raceHistory:listRaces', undefined)).rejects.toThrow(
       TypeError
     );
+    await expect(
+      invoke('raceHistory:getEvents', 12, 801, 5000)
+    ).rejects.toThrow(TypeError);
     untouched(service);
   });
 
   it('removes its handlers when disposed', () => {
     const { dispose } = setupRaceHistoryBridge(source());
-    expect(mock.handlers.size).toBe(4);
+    expect(mock.handlers.size).toBe(5);
 
     dispose();
 
@@ -240,6 +314,10 @@ describe('race history bridge called directly', () => {
       await expect(bridge.getCarLaps(1, bad)).rejects.toThrow(TypeError);
       await expect(bridge.getCarStints(1, bad)).rejects.toThrow(TypeError);
       await expect(bridge.getDriverChanges(bad)).rejects.toThrow(TypeError);
+      await expect(bridge.getEvents(bad)).rejects.toThrow(TypeError);
+    }
+    for (const bad of NOT_AN_EVENT) {
+      await expect(bridge.getEvents(undefined, bad)).rejects.toThrow(TypeError);
     }
     await expect(bridge.listRaces('all')).rejects.toThrow(TypeError);
     untouched(service);
@@ -259,6 +337,9 @@ describe('race history bridge called directly', () => {
     );
     await expect(bridge.getCarStints(1, 'x')).rejects.toThrow(
       'Invalid race for raceHistory:getCarStints'
+    );
+    await expect(bridge.getEvents(undefined, 'newest')).rejects.toThrow(
+      'Invalid event for raceHistory:getEvents'
     );
   });
 });

@@ -14,17 +14,25 @@ import type {
   StoredRace,
   StoredRaceState,
 } from '../../../types/raceHistory';
+import type { RaceEvent } from '../../../types/raceLog';
+import {
+  RACE_LOG_MAX_EVENTS,
+  RACE_LOG_PAGE_EVENTS,
+  raceEventData,
+  raceEventFrom,
+} from '../../../types/raceLog';
 
 /**
  * The history of races in the lap library's file: the race, its laps, its
- * stints and its driver changes (schema version 3).
+ * stints, its driver changes and its log (schema version 3).
  *
  * Synchronous, like everything about the built-in SQLite, and so only ever
  * called on the library's worker thread. It shares the library's connection
  * and none of its tables.
  *
  * What goes with what: a race takes every row of it when it goes, and a
- * race goes when it is no longer among the most recent ones kept.
+ * race goes when it is no longer among the most recent ones kept. A race's
+ * log is kept to its RACE_LOG_MAX_EVENTS most recent events.
  */
 
 const OPENED_BY: readonly RaceStintOpenedBy[] = [
@@ -89,6 +97,14 @@ const CHANGE_COLUMNS = [
   'at_stop',
 ] as const;
 
+const EVENT_COLUMNS = [
+  'session_time',
+  'time_of_day',
+  'car_idx',
+  'kind',
+  'data',
+] as const;
+
 const RACE_COLUMNS = [
   'simulator',
   'session_key',
@@ -132,6 +148,12 @@ const UPSERT_CHANGE = `
   VALUES (:race_id, :car_idx, :seq, ${named(CHANGE_COLUMNS)})
   ON CONFLICT (race_id, car_idx, seq) DO UPDATE SET
     ${assignments(CHANGE_COLUMNS)}`;
+
+const UPSERT_EVENT = `
+  INSERT INTO race_event (race_id, seq, ${EVENT_COLUMNS.join(', ')})
+  VALUES (:race_id, :seq, ${named(EVENT_COLUMNS)})
+  ON CONFLICT (race_id, seq) DO UPDATE SET
+    ${assignments(EVENT_COLUMNS)}`;
 
 const INSERT_RACE = `
   INSERT INTO race (token, started_at, ${RACE_COLUMNS.join(', ')})
@@ -222,6 +244,16 @@ const changeValues = (
   from_driver: text(change.from) ?? '',
   to_driver: text(change.to) ?? '',
   at_stop: flag(change.atStop),
+});
+
+const eventValues = (
+  event: RaceEvent
+): ColumnValues<(typeof EVENT_COLUMNS)[number]> => ({
+  session_time: event.sessionTime,
+  time_of_day: event.timeOfDay,
+  car_idx: event.carIdx,
+  kind: event.kind,
+  data: JSON.stringify(raceEventData(event)),
 });
 
 const raceValues = (
@@ -350,6 +382,26 @@ const changeOf = (row: Row): RaceDriverChange => ({
   atStop: row.at_stop === 1,
 });
 
+/** An event of the log, or null for a row that is not one. */
+const eventOf = (row: Row): RaceEvent | null => {
+  let data: unknown = null;
+  try {
+    data = JSON.parse(String(row.data));
+  } catch {
+    // Unreadable: the event is told by its kind alone, where that is enough.
+  }
+  return raceEventFrom({
+    seq: row.seq,
+    sessionTime: row.session_time,
+    timeOfDay: row.time_of_day,
+    carIdx: row.car_idx,
+    kind: row.kind,
+    data,
+  });
+};
+
+const isEvent = (event: RaceEvent | null): event is RaceEvent => event !== null;
+
 export class RaceHistoryTables {
   private readonly statements = new Map<string, StatementSync>();
 
@@ -366,7 +418,8 @@ export class RaceHistoryTables {
    * file as it was.
    *
    * A row whose car or number is not a whole number from 0 up is left out
-   * rather than fail the rest.
+   * rather than fail the rest, and so is an event that is not one this
+   * build knows how to read back.
    */
   write(batch: RaceWriteBatch): RaceWriteResult {
     this.db.exec('BEGIN');
@@ -431,6 +484,26 @@ export class RaceHistoryTables {
           ...changeValues(change),
         });
       }
+      for (const seq of batch.removedEvents ?? []) {
+        if (!isKey(seq)) continue;
+        this.statement(
+          'DELETE FROM race_event WHERE race_id = ? AND seq = ?'
+        ).run(raceId, seq);
+      }
+      let logged = false;
+      for (const event of batch.events ?? []) {
+        // Through the reader's own checks: what is written is what it
+        // takes, and nothing else an event may have come to carry.
+        const clean = event ? raceEventFrom({ ...event, data: event }) : null;
+        if (!clean) continue;
+        this.statement(UPSERT_EVENT).run({
+          race_id: raceId,
+          seq: clean.seq,
+          ...eventValues(clean),
+        });
+        logged = true;
+      }
+      if (logged) this.capEvents(raceId);
       this.db.exec('COMMIT');
       return { raceId, removedRaces };
     } catch (error) {
@@ -513,6 +586,13 @@ export class RaceHistoryTables {
         ).all(raceId) as Row[]
       ).map(stintOf),
       driverChanges: this.driverChanges(raceId),
+      events: (
+        this.statement(
+          'SELECT * FROM race_event WHERE race_id = ? ORDER BY seq'
+        ).all(raceId) as Row[]
+      )
+        .map(eventOf)
+        .filter(isEvent),
     };
   }
 
@@ -546,9 +626,48 @@ export class RaceHistoryTables {
     ).map(changeOf);
   }
 
+  /**
+   * Events of a race's log, oldest first: the most recent `limit` numbered
+   * below `before`, or the most recent of all with it left out.
+   */
+  events(
+    raceId: number,
+    before?: number,
+    limit = RACE_LOG_PAGE_EVENTS
+  ): RaceEvent[] {
+    const rows = this.statement(
+      `SELECT * FROM race_event
+        WHERE race_id = ? AND seq < ?
+        ORDER BY seq DESC
+        LIMIT ?`
+    ).all(
+      raceId,
+      isKey(before) ? before : Number.MAX_SAFE_INTEGER,
+      Math.max(1, Math.min(isKey(limit) ? limit : 1, RACE_LOG_MAX_EVENTS))
+    ) as Row[];
+    return rows.reverse().map(eventOf).filter(isEvent);
+  }
+
+  /** Keeps a race's log to its most recent events. */
+  private capEvents(raceId: number): void {
+    this.statement(
+      `DELETE FROM race_event
+        WHERE race_id = ?
+          AND seq NOT IN (
+            SELECT seq FROM race_event
+             WHERE race_id = ? ORDER BY seq DESC LIMIT ?
+          )`
+    ).run(raceId, raceId, RACE_LOG_MAX_EVENTS);
+  }
+
   /** Removes everything kept for one slot of a race. */
   private clearCar(raceId: number, carIdx: number): void {
-    for (const table of ['race_lap', 'race_stint', 'race_driver_change']) {
+    for (const table of [
+      'race_lap',
+      'race_stint',
+      'race_driver_change',
+      'race_event',
+    ]) {
       this.statement(
         `DELETE FROM ${table} WHERE race_id = ? AND car_idx = ?`
       ).run(raceId, carIdx);

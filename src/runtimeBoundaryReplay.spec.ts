@@ -34,7 +34,8 @@ type EventChannelName =
  * PlayerLedgerRuntime, which follows every lap and stint of the player
  * whether or not a widget wants them. `wear.snapshot` is its forecast from
  * those laps. `race-history.summary` comes from RaceHistoryRuntime, which
- * keeps every car's laps for the whole race.
+ * keeps every car's laps for the whole race, and `race-log.snapshot` is the
+ * log of that race, from the same runtime.
  */
 type RuntimeOwnedChannelName =
   | 'lap-history.snapshot'
@@ -43,6 +44,7 @@ type RuntimeOwnedChannelName =
   | 'player-stint.snapshot'
   | 'wear.snapshot'
   | 'race-history.summary'
+  | 'race-log.snapshot'
   | 'replay.context'
   | 'streamchat.messages'
   | 'streamchat.emotes';

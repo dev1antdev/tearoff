@@ -328,6 +328,7 @@ describe('a write that cannot be made', () => {
     expect(await races.carLaps(1, 0)).toEqual([]);
     expect(await races.carStints(1, 0)).toEqual([]);
     expect(await races.driverChanges(1)).toEqual([]);
+    expect(await races.events(1)).toEqual([]);
     expect(calls.map((call) => call.method)).toEqual(['status']);
     expect(errors).toEqual([]);
   });
@@ -433,6 +434,7 @@ describe('questions asked of the file', () => {
       laps: [raceLap(0, 1), raceLap(0, 2)],
       stints: [raceStint(0, 1)],
       driverChanges: [raceChange(0, 1)],
+      events: [],
     });
     expect(await races.carStints(id, 0)).toEqual([raceStint(0, 1)]);
     expect(await races.driverChanges(id)).toEqual([raceChange(0, 1)]);

@@ -1,6 +1,7 @@
 import type {
   RaceCarLaps,
   RaceDriverChange,
+  RaceEvent,
   RaceInfo,
   RaceLap,
   RaceRecords,
@@ -18,6 +19,7 @@ import {
   type RaceHistoryListener,
   type RaceStart,
 } from './RaceHistoryRecorder';
+import { RaceLogRecorder } from './RaceLogRecorder';
 import { isSameRace } from './raceResume';
 
 /**
@@ -32,6 +34,11 @@ import { isSameRace } from './raceResume';
  * which is pure; this hands it the session and the frames, and does what
  * needs the world: the file, the channel, and the question of whether a
  * race found in the file is this one.
+ *
+ * The race's log is kept here too (`RaceLogRecorder`): what happened, one
+ * event at a time, made of what the recorder says and of the frames at its
+ * slow tick. It is recorded, stored and let go of with the rest of the
+ * race, under the same switches, and published on a channel of its own.
  *
  * Three switches, each from outside:
  *
@@ -54,6 +61,10 @@ export interface RaceHistoryPersistence {
   queueLap(race: RaceStart, lap: RaceLap): void;
   queueStint(race: RaceStart, stint: RaceStint): void;
   queueDriverChange(race: RaceStart, change: RaceDriverChange): void;
+  /** An event of the race's log: a new one, or one that has changed. */
+  queueEvent(race: RaceStart, event: RaceEvent): void;
+  /** Events that went at the log's cap are to go from the file, by `seq`. */
+  queueEventsRemoved(race: RaceStart, seqs: readonly number[]): void;
   /** The race's own row is to be brought up to date. */
   queueInfo(race: RaceStart): void;
   /** What the file holds for a slot is to go: another car is in it. */
@@ -74,6 +85,8 @@ export interface RaceHistoryPersistence {
   carLaps(raceId: number, carIdx: number): Promise<RaceLap[]>;
   carStints(raceId: number, carIdx: number): Promise<RaceStint[]>;
   driverChanges(raceId: number): Promise<RaceDriverChange[]>;
+  /** Events of a race's log numbered below `before`, oldest first. */
+  events(raceId: number, before?: number): Promise<RaceEvent[]>;
 }
 
 export interface RaceHistoryRuntimeOptions {
@@ -90,7 +103,11 @@ export interface RaceHistoryRuntimeOptions {
 }
 
 const CHANNEL = 'race-history.summary';
-/** The summary goes out at most this often, and only when it has changed. */
+const LOG_CHANNEL = 'race-log.snapshot';
+/**
+ * The summary and the log each go out at most this often, and only when
+ * they have changed.
+ */
 const SUMMARY_INTERVAL_MS = 1000;
 /** The session type of the one kind of session that is stored. */
 const STORED_SESSION_TYPE = 'Race';
@@ -104,6 +121,9 @@ interface Held {
   laps: Set<RaceLap>;
   stints: Set<RaceStint>;
   changes: Set<RaceDriverChange>;
+  events: Set<RaceEvent>;
+  /** Events the file holds that went at the log's cap, by `seq`. */
+  removedEvents: Set<number>;
   replacedCars: Set<number>;
   info: boolean;
 }
@@ -132,6 +152,7 @@ const gapsIn = (laps: readonly RaceLap[]): number[] => {
 
 export class RaceHistoryRuntime implements RaceHistoryListener {
   private readonly recorder: RaceHistoryRecorder;
+  private readonly log: RaceLogRecorder;
   private readonly disconnects: (() => void)[];
 
   private enabled = true;
@@ -144,6 +165,10 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
   private subscribers = 0;
   private publishedVersion = -1;
   private publishedAt = Number.NEGATIVE_INFINITY;
+
+  private logSubscribers = 0;
+  private logPublishedVersion = -1;
+  private logPublishedAt = Number.NEGATIVE_INFINITY;
 
   constructor(
     private readonly bus: ChannelBus,
@@ -158,6 +183,10 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
       now: options.now,
       bootId: options.bootId,
     });
+    this.log = new RaceLogRecorder({
+      onEvent: (event) => this.onLogEvent(event),
+      onEventsRemoved: (events) => this.onLogEventsRemoved(events),
+    });
     this.disconnects = [
       // A connection that was never seen to end still ended.
       lifecycle.onEnter(() => this.letGo()),
@@ -166,27 +195,42 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
         if (this.race?.token === token) this.recorder.noteStored(raceId);
       }),
       bus.onSubscriberCountChanged((channel, count) => {
-        if (channel !== CHANNEL) return;
-        const gained = count > 0 && this.subscribers === 0;
-        this.subscribers = count;
-        // The bus drops what it holds when the last window leaves, and the
-        // summary says nothing again until something changes: a window that
-        // arrives is sent what there is.
-        if (gained) this.publish(true);
+        // The bus drops what it holds when the last window leaves, and
+        // neither channel says anything again until something changes: a
+        // window that arrives is sent what there is.
+        if (channel === CHANNEL) {
+          const gained = count > 0 && this.subscribers === 0;
+          this.subscribers = count;
+          if (gained) this.publish(true);
+        } else if (channel === LOG_CHANNEL) {
+          const gained = count > 0 && this.logSubscribers === 0;
+          this.logSubscribers = count;
+          if (gained) this.publishLog(true);
+        }
       }),
     ];
   }
 
   onSession(session: Session): void {
     this.recorder.onSession(session);
+    this.log.onSession(session);
   }
 
   onFrame(frame: Telemetry): void {
     if (!this.enabled || this.paused) return;
     this.metrics.markStart('raceHistoryProcessing');
+    const tickedAt = this.recorder.lastTickAt();
     this.recorder.onFrame(frame);
+    // The log reads the frames the recorder's slow tick does, after it:
+    // what the recorder says of a stop on a tick is in hand when the log
+    // sees the car leave on the same one.
+    const ticked = this.recorder.lastTickAt();
+    if (ticked !== tickedAt) {
+      this.log.onTick(frame, this.recorder.pitState(), ticked);
+    }
     this.metrics.markEnd('raceHistoryProcessing');
     this.publish(false);
+    this.publishLog(false);
   }
 
   /**
@@ -196,14 +240,14 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
   updateEnabled(enabled: boolean): void {
     if (enabled === this.enabled) return;
     this.enabled = enabled;
-    if (enabled && !this.paused) this.recorder.rebaseline();
+    if (enabled && !this.paused) this.rebaseline();
   }
 
   /** Stops everything while an iRacing replay file is loaded. */
   setPaused(paused: boolean): void {
     if (paused === this.paused) return;
     this.paused = paused;
-    if (!paused && this.enabled) this.recorder.rebaseline();
+    if (!paused && this.enabled) this.rebaseline();
   }
 
   /**
@@ -250,6 +294,15 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
     return this.persistence.listRaces();
   }
 
+  /**
+   * Events of a race's log numbered below `before`, oldest first; the most
+   * recent with it left out.
+   */
+  async getEvents(raceId?: number, before?: number): Promise<RaceEvent[]> {
+    if (this.isCurrent(raceId)) return this.log.page(before);
+    return this.persistence.events(raceId as number, before);
+  }
+
   /** What the race being recorded is; null between two. */
   currentRace(): RaceInfo | null {
     return this.race?.info ?? null;
@@ -273,6 +326,7 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
   onRaceStarted(start: RaceStart): void {
     this.race = start;
     this.held = null;
+    this.log.onRaceStarted(start);
     const { info } = start;
     this.options.log?.(
       `[RaceHistory] Recording ${info.sessionType ?? 'a session'} at ` +
@@ -286,6 +340,8 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
       laps: new Set(),
       stints: new Set(),
       changes: new Set(),
+      events: new Set(),
+      removedEvents: new Set(),
       replacedCars: new Set(),
       info: false,
     };
@@ -320,6 +376,10 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
         if (found) {
           const { candidate, records } = found;
           this.recorder.restore(records);
+          // While the rows are still held: what was logged since the race
+          // was picked up is numbered on from the file's before any of it
+          // is written.
+          this.log.restore(records.events ?? []);
           info.startedAt = candidate.info.startedAt;
           this.recorder.noteStored(candidate.info.id);
           this.options.log?.(
@@ -339,6 +399,7 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
   }
 
   onLap(lap: RaceLap, settled: boolean): void {
+    this.log.onLap(lap);
     // A lap just completed is stored once it has its time, or has waited
     // long enough for one.
     if (!settled || !this.race || !this.shouldStore()) return;
@@ -347,12 +408,14 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
   }
 
   onStint(stint: RaceStint): void {
+    this.log.onStint(stint);
     if (!this.race || !this.shouldStore()) return;
     if (this.held) this.held.stints.add(stint);
     else this.persistence.queueStint(this.race, stint);
   }
 
   onDriverChange(change: RaceDriverChange): void {
+    this.log.onDriverChange(change);
     if (!this.race || !this.shouldStore()) return;
     if (this.held) this.held.changes.add(change);
     else this.persistence.queueDriverChange(this.race, change);
@@ -365,6 +428,9 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
   }
 
   onCarReplaced(carIdx: number): void {
+    // What the log held of the car that left goes with its laps: from the
+    // file by the same request, and from what waits just below.
+    this.log.onCarReplaced(carIdx);
     if (!this.race || !this.shouldStore()) return;
     const held = this.held;
     if (!held) {
@@ -377,6 +443,9 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
         if (row.carIdx === carIdx) (list as Set<unknown>).delete(row);
       }
     }
+    for (const event of held.events) {
+      if (event.carIdx === carIdx) held.events.delete(event);
+    }
     held.replacedCars.add(carIdx);
   }
 
@@ -384,7 +453,34 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
     // The file never answered in time: the race goes in as a new one.
     if (this.held) this.release(this.held);
     this.race = null;
+    this.log.onRaceEnded();
     void this.persistence.flush();
+  }
+
+  // --- What the log says ----------------------------------------------
+
+  private onLogEvent(event: RaceEvent): void {
+    if (!this.race || !this.shouldStore()) return;
+    if (this.held) this.held.events.add(event);
+    else this.persistence.queueEvent(this.race, event);
+  }
+
+  private onLogEventsRemoved(events: readonly RaceEvent[]): void {
+    if (!this.race || !this.shouldStore()) return;
+    const held = this.held;
+    if (!held) {
+      this.persistence.queueEventsRemoved(
+        this.race,
+        events.map((event) => event.seq)
+      );
+      return;
+    }
+    for (const event of events) {
+      // One that was waiting was never written and has nothing to take out
+      // of the file. Its number may be one the file uses for another event,
+      // so the file must not be asked to.
+      if (!held.events.delete(event)) held.removedEvents.add(event.seq);
+    }
   }
 
   // --------------------------------------------------------------------
@@ -393,6 +489,13 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
   private letGo(): void {
     this.recorder.onDisconnect();
     this.publish(true);
+    this.publishLog(true);
+  }
+
+  /** Frames resume after a gap: where every car was is not where it is. */
+  private rebaseline(): void {
+    this.recorder.rebaseline();
+    this.log.rebaseline();
   }
 
   private shouldStore(): boolean {
@@ -422,6 +525,10 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
     for (const change of held.changes) {
       this.persistence.queueDriverChange(race, change);
     }
+    if (held.removedEvents.size > 0) {
+      this.persistence.queueEventsRemoved(race, [...held.removedEvents]);
+    }
+    for (const event of held.events) this.persistence.queueEvent(race, event);
     if (held.info) this.persistence.queueInfo(race);
   }
 
@@ -438,6 +545,24 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
     this.publishedAt = this.options.now();
     this.metrics.markStart('raceHistoryPublication');
     this.bus.publish(CHANNEL, this.recorder.summary());
+    this.metrics.markEnd('raceHistoryPublication');
+  }
+
+  private publishLog(force: boolean): void {
+    // Put together only while a window reads it; the log is kept all the
+    // same.
+    if (this.logSubscribers === 0) return;
+    const version = this.log.currentVersion();
+    if (!force) {
+      if (version === this.logPublishedVersion) return;
+      if (this.options.now() - this.logPublishedAt < SUMMARY_INTERVAL_MS) {
+        return;
+      }
+    }
+    this.logPublishedVersion = version;
+    this.logPublishedAt = this.options.now();
+    this.metrics.markStart('raceHistoryPublication');
+    this.bus.publish(LOG_CHANNEL, this.log.snapshot());
     this.metrics.markEnd('raceHistoryPublication');
   }
 }

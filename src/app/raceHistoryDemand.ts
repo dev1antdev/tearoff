@@ -6,7 +6,14 @@ import type {
 import { isWidgetDisabledForSim, PIT_WALL_WIDGET_ID } from '@irdashies/types';
 import type { ChannelBus } from './bridge/channelBus';
 
-const CHANNEL = 'race-history.summary';
+/**
+ * The channels the race history's runtime publishes: the summary of every
+ * car, and the race's log. A reader of either is a reason to record.
+ */
+const CHANNELS: readonly string[] = [
+  'race-history.summary',
+  'race-log.snapshot',
+];
 
 /** Ends a subscription, where the source hands one back. */
 type Unsubscribe = (() => unknown) | undefined;
@@ -55,9 +62,10 @@ export interface RaceHistoryDemandOptions {
  *
  * The Pit Wall needs it for as long as it is switched on, its window open
  * or not: a race is recorded from its start, not from when somebody looks.
- * So does any subscriber to the summary, which is how a page served to a
- * browser asks while the Pit Wall is off on the desktop. With neither, no
- * frame is read at all.
+ * So does any subscriber to the summary or to the race's log, which is how
+ * a page served to a browser asks while the Pit Wall is off on the desktop,
+ * and how a widget on the overlay does. With neither, no frame is read at
+ * all.
  *
  * The simulator is watched as well as the dashboard: left on auto-detect
  * it is named only when a game is found, after the dashboard has been read.
@@ -73,7 +81,10 @@ export const watchRaceHistoryDemand = ({
   resolveLayout,
 }: RaceHistoryDemandOptions): (() => void) => {
   let layout = initialLayout;
-  let subscribed = bus.subscriberCount(CHANNEL) > 0;
+  const readers = new Map(
+    CHANNELS.map((channel) => [channel, bus.subscriberCount(channel)])
+  );
+  let subscribed = [...readers.values()].some((count) => count > 0);
   let needed: boolean | undefined;
   const update = () => {
     const shown = layout && resolveLayout ? resolveLayout(layout) : layout;
@@ -90,8 +101,10 @@ export const watchRaceHistoryDemand = ({
   });
   const unsubscribeSimulator = onSimulatorChanged(update);
   const unsubscribeBus = bus.onSubscriberCountChanged((channel, count) => {
-    if (channel !== CHANNEL) return;
-    subscribed = count > 0;
+    if (!readers.has(channel)) return;
+    readers.set(channel, count);
+    subscribed = false;
+    for (const held of readers.values()) subscribed ||= held > 0;
     update();
   });
   update();

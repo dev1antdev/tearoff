@@ -707,4 +707,6 @@ export const strategyHistoryBridge = (
   getCarStints: async (carIdx) => stints.get(carIdx) ?? [],
   getDriverChanges: async () => [],
   listRaces: async () => [],
+  // The strategy panels read no log.
+  getEvents: async () => [],
 });

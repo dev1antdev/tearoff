@@ -4,10 +4,10 @@ import { RACE_HISTORY_MAX_CARS } from '@irdashies/types';
 
 /**
  * The detail of a recorded race, for whatever shows it: the laps and the
- * stints of one car, the driver changes of a race, the races kept.
+ * stints of one car, the driver changes of a race, its log, the races kept.
  *
  * Reading only. Nothing here changes a record, and nothing a caller sends
- * reaches the file but two whole numbers that have been checked.
+ * reaches the file but whole numbers that have been checked.
  */
 
 /** What the bridge is answered from: the race history's runtime. */
@@ -39,6 +39,19 @@ const raceIdOrThrow = (value: unknown, request: string): number | undefined => {
   return value;
 };
 
+/**
+ * The event a page of the log ends before: undefined for the most recent
+ * page, which is what leaving it out or sending null asks for. Events are
+ * numbered from 1, so nothing lies before a number below that.
+ */
+const beforeOrThrow = (value: unknown, request: string): number | undefined => {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
+    throw new TypeError(`Invalid event for ${request}`);
+  }
+  return value;
+};
+
 /** A request with more than it takes is not one this app makes. */
 const noMoreThan = (
   args: readonly unknown[],
@@ -53,8 +66,8 @@ const noMoreThan = (
 /**
  * One instance is shared by IPC and browser clients: every argument is
  * checked here, so that whichever road a request comes by it is the same
- * request. Each function refuses what is not a car slot or a row id by
- * rejecting, and asks the source nothing.
+ * request. Each function refuses what is not a car slot, a row id or an
+ * event's number by rejecting, and asks the source nothing.
  */
 export const createRaceHistoryBridge = (
   source: RaceHistorySource
@@ -83,6 +96,13 @@ export const createRaceHistoryBridge = (
     noMoreThan(rest, 0, 'raceHistory:listRaces');
     return source.listRaces();
   },
+  async getEvents(raceId?: unknown, before?: unknown, ...rest: unknown[]) {
+    noMoreThan(rest, 0, 'raceHistory:getEvents');
+    return source.getEvents(
+      raceIdOrThrow(raceId, 'raceHistory:getEvents'),
+      beforeOrThrow(before, 'raceHistory:getEvents')
+    );
+  },
 });
 
 const CHANNELS = [
@@ -90,6 +110,7 @@ const CHANNELS = [
   'raceHistory:getCarStints',
   'raceHistory:getDriverChanges',
   'raceHistory:listRaces',
+  'raceHistory:getEvents',
 ] as const;
 
 /**
@@ -121,6 +142,9 @@ export function setupRaceHistoryBridge(source: RaceHistorySource): {
   );
   ipcMain.handle('raceHistory:listRaces', (_event, ...args: unknown[]) =>
     untyped.listRaces(...args)
+  );
+  ipcMain.handle('raceHistory:getEvents', (_event, ...args: unknown[]) =>
+    untyped.getEvents(...args)
   );
   return {
     bridge,

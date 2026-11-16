@@ -747,6 +747,8 @@ export const raceHistoryStageBridge = (
     return changes.sort((a, b) => a.sessionTime - b.sessionTime);
   },
   listRaces: async () => [],
+  // The panels of the race history read no log.
+  getEvents: async () => [],
 });
 
 /**
