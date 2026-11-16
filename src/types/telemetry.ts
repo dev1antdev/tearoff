@@ -8,6 +8,20 @@ export type Telemetry = {
   LmuBestSectorTimes?: TelemetryVar<(number | null)[]>;
   LmuSectorIdx?: TelemetryVar<number[]>;
   /**
+   * The three keys above for every car: three entries per slot at
+   * `carIdx * 3 + sector`, S1, S2 and S3 in seconds, null for a figure the
+   * sim has not set. Each has the meaning the player's key has: the sectors
+   * of the lap under way (its third is always null), of the last lap, and
+   * the sim's two running bests with what its best lap leaves for the third.
+   *
+   * Flat like LmuCarIdxWheelCompounds, and for the same reason. Scoring
+   * writes them for every car, so they are there for one a team-mate or
+   * another machine is driving. iRacing publishes no sector times per car.
+   */
+  LmuCarIdxCurrentSectorTimes?: TelemetryVar<(number | null)[]>;
+  LmuCarIdxLastSectorTimes?: TelemetryVar<(number | null)[]>;
+  LmuCarIdxBestSectorTimes?: TelemetryVar<(number | null)[]>;
+  /**
    * mGamePhase as the sim states it: 0 before the session, 1 reconnaissance
    * laps, 2 grid walk-through, 3 formation lap, 4 starting-light countdown,
    * 5 green flag, 6 full-course yellow, 7 session stopped, 8 session over,
