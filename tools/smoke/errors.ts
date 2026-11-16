@@ -25,7 +25,7 @@ export interface PageProblem {
   widget?: string;
   text: string;
   url?: string;
-  /** What the run was doing: start, capture 1, settings, toggles, quit. */
+  /** What the run was doing: start, capture 1, settings, toggles, server, quit. */
   phase: string;
   /** Milliseconds since the app was started. */
   atMs: number;

@@ -42,6 +42,7 @@ import { setupFuelCalculatorBridge } from './app/bridge/fuelCalculatorBridge';
 import { OverlayManager } from './app/overlayManager';
 import {
   startComponentServer,
+  getComponentServerHost,
   getComponentServerPort,
 } from './app/webserver/componentServer';
 import { updateElectronApp } from 'update-electron-app';
@@ -796,6 +797,7 @@ void app.whenReady().then(async () => {
   );
 
   ipcMain.handle('getComponentServerPort', () => getComponentServerPort());
+  ipcMain.handle('getComponentServerHost', () => getComponentServerHost());
 
   if (!perfRun.enabled || perfRun.overlayMode !== 'observer') {
     // Empty mode keeps the normal overlay window count/bounds while the

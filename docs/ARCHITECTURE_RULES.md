@@ -206,6 +206,8 @@ are derived from these. Only the settings section still needs one line in
 - **R12.2** Every new window registers `webContents.setWindowOpenHandler(() => ({ action: 'deny' }))` and `webContents.on('will-navigate', e => e.preventDefault())`.
 - **R12.3** Renderer-supplied input that influences next launch (Chromium switches, environment, file system writes) is allowlisted by name. No free-form passthrough.
 - **R12.4** Renderer HTML loads under a CSP that restricts `script-src` to `'self'` and `connect-src` to the local websocket origin.
+- **R12.5** Anything that listens on a port answers only a visitor `evaluateAccess` (`src/app/webserver/accessPolicy.ts`) lets in: `Host` names this machine, and `Origin`, when a browser sends one, names a page this server served. This holds for HTTP routes and for the WebSocket handshake alike, on loopback as much as on the network: a page from another site can reach `localhost`. No `Access-Control-Allow-Origin: *`.
+- **R12.6** A browser connection reads. What a served page may change is listed by name in `bridgeProxy.ts`, validated field by field, and limited to what that page is for (where its widgets sit, the pit lane it measured). Anything the settings window changes goes over IPC and is refused on the socket; never pass a whole object from a socket to storage.
 
 ---
 

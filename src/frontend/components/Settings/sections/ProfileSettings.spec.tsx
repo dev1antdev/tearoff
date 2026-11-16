@@ -9,6 +9,7 @@ vi.mock('@irdashies/utils/logger', () => ({
 
 const mocks = vi.hoisted(() => ({
   getComponentServerPort: vi.fn(),
+  getComponentServerHost: vi.fn(),
   refreshProfiles: vi.fn(),
   switchProfile: vi.fn(),
   writeText: vi.fn(),
@@ -33,6 +34,7 @@ vi.mock('@irdashies/context', () => ({
       getComponentServerPort: mocks.portDiscoveryAvailable
         ? mocks.getComponentServerPort
         : undefined,
+      getComponentServerHost: mocks.getComponentServerHost,
     },
     refreshProfiles: mocks.refreshProfiles,
     switchProfile: mocks.switchProfile,
@@ -48,12 +50,7 @@ beforeEach(() => {
   mocks.writeText.mockReset().mockResolvedValue(undefined);
   mocks.webServerEnabled = true;
   mocks.portDiscoveryAvailable = true;
-  vi.stubGlobal(
-    'fetch',
-    vi.fn().mockResolvedValue({
-      json: async () => ({ ip: '192.168.1.50' }),
-    })
-  );
+  mocks.getComponentServerHost.mockReset().mockResolvedValue('192.168.1.50');
   vi.stubGlobal('navigator', { clipboard: { writeText: mocks.writeText } });
 });
 
@@ -80,9 +77,7 @@ describe('ProfileSettings browser layout URLs', () => {
       expect(
         screen.getByDisplayValue(expectedUrl('default', port, 'localhost'))
       ).toBeInTheDocument();
-      expect(fetch).toHaveBeenCalledWith(
-        `http://localhost:${port}/api/server-ip`
-      );
+      expect(mocks.getComponentServerHost).toHaveBeenCalledTimes(1);
 
       fireEvent.click(screen.getByRole('button', { name: 'Copy for OBS' }));
       expect(mocks.writeText).toHaveBeenLastCalledWith(
@@ -177,7 +172,7 @@ describe('ProfileSettings browser layout URLs', () => {
     expect(
       screen.queryByRole('button', { name: 'Copy for OBS' })
     ).not.toBeInTheDocument();
-    expect(fetch).not.toHaveBeenCalled();
+    expect(mocks.getComponentServerHost).not.toHaveBeenCalled();
   });
 
   it('uses the original default only for a legacy bridge without port discovery', async () => {
@@ -192,7 +187,7 @@ describe('ProfileSettings browser layout URLs', () => {
   });
 
   it('keeps the detected port when the LAN address lookup fails', async () => {
-    vi.mocked(fetch).mockRejectedValue(new Error('No LAN address'));
+    mocks.getComponentServerHost.mockRejectedValue(new Error('No LAN address'));
     render(<ProfileSettings />);
     await screen.findAllByDisplayValue(
       expectedUrl('default', 4321, 'localhost')

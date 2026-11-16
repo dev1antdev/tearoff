@@ -195,7 +195,7 @@ export const ProfileSettings = () => {
 
   useEffect(() => {
     refreshProfiles();
-    // Fetch server port and IP via IPC
+    // Fetch server port and host via IPC
     // A legacy bridge without port discovery uses the original default. While
     // discovery is pending, keep browser actions unavailable rather than guess.
     const portPromise = bridge.getComponentServerPort
@@ -205,12 +205,11 @@ export const ProfileSettings = () => {
       .then((port) => {
         setServerPort(port);
         // A missing LAN address can safely fall back to localhost on this port.
-        return fetch(`http://localhost:${port}/api/server-ip`)
-          .then((res) => res.json())
-          .catch(() => ({ ip: 'localhost' }))
-          .then((data) => {
-            if (data.ip) {
-              setServerIP(data.ip);
+        return (bridge.getComponentServerHost?.() ?? Promise.resolve(''))
+          .catch(() => '')
+          .then((host) => {
+            if (host) {
+              setServerIP(host);
             }
           });
       })

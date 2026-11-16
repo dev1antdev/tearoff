@@ -10,6 +10,13 @@ import type {
 import logger from '../logger';
 import { currentDashboard } from './bridgeProxy';
 import { getGarageCoverImageAsDataUrl } from '../storage/dashboards';
+import {
+  createLocalHostsReader,
+  createRefusalLog,
+  evaluateAccess,
+  type AccessDecision,
+  type AccessPolicy,
+} from './accessPolicy';
 
 const DEFAULT_PORT = 3000;
 const FALLBACK_PORTS = [3001, 3002, 3003, 3004, 3005];
@@ -55,6 +62,14 @@ let SERVER_IP = 'localhost';
 
 export function getComponentServerPort(): number {
   return actualPort;
+}
+
+/**
+ * The host browser-source links should name: `localhost`, or this machine's
+ * LAN address when the server is open to the network.
+ */
+export function getComponentServerHost(): string {
+  return SERVER_IP;
 }
 
 function tryListen(
@@ -106,13 +121,28 @@ async function listenOnAvailablePort(
   );
 }
 
-function setCORSHeaders(res: http.ServerResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+/**
+ * Lets a page this server knows read a response across origins, and nobody
+ * else. In a packaged build every page is same-origin and needs none of this;
+ * in development the page bundle comes from Vite on another port.
+ */
+function setCORSHeaders(
+  res: http.ServerResponse,
+  origin: string | undefined,
+  access: AccessDecision
+) {
+  res.setHeader('Vary', 'Origin');
+  if (!origin || !access.ownPage) return;
+  res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader(
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept'
   );
 }
+
+const reportRefusal = createRefusalLog((line) =>
+  logger.warn(`[ComponentServer] Request ${line}`)
+);
 
 function sendJSON(res: http.ServerResponse, statusCode: number, data: unknown) {
   res.setHeader('Content-Type', 'application/json');
@@ -291,13 +321,38 @@ export async function startComponentServer(
   const bindHost = networkAccess ? '0.0.0.0' : 'localhost';
   SERVER_IP = networkAccess ? getLocalIPAddress() : 'localhost';
 
+  const vitePort = process.env.VITE_PORT || '5173';
+  const accessPolicy: AccessPolicy = {
+    port: () => actualPort,
+    networkAccess: () => networkAccess,
+    extraOrigins: () =>
+      isDev
+        ? [...new Set(['localhost', '127.0.0.1', SERVER_IP])].map(
+            (host) => `http://${host}:${vitePort}`
+          )
+        : [],
+    localHosts: createLocalHostsReader(),
+  };
+
   let staticPath: string | null = null;
   if (!isDev) {
     staticPath = path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}`);
   }
 
   const httpServer = http.createServer(async (req, res) => {
-    setCORSHeaders(res);
+    const visitor = {
+      host: req.headers.host,
+      origin: req.headers.origin,
+      remoteAddress: req.socket?.remoteAddress,
+    };
+    const access = evaluateAccess(visitor, accessPolicy);
+    setCORSHeaders(res, req.headers.origin, access);
+    if (!access.allowed) {
+      reportRefusal(access.refusal, visitor);
+      res.statusCode = 403;
+      res.end('Forbidden');
+      return;
+    }
 
     if (!req.url) {
       res.statusCode = 400;
@@ -338,7 +393,8 @@ export async function startComponentServer(
       return;
     }
 
-    if (pathname === '/debug/dashboard' && req.method === 'GET') {
+    // The whole stored configuration, for debugging the server itself.
+    if (isDev && pathname === '/debug/dashboard' && req.method === 'GET') {
       sendJSON(res, 200, {
         hasDashboard: !!currentDashboard,
         dashboard: currentDashboard,
@@ -543,7 +599,8 @@ export async function startComponentServer(
         irsdkBridge,
         dashboardBridge,
         channelBus,
-        pitLaneBridge
+        pitLaneBridge,
+        accessPolicy
       );
 
       const { onBridgeChanged } = await import('../bridge/iracingSdk/setup');

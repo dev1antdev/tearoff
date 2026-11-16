@@ -1,4 +1,4 @@
-import { Server as HTTPServer } from 'http';
+import type { IncomingMessage, Server as HTTPServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import {
   TELEMETRY_INSPECTOR_RATE_HZ,
@@ -22,6 +22,27 @@ import logger from '../logger';
 import { getHiddenWidgets, onWidgetHiddenChanged } from '../widgetVisibility';
 import type { ChannelBus } from '../bridge/channelBridge';
 import { getRacePlanState, onRacePlanState } from '../services/racePlanSource';
+import {
+  createRefusalLog,
+  evaluateAccess,
+  type AccessPolicy,
+  type AccessRequest,
+} from './accessPolicy';
+import { mergeBrowserPositions } from './browserPositions';
+
+/** A whole dashboard is a few hundred kilobytes; nothing a page sends is more. */
+const MAX_MESSAGE_BYTES = 4 * 1024 * 1024;
+
+const NOT_ALLOWED = 'Not allowed over a browser connection';
+
+/** What the far end of a socket is, as far as the handshake showed. */
+interface Visitor {
+  /** A page this server served. Only such a page may change anything. */
+  ownPage: boolean;
+}
+
+const isShortString = (value: unknown): value is string =>
+  typeof value === 'string' && value.length > 0 && value.length <= 512;
 
 // Export current state so it can be accessed by other parts of the app
 export let currentDashboard: DashboardLayout | null = null;
@@ -29,15 +50,45 @@ export let currentDashboard: DashboardLayout | null = null;
 /**
  * Bridge proxy that exposes Electron bridge data via WebSocket
  * Allows external browsers to receive real-time telemetry, session data, and dashboard configuration
+ *
+ * A socket is opened only for a visitor `accessPolicy` lets in, and reads are
+ * all most of them get. The two things a browser page does change, where its
+ * widgets sit and the pit lane it measured while driving, are accepted from a
+ * page this server served and from nobody else. Everything the settings
+ * window changes goes over IPC and is refused here.
  */
 export function createBridgeProxy(
   httpServer: HTTPServer,
   irsdkBridge: IrSdkSourceBridge,
   dashboardBridge?: DashboardBridge,
   channelBus?: ChannelBus,
-  pitLaneBridge?: PitLaneBridge
+  pitLaneBridge?: PitLaneBridge,
+  accessPolicy?: AccessPolicy
 ) {
-  const wss = new WebSocketServer({ server: httpServer });
+  const visitorOf = (req: IncomingMessage): AccessRequest => ({
+    host: req.headers.host,
+    origin: req.headers.origin,
+    remoteAddress: req.socket?.remoteAddress,
+  });
+  const accessOf = (req: IncomingMessage | undefined) =>
+    req && accessPolicy ? evaluateAccess(visitorOf(req), accessPolicy) : null;
+
+  const reportRefusal = createRefusalLog((line) =>
+    logger.warn(`Bridge proxy: connection ${line}`)
+  );
+  const wss = new WebSocketServer({
+    server: httpServer,
+    maxPayload: MAX_MESSAGE_BYTES,
+    verifyClient: (info, done) => {
+      const access = accessOf(info.req);
+      if (!access || access.allowed) {
+        done(true);
+        return;
+      }
+      reportRefusal(access.refusal, visitorOf(info.req));
+      done(false, 403, 'Forbidden');
+    },
+  });
 
   const clients = new Set<WebSocket>();
   const inspectorStreams = new Map<
@@ -159,7 +210,8 @@ export function createBridgeProxy(
     }
   }
 
-  wss.on('connection', (ws: WebSocket) => {
+  wss.on('connection', (ws: WebSocket, req?: IncomingMessage) => {
+    const visitor: Visitor = { ownPage: accessOf(req)?.ownPage === true };
     clients.add(ws);
     inspectorStreams.set(ws, new Set());
     const channelTarget = {
@@ -204,6 +256,14 @@ export function createBridgeProxy(
           case 'pitLane:resetData': {
             const { type, requestId, data } = parsed;
             try {
+              // Resetting is the settings window's to do. Measuring is a
+              // widget's, so a page of ours may report what it measured.
+              if (
+                type === 'pitLane:resetData' ||
+                (type === 'pitLane:updateData' && !visitor.ownPage)
+              ) {
+                throw new Error(NOT_ALLOWED);
+              }
               if (!pitLaneBridge)
                 throw new Error('Pit lane calibration is unavailable');
               let result: unknown;
@@ -358,9 +418,11 @@ export function createBridgeProxy(
           case 'getDashboardForProfile': {
             const { requestId, data } = parsed;
             const result =
-              (await dashboardBridge?.getDashboardForProfile?.(
-                data.profileId
-              )) || currentDashboard;
+              (isShortString(data?.profileId)
+                ? await dashboardBridge?.getDashboardForProfile?.(
+                    data.profileId
+                  )
+                : null) || currentDashboard;
             ws.send(
               JSON.stringify({
                 type: 'getDashboardForProfile',
@@ -373,10 +435,24 @@ export function createBridgeProxy(
           case 'reloadDashboard':
             dashboardBridge?.reloadDashboard();
             break;
+          // The page sends its whole dashboard; only where its widgets sit
+          // is taken from it. See mergeBrowserPositions.
           case 'saveDashboard': {
+            if (!visitor.ownPage || !dashboardBridge) break;
             const { dashboard, options } = parsed.data || {};
-            if (dashboard && dashboardBridge) {
-              dashboardBridge.saveDashboard(dashboard, options);
+            const profileId = isShortString(options?.profileId)
+              ? options.profileId
+              : undefined;
+            const stored = profileId
+              ? await dashboardBridge.getDashboardForProfile?.(profileId)
+              : dashboardBridge.getCurrentDashboard?.();
+            if (!stored) break;
+            const merged = mergeBrowserPositions(stored, dashboard);
+            if (merged) {
+              dashboardBridge.saveDashboard(
+                merged,
+                profileId ? { profileId } : undefined
+              );
             }
             break;
           }
@@ -394,9 +470,11 @@ export function createBridgeProxy(
           }
           case 'getGarageCoverImageAsDataUrl': {
             const { requestId, data } = parsed;
-            const result = await dashboardBridge?.getGarageCoverImageAsDataUrl(
-              data.imagePath
-            );
+            const result = isShortString(data?.imagePath)
+              ? await dashboardBridge?.getGarageCoverImageAsDataUrl(
+                  data.imagePath
+                )
+              : null;
             ws.send(
               JSON.stringify({
                 type: 'getGarageCoverImageAsDataUrl',
@@ -408,7 +486,7 @@ export function createBridgeProxy(
           }
           case 'getPlayerIconImageAsDataUrl': {
             const { requestId, data } = parsed;
-            if (!data || typeof data.imagePath !== 'string') {
+            if (!isShortString(data?.imagePath)) {
               ws.send(
                 JSON.stringify({
                   type: 'getPlayerIconImageAsDataUrl',
@@ -430,40 +508,17 @@ export function createBridgeProxy(
             );
             break;
           }
+          // Both belong to the settings window, which uses IPC. Answered, so a
+          // page that asks is not left waiting, and never carried out.
           case 'savePlayerIconImage': {
-            const { requestId, data } = parsed;
-            const buffer = Array.isArray(data?.buffer)
-              ? new Uint8Array(data.buffer)
-              : null;
-            if (!buffer) {
-              ws.send(
-                JSON.stringify({
-                  type: 'savePlayerIconImage',
-                  requestId,
-                  data: '',
-                })
-              );
-              break;
-            }
-            try {
-              const result = await dashboardBridge?.savePlayerIconImage(buffer);
-              ws.send(
-                JSON.stringify({
-                  type: 'savePlayerIconImage',
-                  requestId,
-                  data: result ?? '',
-                })
-              );
-            } catch (err) {
-              logger.error('[bridgeProxy] savePlayerIconImage failed:', err);
-              ws.send(
-                JSON.stringify({
-                  type: 'savePlayerIconImage',
-                  requestId,
-                  data: '',
-                })
-              );
-            }
+            ws.send(
+              JSON.stringify({
+                type: 'savePlayerIconImage',
+                requestId: parsed.requestId,
+                data: '',
+                error: NOT_ALLOWED,
+              })
+            );
             break;
           }
           case 'getCurrentProfile': {
@@ -491,16 +546,12 @@ export function createBridgeProxy(
             break;
           }
           case 'updateProfileTheme': {
-            const { requestId, data } = parsed;
-            await dashboardBridge?.updateProfileTheme(
-              data.profileId,
-              data.themeSettings
-            );
             ws.send(
               JSON.stringify({
                 type: 'updateProfileTheme',
-                requestId,
+                requestId: parsed.requestId,
                 data: null,
+                error: NOT_ALLOWED,
               })
             );
             break;
