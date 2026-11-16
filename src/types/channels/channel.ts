@@ -28,6 +28,7 @@ import type { TrafficSnapshot } from './traffic';
 import type { FinishProjectionSnapshot } from './finishProjection';
 import type { RaceForecastSnapshot } from './raceForecast';
 import type { RaceHistorySummarySnapshot } from './raceHistory';
+import type { CarSectorsSnapshot } from './carSectors';
 
 export type SessionLifecycleEvent =
   | { type: 'enter'; replay: boolean }
@@ -81,6 +82,7 @@ export interface ChannelPayloads {
   'player-stint.snapshot': PlayerStintSnapshot;
   'wear.snapshot': WearSnapshot;
   'car-pit.snapshot': CarPitSnapshot;
+  'car-sectors.snapshot': CarSectorsSnapshot;
   'pit-stop.snapshot': PitStopSnapshot;
   'track-profile.snapshot': TrackProfileSnapshot;
   'cruise.snapshot': CruiseSnapshot;
@@ -1392,6 +1394,13 @@ export const channelRegistry = {
     kind: 'snapshot',
     defaultRateHz: 2,
     maxRateHz: 5,
+  },
+  // Every car's sector times. One moves when a car ends a sector and then
+  // stands for a lap, so twice a second is as often as it is worked out.
+  'car-sectors.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 2,
+    maxRateHz: 2,
   },
   // The player's next stop and the cars around its pit exit. Its timer is
   // anchors on the session clock, so a stop under way publishes nothing; in
