@@ -80,6 +80,13 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // needed from the refuelling rates LMU's REST API states; the class
   // rivals' remaining stops from the fuel or energy scoring gives each car.
   'finishorder',
+  // The three strategy panels of the Pit Wall, made of the finish
+  // projection's reckoning run over the whole class: Our Car, with the
+  // tread and the damage LMU alone publishes; Class Rivals; and the Stint
+  // Timeline, whose driven stints are the race history's.
+  'ourcar',
+  'classrivals',
+  'stinttimeline',
   'flag',
   // The flag in force and the car a blue is for, from LMU's session phase,
   // sector flags and scoring. Each sim has states the other cannot report.
@@ -262,7 +269,7 @@ export const DEFAULT_SIM_WIDGET_SUPPORT: SimWidgetSupportConfig = {
  * it did, which costs a user their hand edits once per change and is why the
  * number is bumped only for a real one.
  */
-export const SIM_WIDGET_SUPPORT_VERSION = 15;
+export const SIM_WIDGET_SUPPORT_VERSION = 16;
 
 /**
  * Whether a widget is unavailable under the running sim.

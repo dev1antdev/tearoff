@@ -4,7 +4,9 @@ import type {
   StandingsSnapshot,
   Telemetry,
 } from '@irdashies/types';
-import { LMU_CLASS_COLOURS } from '@irdashies/types';
+// Not through the path alias: a spec loads this file, and resolves
+// aliases for files under src only.
+import { LMU_CLASS_COLOURS } from '../src/types';
 import { StandingsProcessor } from '../src/app/processors/StandingsProcessor';
 import { buildStoryLapTimes, type StoryLapPlan } from './lapTimesSnapshot';
 
