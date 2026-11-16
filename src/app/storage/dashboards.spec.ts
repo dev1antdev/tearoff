@@ -10,7 +10,7 @@ import {
   withDashboardDefaults,
   resetDashboard,
 } from './dashboards';
-import { defaultDashboard } from '@irdashies/types';
+import { defaultDashboard, getWidgetDefaultConfig } from '@irdashies/types';
 import { DashboardLayout } from '@irdashies/types';
 
 const mockReadData = vi.hoisted(() => vi.fn());
@@ -966,6 +966,150 @@ describe('dashboards', () => {
       expect(inputIn(migrated).useRawValues).toBe(false);
       expect(inputIn(migrated, 'input-x1').useRawValues).toBe(true);
       expect(inputIn(migrated, 'input-x1').bar.includeTc).toBe(true);
+    });
+  });
+
+  describe('Standings and Relative saved before the lap average columns', () => {
+    const layout = { x: 6, y: 10, width: 560, height: 774 };
+    const NEW_COLUMNS = ['avgLast5', 'avgLast10'];
+    const NEW_KEYS = [...NEW_COLUMNS, 'averagesOver'];
+    const without = (config: Record<string, unknown>, keys: string[]) =>
+      Object.fromEntries(
+        Object.entries(config).filter(([key]) => !keys.includes(key))
+      );
+
+    // A widget as a build before Avg 5 and Avg 10 stored it: what it has
+    // today without them, and then the driver's own settings on top, with
+    // the columns in an order of their own.
+    const savedConfig = (type: 'standings' | 'relative') => {
+      const now = structuredClone(
+        getWidgetDefaultConfig(type)
+      ) as unknown as Record<string, unknown>;
+      const order = (now.displayOrder as string[]).filter(
+        (name) => !NEW_COLUMNS.includes(name)
+      );
+      return {
+        ...without(now, NEW_KEYS),
+        background: { opacity: 55 },
+        lastTime: { enabled: true, timeFormat: 'mixed', markInvalid: false },
+        fastestTime: { enabled: false, timeFormat: 'seconds-full' },
+        avgLapTime: {
+          enabled: true,
+          numLaps: 7,
+          timeFormat: 'full',
+          excludePitLaps: true,
+        },
+        lmuVirtualEnergy: { enabled: true },
+        showOnlyWhenOnTrack: true,
+        displayOrder: [
+          'lastTime',
+          'lmuVirtualEnergy',
+          ...order.filter(
+            (name) => name !== 'lastTime' && name !== 'lmuVirtualEnergy'
+          ),
+        ],
+      };
+    };
+    const stored = (): DashboardLayout => ({
+      widgets: [
+        {
+          id: 'standings',
+          enabled: true,
+          layout,
+          config: savedConfig('standings'),
+        },
+        // The Gantry's own Standings layout is a Standings widget too.
+        {
+          id: 'standings-g1',
+          type: 'standings',
+          placement: 'gantry',
+          enabled: true,
+          layout,
+          config: savedConfig('standings'),
+        },
+        {
+          id: 'relative',
+          enabled: false,
+          layout,
+          config: savedConfig('relative'),
+        },
+      ],
+    });
+    const configOf = (dashboard: DashboardLayout, id: string) =>
+      dashboard.widgets.find((w) => w.id === id)?.config as Record<
+        string,
+        unknown
+      >;
+
+    it.each([
+      ['standings', 'standings'],
+      ['standings-g1', 'standings'],
+      ['relative', 'relative'],
+    ] as const)(
+      'gives %s the two columns, switched off, and keeps every stored setting',
+      (id, type) => {
+        const before = savedConfig(type);
+
+        const loaded = withDashboardDefaults(stored());
+        const config = configOf(loaded, id);
+
+        // Everything the profile held, value for value.
+        expect(without(config, [...NEW_KEYS, 'displayOrder'])).toEqual(
+          without(before, ['displayOrder'])
+        );
+        // The columns in the order the driver left them, plus the two new.
+        const order = config.displayOrder as string[];
+        expect(order.filter((name) => !NEW_COLUMNS.includes(name))).toEqual(
+          before.displayOrder
+        );
+        expect(order).toHaveLength(before.displayOrder.length + 2);
+        // Beside the rolling average, where a new dashboard has them.
+        const rolling = order.indexOf('avgLapTime');
+        expect(order.slice(rolling + 1, rolling + 3)).toEqual(NEW_COLUMNS);
+        // Off, over clean laps: the widget looks as it did.
+        expect(config.avgLast5).toEqual({ enabled: false, timeFormat: 'full' });
+        expect(config.avgLast10).toEqual({
+          enabled: false,
+          timeFormat: 'full',
+        });
+        expect(config.averagesOver).toBe('clean');
+        // The widget itself is untouched: where it is and whether it is on.
+        expect(loaded.widgets.find((w) => w.id === id)).toMatchObject({
+          enabled: id !== 'relative',
+          layout,
+        });
+      }
+    );
+
+    it('changes nothing more when the profile is loaded again', () => {
+      const loaded = withDashboardDefaults(stored());
+
+      expect(withDashboardDefaults(loaded)).toEqual(loaded);
+    });
+
+    it('keeps the columns as the driver then sets them', () => {
+      const loaded = withDashboardDefaults(stored());
+      const chosen: DashboardLayout = {
+        ...loaded,
+        widgets: loaded.widgets.map((widget) =>
+          widget.id === 'standings'
+            ? {
+                ...widget,
+                config: {
+                  ...widget.config,
+                  avgLast5: { enabled: true, timeFormat: 'mixed' },
+                  averagesOver: 'all',
+                },
+              }
+            : widget
+        ),
+      };
+
+      const config = configOf(withDashboardDefaults(chosen), 'standings');
+
+      expect(config.avgLast5).toEqual({ enabled: true, timeFormat: 'mixed' });
+      expect(config.avgLast10).toEqual({ enabled: false, timeFormat: 'full' });
+      expect(config.averagesOver).toBe('all');
     });
   });
 

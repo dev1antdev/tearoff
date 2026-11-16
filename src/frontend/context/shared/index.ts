@@ -10,6 +10,7 @@ export * from './useThrottledWeather';
 export * from './useTotalRaceValue';
 export * from './useCarIdxOffTrack';
 export * from './useCarIdxRollingAvgLapTime';
+export * from './useCarIdxLapAverage';
 export * from './useReferenceLapSectorTimes';
 export * from './useLovelyTrackData';
 export * from './useElementSize';

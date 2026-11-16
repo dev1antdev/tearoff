@@ -2,13 +2,24 @@ import { memo } from 'react';
 import { formatTime, type TimeFormat } from '@irdashies/utils/time';
 
 interface AvgLapTimeCellProps {
-  avgLapTime?: number;
+  /** Seconds. Nothing, or not above zero, where there is no average yet. */
+  avgLapTime?: number | null;
   timeFormat?: TimeFormat;
   compactMode?: string;
+  /**
+   * The column this cell belongs to. One cell draws every average column
+   * (the rolling AVG, Avg 5 and Avg 10) so that they read alike.
+   */
+  column?: string;
 }
 
 export const AvgLapTimeCell = memo(
-  ({ avgLapTime, timeFormat = 'mixed', compactMode }: AvgLapTimeCellProps) => {
+  ({
+    avgLapTime,
+    timeFormat = 'mixed',
+    compactMode,
+    column = 'avgLapTime',
+  }: AvgLapTimeCellProps) => {
     const pxClass =
       compactMode === 'ultra'
         ? ''
@@ -21,7 +32,7 @@ export const AvgLapTimeCell = memo(
 
     return (
       <td
-        data-column="avgLapTime"
+        data-column={column}
         className={`w-auto ${pxClass} whitespace-nowrap`}
       >
         {display}

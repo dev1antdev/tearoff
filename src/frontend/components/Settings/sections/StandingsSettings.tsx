@@ -15,6 +15,7 @@ import { FormatSelect } from '../components/FormatSelect';
 import { type StandingsBadgeFormat } from '@irdashies/types';
 import { DriverNamePreview } from '../components/DriverNamePreview';
 import { DEFAULT_SESSION_BAR_DISPLAY_ORDER } from '../sessionBarConstants';
+import { lapAverageHint } from '../lapAverageHint';
 import { SessionVisibility } from '../components/SessionVisibility';
 import { SettingDivider } from '../components/SettingDivider';
 import { SettingsSection } from '../components/SettingSection';
@@ -122,6 +123,18 @@ const sortableSettings: SortableSetting[] = [
     hasSubSetting: true,
   },
   {
+    id: 'avgLast5',
+    label: 'Avg 5 (Last 5 Laps)',
+    configKey: 'avgLast5',
+    hasSubSetting: true,
+  },
+  {
+    id: 'avgLast10',
+    label: 'Avg 10 (Last 10 Laps)',
+    configKey: 'avgLast10',
+    hasSubSetting: true,
+  },
+  {
     id: 'lapCount',
     label: 'Lap Count',
     configKey: 'lapCount',
@@ -213,6 +226,22 @@ const DisplaySettingsList = ({
                     path="avgLapTime.excludePitLaps"
                     variant="compact"
                   />
+                </>
+              )}
+            {(setting.configKey === 'avgLast5' ||
+              setting.configKey === 'avgLast10') &&
+              settings.config[setting.configKey]?.enabled && (
+                <>
+                  <SettingProp
+                    path={`${setting.configKey}.timeFormat`}
+                    variant="compact"
+                  />
+                  <p className="pl-8 mt-2 text-sm text-slate-500">
+                    {lapAverageHint(
+                      setting.configKey === 'avgLast5' ? 5 : 10,
+                      settings.config.averagesOver
+                    )}
+                  </p>
                 </>
               )}
             {setting.hasSubSetting &&
@@ -611,6 +640,12 @@ const StandingsSettingsPage = ({ widgetId }: { widgetId: string }) => {
                       )}
                       <SettingProp path="useLivePosition" />
                       <SettingProp path="radio.persistenceSeconds" />
+                    </SettingsSection>
+
+                    <SettingDivider />
+
+                    <SettingsSection title="Lap Averages">
+                      <SettingProp path="averagesOver" />
                     </SettingsSection>
 
                     <SettingDivider />

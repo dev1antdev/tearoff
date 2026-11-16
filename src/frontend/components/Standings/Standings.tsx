@@ -23,6 +23,7 @@ import {
   useWeekendInfoTeamRacing,
   useSessionVisibility,
   useCarIdxRollingAvgLapTime,
+  useCarIdxLapAverage,
   usePitStopDuration,
   usePitLaneStore,
   useFirstObservedLap,
@@ -61,6 +62,8 @@ export const COLUMN_LABELS: Record<string, string> = {
   compound: 'TIRE',
   lapTimeDeltas: 'DELTA',
   avgLapTime: 'AVG',
+  avgLast5: 'AVG 5',
+  avgLast10: 'AVG 10',
   lapCount: 'LAPS',
   trackLimits: 'TL',
   lmuVirtualEnergy: 'VE',
@@ -152,10 +155,15 @@ export const Standings = () => {
   const estimatedLapsEnabled =
     !!settings?.classHeaderStyle?.estimatedLaps?.enabled;
 
+  const avgLast5Enabled = !!settings?.avgLast5?.enabled;
+  const avgLast10Enabled = !!settings?.avgLast10?.enabled;
+
   useLapTimesStoreUpdater(
     !!(
       settings?.lapTimeDeltas?.enabled ||
       settings?.avgLapTime?.enabled ||
+      avgLast5Enabled ||
+      avgLast10Enabled ||
       estimatedLapsEnabled
     )
   );
@@ -210,6 +218,18 @@ export const Standings = () => {
       settings?.avgLapTime?.numLaps ?? 5,
       settings?.avgLapTime?.excludePitLaps ?? false
     ),
+    isEmptyList
+  );
+
+  // Anything but a stored "all" is the default: a saved dashboard is not
+  // trusted to hold one of the two values.
+  const averagesOver = settings?.averagesOver === 'all' ? 'all' : 'clean';
+  const avgLast5 = useHeld(
+    useCarIdxLapAverage(5, averagesOver, avgLast5Enabled),
+    isEmptyList
+  );
+  const avgLast10 = useHeld(
+    useCarIdxLapAverage(10, averagesOver, avgLast10Enabled),
     isEmptyList
   );
 
@@ -508,6 +528,16 @@ export const Standings = () => {
                           avgLapTime={
                             settings?.avgLapTime?.enabled
                               ? avgLapTimes[result.carIdx]
+                              : undefined
+                          }
+                          avgLast5={
+                            avgLast5Enabled
+                              ? avgLast5[result.carIdx]
+                              : undefined
+                          }
+                          avgLast10={
+                            avgLast10Enabled
+                              ? avgLast10[result.carIdx]
                               : undefined
                           }
                           displayOrder={settings?.displayOrder}

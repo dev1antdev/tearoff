@@ -1,4 +1,8 @@
-import { numberOptions, timeFormatOptions } from './properties';
+import {
+  lapAveragesOverProperty,
+  numberOptions,
+  timeFormatOptions,
+} from './properties';
 import { defineWidgetManifest } from './types';
 
 export default defineWidgetManifest({
@@ -109,6 +113,16 @@ export default defineWidgetManifest({
       timeFormat: 'mixed',
       excludePitLaps: false,
     },
+    // Off by default: two more time columns do not fit the default width.
+    avgLast5: {
+      enabled: false,
+      timeFormat: 'full',
+    },
+    avgLast10: {
+      enabled: false,
+      timeFormat: 'full',
+    },
+    averagesOver: 'clean',
     lapCount: {
       enabled: false,
     },
@@ -356,6 +370,8 @@ export default defineWidgetManifest({
       'compound',
       'lapTimeDeltas',
       'avgLapTime',
+      'avgLast5',
+      'avgLast10',
       'lapCount',
       'trackLimits',
       'lmuVirtualEnergy',
@@ -520,6 +536,17 @@ export default defineWidgetManifest({
       label: 'Time Format',
       options: timeFormatOptions,
     },
+    'avgLast5.timeFormat': {
+      type: 'enum',
+      label: 'Time Format',
+      options: timeFormatOptions,
+    },
+    'avgLast10.timeFormat': {
+      type: 'enum',
+      label: 'Time Format',
+      options: timeFormatOptions,
+    },
+    averagesOver: lapAveragesOverProperty,
     'pitStatus.showPitTime': { type: 'boolean', label: 'Pit Time' },
     'pitStatus.pitLapDisplayMode': {
       type: 'enum',

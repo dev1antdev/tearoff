@@ -1,4 +1,7 @@
-import type { SessionVisibilitySettings } from '../widgetConfigs';
+import type {
+  LapAverageLaps,
+  SessionVisibilitySettings,
+} from '../widgetConfigs';
 
 export const timeFormatOptions = [
   { value: 'full', label: '1:42.123' },
@@ -169,6 +172,22 @@ export const sessionVisibilityProperties = (
       { type: 'boolean', label: SESSION_VISIBILITY_LABELS[key] },
     ])
   );
+
+/**
+ * The "Averages over" choice of the Standings and the Relative, in one place
+ * so both describe a clean lap in the same words. The words follow what
+ * LapTimesProcessor keeps in `cleanLapTimeHistory`; change them with it.
+ */
+export const lapAveragesOverProperty = {
+  type: 'enum',
+  label: 'Averages over',
+  description:
+    'Which laps Avg 5 and Avg 10 are taken from. A clean lap is one Tearoff watched from line to line with the car never on pit road: in-laps and out-laps are left out, and so is the lap a car was on when it was first seen. Nothing else is left out: a lap under yellow counts, and so does a lap Le Mans Ultimate voided for track limits, with the time it took. All laps counts every lap that has a time, pit laps included. Either way a column reads -- until the car has that many laps.',
+  options: [
+    { value: 'clean', label: 'Clean laps' },
+    { value: 'all', label: 'All laps' },
+  ],
+} as const satisfies EnumSpec<LapAverageLaps>;
 
 /** Numeric enum options `from..to`, labelled with the number. */
 export const numberOptions = (from: number, to: number) =>

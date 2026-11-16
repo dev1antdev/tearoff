@@ -373,6 +373,9 @@ const RelativeWithReorderableConfig = () => {
       driverTag: { enabled: false },
       lapTimeDeltas: { enabled: false, numLaps: 3, decimalPlaces: 1 },
       avgLapTime: { enabled: false, numLaps: 5, timeFormat: 'mixed' },
+      avgLast5: { enabled: false, timeFormat: 'full' },
+      avgLast10: { enabled: false, timeFormat: 'full' },
+      averagesOver: 'clean',
       displayOrder: displayOrder,
       titleBar: { enabled: true, progressBar: { enabled: true } },
       headerBar: {
