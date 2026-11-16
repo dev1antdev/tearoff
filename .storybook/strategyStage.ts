@@ -654,12 +654,18 @@ const build = (stage: StrategyStage) => {
     stintFirstLap: all((car) => laps(car) - car.since + 1),
     stintLaps: all((car) => car.since),
     stintDriver: all((car, slot) => gridCars[slot].driver),
+    // The stint under way and the last one by another driver are not what
+    // these panels read: left as "nothing to say".
+    stintAvgLap: all(() => -1),
+    stintCleanLaps: all(() => 0),
     previousStintAvgLap: all((_, slot) =>
       slot === OWN_SLOT ? OWN_PACE - 0.29 : -1
     ),
     previousStintDriver: all((_, slot) =>
       slot === OWN_SLOT ? (previous?.driver ?? '') : ''
     ),
+    previousDriverStintAvgLap: all(() => -1),
+    previousDriverStintDriver: all(() => ''),
     driverChanges: all(() => 0),
     stops: all((car) => car.stops),
     revision: all(() => 1),
