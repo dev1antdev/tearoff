@@ -189,8 +189,11 @@ export function createKeyGate(options: KeyGateOptions) {
       lastWrongAt: at,
       cutOffUntil: 0,
     };
+    const known = attempts.wrong.size;
     for (const value of shown) attempts.wrong.add(fingerprint(value));
-    attempts.lastWrongAt = at;
+    // A key shown before is not a new guess: it adds nothing to the count
+    // and does not keep the older ones remembered any longer.
+    if (attempts.wrong.size > known) attempts.lastWrongAt = at;
     if (attempts.wrong.size >= WRONG_KEYS_ALLOWED) {
       attempts.cutOffUntil = at + CUT_OFF_MS;
       // The allowance starts again once the cut-off has been sat out.

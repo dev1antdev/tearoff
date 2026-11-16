@@ -97,6 +97,18 @@ describe('BrowserLinkField', () => {
     );
   });
 
+  it('does not say it copied where there is no clipboard to copy to', async () => {
+    vi.stubGlobal('navigator', {});
+    render(<BrowserLinkField label="Link" url={LOCAL} />);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Copy' }));
+    });
+
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+  });
+
   it('follows the link it is given, as when the key is replaced', () => {
     const next = 'n'.repeat(32);
     const { rerender } = render(

@@ -40,7 +40,13 @@ export const BrowserLinkField = ({
   useEffect(() => () => clearTimeout(timer.current), []);
 
   const copy = () => {
-    void Promise.resolve(navigator.clipboard?.writeText(url))
+    const clipboard: Clipboard | undefined = navigator.clipboard;
+    if (!clipboard) {
+      logger.warn('Could not copy a browser page link: no clipboard');
+      return;
+    }
+    void clipboard
+      .writeText(url)
       .then(() => {
         setCopied(true);
         clearTimeout(timer.current);

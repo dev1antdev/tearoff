@@ -402,6 +402,21 @@ describe('wrong keys from one address', () => {
     expect(trackedAddresses()).toBe(0);
   });
 
+  it('does not keep old wrong keys remembered for a stale key shown again', () => {
+    const { check, state } = gate();
+    for (let n = 1; n < WRONG_KEYS_ALLOWED; n++) guess(check, TABLET, n);
+
+    // A page left open keeps showing one of them, past the time the rest
+    // are remembered for.
+    for (let minute = 0; minute <= WRONG_KEY_MEMORY_MS / 60_000; minute++) {
+      state.clock += 60_000;
+      expect(guess(check, TABLET, 1).refusal).toBe('wrong');
+    }
+
+    expect(guess(check, TABLET, 40).refusal).toBe('wrong');
+    expect(check({ remoteAddress: TABLET, queryKey: KEY }).allowed).toBe(true);
+  });
+
   it('gives one device no way to cut off another', () => {
     const { check } = gate();
     for (let n = 1; n <= WRONG_KEYS_ALLOWED * 3; n++) guess(check, PHONE, n);

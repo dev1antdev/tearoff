@@ -330,9 +330,10 @@ function buildDashboardViewUrl(
   params: Record<string, string>,
   pageHost: string
 ): string {
+  // Vite answers where it always has; only this server is known to answer
+  // by the host the visitor used.
   const host = isDev
-    ? // Vite's page is only let in from the hosts it is known by.
-      `${devPageHosts().includes(pageHost) ? pageHost : SERVER_IP}:${VITE_PORT}`
+    ? `${SERVER_IP}:${VITE_PORT}`
     : `${pageHost}:${actualPort}`;
   const search = new URLSearchParams({ ...params, v: String(Date.now()) });
   return `http://${host}/index-dashboard-view.html?${search.toString()}`;
