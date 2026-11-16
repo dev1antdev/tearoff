@@ -2003,6 +2003,58 @@ export interface ClassFieldsConfig {
   sessionVisibility: SessionVisibilitySettings;
 }
 
+/**
+ * The timing tower: the whole field in one dense table, a row a car, with a
+ * tab for each class.
+ *
+ * Its columns are drawn in the order they are listed here, and each can be
+ * switched off. Two of them the sim may have nothing for, and are then left
+ * out whatever is set: the sector marks under iRacing, and the energy
+ * column in a session where no car publishes any.
+ */
+export interface TimingTowerConfig {
+  background: { opacity: number };
+  /**
+   * Which laps Avg 5 and Avg 10 count when the tower comes on screen. The
+   * switch in its header changes that for as long as it stays there.
+   */
+  averagesOver: LapAverageLaps;
+  /** Which earlier stint "vs stint" is held against, likewise. */
+  paceAgainst: StintPaceReference;
+  /** Place in class; overall on the tab of the whole field. */
+  position: { enabled: boolean };
+  carNumber: { enabled: boolean };
+  driver: {
+    enabled: boolean;
+    nameFormat: NameFormat;
+    /** The team under the driver's name. */
+    team: boolean;
+    /** PIT, OUT and the rest after the name. */
+    status: boolean;
+  };
+  /** To the leader of the list. */
+  gap: { enabled: boolean };
+  /** To the car ahead in the list. */
+  interval: { enabled: boolean };
+  lastTime: { enabled: boolean };
+  bestTime: { enabled: boolean };
+  avgLast5: { enabled: boolean };
+  avgLast10: { enabled: boolean };
+  /** The pace of the stint against an earlier one. */
+  stintPace: { enabled: boolean };
+  /** Three squares for the car's most recent sectors. Le Mans Ultimate. */
+  sectors: { enabled: boolean };
+  pitStops: { enabled: boolean };
+  /** Laps since the car last stopped. */
+  stintLaps: { enabled: boolean };
+  /** Virtual energy or fuel left, percent. Le Mans Ultimate. */
+  energy: { enabled: boolean };
+  /** The compound on the car. */
+  tyres: { enabled: boolean };
+  showOnlyWhenOnTrack: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+}
+
 export interface LapTraceConfig {
   /**
    * Settings schema version. Bump and add a migrator under src/types/migrators/
@@ -2746,6 +2798,7 @@ export interface WidgetConfigMap {
   cornername: CornerNameOverlayConfig;
   battle: BattleConfig;
   classfields: ClassFieldsConfig;
+  timingtower: TimingTowerConfig;
   laptrace: LapTraceConfig;
   gantry: GantryConfig;
   pitwall: PitWallConfig;
@@ -2858,6 +2911,7 @@ export type FlagWidgetSettings = BaseWidgetSettings<FlagConfig> & {
 export type FlagPanelWidgetSettings = BaseWidgetSettings<FlagPanelConfig>;
 export type TrafficWidgetSettings = BaseWidgetSettings<TrafficConfig>;
 export type ClassFieldsWidgetSettings = BaseWidgetSettings<ClassFieldsConfig>;
+export type TimingTowerWidgetSettings = BaseWidgetSettings<TimingTowerConfig>;
 export type GarageCoverWidgetSettings = BaseWidgetSettings<GarageCoverConfig>;
 export type TelemetryInspectorWidgetSettings =
   BaseWidgetSettings<TelemetryInspectorConfig>;

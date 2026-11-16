@@ -168,6 +168,11 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // channels the lap and sector widgets above already read. A last lap the
   // sim gave no time is shown as the measured one, marked.
   'timing',
+  // The whole field in one table, from what the Standings already read of
+  // LMU's scoring, with every car's sector times, which only LMU gives, and
+  // the pace of each stint from the race history. Under iRacing it has no
+  // sector marks and no energy column.
+  'timingtower',
   // The driver's own notes by distance into the lap, which is LMU's lap
   // distance, so a TinyPedal notes file comes in as it is. Pit notes follow
   // the pit-road flag.

@@ -1,6 +1,7 @@
 import type {
   LapAverageLaps,
   SessionVisibilitySettings,
+  StintPaceReference,
 } from '../widgetConfigs';
 
 export const timeFormatOptions = [
@@ -188,6 +189,28 @@ export const lapAveragesOverProperty = {
     { value: 'all', label: 'All laps' },
   ],
 } as const satisfies EnumSpec<LapAverageLaps>;
+
+/** The label of the choice below, and what its two values are called. */
+export const STINT_PACE_AGAINST_LABEL = 'Pace against';
+export const STINT_PACE_AGAINST_OPTIONS = [
+  { value: 'stint', label: 'Previous stint' },
+  { value: 'driver', label: 'Previous driver' },
+] as const satisfies readonly { value: StintPaceReference; label: string }[];
+
+/**
+ * The "Pace against" choice of the Timing Tower, the Standings and the
+ * Relative, in one place so all three describe the "vs stint" column in the
+ * same words. The words follow what RaceHistoryRecorder counts as a clean
+ * lap of a stint and the rule in `src/shared/stintPaceDelta.ts`; change
+ * them with those.
+ */
+export const stintPaceAgainstProperty = {
+  type: 'enum',
+  label: STINT_PACE_AGAINST_LABEL,
+  description:
+    'What the vs stint column compares. It is the average clean lap of the stint a car is on, less the average clean lap of an earlier stint of the same car: negative and green when the car is quicker than it was, positive and red when slower. Previous stint is the stint before this one. Previous driver is the most recent stint somebody else drove, which after a double stint is not the stint before. A clean lap here is one the sim timed, off pit road, not under a full-course yellow and not the first lap of a race. The column reads -- until the stint has three clean laps, and where there is no earlier stint with a clean lap: stints are known from when Tearoff began recording the race. Showing the column has the race recorded.',
+  options: STINT_PACE_AGAINST_OPTIONS,
+} as const satisfies EnumSpec<StintPaceReference>;
 
 /** Numeric enum options `from..to`, labelled with the number. */
 export const numberOptions = (from: number, to: number) =>

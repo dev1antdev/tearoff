@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { isOnOutLap } from '@irdashies/domain/standings/outLap';
 import { DriverStatusBadges } from '../../../../shared/DriverStatusBadges/DriverStatusBadges';
 
 interface PitStatusCellProps {
@@ -56,12 +57,13 @@ export const PitStatusCell = memo(
         currentSessionType != 'Race');
     const lastPit =
       !onPitRoad && !!lastPitLap && lastPitLap > 1 && carTrackSurface != -1;
-    const out =
-      !onPitRoad &&
-      !!lastPitLap &&
-      (lastPitLap == lastLap ||
-        (!!pitExitAfterSF && lastPitLap + 1 == lastLap)) &&
-      carTrackSurface != -1;
+    const out = isOnOutLap({
+      onPitRoad,
+      lastPitLap,
+      lastLap,
+      pitExitAfterSF,
+      carTrackSurface,
+    });
 
     return (
       <td

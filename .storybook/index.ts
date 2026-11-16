@@ -21,5 +21,7 @@ export * from './racePlanDecorator';
 export * from './pitWallStage';
 export * from './strategyStage';
 export * from './strategyStory';
+export * from './timingTowerStage';
 export * from './ScrollToText';
 export * from './browserAccessStory';
+export * from './PressButtons';

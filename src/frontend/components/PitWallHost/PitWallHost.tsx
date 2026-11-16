@@ -86,8 +86,10 @@ interface PanelContentProps {
  * enough, scaled down where it is not, and scrolling inside the panel where
  * it is taller than the panel. A slot with an aspect keeps its widget in a
  * box of that shape at the top of the panel.
+ *
+ * Exported for the stories that show one widget in a panel of a given size.
  */
-const PanelContent = memo(
+export const PanelContent = memo(
   ({ widget, slot, running, hostedDashboard }: PanelContentProps) => {
     const box = useRef<HTMLDivElement>(null);
     const { width } = useElementSize(box);

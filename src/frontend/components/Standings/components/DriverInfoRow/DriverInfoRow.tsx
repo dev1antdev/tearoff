@@ -17,7 +17,7 @@ import { LapCountCell } from './cells/LapCountCell';
 import { BadgeCell } from './cells/BadgeCell';
 import { LmuBadgeCell } from './cells/LmuBadgeCell';
 import { CarManufacturerCell } from './cells/CarManufacturerCell';
-import { CarNumberCell } from './cells/CarNumberCell';
+import { CarNumberCell } from '../../../shared/CarNumberCell/CarNumberCell';
 import { CompoundCell } from './cells/CompoundCell';
 import { TrackLimitsCell } from '../../../shared/TrackLimitsCell/TrackLimitsCell';
 import { VirtualEnergyCell } from '../../../shared/VirtualEnergyCell/VirtualEnergyCell';
