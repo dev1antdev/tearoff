@@ -120,6 +120,15 @@ describe('per-simulator widget support', () => {
     }
   });
 
+  it('shows the two maps of the whole circuit under both sims', () => {
+    // iRacing's are drawn from the drawings shipped with the app, Le Mans
+    // Ultimate's from the outline its session carries.
+    for (const id of ['map', 'flatmap']) {
+      expect(isWidgetDisabledForSim(config, id, 'iracing')).toBe(false);
+      expect(isWidgetDisabledForSim(config, id, 'lmu')).toBe(false);
+    }
+  });
+
   it('never hides a widget under every simulator', () => {
     // A widget on both lists could not be shown anywhere.
     const lmu = new Set(LMU_DISABLED_WIDGETS);

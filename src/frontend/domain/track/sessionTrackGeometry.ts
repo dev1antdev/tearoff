@@ -1,37 +1,9 @@
 import { useMemo } from 'react';
 import { useSessionStore, useTrackLength } from '@irdashies/context';
-import type { LmuTrackMap } from '@irdashies/types';
-import {
-  buildTrackGeometry,
-  type TrackGeometry,
-  type TrackPathData,
-} from './trackGeometry';
+import { lmuMapSignature, lmuTrackPathData } from './lmuTrackOutline';
+import { buildTrackGeometry, type TrackGeometry } from './trackGeometry';
 import { getTrackPathData } from './trackPaths';
 import { useTrackDrawing } from './useTrackDrawing';
-
-/**
- * The centreline of a Le Mans Ultimate map, in the shape the geometry builder
- * takes.
- *
- * An LMU map holds samples at even lap distance: sample `i` of `count` sits
- * `i / count` of the way round, so the stored line stops one sample short of
- * where it began. Repeating the first point closes it. Without that the last
- * stretch of every lap would be squeezed into the points before it and a car
- * crossing the line would jump the gap.
- */
-export const lmuTrackPathData = (
-  map: LmuTrackMap | null | undefined
-): TrackPathData | null => {
-  const points = map?.active?.trackPathPoints;
-  if (!points || points.length < 3) return null;
-  return {
-    trackPathPoints: [...points, points[0]],
-    totalLength: points.length,
-    startFinishLength: 0,
-    // Samples are stored in the order they are driven.
-    direction: 'anticlockwise',
-  };
-};
 
 /**
  * Smoothing for an LMU map, in metres.
@@ -43,31 +15,6 @@ export const lmuTrackPathData = (
  */
 const lmuSmoothing = (trackLength: number, samples: number) =>
   Math.max(16, (trackLength / samples) * 2.5);
-
-/**
- * A cheap fingerprint of an LMU map.
- *
- * The session is republished whenever a position or lap time moves, and every
- * publish carries a fresh copy of the same map. Selecting the map itself would
- * rebuild the geometry each time; selecting this string does it only when the
- * map really is a different one.
- */
-const lmuMapSignature = (map: LmuTrackMap | undefined): string => {
-  const points = map?.active?.trackPathPoints;
-  if (!points || points.length === 0) return '';
-  const first = points[0];
-  const middle = points[Math.floor(points.length / 2)];
-  const last = points[points.length - 1];
-  return [
-    points.length,
-    first.x,
-    first.y,
-    middle.x,
-    middle.y,
-    last.x,
-    last.y,
-  ].join(',');
-};
 
 export interface SessionTrackGeometry {
   geometry: TrackGeometry | null;

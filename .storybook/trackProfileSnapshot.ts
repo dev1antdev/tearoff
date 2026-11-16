@@ -93,6 +93,7 @@ export const trackProfileStorySnapshot: TrackProfileSnapshot = {
   elevationSource: 'recorded',
   recordingProgress: null,
   sectorStartPct: [0, 0.39, 0.792],
+  sectorSource: 'learned',
   notes: lagunaSecaStoryNotes,
   sessionNum: 0,
   version: 1,
@@ -106,5 +107,6 @@ export const emptyTrackProfileStorySnapshot: TrackProfileSnapshot = {
   elevationRangeM: 0,
   elevationSource: null,
   sectorStartPct: [],
+  sectorSource: 'nominal',
   notes: [],
 };

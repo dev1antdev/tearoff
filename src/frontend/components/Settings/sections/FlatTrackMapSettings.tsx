@@ -48,7 +48,7 @@ export const FlatTrackMapSettings = () => {
   return (
     <BaseSettingsSection
       title="Flat Track Map"
-      description="Configure flat track map visualization settings."
+      description="Configure flat track map visualization settings. Under Le Mans Ultimate cars in the pit lane are greyed and lettered P, and a sector under a yellow flag is marked once you have driven one clean lap of the circuit, which is how the app learns where that sim's sectors start."
       settings={settings}
       onSettingsChange={setSettings}
       widgetId="flatmap"

@@ -74,6 +74,7 @@ const profile = (
   elevationSource: 'recorded',
   recordingProgress: null,
   sectorStartPct: [0, 0.39, 0.792],
+  sectorSource: 'learned',
   notes: [],
   sessionNum: 0,
   version: 1,

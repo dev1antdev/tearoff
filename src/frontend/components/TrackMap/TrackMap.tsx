@@ -1,12 +1,10 @@
-import { useMemo } from 'react';
 import { useTrackId } from './hooks/useTrackId';
 import { useDriverProgress } from './hooks/useDriverProgress';
 import { useTrackMapSettings } from './hooks/useTrackMapSettings';
 import { useHighlightColor } from './hooks/useHighlightColor';
 import { useGhostSectorColors } from './hooks/useGhostSectorColors';
-import { usePlayerIconImage } from './hooks/usePlayerIconImage';
-import { TrackCanvas } from './TrackCanvas';
-import { useDriverLivePositions } from '@irdashies/domain';
+import { useTrackMapDisplay } from './hooks/useTrackMapDisplay';
+import { TrackMapView } from './TrackMapView';
 import {
   useSessionVisibility,
   useTrackStateSnapshot,
@@ -15,13 +13,12 @@ import {
   useSectorTimingStore,
 } from '@irdashies/context';
 
-const debug = import.meta.env.DEV || import.meta.env.MODE === 'storybook';
-
-/** Redraw rate for a map docked in the Gantry, which shares the GPU with the overlays. */
-const EMBEDDED_MAX_FPS = 30;
-
 const NO_SECTORS: never[] = [];
 
+/**
+ * The Track Map drawn from the drawing shipped for the session's track id:
+ * an iRacing track. `TrackMapWidget` decides when this is the one mounted.
+ */
 export const TrackMap = ({ embedded = false }: { embedded?: boolean }) => {
   const trackId = useTrackId();
   const { drivers: driversTrackData, identities } = useDriverProgress();
@@ -34,28 +31,7 @@ export const TrackMap = ({ embedded = false }: { embedded?: boolean }) => {
   const sectors =
     useSessionStore((s) => s.session?.SplitTimeInfo?.Sectors) ?? NO_SECTORS;
   const currentSectorIdx = useSectorTimingStore((s) => s.currentSectorIdx);
-  // A new object each render would redraw the static track layer every update.
-  const turnLabels = useMemo(
-    () => ({
-      enabled: settings?.turnLabels?.enabled ?? false,
-      labelType: settings?.turnLabels?.labelType ?? 'both',
-      highContrast: settings?.turnLabels?.highContrast ?? true,
-      labelFontSize: settings?.turnLabels?.labelFontSize ?? 100,
-    }),
-    [
-      settings?.turnLabels?.enabled,
-      settings?.turnLabels?.labelType,
-      settings?.turnLabels?.highContrast,
-      settings?.turnLabels?.labelFontSize,
-    ]
-  );
-  const playerIconEnabled = settings?.playerIcon?.enabled ?? false;
-  const playerIconDataUrl = usePlayerIconImage(
-    playerIconEnabled ? settings?.playerIcon?.fileName : undefined
-  );
-  const driverLivePositions = useDriverLivePositions({
-    enabled: settings?.displayMode === 'livePosition',
-  });
+  const display = useTrackMapDisplay(settings);
 
   if (!useSessionVisibility(settings?.sessionVisibility)) return <></>;
 
@@ -67,38 +43,17 @@ export const TrackMap = ({ embedded = false }: { embedded?: boolean }) => {
   if (!trackId) return <></>;
 
   return (
-    <div className="w-full h-full">
-      <TrackCanvas
-        trackId={trackId}
-        drivers={driversTrackData}
-        driverIdentities={identities}
-        turnLabels={turnLabels}
-        showCarNumbers={settings?.showCarNumbers ?? true}
-        displayMode={settings?.displayMode ?? 'carNumber'}
-        invertTrackColors={settings?.invertTrackColors ?? false}
-        driverCircleSize={settings?.driverCircleSize ?? 40}
-        playerCircleSize={settings?.playerCircleSize ?? 40}
-        trackmapFontSize={settings?.trackmapFontSize ?? 100}
-        trackLineWidth={settings?.trackLineWidth ?? 20}
-        trackOutlineWidth={settings?.trackOutlineWidth ?? 40}
-        highlightColor={
-          settings?.useHighlightColor ? highlightColor : undefined
-        }
-        invertLeaderColor={settings?.invertLeaderColor ?? false}
-        isMinimalTrack={settings?.styling?.isMinimalTrack ?? false}
-        isMinimalCar={settings?.styling?.isMinimalCar ?? false}
-        sectors={settings?.sectorColoring?.enabled ? sectors : undefined}
-        sectorColors={
-          settings?.sectorColoring?.enabled ? sectorColors : undefined
-        }
-        currentSectorIdx={
-          settings?.sectorColoring?.enabled ? currentSectorIdx : undefined
-        }
-        playerIconDataUrl={playerIconDataUrl}
-        driverLivePositions={driverLivePositions}
-        debug={debug}
-        maxFps={embedded ? EMBEDDED_MAX_FPS : undefined}
-      />
-    </div>
+    <TrackMapView
+      settings={settings}
+      embedded={embedded}
+      trackId={trackId}
+      drivers={driversTrackData}
+      identities={identities}
+      highlightColor={highlightColor}
+      sectors={sectors}
+      sectorColors={sectorColors}
+      currentSectorIdx={currentSectorIdx}
+      {...display}
+    />
   );
 };
