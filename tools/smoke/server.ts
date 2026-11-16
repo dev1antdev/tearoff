@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { WebSocket } from 'ws';
+import { SMOKE_STRANGERS } from './errors.ts';
 import type { ToggleCheck } from './report.ts';
 
 /**
@@ -44,38 +45,52 @@ function get(
   });
 }
 
-/** `open` with the first message's type, or the status the handshake got. */
-function knock(
-  port: number,
-  origin: string | undefined
-): Promise<{ opened: boolean; status?: number; first?: string }> {
+interface Knock {
+  opened: boolean;
+  /** The handshake's status when it was refused. */
+  status?: number;
+  /** The server sent the dashboard, which it does to every page it lets in. */
+  greeted: boolean;
+}
+
+const GREETING_MS = 2000;
+
+/** Opens a connection as `origin` and waits for the server's greeting. */
+function knock(port: number, origin: string | undefined): Promise<Knock> {
   return new Promise((resolve) => {
     const socket = new WebSocket(`ws://localhost:${port}`, {
       origin,
       handshakeTimeout: TIMEOUT_MS,
     });
-    const done = (result: {
-      opened: boolean;
-      status?: number;
-      first?: string;
-    }) => {
+    let timer = setTimeout(
+      () => done({ opened: false, greeted: false }),
+      TIMEOUT_MS + 1000
+    );
+    const done = (result: Knock) => {
       clearTimeout(timer);
       socket.terminate();
       resolve(result);
     };
-    const timer = setTimeout(() => done({ opened: false }), TIMEOUT_MS + 1000);
     socket.on('unexpected-response', (_request, response) =>
-      done({ opened: false, status: response.statusCode })
+      done({ opened: false, status: response.statusCode, greeted: false })
     );
-    socket.on('error', () => done({ opened: false }));
+    socket.on('error', () => done({ opened: false, greeted: false }));
+    socket.on('open', () => {
+      clearTimeout(timer);
+      timer = setTimeout(
+        () => done({ opened: true, greeted: false }),
+        GREETING_MS
+      );
+    });
+    // Other messages may come first: the running state does, for the first
+    // page to connect.
     socket.on('message', (raw) => {
-      let first: string | undefined;
       try {
-        first = (JSON.parse(raw.toString()) as { type?: string }).type;
+        const type = (JSON.parse(raw.toString()) as { type?: string }).type;
+        if (type === 'initialState') done({ opened: true, greeted: true });
       } catch {
-        first = undefined;
+        // Not JSON, so not the greeting.
       }
-      done({ opened: true, first });
     });
   });
 }
@@ -143,7 +158,7 @@ export async function checkBrowserServer(options: {
 
   await check('a page from another site is refused', async () => {
     const answer = await get(port, '/components', {
-      Origin: 'https://example.com',
+      Origin: SMOKE_STRANGERS.origin,
     });
     return {
       passed: answer.status === 403,
@@ -153,7 +168,7 @@ export async function checkBrowserServer(options: {
 
   await check('a name pointed at this machine is refused', async () => {
     const answer = await get(port, '/dashboard', {
-      Host: `rebound.example:${port}`,
+      Host: `${SMOKE_STRANGERS.host}:${port}`,
     });
     return {
       passed: answer.status === 403,
@@ -170,19 +185,19 @@ export async function checkBrowserServer(options: {
 
   await check("the overlay page's own connection opens", async () => {
     const result = await knock(port, `http://localhost:${port}`);
-    const passed = result.opened && result.first === 'initialState';
+    const passed = result.opened && result.greeted;
     return {
       passed,
       detail: passed
         ? 'Opened and was sent the dashboard.'
         : result.opened
-          ? `Opened, but the first message was "${result.first}".`
+          ? 'Opened, but the dashboard was not sent within two seconds.'
           : `Did not open (status ${result.status ?? 'none'}).`,
     };
   });
 
   await check("another site's connection is refused", async () => {
-    const result = await knock(port, 'https://example.com');
+    const result = await knock(port, SMOKE_STRANGERS.origin);
     return {
       passed: !result.opened && result.status === 403,
       detail: result.opened
