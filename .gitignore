@@ -135,3 +135,6 @@ docs/GANTRY_LAP_GRAPH_PLAN.md
 # Python bytecode from the telemetry tooling
 __pycache__/
 *.pyc
+
+# App smoke reports (tools/smoke)
+smoke-results/
