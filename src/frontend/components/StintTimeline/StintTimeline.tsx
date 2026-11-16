@@ -10,12 +10,12 @@ import {
   timelineCars,
   timelineModel,
 } from '@irdashies/domain/raceForecast';
+import { useRaceStints } from '@irdashies/domain/raceHistory';
 import {
   TIMELINE_BAR_PX,
   TIMELINE_ROW_GAP_PX,
   TimelineChart,
 } from './components/TimelineChart';
-import { useRaceStints } from './hooks/useRaceStints';
 import { useStintTimelineSettings } from './hooks/useStintTimelineSettings';
 
 const NO_CARS: number[] = [];
