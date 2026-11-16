@@ -25,7 +25,9 @@ function get(
 ): Promise<Answer> {
   return new Promise((resolve, reject) => {
     const request = http.get(
-      { host: '127.0.0.1', port, path, headers, timeout: TIMEOUT_MS },
+      // By name, as a browser source is: the server binds to `localhost`,
+      // which on Windows is the IPv6 loopback and not 127.0.0.1.
+      { host: 'localhost', port, path, headers, timeout: TIMEOUT_MS },
       (response) => {
         const chunks: Buffer[] = [];
         response.on('data', (chunk: Buffer) => chunks.push(chunk));
