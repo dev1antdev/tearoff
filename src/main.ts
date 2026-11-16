@@ -42,9 +42,13 @@ import { setupFuelCalculatorBridge } from './app/bridge/fuelCalculatorBridge';
 import { OverlayManager } from './app/overlayManager';
 import {
   startComponentServer,
+  getBrowserAccess,
   getComponentServerHost,
   getComponentServerPort,
+  onConnectedDevicesChanged,
+  replaceDeviceKey,
 } from './app/webserver/componentServer';
+import { setupBrowserAccessBridge } from './app/bridge/browserAccessBridge';
 import { updateElectronApp } from 'update-electron-app';
 // @ts-expect-error no types for squirrel
 import started from 'electron-squirrel-startup';
@@ -913,6 +917,14 @@ void app.whenReady().then(async () => {
 
   ipcMain.handle('getComponentServerPort', () => getComponentServerPort());
   ipcMain.handle('getComponentServerHost', () => getComponentServerHost());
+  // The links other devices open carry a key. It is handed to the settings
+  // window and to no other.
+  setupBrowserAccessBridge({
+    getAccess: getBrowserAccess,
+    replaceKey: replaceDeviceKey,
+    onDevicesChanged: onConnectedDevicesChanged,
+    isSettingsWindow: (sender) => overlayManager.isSettingsWebContents(sender),
+  });
 
   if (!perfRun.enabled || perfRun.overlayMode !== 'observer') {
     // Empty mode keeps the normal overlay window count/bounds while the

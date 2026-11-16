@@ -12,9 +12,13 @@ import {
   SESSION_PROFILE_LABELS,
   SPOTTING_TRIGGER_KEY,
   SPOTTING_TRIGGER_LABEL,
+  browserPageUrl,
+  isLocalHostName,
 } from '@irdashies/types';
 import logger from '@irdashies/utils/logger';
+import { BrowserLinkField } from '../components/BrowserLinkField';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { useBrowserAccess } from '../hooks/useBrowserAccess';
 import {
   CopySimpleIcon,
   PencilSimpleIcon,
@@ -222,10 +226,36 @@ export const ProfileSettings = () => {
     // eslint-disable-next-line @eslint-react/exhaustive-deps
   }, []);
 
+  // The key a device that is not this PC opens the server's pages with.
+  const deviceKey = useBrowserAccess().access?.key ?? null;
+  const keyForHost = (host: string) =>
+    isLocalHostName(host) ? null : deviceKey;
+
+  /** A profile's page for a browser on this PC, which needs no key. */
   const browserUrlFor = (profileId: string, host = serverIP) =>
     serverPort === null
       ? ''
-      : `http://${host}:${serverPort}/dashboard?profile=${encodeURIComponent(profileId)}`;
+      : browserPageUrl({
+          host,
+          port: serverPort,
+          path: '/dashboard',
+          profile: profileId,
+        });
+
+  /**
+   * The same page by this PC's network address, as a link that may be taken
+   * to another device, so it carries the key such a device needs.
+   */
+  const deviceUrlFor = (profileId: string) =>
+    serverPort === null
+      ? ''
+      : browserPageUrl({
+          host: serverIP,
+          port: serverPort,
+          path: '/dashboard',
+          profile: profileId,
+          key: keyForHost(serverIP),
+        });
 
   const handleCreateProfile = async () => {
     if (!newProfileName.trim()) {
@@ -468,7 +498,7 @@ export const ProfileSettings = () => {
                             <button
                               onClick={() =>
                                 navigator.clipboard.writeText(
-                                  browserUrlFor(profile.id)
+                                  deviceUrlFor(profile.id)
                                 )
                               }
                               className="settings-button"
@@ -712,51 +742,28 @@ export const ProfileSettings = () => {
               <div className="text-xs font-medium text-slate-300 mb-2">
                 Localhost (Development)
               </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={browserUrlFor(currentProfile.id, 'localhost')}
-                  className="settings-field flex-1 font-mono"
-                />
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      browserUrlFor(currentProfile.id, 'localhost')
-                    );
-                  }}
-                  className="border border-settings-boundary bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap"
-                >
-                  Copy
-                </button>
-              </div>
+              <BrowserLinkField
+                label="Browser source URL for this PC"
+                url={browserUrlFor(currentProfile.id, 'localhost')}
+              />
             </div>
 
             <div className="space-y-2">
               <div className="text-xs font-medium text-slate-300 mb-2">
                 IP Address (OBS/Streaming)
               </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={browserUrlFor(currentProfile.id)}
-                  className="settings-field flex-1 font-mono"
-                />
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(
-                      browserUrlFor(currentProfile.id)
-                    );
-                  }}
-                  className="bg-accent-600 hover:bg-accent-700 text-on-accent px-3 py-2 rounded text-sm font-medium transition-colors whitespace-nowrap"
-                >
-                  Copy for OBS
-                </button>
-              </div>
+              <BrowserLinkField
+                label="Browser source URL by this PC's network address"
+                url={deviceUrlFor(currentProfile.id)}
+                secret={keyForHost(serverIP)}
+                copyLabel="Copy for OBS"
+                primary
+              />
               <p className="text-xs text-slate-500">
                 Note: This URL uses your server&apos;s IP address ({serverIP}).
                 Works in OBS browser sources and from other machines.
+                {keyForHost(serverIP) &&
+                  ' It carries the key a device that is not this PC needs; without it such a device is refused. A new key is made under Pit Wall.'}
               </p>
             </div>
           </div>

@@ -16,7 +16,7 @@ class FakeWebSocket {
   onopen?: () => void;
   onmessage?: (event: MessageEvent) => void;
   onerror?: (event: Event) => void;
-  onclose?: () => void;
+  onclose?: (event?: CloseEvent) => void;
 
   constructor(readonly url: string) {
     FakeWebSocket.latest = this;
@@ -464,6 +464,76 @@ describe('WebSocketBridge pit lane calibration', () => {
       revision: 0,
       data: null,
     });
+    bridge.stop();
+  });
+});
+
+describe('browser page whose key was replaced', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  const connected = async (onKeyReplaced?: () => void) => {
+    vi.useFakeTimers();
+    vi.stubGlobal('WebSocket', FakeWebSocket);
+    const bridge = new WebSocketBridge({ onKeyReplaced });
+    const connecting = bridge.connect('http://192.168.1.50:3000');
+    const socket = FakeWebSocket.latest as FakeWebSocket;
+    socket.onopen?.();
+    await connecting;
+    return { bridge, socket };
+  };
+
+  it('stops knocking and says so, instead of coming back with the old key', async () => {
+    const onKeyReplaced = vi.fn();
+    const { bridge, socket } = await connected(onKeyReplaced);
+
+    socket.onclose?.({ code: 4403 } as CloseEvent);
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(onKeyReplaced).toHaveBeenCalledTimes(1);
+    // No second socket was opened in a minute of waiting.
+    expect(FakeWebSocket.latest).toBe(socket);
+    bridge.stop();
+  });
+
+  it('asks for the whole page again unless told what to do', async () => {
+    const reload = vi.fn();
+    vi.stubGlobal('window', { top: { location: { reload } } });
+    const { bridge, socket } = await connected();
+
+    socket.onclose?.({ code: 4403 } as CloseEvent);
+
+    expect(reload).toHaveBeenCalledTimes(1);
+    bridge.stop();
+  });
+
+  it('asks for its own frame again where the page around it is out of reach', async () => {
+    const reload = vi.fn();
+    vi.stubGlobal('window', {
+      get top(): never {
+        throw new Error('cross-origin');
+      },
+      location: { reload },
+    });
+    const { bridge, socket } = await connected();
+
+    socket.onclose?.({ code: 4403 } as CloseEvent);
+
+    expect(reload).toHaveBeenCalledTimes(1);
+    bridge.stop();
+  });
+
+  it('comes back as before after any other close', async () => {
+    const onKeyReplaced = vi.fn();
+    const { bridge, socket } = await connected(onKeyReplaced);
+
+    socket.onclose?.({ code: 1006 } as CloseEvent);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    expect(onKeyReplaced).not.toHaveBeenCalled();
+    expect(FakeWebSocket.latest).not.toBe(socket);
     bridge.stop();
   });
 });

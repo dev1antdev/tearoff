@@ -298,16 +298,24 @@ const findPanelWidget = (
  * Works out the page the saved dashboard describes: the chosen layout, its
  * grid, and the dashboard widget behind each panel. With `sim`, panels the
  * running sim cannot support are left out, as they are on the overlay.
+ *
+ * `layoutChoice` is a layout chosen where the page is shown instead of in
+ * the profile, as a browser on another device does: it is shown in place of
+ * the saved one, and anything that is not a layout is ignored.
  */
 export const resolvePitWall = (
   dashboard: DashboardLayout | null | undefined,
-  sim?: PitWallSimFilter
+  sim?: PitWallSimFilter,
+  layoutChoice?: PitWallLayoutId
 ): ResolvedPitWall => {
   const widgets = dashboard?.widgets ?? [];
   const config = sanitizePitWallConfig(
     widgets.find((widget) => widget.id === PIT_WALL_WIDGET_ID)?.config
   );
-  const layout = PIT_WALL_LAYOUTS[config.layout];
+  const layout =
+    PIT_WALL_LAYOUTS[
+      isPitWallLayoutId(layoutChoice) ? layoutChoice : config.layout
+    ];
   const grid = pitWallGrid(
     layout,
     (slot) =>

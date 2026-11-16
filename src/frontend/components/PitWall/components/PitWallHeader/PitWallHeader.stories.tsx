@@ -64,6 +64,21 @@ export const CompactLayout: Story = {
 };
 
 /**
+ * The strip in a browser: no gear, because there is no settings window for
+ * a browser to open.
+ */
+export const InABrowser: Story = {
+  args: { layout: 'compact', onOpenSettings: undefined },
+  decorators: [
+    (Story) => (
+      <div className="w-[1180px]">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+/**
  * Practice under iRacing: no in-game clock, and a car the sim has not ranked
  * yet, which shows a placeholder rather than a place.
  */

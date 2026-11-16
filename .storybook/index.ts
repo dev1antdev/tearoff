@@ -20,3 +20,4 @@ export * from './gantryDecorator';
 export * from './racePlanDecorator';
 export * from './pitWallStage';
 export * from './ScrollToText';
+export * from './browserAccessStory';

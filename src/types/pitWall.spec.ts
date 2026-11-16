@@ -17,6 +17,7 @@ import {
 } from './simWidgetSupport';
 import { WIDGET_MANIFESTS } from './widgets';
 import type { DashboardLayout, DashboardWidget } from './dashboardLayout';
+import type { PitWallLayoutId } from './widgetConfigs';
 
 describe('sanitizePitWallConfig', () => {
   it('falls back to the Race layout for missing or broken values', () => {
@@ -283,6 +284,22 @@ describe('resolvePitWall', () => {
     expect(resolvePitWall(dashboardWith({ layout: 'nope' })).layout.id).toBe(
       'race'
     );
+  });
+
+  it('shows a layout chosen where the page is shown in place of the saved one', () => {
+    const saved = dashboardWith({ layout: 'race' });
+
+    expect(resolvePitWall(saved, undefined, 'compact').layout).toBe(
+      PIT_WALL_LAYOUTS.compact
+    );
+    expect(resolvePitWall(undefined, undefined, 'watching').layout.id).toBe(
+      'watching'
+    );
+    // What a device remembered is as untrusted as what a profile saved.
+    expect(
+      resolvePitWall(saved, undefined, 'nope' as PitWallLayoutId).layout.id
+    ).toBe('race');
+    expect(resolvePitWall(saved, undefined, undefined).layout.id).toBe('race');
   });
 
   it('shows the saved layout', () => {

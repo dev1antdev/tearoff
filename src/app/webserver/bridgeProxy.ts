@@ -29,6 +29,15 @@ import {
   type AccessRequest,
 } from './accessPolicy';
 import { mergeBrowserPositions } from './browserPositions';
+import type { DeviceAccess } from './deviceAccess';
+import {
+  DEVICE_KEY_COOKIE,
+  createKeyRefusalLog,
+  forgetKeyCookie,
+  keyRefusalAnswer,
+  readCookie,
+  type KeyDecision,
+} from './deviceKey';
 
 /** A whole dashboard is a few hundred kilobytes; nothing a page sends is more. */
 const MAX_MESSAGE_BYTES = 4 * 1024 * 1024;
@@ -56,6 +65,11 @@ export let currentDashboard: DashboardLayout | null = null;
  * widgets sit and the pit lane it measured while driving, are accepted from a
  * page this server served and from nobody else. Everything the settings
  * window changes goes over IPC and is refused here.
+ *
+ * A visitor that is not this machine must also hold the key, which its
+ * handshake carries in the cookie the server set when it opened the page by
+ * its link (`deviceAccess`). The key never travels over the socket itself:
+ * no message asks for it and none answers with it.
  */
 export function createBridgeProxy(
   httpServer: HTTPServer,
@@ -63,7 +77,8 @@ export function createBridgeProxy(
   dashboardBridge?: DashboardBridge,
   channelBus?: ChannelBus,
   pitLaneBridge?: PitLaneBridge,
-  accessPolicy?: AccessPolicy
+  accessPolicy?: AccessPolicy,
+  deviceAccess?: DeviceAccess
 ) {
   const visitorOf = (req: IncomingMessage): AccessRequest => ({
     host: req.headers.host,
@@ -73,7 +88,34 @@ export function createBridgeProxy(
   const accessOf = (req: IncomingMessage | undefined) =>
     req && accessPolicy ? evaluateAccess(visitorOf(req), accessPolicy) : null;
 
+  /**
+   * The key rule for a handshake. Where there is a policy and no key rule to
+   * ask, only loopback is let in, so that leaving the rule out can never
+   * open the socket to another device.
+   */
+  const passOf = (req: IncomingMessage, loopback: boolean): KeyDecision => {
+    if (deviceAccess) {
+      return deviceAccess.check({
+        remoteAddress: req.socket?.remoteAddress,
+        cookieKey: readCookie(req.headers.cookie, DEVICE_KEY_COOKIE),
+      });
+    }
+    return loopback
+      ? { allowed: true, thisMachine: true, staleCookie: false }
+      : {
+          allowed: false,
+          thisMachine: false,
+          refusal: 'missing',
+          staleCookie: false,
+        };
+  };
+  /** What the handshake decided, for the connection that follows it. */
+  const passes = new WeakMap<IncomingMessage, KeyDecision>();
+
   const reportRefusal = createRefusalLog((line) =>
+    logger.warn(`Bridge proxy: connection ${line}`)
+  );
+  const reportKeyRefusal = createKeyRefusalLog((line) =>
     logger.warn(`Bridge proxy: connection ${line}`)
   );
   const wss = new WebSocketServer({
@@ -81,12 +123,30 @@ export function createBridgeProxy(
     maxPayload: MAX_MESSAGE_BYTES,
     verifyClient: (info, done) => {
       const access = accessOf(info.req);
-      if (!access || access.allowed) {
+      if (access && !access.allowed) {
+        reportRefusal(access.refusal, visitorOf(info.req));
+        done(false, 403, 'Forbidden');
+        return;
+      }
+      if (!access && !deviceAccess) {
         done(true);
         return;
       }
-      reportRefusal(access.refusal, visitorOf(info.req));
-      done(false, 403, 'Forbidden');
+      // Host and Origin first; the key is asked of whoever they let through.
+      const pass = passOf(info.req, access?.loopback === true);
+      if (!pass.allowed) {
+        reportKeyRefusal(pass.refusal, info.req.socket?.remoteAddress);
+        const { status, text } = keyRefusalAnswer(pass);
+        done(
+          false,
+          status,
+          text,
+          pass.staleCookie ? { 'Set-Cookie': forgetKeyCookie() } : undefined
+        );
+        return;
+      }
+      passes.set(info.req, pass);
+      done(true);
     },
   });
 
@@ -212,6 +272,19 @@ export function createBridgeProxy(
 
   wss.on('connection', (ws: WebSocket, req?: IncomingMessage) => {
     const visitor: Visitor = { ownPage: accessOf(req)?.ownPage === true };
+    // Another device, let in for its key: counted as connected for the
+    // settings window, and disconnected if the key is replaced.
+    const pass = req ? passes.get(req) : undefined;
+    if (deviceAccess && req && !pass) {
+      // Every handshake is decided before it gets here. One that was not is
+      // not a connection to answer.
+      ws.close(1008, 'Forbidden');
+      return;
+    }
+    const releaseDevice =
+      deviceAccess && pass && !pass.thisMachine
+        ? deviceAccess.admit(ws, req?.socket?.remoteAddress)
+        : undefined;
     clients.add(ws);
     inspectorStreams.set(ws, new Set());
     const channelTarget = {
@@ -246,6 +319,9 @@ export function createBridgeProxy(
     );
 
     ws.on('message', async (message: Buffer) => {
+      // A socket that is being closed, as one is when its device's key was
+      // replaced, is no longer listened to while the close goes through.
+      if (ws.readyState !== WebSocket.OPEN) return;
       try {
         const parsed = JSON.parse(message.toString());
 
@@ -566,6 +642,7 @@ export function createBridgeProxy(
     });
 
     ws.on('close', () => {
+      releaseDevice?.();
       clients.delete(ws);
       inspectorStreams.delete(ws);
       racePlanSubscriptions.get(ws)?.();

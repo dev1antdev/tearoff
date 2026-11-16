@@ -1003,7 +1003,12 @@ export class OverlayManager {
     );
   }
 
-  private isSettingsWebContents(webContents: Electron.WebContents): boolean {
+  /**
+   * Whether this renderer is the settings window's. What only the settings
+   * window is shown, such as the key other devices open browser pages with,
+   * is refused to every other window.
+   */
+  public isSettingsWebContents(webContents: Electron.WebContents): boolean {
     const win = this.currentSettingsWindow;
     return !!win && !win.isDestroyed() && win.webContents.id === webContents.id;
   }

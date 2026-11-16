@@ -145,6 +145,23 @@ export async function checkBrowserServer(options: {
     };
   });
 
+  // The smoke knocks from this machine, which needs no key. What a device
+  // that is not this machine is refused is covered by the specs: a run has
+  // no second machine to knock from.
+  await check('browser page /pitwall', async () => {
+    const answer = await get(port, '/pitwall');
+    const passed =
+      answer.status === 200 &&
+      answer.body.includes('index-dashboard-view.html') &&
+      answer.body.includes('view=pitwall');
+    return {
+      passed,
+      detail: passed
+        ? 'Served to this machine, and it points at the Pit Wall page.'
+        : `Answered ${answer.status} without the Pit Wall page in it.`,
+    };
+  });
+
   if (options.packaged) {
     await check('overlay page bundle', async () => {
       const answer = await get(port, '/index-dashboard-view.html');

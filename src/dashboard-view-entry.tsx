@@ -22,6 +22,9 @@ const wsUrl = urlParams.get('wsUrl') || 'http://localhost:3000';
 // Set by /widget/<id>: draw that one widget filling the window instead of the
 // whole dashboard, so one page can be pointed at one VR overlay tab.
 const soloWidgetId = urlParams.get('widget') || undefined;
+// Set by /pitwall: draw the Pit Wall page, as its window does, instead of
+// the overlays.
+const isPitWall = urlParams.get('view') === 'pitwall';
 const debugMode = urlParams.get('debug') === 'true';
 
 if (debugMode) {
@@ -77,6 +80,23 @@ async function initializeDashboardView() {
   }
 
   const root = createRoot(rootElement);
+
+  if (isPitWall) {
+    // Loaded only where it is shown: a browser source pays nothing for it.
+    const { PitWallBrowserPage } =
+      await import('./frontend/windows/PitWallBrowserPage');
+    root.render(
+      <DashboardProvider
+        bridge={bridge as DashboardBridge}
+        profileId={profileId}
+      >
+        <RunningStateProvider bridge={bridge}>
+          <PitWallBrowserPage bridge={bridge} />
+        </RunningStateProvider>
+      </DashboardProvider>
+    );
+    return;
+  }
 
   root.render(
     <HashRouter>

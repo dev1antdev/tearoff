@@ -10,7 +10,8 @@ export interface PitWallHeaderProps {
   onLayoutChange: (layout: PitWallLayoutId) => void;
   fullscreen: boolean;
   onToggleFullscreen: () => void;
-  onOpenSettings: () => void;
+  /** Opens the Pit Wall's settings. Left out, the strip has no gear. */
+  onOpenSettings?: () => void;
 }
 
 const FLAG_TONE_CLASS: Record<FlagTone, string> = {
@@ -205,15 +206,17 @@ export const PitWallHeader = ({
               <CornersOutIcon size={18} />
             )}
           </button>
-          <button
-            type="button"
-            className={`${iconButtonClass} ${tall ? 'size-11' : ''}`}
-            title="Pit Wall settings"
-            aria-label="Pit Wall settings"
-            onClick={onOpenSettings}
-          >
-            <GearIcon size={18} />
-          </button>
+          {onOpenSettings && (
+            <button
+              type="button"
+              className={`${iconButtonClass} ${tall ? 'size-11' : ''}`}
+              title="Pit Wall settings"
+              aria-label="Pit Wall settings"
+              onClick={onOpenSettings}
+            >
+              <GearIcon size={18} />
+            </button>
+          )}
         </div>
       </div>
     </header>

@@ -1,7 +1,15 @@
 import { Meta, StoryObj } from '@storybook/react-vite';
 import { DashboardProvider } from '@irdashies/context';
-import { mockDashboardBridge } from '@irdashies/storybook';
-import type { DashboardBridge, SessionProfileMap } from '@irdashies/types';
+import {
+  mockDashboardBridge,
+  storyAccessBridge,
+  storyAccessOpen,
+} from '@irdashies/storybook';
+import type {
+  BrowserAccess,
+  DashboardBridge,
+  SessionProfileMap,
+} from '@irdashies/types';
 import { ProfileSettings } from './ProfileSettings';
 
 const profiles = [
@@ -21,13 +29,15 @@ const profiles = [
  */
 const bridgeWithProfiles = (
   initial: SessionProfileMap,
-  serverPort: number
+  serverPort: number,
+  serverHost: string
 ): DashboardBridge => {
   let map: SessionProfileMap = { ...initial };
   return {
     ...mockDashboardBridge,
     listProfiles: () => Promise.resolve(profiles),
     getComponentServerPort: () => Promise.resolve(serverPort),
+    getComponentServerHost: () => Promise.resolve(serverHost),
     getSessionProfileMap: () => Promise.resolve(map),
     setSessionProfileMap: (next: SessionProfileMap) => {
       map = next;
@@ -52,15 +62,22 @@ type Story = StoryObj<typeof ProfileSettings>;
 // is all it needs.
 const withBridge = (
   map: SessionProfileMap,
-  serverPort = 3000
+  serverPort = 3000,
+  // The web server open to the network, with the key its links then carry.
+  open?: BrowserAccess
 ): Story['decorators'] => [
-  (Story) => (
-    <DashboardProvider bridge={bridgeWithProfiles(map, serverPort)}>
-      <div className="h-screen w-full max-w-3xl overflow-y-auto text-white">
-        <Story />
-      </div>
-    </DashboardProvider>
-  ),
+  (Story) => {
+    window.browserAccessBridge = open ? storyAccessBridge(open) : undefined;
+    return (
+      <DashboardProvider
+        bridge={bridgeWithProfiles(map, serverPort, open?.host ?? 'localhost')}
+      >
+        <div className="h-screen w-full max-w-3xl overflow-y-auto text-white">
+          <Story />
+        </div>
+      </DashboardProvider>
+    );
+  },
 ];
 
 /** How the mapping looks before the user has configured anything. */
@@ -81,4 +98,12 @@ export const SessionMappingConfigured: Story = {
 /** A non-default server port, with browser actions for each saved profile. */
 export const BrowserLayoutSetup: Story = {
   decorators: withBridge({}, 4321),
+};
+
+/**
+ * Network access on: the URL by this PC's network address carries the key a
+ * device that is not this PC needs, drawn as dots until Show key is pressed.
+ */
+export const NetworkAccessOn: Story = {
+  decorators: withBridge({}, 3000, storyAccessOpen),
 };

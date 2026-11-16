@@ -48,6 +48,9 @@ export const PitWall = memo(({ renderPanel }: PitWallProps) => {
   const setLayout = useSetPitWallLayout();
   const { fullscreen, toggle: toggleFullscreen } = useFullscreen();
 
+  // The settings window is the app's. A browser has no way to open it, so
+  // the page it shows is drawn without the gears that would.
+  const canOpenSettings = typeof bridge.openWidgetSettings === 'function';
   const openSettings = useCallback(
     (target: string) => void bridge.openWidgetSettings?.(target),
     [bridge]
@@ -67,7 +70,7 @@ export const PitWall = memo(({ renderPanel }: PitWallProps) => {
         onLayoutChange={setLayout}
         fullscreen={fullscreen}
         onToggleFullscreen={toggleFullscreen}
-        onOpenSettings={openOwnSettings}
+        onOpenSettings={canOpenSettings ? openOwnSettings : undefined}
       />
       {!running ? (
         <EmptyState>
@@ -98,7 +101,7 @@ export const PitWall = memo(({ renderPanel }: PitWallProps) => {
                 area={type}
                 // A panel with no widget offers its settings in its body.
                 onOpenSettings={
-                  panel.status === 'ready'
+                  panel.status === 'ready' && canOpenSettings
                     ? () => openSettings(panel.widget.id)
                     : undefined
                 }
@@ -106,10 +109,14 @@ export const PitWall = memo(({ renderPanel }: PitWallProps) => {
                 {panel.status === 'missing' ? (
                   <PitWallPanelNote
                     message={`This profile has no ${title} widget.`}
-                    action={{
-                      label: `Open ${title} settings`,
-                      onClick: () => openSettings(type),
-                    }}
+                    action={
+                      canOpenSettings
+                        ? {
+                            label: `Open ${title} settings`,
+                            onClick: () => openSettings(type),
+                          }
+                        : undefined
+                    }
                   />
                 ) : renderPanel ? (
                   renderPanel(panel)
