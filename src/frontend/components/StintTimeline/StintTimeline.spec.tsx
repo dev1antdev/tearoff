@@ -181,6 +181,23 @@ describe('StintTimeline (staged)', () => {
     expect(namesOn('77').slice(-2)).toEqual(['Petrov', 'Petrov']);
   });
 
+  it('gives a stint to come no driver’s colour, but for what is left of the one under way', async () => {
+    show({ teamMate: 'Andrei Petrov' });
+    await settled();
+    const outlines = within(rowOf('77'))
+      .getAllByTestId('stint-bar')
+      .filter((bar) => bar.dataset.kind === 'forecast')
+      .map((bar) => bar.querySelector('rect')?.getAttribute('class') ?? '');
+    // The team-mate is the car's second driver: teal, as the stint's
+    // driven part is. Who drives the three after it is not known.
+    expect(outlines).toHaveLength(4);
+    expect(outlines[0]).toContain('stroke-teal-400');
+    for (const outline of outlines.slice(1)) {
+      expect(outline).toContain('stroke-slate-400');
+      expect(outline).not.toMatch(/stroke-(amber|teal|purple)/);
+    }
+  });
+
   it('marks hours along a race with a clock, and laps along one without', async () => {
     const timed = show();
     await settled();

@@ -781,7 +781,7 @@ Your own entry in a race as the pit wall wants it, on one panel: what is aboard 
 - What ends your stints, large, with a bar: percent of virtual energy for a Le Mans Ultimate car that runs on it, litres or gallons of fuel otherwise. Under it the laps and minutes left in the stint, what a lap costs, and what runs out first: the energy, the fuel in the tank, or the tyres, where Tyre & Brake Wear has a forecast for them
 - The pit window as a range of laps: from the first lap after which the stops you still owe cover the distance, to the last lap you complete on what is aboard. Stop earlier and the race takes a stop more
 - The stops to the flag, and what the next costs: the pit lane and the standing time of the stop the pit menu is set to
-- The finish forecast: your place among the running cars of your class if everything goes on as it has, green for a place gained on where you are now and red for one lost. Under it the forecast as it stood ten laps ago ("was P4 10 laps ago"), and before ten laps are remembered how far the next place is at the flag
+- The finish forecast: your place among the running cars of your class if everything goes on as it has, green for a place gained on where you are now and red for one lost. Under it the forecast as it stood ten laps ago ("was P4 10 laps ago"), or as far back as is remembered once that is five laps; before then, how far the next place is at the flag
 - After the stop: where you rejoin in class if you stop now, the car you come out behind, and how far clear you are of the car behind you
 - Tyres in a line: tread on each wheel and the laps the set lasts. Damage in a line: what is damaged, and the repair time set for the next stop. Le Mans Ultimate only; under iRacing both read `--`
 - Through a team-mate's stint it leads with four more tiles: the gaps to the class cars ahead and behind with how fast each is closing, the last lap, and the mean of the last five clean laps against the mean of the stint before. They can be shown always, or never
@@ -820,7 +820,7 @@ Your car and a few class rivals as bars from the start of the race to the flag: 
 **Features:**
 
 - Stints driven are filled, with a break at every stop; stints to come are dashed; a white line is now
-- Your own car's bars are coloured by driver, with the driver's name on each. A rival's bars change shade at each driver change
+- Your own car's bars are coloured by driver, with the driver's name on each; a stint to come is in no driver's colour. A rival's bars change shade at each driver change
 - Your car and the class cars ahead and behind by default; from no rival to four, the nearest taken from ahead and behind in turn
 - Hours along the bottom for a race with a clock, laps for a race run to a lap count
 - The names and the line that says what the bars are can be switched off

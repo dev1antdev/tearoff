@@ -279,7 +279,7 @@ export const rejoinFigure = (
 };
 
 /** The class cars directly ahead of and behind the own one, as placed now. */
-export const classNeighbours = (
+export const forecastNeighbours = (
   cars: readonly RaceForecastCar[]
 ): { ahead: RaceForecastCar | null; behind: RaceForecastCar | null } => {
   const index = cars.findIndex((car) => car.own);

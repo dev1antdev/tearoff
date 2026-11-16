@@ -14,7 +14,7 @@ import {
 import {
   NO_FIGURE,
   budgetFigure,
-  classNeighbours,
+  forecastNeighbours,
   closingRate,
   damageLine,
   forecastReasonText,
@@ -126,7 +126,7 @@ export const OurCar = () => {
       end: stint ? stintEnd(stint, tyreLaps) : null,
       place: placeFigure(forecast.place),
       rejoin: rejoinFigure(forecast.rejoin, numberOf),
-      neighbours: classNeighbours(forecast.cars),
+      neighbours: forecastNeighbours(forecast.cars),
     };
   }, [forecast, wear, settings.fuelUnits, numberOf]);
 

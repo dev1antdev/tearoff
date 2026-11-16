@@ -51,7 +51,7 @@ export default defineWidgetManifest({
       type: 'boolean',
       label: 'Driver Names',
       description:
-        'Who drove each stint of your car, on its bar. A stint to come is not named: who drives it is not known.',
+        'Who drove each stint of your car, on its bar. A stint to come is not named or coloured: who drives it is not known.',
     },
     showLegend: {
       type: 'boolean',

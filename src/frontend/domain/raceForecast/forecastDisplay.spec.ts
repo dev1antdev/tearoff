@@ -12,7 +12,7 @@ import { EMPTY_WEAR } from '@irdashies/types';
 import {
   NO_FIGURE,
   budgetFigure,
-  classNeighbours,
+  forecastNeighbours,
   classRivalRows,
   closingRate,
   damageLine,
@@ -425,19 +425,25 @@ describe('the cars either side', () => {
   ];
 
   it('are the class cars one place ahead and one behind', () => {
-    expect(classNeighbours(cars)).toEqual({ ahead: cars[1], behind: cars[3] });
+    expect(forecastNeighbours(cars)).toEqual({
+      ahead: cars[1],
+      behind: cars[3],
+    });
   });
 
   it('are missing at the ends of the class, and without the own car', () => {
-    expect(classNeighbours(cars.slice(2))).toEqual({
+    expect(forecastNeighbours(cars.slice(2))).toEqual({
       ahead: null,
       behind: cars[3],
     });
-    expect(classNeighbours(cars.slice(0, 3))).toEqual({
+    expect(forecastNeighbours(cars.slice(0, 3))).toEqual({
       ahead: cars[1],
       behind: null,
     });
-    expect(classNeighbours([cars[0]])).toEqual({ ahead: null, behind: null });
+    expect(forecastNeighbours([cars[0]])).toEqual({
+      ahead: null,
+      behind: null,
+    });
   });
 
   it('close on a slower car ahead, and lose to a faster one', () => {

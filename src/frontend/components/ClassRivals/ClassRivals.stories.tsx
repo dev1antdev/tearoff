@@ -52,7 +52,7 @@ export const AssumedRivals: Story = {
 export const ThreeEachSide: Story = {
   ...strategyStory('classrivals', {
     config: { carsAhead: 3, carsBehind: 3 },
-    size: { width: 620, height: 280 },
+    size: { width: 680, height: 280 },
   }),
 };
 

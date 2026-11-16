@@ -62,6 +62,12 @@ interface BarProps {
   width: number;
   own: boolean;
   forecast: boolean;
+  /**
+   * The own car's driver is known for this bar: every stint driven, and
+   * what is left of the one under way. A stint to come is nobody's yet,
+   * and is drawn in no driver's colour.
+   */
+  driven: boolean;
   driverIndex: number;
   driverChanges: number;
   /** The name to write on it, already known to fit; '' for none. */
@@ -75,6 +81,7 @@ const Bar = memo(
     width,
     own,
     forecast,
+    driven,
     driverIndex,
     driverChanges,
     label,
@@ -90,7 +97,13 @@ const Bar = memo(
         strokeDasharray={forecast ? '4 3' : undefined}
         className={
           forecast
-            ? `fill-none ${own ? at(DRIVER_STROKE, driverIndex) : 'stroke-slate-500'}`
+            ? `fill-none ${
+                !own
+                  ? 'stroke-slate-500'
+                  : driven
+                    ? at(DRIVER_STROKE, driverIndex)
+                    : 'stroke-slate-400'
+              }`
             : own
               ? at(DRIVER_FILL, driverIndex)
               : at(RIVAL_FILL, driverChanges)
@@ -162,6 +175,7 @@ export const TimelineChart = memo(
           width={barWidth}
           own={row.own}
           forecast={entry.kind === 'forecast'}
+          driven={entry.kind === 'driven' || entry.current}
           driverIndex={entry.driverIndex}
           driverChanges={entry.driverChanges}
           label={

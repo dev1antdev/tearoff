@@ -25,8 +25,8 @@ const NO_CARS: number[] = [];
  * of the race to the flag. The stints each has driven are filled, from the
  * race history's records; the stints to come are dashed, laid out from the
  * forecast's next stop, stint length and stops owed; a white line is now.
- * The own car's bars are coloured and named by driver; a rival's change
- * shade at each driver change.
+ * The own car's bars are coloured and named by driver, a stint to come in
+ * no driver's colour; a rival's change shade at each driver change.
  *
  * The scale is the session clock for a race with one, and laps for a race
  * run to a lap count alone.
