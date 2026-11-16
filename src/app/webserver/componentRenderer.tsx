@@ -2,6 +2,7 @@
 import {
   channelRegistry,
   DEFAULT_SIM_WIDGET_SUPPORT,
+  KEY_REPLACED_CLOSE_CODE,
   type ActiveSimulator,
   type ChannelBridge,
   type ChannelName,
@@ -28,6 +29,28 @@ const debugLog = (...args: any[]) => {
     logger.info(...args);
   }
 };
+
+/**
+ * Asks for the page again, the whole of it where the frame is allowed to.
+ * A device whose key was replaced is then told so by the server, in place of
+ * a page that has stopped and still looks alive.
+ */
+const reloadPage = () => {
+  try {
+    (window.top ?? window).location.reload();
+  } catch {
+    // The frame is on another origin than its page, as in development.
+    window.location.reload();
+  }
+};
+
+export interface WebSocketBridgeOptions {
+  /**
+   * Called when the server closes the connection because the key this
+   * device holds has been replaced. Reloads the page unless given.
+   */
+  onKeyReplaced?: () => void;
+}
 
 /**
  * Web-based bridge that connects to the WebSocket server
@@ -78,8 +101,10 @@ export class WebSocketBridge
   private racePlanCallbacks = new Set<(state: RacePlanState) => void>();
   /** Counts pushes so a reconnect seed older than a push is dropped. */
   private racePlanPushCount = 0;
+  private onKeyReplaced: () => void;
 
-  constructor() {
+  constructor(options: WebSocketBridgeOptions = {}) {
+    this.onKeyReplaced = options.onKeyReplaced ?? reloadPage;
     this.telemetryCallbacks = new Set();
     this.sessionCallbacks = new Set();
     this.runningCallbacks = new Set();
@@ -434,11 +459,17 @@ export class WebSocketBridge
           }
         };
 
-        ws.onclose = () => {
+        ws.onclose = (event?: CloseEvent) => {
           debugLog('Disconnected from bridge');
           this.isConnected = false;
           this.socket = null;
           this.connectionPromise = null;
+
+          if (event?.code === KEY_REPLACED_CLOSE_CODE) {
+            // Knocking again with the old key would be refused every time.
+            this.onKeyReplaced();
+            return;
+          }
 
           if (!this.isConnecting) {
             this.attemptReconnect();

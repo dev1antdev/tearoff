@@ -13,9 +13,9 @@ would gather by hand before a release:
   notes, About);
 - whether the overlay follows what a user flips: the overlay on/off switch, one
   widget off and on, one setting changed and changed back;
-- whether the built-in web server serves the browser page and its own
-  connection, and turns away a page from another site and a name pointed at
-  this machine;
+- whether the built-in web server serves the browser pages (the overlays and
+  the Pit Wall) and its own connection, and turns away a page from another
+  site and a name pointed at this machine;
 - what the app left in the profile: `logs/main.log`, `laps.db` and its backup,
   `config.json`, the track profiles, and anything a recording should not leave.
 
@@ -158,10 +158,13 @@ app.
    on/off setting on that widget's page, checking the overlay each time and
    putting everything back.
 8. **Knocks on the built-in web server**, which the run puts on a port of its
-   own (`COMPONENT_PORT`): `/dashboard`, the page bundle, a connection as the
-   server's own page, then a request and a connection as another site and a
-   request under a foreign host name, which must all be refused. A copied
-   profile with the web server switched off is noted and not checked.
+   own (`COMPONENT_PORT`): `/dashboard`, `/pitwall`, the page bundle, a
+   connection as the server's own page, then a request and a connection as
+   another site and a request under a foreign host name, which must all be
+   refused. A copied profile with the web server switched off is noted and
+   not checked. The run knocks from this machine, which is asked for no key;
+   that a device which is not this machine is refused without one is covered
+   by the specs in `src/app/webserver/`, not here.
 9. **Quits the app** by asking the browser to close (`Browser.close`), which
    runs the app's own shutdown and storage flush, the same as Quit in the tray.
 10. **Inspects the profile and the real profile**, and writes the report.

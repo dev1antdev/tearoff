@@ -2,21 +2,38 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import type {
-  IrSdkSourceBridge,
-  DashboardBridge,
-  PitLaneBridge,
+import { app } from 'electron';
+import {
+  DEVICE_KEY_PARAM,
+  type BrowserAccess,
+  type IrSdkSourceBridge,
+  type DashboardBridge,
+  type PitLaneBridge,
 } from '@irdashies/types';
 import logger from '../logger';
 import { currentDashboard } from './bridgeProxy';
 import { getGarageCoverImageAsDataUrl } from '../storage/dashboards';
+import { createDeviceKeyStore } from '../storage/deviceKeyStore';
 import {
   createLocalHostsReader,
   createRefusalLog,
   evaluateAccess,
+  parseHostHeader,
   type AccessDecision,
   type AccessPolicy,
 } from './accessPolicy';
+import { createDeviceAccess, type DeviceAccess } from './deviceAccess';
+import {
+  DEVICE_KEY_COOKIE,
+  createKeyRefusalLog,
+  forgetKeyCookie,
+  generateDeviceKey,
+  isDeviceKey,
+  keyCookie,
+  keyRefusalAnswer,
+  readCookie,
+  type KeyDecision,
+} from './deviceKey';
 
 const DEFAULT_PORT = 3000;
 const FALLBACK_PORTS = [3001, 3002, 3003, 3004, 3005];
@@ -60,8 +77,53 @@ function getLocalIPAddress(): string {
 
 let SERVER_IP = 'localhost';
 
+/** The server is answering on `actualPort`. */
+let listening = false;
+/** The server was started open to other devices. */
+let openToNetwork = false;
+/** The key rule of the running server; absent while there is no server. */
+let deviceAccess: DeviceAccess | undefined;
+const deviceListeners = new Set<(devices: number) => void>();
+
 export function getComponentServerPort(): number {
   return actualPort;
+}
+
+/** The server as the settings window is shown it, key included. */
+export function getBrowserAccess(): BrowserAccess {
+  const open = listening && openToNetwork;
+  return {
+    listening,
+    port: actualPort,
+    networkAccess: open,
+    // No address but this PC's own: there is no link another device can open.
+    host: open && SERVER_IP !== 'localhost' ? SERVER_IP : null,
+    key: open ? (deviceAccess?.key() ?? null) : null,
+    devices: deviceAccess?.devices() ?? 0,
+  };
+}
+
+/**
+ * Replaces the key other devices show. Rejects, changing nothing, while the
+ * server answers this PC only: there is no key to replace, and none is made
+ * for a server nobody else can reach.
+ */
+export async function replaceDeviceKey(): Promise<BrowserAccess> {
+  if (!deviceAccess || !listening || !openToNetwork) {
+    throw new Error('The web server is not open to other devices');
+  }
+  await deviceAccess.replaceKey();
+  return getBrowserAccess();
+}
+
+/** Calls back whenever the number of other devices connected changes. */
+export function onConnectedDevicesChanged(
+  listener: (devices: number) => void
+): () => void {
+  deviceListeners.add(listener);
+  return () => {
+    deviceListeners.delete(listener);
+  };
 }
 
 /**
@@ -143,6 +205,48 @@ function setCORSHeaders(
 const reportRefusal = createRefusalLog((line) =>
   logger.warn(`[ComponentServer] Request ${line}`)
 );
+const reportKeyRefusal = createKeyRefusalLog((line) =>
+  logger.warn(`[ComponentServer] Request ${line}`)
+);
+
+/** Tells a device that is not this PC that it has not shown the key. */
+function refuseForKey(res: http.ServerResponse, decision: KeyDecision) {
+  const { status, text } = keyRefusalAnswer(decision);
+  if (decision.staleCookie) res.setHeader('Set-Cookie', forgetKeyCookie());
+  if (decision.retryAfterS !== undefined) {
+    res.setHeader('Retry-After', String(decision.retryAfterS));
+  }
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.statusCode = status;
+  res.end(text);
+}
+
+/** The pages a person opens by their address, as opposed to what they load. */
+const isPageRoute = (pathname: string): boolean =>
+  pathname === '/' ||
+  pathname === '/dashboard' ||
+  pathname === '/pitwall' ||
+  /^\/(widget|component)\/[a-zA-Z0-9_-]+$/.test(pathname);
+
+/**
+ * Sends a device that opened a page by its link with the key on to the same
+ * page without it, so the key does not stay in the address bar or sit in the
+ * history. The cookie set with this answer carries the key from here on.
+ *
+ * A page of our own does the sending, not a redirect: a strict cookie is not
+ * sent along a redirect when the link was followed from another site, such as
+ * a web mail or chat page, and it is sent from a page of ours.
+ */
+function sendKeyBounce(res: http.ServerResponse, target: string) {
+  res.setHeader('Content-Type', 'text/html');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Referrer-Policy', 'no-referrer');
+  res.statusCode = 200;
+  res.end(
+    `<!DOCTYPE html><html><head><meta charset="UTF-8" /><meta http-equiv="refresh" content="0;url=${escapeHtml(target)}" /><title>Tearoff</title></head><body></body></html>`
+  );
+}
 
 function sendJSON(res: http.ServerResponse, statusCode: number, data: unknown) {
   res.setHeader('Content-Type', 'application/json');
@@ -197,6 +301,24 @@ function listDashboardWidgets(): { id: string; enabled: boolean }[] {
     .sort((a, b) => Number(b.enabled) - Number(a.enabled));
 }
 
+const VITE_PORT = process.env.VITE_PORT || '5173';
+
+/** The hosts the Vite dev server's pages are let in from, in development. */
+const devPageHosts = (): string[] => [
+  ...new Set(['localhost', '127.0.0.1', SERVER_IP]),
+];
+
+/**
+ * The host the visitor reached this server by. `evaluateAccess` has already
+ * found it to be one of this machine's names, so it is safe to name in a page.
+ *
+ * A page is sent on to the same host it was asked for by, never to another
+ * of this machine's addresses: the visitor's key cookie belongs to that host,
+ * and a browser on this PC that asked for `localhost` stays on loopback.
+ */
+const pageHostOf = (req: http.IncomingMessage): string =>
+  parseHostHeader(req.headers.host)?.host ?? 'localhost';
+
 /**
  * URL of the renderer bundle that draws the overlays, with `params` appended.
  *
@@ -204,10 +326,14 @@ function listDashboardWidgets(): { id: string; enabled: boolean }[] {
  * comes off this server as a static file. The cache buster is what stops a
  * browser source from pinning itself to a stale bundle across a reinstall.
  */
-function buildDashboardViewUrl(params: Record<string, string>): string {
+function buildDashboardViewUrl(
+  params: Record<string, string>,
+  pageHost: string
+): string {
   const host = isDev
-    ? `${SERVER_IP}:${process.env.VITE_PORT || '5173'}`
-    : `${SERVER_IP}:${actualPort}`;
+    ? // Vite's page is only let in from the hosts it is known by.
+      `${devPageHosts().includes(pageHost) ? pageHost : SERVER_IP}:${VITE_PORT}`
+    : `${pageHost}:${actualPort}`;
   const search = new URLSearchParams({ ...params, v: String(Date.now()) });
   return `http://${host}/index-dashboard-view.html?${search.toString()}`;
 }
@@ -218,6 +344,7 @@ function buildDashboardViewUrl(params: Record<string, string>): string {
  * Both the dashboard view and the single-widget view are consumed as browser
  * sources — OBS, and OpenKneeboard in VR — so the shell paints no background
  * of its own and leaves the overlay to composite over whatever is behind it.
+ * The frame may go full screen, which the Pit Wall page offers.
  */
 function renderIframeShell(title: string, viewUrl: string): string {
   return `
@@ -235,7 +362,7 @@ function renderIframeShell(title: string, viewUrl: string): string {
         </style>
       </head>
       <body>
-        <iframe src="${escapeHtml(viewUrl)}" scrolling="no"></iframe>
+        <iframe src="${escapeHtml(viewUrl)}" scrolling="no" allow="fullscreen" allowfullscreen></iframe>
       </body>
       </html>
     `;
@@ -295,6 +422,11 @@ async function serveStaticFile(filePath: string, res: http.ServerResponse) {
  *   /                  profile and widget index
  *   /dashboard         every enabled overlay on one page
  *   /widget/<widgetId> a single overlay filling the window
+ *   /pitwall           the Pit Wall page
+ *
+ * This machine is answered as it asks. Any other device, which can only
+ * reach the server while network access is on, must show the key for every
+ * one of them: see `deviceKey.ts`.
  */
 export async function startComponentServer(
   irsdkBridge?: IrSdkSourceBridge,
@@ -321,18 +453,30 @@ export async function startComponentServer(
   const bindHost = networkAccess ? '0.0.0.0' : 'localhost';
   SERVER_IP = networkAccess ? getLocalIPAddress() : 'localhost';
 
-  const vitePort = process.env.VITE_PORT || '5173';
+  const localHosts = createLocalHostsReader();
   const accessPolicy: AccessPolicy = {
     port: () => actualPort,
     networkAccess: () => networkAccess,
     extraOrigins: () =>
-      isDev
-        ? [...new Set(['localhost', '127.0.0.1', SERVER_IP])].map(
-            (host) => `http://${host}:${vitePort}`
-          )
-        : [],
-    localHosts: createLocalHostsReader(),
+      isDev ? devPageHosts().map((host) => `http://${host}:${VITE_PORT}`) : [],
+    localHosts,
   };
+
+  const deviceKeys = createDeviceKeyStore({
+    storageDir: app.getPath('userData'),
+    generate: generateDeviceKey,
+    isValid: isDeviceKey,
+  });
+  // The key is made on first need, which is the first start that opens the
+  // server to other devices. Without one, the rule below lets only this
+  // machine in, and a server bound to loopback can be reached by nobody else.
+  if (networkAccess) await deviceKeys.open();
+  const devices = createDeviceAccess({ keys: deviceKeys, localHosts });
+  devices.onDevicesChanged((count) => {
+    for (const listener of [...deviceListeners]) listener(count);
+  });
+  openToNetwork = networkAccess;
+  deviceAccess = devices;
 
   let staticPath: string | null = null;
   if (!isDev) {
@@ -363,6 +507,28 @@ export async function startComponentServer(
     const url = new URL(req.url, `http://${req.headers.host}`);
     const pathname = url.pathname;
 
+    // Host and Origin have been asked. What is left is whose device this is:
+    // one that is not this machine shows the key, for every route alike.
+    const pass = devices.check({
+      remoteAddress: visitor.remoteAddress,
+      queryKey: url.searchParams.get(DEVICE_KEY_PARAM),
+      cookieKey: readCookie(req.headers.cookie, DEVICE_KEY_COOKIE),
+    });
+    if (!pass.allowed) {
+      reportKeyRefusal(pass.refusal, visitor.remoteAddress);
+      refuseForKey(res, pass);
+      return;
+    }
+    const key = devices.key();
+    if (pass.via === 'query' && key !== null) {
+      res.setHeader('Set-Cookie', keyCookie(key));
+      if (req.method === 'GET' && isPageRoute(pathname)) {
+        url.searchParams.delete(DEVICE_KEY_PARAM);
+        sendKeyBounce(res, `${pathname}${url.search}`);
+        return;
+      }
+    }
+
     if (
       !isDev &&
       staticPath &&
@@ -373,7 +539,8 @@ export async function startComponentServer(
       !pathname.startsWith('/component') &&
       !pathname.startsWith('/components') &&
       !pathname.startsWith('/widget') &&
-      !pathname.startsWith('/dashboard')
+      !pathname.startsWith('/dashboard') &&
+      !pathname.startsWith('/pitwall')
     ) {
       const filePath = path.join(staticPath, pathname);
       await serveStaticFile(filePath, res);
@@ -464,13 +631,19 @@ export async function startComponentServer(
       return;
     }
 
-    // Two views onto the same renderer bundle: /dashboard draws every enabled
-    // overlay on one page, /widget/<id> draws exactly one filling the window.
+    // Three views onto the same renderer bundle: /dashboard draws every
+    // enabled overlay on one page, /widget/<id> draws exactly one filling the
+    // window, and /pitwall draws the Pit Wall page as its window does.
     // The single-widget form is what VR overlay hosts such as OpenKneeboard
     // want, since each of their tabs shows one page and is sized by hand.
     const widgetMatch = pathname.match(/^\/widget\/([a-zA-Z0-9_-]+)$/);
-    if ((pathname === '/dashboard' || widgetMatch) && req.method === 'GET') {
-      const wsUrl = `http://${SERVER_IP}:${actualPort}`;
+    const isPitWall = pathname === '/pitwall';
+    if (
+      (pathname === '/dashboard' || isPitWall || widgetMatch) &&
+      req.method === 'GET'
+    ) {
+      const pageHost = pageHostOf(req);
+      const wsUrl = `http://${pageHost}:${actualPort}`;
       const debug = url.searchParams.get('debug') || 'false';
 
       // Get profile ID from URL param (check both 'profile' and 'profileId')
@@ -491,12 +664,20 @@ export async function startComponentServer(
       if (widgetMatch) {
         params.widget = widgetMatch[1];
       }
+      if (isPitWall) {
+        params.view = 'pitwall';
+      }
 
       const title = widgetMatch
         ? `Tearoff - ${widgetMatch[1]}`
-        : 'Tearoff - Dashboard';
+        : isPitWall
+          ? 'Tearoff - Pit Wall'
+          : 'Tearoff - Dashboard';
 
-      sendHTML(res, renderIframeShell(title, buildDashboardViewUrl(params)));
+      sendHTML(
+        res,
+        renderIframeShell(title, buildDashboardViewUrl(params, pageHost))
+      );
       return;
     }
 
@@ -527,12 +708,15 @@ export async function startComponentServer(
       const { listProfiles } = await import('../storage/dashboards');
       const profiles = listProfiles();
 
-      const profileLinks = profiles
-        .map(
-          (p) =>
-            `<a href="/dashboard?profile=${encodeURIComponent(p.id)}">${escapeHtml(p.name || p.id)}</a>`
-        )
-        .join('');
+      const profileLinksTo = (page: string) =>
+        profiles
+          .map(
+            (p) =>
+              `<a href="${page}?profile=${encodeURIComponent(p.id)}">${escapeHtml(p.name || p.id)}</a>`
+          )
+          .join('');
+      const profileLinks = profileLinksTo('/dashboard');
+      const pitWallLinks = profileLinksTo('/pitwall');
 
       // One row per widget. This is the page people copy URLs out of
       // when setting up a VR overlay host, so each row shows the URL itself
@@ -577,6 +761,8 @@ export async function startComponentServer(
           <h1>Tearoff</h1>
           <h2>Full dashboard</h2>
           <div class="profiles">${profileLinks}</div>
+          <h2>Pit Wall</h2>
+          <div class="profiles">${pitWallLinks}</div>
           ${widgetSection}
         </div>
       </body>
@@ -600,7 +786,8 @@ export async function startComponentServer(
         dashboardBridge,
         channelBus,
         pitLaneBridge,
-        accessPolicy
+        accessPolicy,
+        devices
       );
 
       const { onBridgeChanged } = await import('../bridge/iracingSdk/setup');
@@ -623,6 +810,7 @@ export async function startComponentServer(
 
   try {
     actualPort = await listenOnAvailablePort(httpServer, bindHost);
+    listening = true;
     logger.info(
       `Component server running on http://${SERVER_IP}:${actualPort}`
     );

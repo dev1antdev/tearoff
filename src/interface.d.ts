@@ -48,5 +48,10 @@ declare global {
     racePlanBridge?: import('./types/racePlan').RacePlanBridge;
     /** Absent outside the Electron preload, e.g. the browser server. */
     pitWallBridge?: import('./types/pitWall').PitWallBridge;
+    /**
+     * Absent outside the Electron preload. A page the browser server sends
+     * has no way to it, which is what keeps the key from such a page.
+     */
+    browserAccessBridge?: import('./types/browserAccess').BrowserAccessBridge;
   }
 }
