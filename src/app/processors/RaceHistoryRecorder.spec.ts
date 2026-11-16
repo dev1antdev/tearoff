@@ -1364,8 +1364,12 @@ describe('the summary', () => {
       stintFirstLap: [1, 0, 1],
       stintLaps: [2, 0, 2],
       stintDriver: ['Driver 0', '', 'Driver 2'],
+      // The one clean lap of each: the first began on the grid.
+      stintCleanLaps: [1, 0, 1],
       previousStintAvgLap: [-1, -1, -1],
       previousStintDriver: ['', '', ''],
+      previousDriverStintAvgLap: [-1, -1, -1],
+      previousDriverStintDriver: ['', '', ''],
       driverChanges: [0, 0, 0],
       stops: [0, 0, 0],
       sessionNum: 0,
@@ -1425,8 +1429,12 @@ describe('the summary', () => {
       stintFirstLap: first.stintFirstLap,
       stintLaps: first.stintLaps,
       stintDriver: first.stintDriver,
+      stintAvgLap: first.stintAvgLap,
+      stintCleanLaps: first.stintCleanLaps,
       previousStintAvgLap: first.previousStintAvgLap,
       previousStintDriver: first.previousStintDriver,
+      previousDriverStintAvgLap: first.previousDriverStintAvgLap,
+      previousDriverStintDriver: first.previousDriverStintDriver,
       driverChanges: first.driverChanges,
       stops: first.stops,
       revision: first.revision,
@@ -1440,6 +1448,177 @@ describe('the summary', () => {
       expect(later[key as keyof typeof arrays], key).toBe(array);
     }
     expect(later.laps).toEqual([3, 3, 3]);
+  });
+});
+
+describe('the pace of a stint on the summary', () => {
+  /**
+   * A stop for the one car, begun half a lap on from where it is: 10 s in,
+   * 30 s standing, 5 s out. With `driver`, the session names them while the
+   * car stands; with `pace`, the car laps at it from the pit exit.
+   */
+  const stop = (
+    field: Field,
+    run: ReturnType<typeof recorded>,
+    { driver, pace }: { driver?: string; pace?: number } = {}
+  ) => {
+    const car = field.cars[0];
+    drive(field, run.recorder, 50);
+    enterPits(car);
+    drive(field, run.recorder, 10);
+    standInBox(car);
+    drive(field, run.recorder, 10);
+    if (driver !== undefined) {
+      car.name = driver;
+      run.recorder.onSession(field.session());
+    }
+    drive(field, run.recorder, 20);
+    leaveBox(car);
+    drive(field, run.recorder, 5);
+    leavePits(car);
+    if (pace !== undefined) car.pace = pace;
+    drive(field, run.recorder, 1);
+  };
+
+  it('is the mean of its clean laps so far, with how many they are', () => {
+    const field = new Field({ cars: 1 });
+    const run = start(field);
+
+    // The first lap of a race began on the grid: it is nobody's clean lap.
+    driveLaps(field, run.recorder, 0, 1);
+    drive(field, run.recorder, 2);
+    expect(run.recorder.summary().stintLaps[0]).toBe(1);
+    expect(run.recorder.summary().stintCleanLaps[0]).toBe(0);
+    expect(run.recorder.summary().stintAvgLap[0]).toBe(-1);
+
+    driveLaps(field, run.recorder, 0, 3);
+    drive(field, run.recorder, 2);
+    const summary = run.recorder.summary();
+    expect(summary.stintLaps[0]).toBe(4);
+    expect(summary.stintCleanLaps[0]).toBe(3);
+    expect(summary.stintAvgLap[0]).toBeCloseTo(100, 3);
+  });
+
+  it('starts again with the stint after a stop, and leaves the lap of the stop out', () => {
+    const field = new Field({ cars: 1 });
+    const run = start(field);
+
+    driveLaps(field, run.recorder, 0, 3);
+    stop(field, run, { pace: 103 });
+    // The lap the stop was on, then two at the new pace.
+    driveLaps(field, run.recorder, 0, 3);
+    drive(field, run.recorder, 2);
+
+    const summary = run.recorder.summary();
+    expect(summary.stintLaps[0]).toBe(3);
+    expect(summary.stintCleanLaps[0]).toBe(2);
+    expect(summary.stintAvgLap[0]).toBeCloseTo(103, 3);
+    expect(summary.previousStintAvgLap[0]).toBeCloseTo(100, 3);
+  });
+
+  it('names the most recent stint by another driver, which after a double stint is not the one before', () => {
+    const field = new Field({ cars: 1 });
+    const run = start(field);
+
+    // Driver 0 for three laps, the team-mate for four, and the team-mate
+    // again after a stop that changed nobody: a double stint.
+    driveLaps(field, run.recorder, 0, 3);
+    stop(field, run, { driver: 'Team-Mate', pace: 102 });
+    driveLaps(field, run.recorder, 0, 4);
+    stop(field, run, { pace: 101 });
+    driveLaps(field, run.recorder, 0, 4);
+    drive(field, run.recorder, 2);
+
+    expect(run.recorder.carStints(0)).toMatchObject([
+      { driver: 'Driver 0', closedBy: 'stop', cleanLaps: 2 },
+      { driver: 'Team-Mate', closedBy: 'stop', cleanLaps: 3 },
+      { driver: 'Team-Mate', closedBy: null, cleanLaps: 3 },
+    ]);
+    const summary = run.recorder.summary();
+    expect(summary.stintDriver[0]).toBe('Team-Mate');
+    expect(summary.stintAvgLap[0]).toBeCloseTo(101, 3);
+    // The stint before is the same driver's first half.
+    expect(summary.previousStintDriver[0]).toBe('Team-Mate');
+    expect(summary.previousStintAvgLap[0]).toBeCloseTo(102, 3);
+    // The driver before is one stint further back.
+    expect(summary.previousDriverStintDriver[0]).toBe('Driver 0');
+    expect(summary.previousDriverStintAvgLap[0]).toBeCloseTo(100, 3);
+  });
+
+  it('is the stint before, where that one was driven by somebody else', () => {
+    const field = new Field({ cars: 1 });
+    const run = start(field);
+
+    driveLaps(field, run.recorder, 0, 3);
+    stop(field, run, { driver: 'Team-Mate', pace: 102 });
+    driveLaps(field, run.recorder, 0, 2);
+    drive(field, run.recorder, 2);
+
+    const summary = run.recorder.summary();
+    expect(summary.previousStintDriver[0]).toBe('Driver 0');
+    expect(summary.previousDriverStintDriver[0]).toBe('Driver 0');
+    expect(summary.previousDriverStintAvgLap[0]).toBe(
+      summary.previousStintAvgLap[0]
+    );
+    expect(summary.previousDriverStintAvgLap[0]).toBeCloseTo(100, 3);
+  });
+
+  it('has no stint by another driver while one driver has driven them all', () => {
+    const field = new Field({ cars: 1 });
+    const run = start(field);
+
+    driveLaps(field, run.recorder, 0, 3);
+    stop(field, run);
+    driveLaps(field, run.recorder, 0, 2);
+    stop(field, run);
+    driveLaps(field, run.recorder, 0, 2);
+    drive(field, run.recorder, 2);
+
+    const summary = run.recorder.summary();
+    expect(summary.stops[0]).toBe(2);
+    expect(summary.previousStintDriver[0]).toBe('Driver 0');
+    expect(summary.previousDriverStintDriver[0]).toBe('');
+    expect(summary.previousDriverStintAvgLap[0]).toBe(-1);
+  });
+
+  it('names another driver whose stint had no clean lap, and gives it no pace', () => {
+    const field = new Field({ cars: 1 });
+    const run = start(field);
+
+    // The team-mate is in for the lap of one stop and out at the next.
+    driveLaps(field, run.recorder, 0, 3);
+    stop(field, run, { driver: 'Team-Mate' });
+    driveLaps(field, run.recorder, 0, 1);
+    stop(field, run, { driver: 'Driver 0' });
+    driveLaps(field, run.recorder, 0, 3);
+    drive(field, run.recorder, 2);
+
+    expect(run.recorder.carStints(0)).toMatchObject([
+      { driver: 'Driver 0', cleanLaps: 2 },
+      { driver: 'Team-Mate', laps: 1, cleanLaps: 0, avgLap: null },
+      { driver: 'Driver 0', closedBy: null, cleanLaps: 2 },
+    ]);
+    const summary = run.recorder.summary();
+    // Not the stint further back that had a pace: that one was their own.
+    expect(summary.previousDriverStintDriver[0]).toBe('Team-Mate');
+    expect(summary.previousDriverStintAvgLap[0]).toBe(-1);
+  });
+
+  it('cannot say another driver had the car while the one at the wheel is not named', () => {
+    const field = new Field({ cars: 1 });
+    field.cars[0].name = '';
+    const run = start(field);
+
+    driveLaps(field, run.recorder, 0, 3);
+    stop(field, run);
+    driveLaps(field, run.recorder, 0, 2);
+    drive(field, run.recorder, 2);
+
+    const summary = run.recorder.summary();
+    expect(summary.stintDriver[0]).toBe('');
+    expect(summary.previousStintAvgLap[0]).toBeCloseTo(100, 3);
+    expect(summary.previousDriverStintDriver[0]).toBe('');
+    expect(summary.previousDriverStintAvgLap[0]).toBe(-1);
   });
 });
 

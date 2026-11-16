@@ -350,8 +350,13 @@ describe.skipIf(!lmuTapeAvailable())(
         expect(summary.stintFirstLap[carIdx]).toBe(1);
         expect(summary.stintLaps[carIdx]).toBe(held.length);
         expect(summary.stintDriver[carIdx]).toBe(held[0].driver);
+        // The pace of the one stint, as the stint itself has it.
+        expect(summary.stintCleanLaps[carIdx]).toBe(held.length - 1);
+        expect(summary.stintAvgLap[carIdx]).toBe(stints[0].avgLap);
         expect(summary.previousStintAvgLap[carIdx]).toBe(-1);
         expect(summary.previousStintDriver[carIdx]).toBe('');
+        expect(summary.previousDriverStintAvgLap[carIdx]).toBe(-1);
+        expect(summary.previousDriverStintDriver[carIdx]).toBe('');
         expect(summary.driverChanges[carIdx]).toBe(0);
         expect(summary.stops[carIdx]).toBe(0);
         expect(summary.revision[carIdx]).toBeGreaterThan(0);
@@ -412,6 +417,12 @@ describe.skipIf(!lmuTapeAvailable())(
       expect(summary.stintFirstLap[CAR]).toBe(2);
       expect(summary.stintLaps[CAR]).toBe(1);
       expect(summary.previousStintDriver[CAR]).toBe(stints[0].driver);
+      // The lap of the stop is no clean one, so the new stint has no pace
+      // yet; and the stint before it was the same driver's, not another's.
+      expect(summary.stintCleanLaps[CAR]).toBe(0);
+      expect(summary.stintAvgLap[CAR]).toBe(-1);
+      expect(summary.previousDriverStintDriver[CAR]).toBe('');
+      expect(summary.previousDriverStintAvgLap[CAR]).toBe(-1);
       // Nobody else was touched.
       for (let carIdx = 0; carIdx < CARS; carIdx += 1) {
         if (carIdx === CAR) continue;
@@ -568,6 +579,11 @@ describe.skipIf(!lmuTapeAvailable())(
       expect(summary.driverChanges[CAR]).toBe(1);
       expect(summary.stintDriver[CAR]).toBe('A Team-Mate');
       expect(summary.previousStintDriver[CAR]).toBe(first);
+      // The stint before is another driver's, so it is both of the stints
+      // a pace can be held against. Its one lap began on the grid: no pace.
+      expect(summary.previousDriverStintDriver[CAR]).toBe(first);
+      expect(summary.previousDriverStintAvgLap[CAR]).toBe(-1);
+      expect(summary.previousStintAvgLap[CAR]).toBe(-1);
     }, 120_000);
   }
 );

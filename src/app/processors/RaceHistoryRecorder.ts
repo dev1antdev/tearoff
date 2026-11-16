@@ -160,6 +160,23 @@ const resize = <T>(target: T[], length: number, fill: T): void => {
 const sameDriver = (a: string, b: string): boolean =>
   a === b || a === '' || b === '';
 
+/**
+ * The most recent stint before the last of `stints` that somebody other
+ * than `driver` drove. Only where both names are known: a stint nobody is
+ * named for cannot be said to be another driver's.
+ */
+const stintByAnotherDriver = (
+  stints: readonly RaceStint[],
+  driver: string
+): RaceStint | undefined => {
+  if (driver === '') return undefined;
+  for (let index = stints.length - 2; index >= 0; index -= 1) {
+    const stint = stints[index];
+    if (stint.driver !== '' && stint.driver !== driver) return stint;
+  }
+  return undefined;
+};
+
 /** What the session says of one car slot. */
 interface RosterEntry {
   driver: string;
@@ -372,8 +389,12 @@ export class RaceHistoryRecorder {
     stintFirstLap: [],
     stintLaps: [],
     stintDriver: [],
+    stintAvgLap: [],
+    stintCleanLaps: [],
     previousStintAvgLap: [],
     previousStintDriver: [],
+    previousDriverStintAvgLap: [],
+    previousDriverStintDriver: [],
     driverChanges: [],
     stops: [],
     revision: [],
@@ -695,8 +716,12 @@ export class RaceHistoryRecorder {
     resize(out.stintFirstLap, length, 0);
     resize(out.stintLaps, length, 0);
     resize(out.stintDriver, length, '');
+    resize(out.stintAvgLap, length, -1);
+    resize(out.stintCleanLaps, length, 0);
     resize(out.previousStintAvgLap, length, -1);
     resize(out.previousStintDriver, length, '');
+    resize(out.previousDriverStintAvgLap, length, -1);
+    resize(out.previousDriverStintDriver, length, '');
     resize(out.driverChanges, length, 0);
     resize(out.stops, length, 0);
     resize(out.revision, length, 0);
@@ -706,6 +731,10 @@ export class RaceHistoryRecorder {
       const stint = stints[stints.length - 1];
       // The one before the stint under way: the last one that is over.
       const before = stints.length > 1 ? stints[stints.length - 2] : undefined;
+      const driver = stint?.driver ?? car?.driver ?? '';
+      // After a double stint that one is the same driver's: the pace of
+      // whoever had the car before is further back.
+      const others = stintByAnotherDriver(stints, driver);
       put(out.laps, carIdx, car?.laps.length ?? 0);
       put(out.lastLap, carIdx, car?.lastLap ?? 0);
       put(
@@ -715,9 +744,13 @@ export class RaceHistoryRecorder {
       );
       put(out.stintFirstLap, carIdx, stint?.firstLap ?? 0);
       put(out.stintLaps, carIdx, stint?.laps ?? 0);
-      put(out.stintDriver, carIdx, stint?.driver ?? car?.driver ?? '');
+      put(out.stintDriver, carIdx, driver);
+      put(out.stintAvgLap, carIdx, stint?.avgLap ?? -1);
+      put(out.stintCleanLaps, carIdx, stint?.cleanLaps ?? 0);
       put(out.previousStintAvgLap, carIdx, before?.avgLap ?? -1);
       put(out.previousStintDriver, carIdx, before?.driver ?? '');
+      put(out.previousDriverStintAvgLap, carIdx, others?.avgLap ?? -1);
+      put(out.previousDriverStintDriver, carIdx, others?.driver ?? '');
       put(out.driverChanges, carIdx, car?.changes ?? 0);
       put(out.stops, carIdx, car?.stops ?? 0);
       put(out.revision, carIdx, car?.revision ?? 0);
