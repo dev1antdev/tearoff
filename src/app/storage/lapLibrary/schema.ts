@@ -198,9 +198,10 @@ const VERSION_2 = `
   CREATE INDEX lap_ledger_stint ON lap_ledger (stint_id);
 `;
 
-// The history of a race: every lap of every car, the stints each car ran
-// and its driver changes. Nothing of the player's own laps is touched:
-// these are four tables of their own, and a race goes with every row of it.
+// The history of a race: every lap of every car, the stints each car ran,
+// its driver changes, and the log of what happened in it. Nothing of the
+// player's own laps is touched: these are five tables of their own, and a
+// race goes with every row of it.
 //
 // A race is one session of one event. `token` names the run of the app that
 // began it, and a race carried on after a restart keeps its row.
@@ -218,6 +219,15 @@ const VERSION_2 = `
 // ledger's LEDGER_LAP_* bits. A stint's stop columns are all null unless a
 // stop ended it: `stop_standing_time` is the one that is never null on a
 // stop, so it says whether there was one.
+//
+// An event of the log is one row per race and number. `car_idx` is null for
+// one about the whole field, a flag or the forecast. `kind` names what it
+// is, and `data` holds as JSON what that kind adds: an event is read by its
+// number and never searched by what is in it, and a kind added later needs
+// no new column.
+//
+// The log's table came with the others. No build wrote schema 3 before it
+// was there, so it is part of this step and not a step of its own.
 const VERSION_3 = `
   CREATE TABLE race (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -295,6 +305,17 @@ const VERSION_3 = `
     at_stop INTEGER NOT NULL,
     PRIMARY KEY (race_id, car_idx, seq)
   ) WITHOUT ROWID;
+
+  CREATE TABLE race_event (
+    race_id INTEGER NOT NULL REFERENCES race (id) ON DELETE CASCADE,
+    seq INTEGER NOT NULL,
+    session_time REAL NOT NULL,
+    time_of_day REAL,
+    car_idx INTEGER,
+    kind TEXT NOT NULL,
+    data TEXT NOT NULL,
+    PRIMARY KEY (race_id, seq)
+  ) WITHOUT ROWID;
 `;
 
 /** Every step there has ever been, lowest first. Add to the end only. */
@@ -314,7 +335,8 @@ export const MIGRATIONS: readonly Migration[] = [
   {
     from: 2,
     to: 3,
-    summary: 'the history of a race: the laps, stints and drivers of every car',
+    summary:
+      'the history of a race: the laps, stints and drivers of every car, and its log',
     up: (db) => db.exec(VERSION_3),
   },
 ];

@@ -19,6 +19,7 @@ import type {
   StoredRace,
   StoredRaceState,
 } from '../../../types/raceHistory';
+import type { RaceEvent } from '../../../types/raceLog';
 import type { LapLibraryDatabase, RecordedLap } from './LapLibraryDatabase';
 
 /** How the library's file opened, as the main process is told it. */
@@ -78,6 +79,7 @@ export interface LapLibraryMethods {
   raceCarLaps(raceId: number, carIdx: number): RaceLap[];
   raceCarStints(raceId: number, carIdx: number): RaceStint[];
   raceDriverChanges(raceId: number): RaceDriverChange[];
+  raceEvents(raceId: number, before?: number, limit?: number): RaceEvent[];
 }
 
 export type LapLibraryMethod = keyof LapLibraryMethods;
@@ -169,6 +171,12 @@ export const dispatch = (
       return db.races.carStints(args[0] as number, args[1] as number);
     case 'raceDriverChanges':
       return db.races.driverChanges(args[0] as number);
+    case 'raceEvents':
+      return db.races.events(
+        args[0] as number,
+        args[1] as number | undefined,
+        args[2] as number | undefined
+      );
     default:
       throw new Error(`Unknown lap library method: ${method}`);
   }

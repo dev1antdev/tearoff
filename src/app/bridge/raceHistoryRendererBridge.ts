@@ -4,8 +4,10 @@ import { defineBridge } from './defineBridge';
 
 /**
  * The preload side of the race history: what a window calls to read the
- * laps and stints of a car. What is small and current about every car
- * comes over the `race-history.summary` channel instead.
+ * laps and stints of a car, and the events of the race's log further back
+ * than its channel carries. What is small and current about every car
+ * comes over the `race-history.summary` channel instead, and the most
+ * recent events over `race-log.snapshot`.
  */
 export const exposeRaceHistoryBridge = () =>
   defineBridge<RaceHistoryBridge>('raceHistoryBridge', {
@@ -16,4 +18,6 @@ export const exposeRaceHistoryBridge = () =>
     getDriverChanges: (raceId) =>
       ipcRenderer.invoke('raceHistory:getDriverChanges', raceId),
     listRaces: () => ipcRenderer.invoke('raceHistory:listRaces'),
+    getEvents: (raceId, before) =>
+      ipcRenderer.invoke('raceHistory:getEvents', raceId, before),
   });

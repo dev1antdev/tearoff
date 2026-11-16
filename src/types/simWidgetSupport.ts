@@ -140,6 +140,11 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // widget is in the list below is left out of the page, so the page shows
   // under LMU exactly what the overlay could.
   'pitwall',
+  // What happened in the race, from the race history and from LMU's phase,
+  // pit states, finish status and penalty counts. The same log under
+  // iRacing has its black flags in place of LMU's penalties and no line
+  // for a changed forecast.
+  'racelog',
   // The gap to the car behind while the player is slow on the track, from
   // the Relative's gaps and the player's own speed.
   'rejoin',

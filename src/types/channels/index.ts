@@ -21,3 +21,4 @@ export * from './braking';
 export * from './damage';
 export * from './wheelDynamics';
 export * from './weatherForecast';
+export * from './raceLog';

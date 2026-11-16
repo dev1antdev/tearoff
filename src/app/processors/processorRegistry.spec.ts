@@ -16,7 +16,8 @@ import { createProcessorDefinitions } from './processorRegistry';
  * a record with a hole for every minute no widget was showing is no record.
  * Its wear forecast is made from those laps, so it is published from there.
  * RaceHistoryRuntime keeps every lap of every car for the whole race, which
- * is stored too, and publishes what it holds of each car.
+ * is stored too, and publishes what it holds of each car. The race's log is
+ * kept by the same runtime, for the same reason, and published by it.
  */
 const RUNTIME_OWNED_CHANNELS = [
   'lap-history.snapshot',
@@ -25,6 +26,7 @@ const RUNTIME_OWNED_CHANNELS = [
   'player-stint.snapshot',
   'wear.snapshot',
   'race-history.summary',
+  'race-log.snapshot',
   'replay.context',
   'streamchat.messages',
   'streamchat.emotes',

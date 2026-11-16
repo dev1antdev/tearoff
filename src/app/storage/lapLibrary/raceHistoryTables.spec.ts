@@ -120,6 +120,7 @@ describe('writing a race', () => {
       laps,
       stints,
       driverChanges: changes,
+      events: [],
     });
     // Nothing of another car, and nothing of a race that is not there.
     expect(db.races.carLaps(raceId, 3)).toEqual([]);

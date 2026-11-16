@@ -1227,6 +1227,31 @@ Who is coming, and when. In a multi-class race it stands in for the mirror: the 
 
 Gaps and closing rates are measured from lap positions and the clock, and laps from measured lap times; the lap time a sim estimates is not used (Le Mans Ultimate states one figure for every class). While you stand in your pit box the pit exit figures are for leaving now, since no pit stop timings are read. The corner list comes from the bundled track data; on a track without one the forecast says how far round the lap. Shown for your own car while a team-mate drives it, hidden while the camera is on another car.
 
+### Race Log
+
+What happened in the race, one line an event, newest first: made for somebody who looks at the Pit Wall after an hour away and wants to catch up. It is a panel for the Pit Wall, and an ordinary widget for the overlay as well. Works in Le Mans Ultimate and iRacing.
+
+**Features:**
+
+- One line an event: the time, the car's number on its class colour, and what happened. Your own car's lines are amber
+- A car into the pits and from which place in its class; out again with how long it was in the pit lane and how long it stood, and who got out and who got in when the driver changed
+- A pass down the pit lane without stopping, a driver change with no stop seen, and each class's fastest lap, with its time
+- The flags for the whole field: the start, a full-course yellow or safety car with how long it lasted, a red flag, the chequered flag. Local yellows are not listed
+- A car that has been in its garage or out of the session for five minutes, said once, and that it is back when it is; a car the sim lists as retired or disqualified
+- A penalty given and served, where the sim says so: Le Mans Ultimate's count for each car, with drive-through, stop-and-go or time penalty once the sim names it, and iRacing's black flag
+- Your own place in class, once it has held for a little over a lap, so a place swapped back and forth in a fight or through a round of stops is one line and not ten
+- Le Mans Ultimate's forecast changing, with how far off its first rain is. That figure is an estimate, the Weather Forecast's own, and is marked with `~`
+- Switches over the list: all cars, your class or your car, and each kind of event on or off. What they open with is set in the widget's settings; what you switch on the panel is not saved
+- New lines arrive at the top. If you have scrolled down to read, the list stays where you are and counts the new lines in a button that takes you back to the top
+- The clock in the sim on each line, or the session clock
+- Background opacity, session visibility and an option to show only when on track
+
+The log is kept in the background for the whole race from the moment the Pit Wall or this widget is switched on, whether or not it is on screen, and is stored with the race: started again in the middle of a race, Tearoff carries the log on and measures a full-course yellow that was out through the restart from when it began. What happened while Tearoff was not running, or before the log began, is not in it and is not filled in. The list shows the most recent 200 events and reads earlier ones a page at a time; a race keeps 1000, and past 900 the oldest fastest laps and changes of place go first.
+
+A stop is what can be seen from outside a car: standing still in the pit lane for more than a second. What was done at it is not known and not said, and a pass with no standing is listed as a pass, not as a penalty served. A class's fastest lap is listed from the third lap of the class on, and when several cars better it within a quarter of a minute the one that stands is listed. iRacing publishes no forecast and does not name a penalty, so under it there is no forecast line and a penalty is a black flag shown and cleared. In a browser the list is the most recent 200 events: the earlier pages are read by the app's own windows only.
+
+No recording of a race with a pit stop, a driver change, a full-course yellow or a penalty exists, so all of those have been checked on staged data, not against a real race.
+
 ### Setup Comparison Tool
 
 Side-by-side setup analysis to compare car setup changes between sessions.
@@ -1395,7 +1420,7 @@ This is its first stage, and nothing of it has been seen in a live game yet: it 
 - The page's own scale, in its settings
 - The same page in an ordinary browser, at `http://localhost:3000/pitwall` on this PC. With **Enable Network Access** on, a tablet or a second PC on your network opens it too, by the link under **Settings > Pit Wall > In a browser**. That link carries a key: a device that is not this PC is refused everything the web server has without it, and **New key** there replaces it at once and disconnects whoever held the old one. A layout chosen in a browser is kept by that browser and leaves the window as it is; a browser has no settings window to open, so the page there has no gears
 
-**What is not there yet:** the [Timing Tower](#timing-tower), [Crew and Stints](#crew-and-stints) and [Car Laps](#car-laps) as panels of this page (the widgets exist, and none of the three layouts holds them yet), the class rivals table, the stint timeline, the race log and the pace chart. Panels cannot be moved or resized. The page is for your own devices on your own network: nothing reaches it from outside.
+**What is not there yet:** the [Timing Tower](#timing-tower), [Crew and Stints](#crew-and-stints), [Car Laps](#car-laps) and the [Race Log](#race-log) as panels of this page (the widgets exist, and none of the three layouts holds them yet), the class rivals table, the stint timeline and the pace chart. Panels cannot be moved or resized. The page is for your own devices on your own network: nothing reaches it from outside.
 
 ### Broadcast overlays
 

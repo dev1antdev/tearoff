@@ -113,6 +113,7 @@ const history = () => {
     ]),
     getDriverChanges: vi.fn(async () => []),
     listRaces: vi.fn(async () => []),
+    getEvents: vi.fn(async () => []),
   };
   window.raceHistoryBridge = bridge;
   return { bridge, asked };

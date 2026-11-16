@@ -37,6 +37,7 @@ const VERSION_3_TABLES = [
   'race_lap',
   'race_stint',
   'race_driver_change',
+  'race_event',
 ];
 
 /**
@@ -55,7 +56,9 @@ const SAMPLE_FOLDER = process.env.IRDASHIES_LAPS_DB_SAMPLE ?? '';
 const SCHEMA_FINGERPRINTS: Record<number, string> = {
   1: 'f9e3bd0ad6cd679f',
   2: '27dbf5823c4dae37',
-  3: 'ad28a40831aa503f',
+  // With the race's log in it. Version 3 was changed once before any build
+  // wrote it: the table came with the others, in the same step.
+  3: 'd13ba135f25f390f',
 };
 
 const T0 = Date.UTC(2026, 10, 13, 16, 0, 0);
@@ -945,11 +948,37 @@ describe('upgrading a version 2 lap library', () => {
         ],
         stints: [],
         driverChanges: [],
+        events: [
+          {
+            seq: 1,
+            sessionTime: 240,
+            timeOfDay: 57_600,
+            carIdx: 3,
+            kind: 'pit-entry',
+            classPosition: 1,
+          },
+          {
+            seq: 2,
+            sessionTime: 251.5,
+            timeOfDay: null,
+            carIdx: null,
+            kind: 'flag',
+            flag: 'caution',
+            after: null,
+            durationS: null,
+            late: false,
+          },
+        ],
         replacedCars: [],
         maxRaces: 20,
       });
 
       expect(db.races.carLaps(raceId, 3)).toHaveLength(1);
+      // And its log, read back as it was written.
+      expect(db.races.events(raceId)).toMatchObject([
+        { seq: 1, kind: 'pit-entry', carIdx: 3, classPosition: 1 },
+        { seq: 2, kind: 'flag', carIdx: null, flag: 'caution' },
+      ]);
       // The race's laps are not the player's: the lap library's own counts
       // and its cap do not see them.
       expect(db.stats().laps).toBe(library.laps + 1);

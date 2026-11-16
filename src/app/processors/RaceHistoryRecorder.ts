@@ -89,7 +89,7 @@ const TICK_SECONDS = 0.2;
  * ends its stint. A car driven on another machine can drop out of the world
  * for a frame or two and be back.
  */
-const AWAY_SECONDS = 5;
+export const AWAY_SECONDS = 5;
 
 const CAUTION_SESSION_FLAGS =
   GlobalFlags.Caution | GlobalFlags.CautionWaving | GlobalFlags.Red;
@@ -642,6 +642,24 @@ export class RaceHistoryRecorder {
   /** The race being recorded, or null between two. */
   currentRace(): RaceStart | null {
     return this.race;
+  }
+
+  /**
+   * The session clock at the last slow tick, negative infinity before one.
+   * It moves on every frame on which the pit lane and the flags were read:
+   * what reads them at the same rate, as the race's log does, goes by it.
+   */
+  lastTickAt(): number {
+    return this.tickedAt;
+  }
+
+  /**
+   * Where every car is and how long it has stood, as the pit tracker run
+   * here had it at the last tick. The tracker's own object: to be read, not
+   * kept.
+   */
+  pitState(): CarPitSnapshot {
+    return this.carPit.snapshot();
   }
 
   /** Goes up whenever anything kept changes. */

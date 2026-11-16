@@ -15,6 +15,7 @@ import type { BrakingSnapshot } from './braking';
 import type { DamageSnapshot } from './damage';
 import type { WheelDynamicsSnapshot } from './wheelDynamics';
 import type { WeatherForecastSnapshot } from './weatherForecast';
+import type { RaceLogSnapshot } from './raceLog';
 import type { RacePlanProgressSnapshot } from './racePlanProgress';
 import type { PitStopsSnapshot } from './pitStops';
 import type { PlayerLedgerSnapshot, PlayerStintSnapshot } from './playerLedger';
@@ -90,6 +91,7 @@ export interface ChannelPayloads {
   'finish-projection.snapshot': FinishProjectionSnapshot;
   'race-forecast.snapshot': RaceForecastSnapshot;
   'race-history.summary': RaceHistorySummarySnapshot;
+  'race-log.snapshot': RaceLogSnapshot;
 }
 
 export interface TrackStateSnapshot {
@@ -1449,6 +1451,13 @@ export const channelRegistry = {
   // Counts and the current stint for every car. Rebuilt at most once a
   // second, and only when a lap, a stint or a driver changed.
   'race-history.summary': {
+    kind: 'snapshot',
+    defaultRateHz: 1,
+    maxRateHz: 1,
+  },
+  // The most recent events of the race's log. Rebuilt at most once a
+  // second, and only when an event was added or changed: a few a minute.
+  'race-log.snapshot': {
     kind: 'snapshot',
     defaultRateHz: 1,
     maxRateHz: 1,

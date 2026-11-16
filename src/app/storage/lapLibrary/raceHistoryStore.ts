@@ -1,5 +1,6 @@
 import type {
   RaceDriverChange,
+  RaceEvent,
   RaceInfo,
   RaceLap,
   RaceRecords,
@@ -14,11 +15,11 @@ import type { LapLibraryCaller } from './dispatch';
  * The history of races as the rest of the main process uses it: rows on
  * their way into the lap library's file, and the questions asked of it.
  *
- * Nothing is written a row at a time. A lap, a stint or a driver change
- * waits here and goes with everything else that is waiting, as one
- * transaction on the worker thread, at most once every few seconds. A row
- * written twice while it waits goes once, as it last stood: a stint is
- * changed by every lap of it.
+ * Nothing is written a row at a time. A lap, a stint, a driver change or an
+ * event of the race's log waits here and goes with everything else that is
+ * waiting, as one transaction on the worker thread, at most once every few
+ * seconds. A row written twice while it waits goes once, as it last stood:
+ * a stint is changed by every lap of it.
  *
  * Caps: the file keeps `maxRaces` races, the oldest going with every row of
  * it when one is added. What waits here is bounded by what a field can
@@ -45,6 +46,10 @@ export interface RaceHistoryStore {
   queueLap(race: RaceWriteHead, lap: RaceLap): void;
   queueStint(race: RaceWriteHead, stint: RaceStint): void;
   queueDriverChange(race: RaceWriteHead, change: RaceDriverChange): void;
+  /** An event of the race's log: a new one, or one that has changed. */
+  queueEvent(race: RaceWriteHead, event: RaceEvent): void;
+  /** Events that went at the log's cap are to go from the file, by `seq`. */
+  queueEventsRemoved(race: RaceWriteHead, seqs: readonly number[]): void;
   /** The race's own row is to be brought up to date: its entry list changed. */
   queueInfo(race: RaceWriteHead): void;
   /** Another car is in the slot: what the file holds for it is to go. */
@@ -73,6 +78,8 @@ export interface RaceHistoryStore {
   carLaps(raceId: number, carIdx: number): Promise<RaceLap[]>;
   carStints(raceId: number, carIdx: number): Promise<RaceStint[]>;
   driverChanges(raceId: number): Promise<RaceDriverChange[]>;
+  /** Events of a race's log, oldest first; see RaceHistoryTables.events. */
+  events(raceId: number, before?: number): Promise<RaceEvent[]>;
 }
 
 export interface RaceHistoryStoreOptions {
@@ -105,6 +112,9 @@ interface Waiting {
   laps: Map<string, RaceLap>;
   stints: Map<string, RaceStint>;
   changes: Map<string, RaceDriverChange>;
+  /** By `seq`. */
+  events: Map<number, RaceEvent>;
+  removedEvents: Set<number>;
   replacedCars: Set<number>;
 }
 
@@ -143,6 +153,8 @@ export const createRaceHistoryStore = (
       laps: [...rows.laps.values()],
       stints: [...rows.stints.values()],
       driverChanges: [...rows.changes.values()],
+      events: [...rows.events.values()],
+      removedEvents: [...rows.removedEvents],
       replacedCars: [...rows.replacedCars],
       maxRaces: options.maxRaces,
     };
@@ -196,6 +208,8 @@ export const createRaceHistoryStore = (
         laps: new Map(),
         stints: new Map(),
         changes: new Map(),
+        events: new Map(),
+        removedEvents: new Set(),
         replacedCars: new Set(),
       };
       waiting.set(race.token, rows);
@@ -231,6 +245,20 @@ export const createRaceHistoryStore = (
     queueDriverChange(race, change) {
       waitingFor(race)?.changes.set(`${change.carIdx}:${change.seq}`, change);
     },
+    queueEvent(race, event) {
+      const rows = waitingFor(race);
+      if (!rows) return;
+      rows.removedEvents.delete(event.seq);
+      rows.events.set(event.seq, event);
+    },
+    queueEventsRemoved(race, seqs) {
+      const rows = waitingFor(race);
+      if (!rows) return;
+      for (const seq of seqs) {
+        rows.events.delete(seq);
+        rows.removedEvents.add(seq);
+      }
+    },
     queueInfo(race) {
       waitingFor(race);
     },
@@ -243,6 +271,9 @@ export const createRaceHistoryStore = (
         for (const key of list.keys()) {
           if (key.startsWith(ofCar)) list.delete(key);
         }
+      }
+      for (const [seq, event] of rows.events) {
+        if (event.carIdx === carIdx) rows.events.delete(seq);
       }
       rows.replacedCars.add(carIdx);
     },
@@ -277,5 +308,7 @@ export const createRaceHistoryStore = (
         () => client.call('raceDriverChanges', raceId),
         []
       ),
+    events: (raceId, before) =>
+      ask('a race’s log', () => client.call('raceEvents', raceId, before), []),
   };
 };

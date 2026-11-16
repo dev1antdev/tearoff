@@ -10,9 +10,13 @@
  * and current about every car goes out on `race-history.summary`; the detail
  * of one car is asked for through `RaceHistoryBridge`.
  *
+ * The race's log, what happened in it one event at a time, is kept beside
+ * them (`raceLog.ts`, table `race_event`) and read through the same bridge.
+ *
  * Nothing here is made up. A lap driven while the app was not running, or
  * while nothing asked for the record, is absent, and is counted as missing.
  */
+import type { RaceEvent } from './raceLog';
 
 /** Car slots a record is kept for. Le Mans Ultimate's scoring holds 104. */
 export const RACE_HISTORY_MAX_CARS = 128;
@@ -259,6 +263,13 @@ export interface RaceHistoryBridge {
   getDriverChanges: (raceId?: number) => Promise<RaceDriverChange[]>;
   /** The races kept in the file, most recent first. */
   listRaces: () => Promise<StoredRace[]>;
+  /**
+   * Events of the race's log, oldest first: the RACE_LOG_PAGE_EVENTS most
+   * recent ones numbered below `before`, or the most recent of all with it
+   * left out. A reader that holds the events of `race-log.snapshot` asks
+   * with the `seq` of the oldest of them to go further back.
+   */
+  getEvents: (raceId?: number, before?: number) => Promise<RaceEvent[]>;
 }
 
 /** Everything kept of one race: what the file hands back to carry it on. */
@@ -266,6 +277,8 @@ export interface RaceRecords {
   laps: readonly RaceLap[];
   stints: readonly RaceStint[];
   driverChanges: readonly RaceDriverChange[];
+  /** The race's log, oldest first. Left out by a reader that has none. */
+  events?: readonly RaceEvent[];
 }
 
 /** A race in the file that might be the one being driven now. */
@@ -291,6 +304,13 @@ export interface RaceWriteBatch {
   laps: readonly RaceLap[];
   stints: readonly RaceStint[];
   driverChanges: readonly RaceDriverChange[];
+  /**
+   * Events of the race's log, each written under its `seq`: one already
+   * there is replaced, as when a stop's driver change is named late.
+   */
+  events?: readonly RaceEvent[];
+  /** Events that went at the log's cap, by `seq`: they go from the file. */
+  removedEvents?: readonly number[];
   /**
    * Slots another car has taken: what the file holds for them goes before
    * anything of the batch is written.

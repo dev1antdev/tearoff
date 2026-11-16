@@ -91,7 +91,9 @@ const fakeApp = (
 ) => {
   const state = {
     simulator: initialSimulator,
-    subscribers: options.subscribers ?? 0,
+    subscribers: {
+      'race-history.summary': options.subscribers ?? 0,
+    } as Record<string, number>,
   };
   const dashboardListeners = new Set<(next: DashboardLayout) => void>();
   const simulatorListeners = new Set<() => void>();
@@ -99,7 +101,7 @@ const fakeApp = (
   const onChange = vi.fn<(needed: boolean) => void>();
   const dispose = watchRaceHistoryDemand({
     bus: {
-      subscriberCount: () => state.subscribers,
+      subscriberCount: (channel) => state.subscribers[channel] ?? 0,
       onSubscriberCountChanged: (listener) => {
         countListeners.add(listener);
         return () => countListeners.delete(listener);
@@ -129,7 +131,7 @@ const fakeApp = (
     setLayout: (next: DashboardLayout) =>
       dashboardListeners.forEach((listener) => listener(next)),
     setSubscribers: (channel: string, count: number) => {
-      if (channel === 'race-history.summary') state.subscribers = count;
+      state.subscribers[channel] = count;
       countListeners.forEach((listener) => listener(channel, count, count));
     },
     listeners: () =>
@@ -169,6 +171,20 @@ describe('watchRaceHistoryDemand', () => {
     app.setSubscribers('race-history.summary', 2);
     app.setSubscribers('race-history.summary', 0);
 
+    expect(app.onChange.mock.calls).toEqual([[false], [true], [false]]);
+  });
+
+  it('records for a reader of the race log, as for one of the summary', () => {
+    // The Race Log widget on the overlay, with the Pit Wall off.
+    const app = fakeApp(layout(widget('pitwall', false)), 'lmu');
+
+    app.setSubscribers('race-log.snapshot', 1);
+    app.setSubscribers('race-history.summary', 1);
+    // One reader leaves and the other is still there.
+    app.setSubscribers('race-log.snapshot', 0);
+    expect(app.onChange.mock.calls).toEqual([[false], [true]]);
+
+    app.setSubscribers('race-history.summary', 0);
     expect(app.onChange.mock.calls).toEqual([[false], [true], [false]]);
   });
 
