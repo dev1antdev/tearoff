@@ -21,6 +21,13 @@ const widgetSources = import.meta.glob<string>('./components/*/widget.ts', {
 
 const sorted = (ids: string[]) => [...ids].sort();
 
+/**
+ * Widgets lap history is recorded for though they read none themselves. The
+ * Pit Wall is a page for whole races: with it switched on, the crossings of
+ * a race are on record from its start.
+ */
+const LAP_HISTORY_KEPT_FOR = ['pitwall'];
+
 describe('widget registry', () => {
   const manifestIds = sorted(WIDGET_MANIFESTS.map((m) => m.id));
 
@@ -47,7 +54,13 @@ describe('widget registry', () => {
     const flagged = WIDGET_MANIFESTS.filter((m) => m.usesLapHistory).map(
       (m) => m.id
     );
-    expect(sorted(flagged)).toEqual(sorted(readers));
+    // Every reader is flagged, and nothing else but the widgets named above.
+    expect(sorted(flagged)).toEqual(
+      sorted([...readers, ...LAP_HISTORY_KEPT_FOR])
+    );
+    // A widget on that list that has begun to read the channel is a reader
+    // like any other, and comes off it.
+    for (const id of LAP_HISTORY_KEPT_FOR) expect(readers).not.toContain(id);
   });
 
   it('declares each widget id exactly once across widget.ts files', () => {

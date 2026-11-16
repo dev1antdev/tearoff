@@ -104,10 +104,7 @@ import {
   flushPitStopHistoryOnShutdown,
   getPitStopHistoryStore,
 } from './app/storage/pitStopHistory';
-import {
-  PitStopRuntime,
-  type PitStopPersistence,
-} from './app/processors/pitStopRuntime';
+import { PitStopRuntime } from './app/processors/pitStopRuntime';
 import {
   flushIncidentsOnShutdown,
   appendIncident,
@@ -122,6 +119,7 @@ import { LapHistoryRuntime } from './app/processors/lapHistoryRuntime';
 import { watchLapHistoryDemand } from './app/lapHistoryDemand';
 import { createLapHistoryArchive } from './app/lapHistoryArchive';
 import { watchPitStopDemand } from './app/pitStopDemand';
+import { createPitStopArchive } from './app/pitStopArchive';
 import { canSimulatorShowRacePlan } from './app/racePlanDemand';
 import {
   flushLapHistoryOnShutdown,
@@ -485,19 +483,19 @@ function setupTrackProfiles(replayContext: ReplayContextRuntime): void {
   };
 }
 
-const pitStopPersistence: PitStopPersistence = {
-  load: async (key) => {
-    const store = getPitStopHistoryStore();
-    await store.load();
-    return store.get(key);
-  },
-  save: (key, stops) => getPitStopHistoryStore().save(key, stops),
-};
+// Kept on disk only under a session id that names one event: with the Pit
+// Wall a reason to record them, stops are recorded under Le Mans Ultimate
+// too, whose id the next race at the same track shares.
+const pitStopPersistence = createPitStopArchive({
+  canArchive: sessionIdNamesOneEvent,
+  store: getPitStopHistoryStore,
+});
 
 /**
- * Hosts pit stop recording like lap history: gated on the Gantry widget, and
- * kept running while the Gantry window is closed. Not under a simulator that
- * hides the Gantry, which leaves the widget's own switch as the user set it.
+ * Hosts pit stop recording like lap history: gated on the Gantry and the Pit
+ * Wall, and kept running while their windows are closed. Not for a widget
+ * the running simulator hides, which leaves the widget's own switch as the
+ * user set it.
  */
 function setupPitStopRuntime(
   initialDashboard: DashboardLayout,

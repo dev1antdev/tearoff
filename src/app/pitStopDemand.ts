@@ -3,32 +3,48 @@ import type {
   DashboardLayout,
   SimWidgetSupportConfig,
 } from '@irdashies/types';
-import { isWidgetDisabledForSim } from '@irdashies/types';
+import { isWidgetDisabledForSim, PIT_WALL_WIDGET_ID } from '@irdashies/types';
 
 /** Ends a subscription, where the source hands one back. */
 type Unsubscribe = (() => unknown) | undefined;
 
-/** The one widget that shows pit stops. A spec checks it still is. */
-export const PIT_STOP_WIDGET = 'gantry';
+/** The one widget that reads the pit stops itself. */
+export const PIT_STOP_READER = 'gantry';
 
 /**
- * True when the Gantry is enabled and the running simulator can show it.
+ * The widgets pit stops are recorded for: the Gantry, which shows them, and
+ * the Pit Wall, a page for whole races. The Pit Wall reads none itself; it
+ * is here so that, while it is switched on, the stops of a race are kept
+ * from the start of it, for whichever of its panels comes to show them. A
+ * spec holds the list to what the widgets declare.
+ */
+export const PIT_STOP_WIDGETS: readonly string[] = [
+  PIT_STOP_READER,
+  PIT_WALL_WIDGET_ID,
+];
+
+/**
+ * True when one of those widgets is enabled and the running simulator can
+ * show it.
  *
  * The enabled flag alone is not enough: a widget the running sim cannot
  * support keeps the user's own setting and is only hidden, so a Gantry
  * switched on for iRacing stays "enabled" through a Le Mans Ultimate race
- * that has no window to show a pit stop in.
+ * that has no window to show a pit stop in. The Pit Wall is shown under
+ * both simulators, so with it switched on the stops are recorded under
+ * both.
  */
 export const needsPitStops = (
   layout: DashboardLayout | undefined,
   simulator: ActiveSimulator | null | undefined,
   support: SimWidgetSupportConfig
 ): boolean =>
-  (layout?.widgets.some(
-    (widget) => widget.id === PIT_STOP_WIDGET && widget.enabled
-  ) ??
-    false) &&
-  !isWidgetDisabledForSim(support, PIT_STOP_WIDGET, simulator);
+  PIT_STOP_WIDGETS.some(
+    (id) =>
+      (layout?.widgets.some((widget) => widget.id === id && widget.enabled) ??
+        false) &&
+      !isWidgetDisabledForSim(support, id, simulator)
+  );
 
 export interface PitStopDemandOptions {
   initialLayout: DashboardLayout | undefined;
