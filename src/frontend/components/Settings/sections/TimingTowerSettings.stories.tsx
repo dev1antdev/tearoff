@@ -9,7 +9,7 @@ const meta = {
   decorators: [
     (Story) => (
       <DashboardProvider bridge={mockDashboardBridge}>
-        <div className="h-[1500px] w-[880px] bg-slate-900 p-6 text-white">
+        <div className="h-[1640px] w-[880px] bg-slate-900 p-6 text-white">
           <Story />
         </div>
       </DashboardProvider>
