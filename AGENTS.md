@@ -328,6 +328,10 @@ npm run test              # With coverage
 npm run test -- --no-coverage
 ```
 
+Before a release, the real app is run on recorded sessions with
+`npm run smoke:app`: every widget and settings page photographed, every error
+collected, the profile inspected. See [`docs/APP_SMOKE.md`](docs/APP_SMOKE.md).
+
 ---
 
 ## Storybook
