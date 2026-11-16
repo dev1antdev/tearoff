@@ -8,6 +8,7 @@ import type {
   Telemetry,
 } from '@irdashies/types';
 import {
+  finishLapOf,
   FuelProjectionEngine,
   sessionLapLimit,
   type FuelEngineCommand,
@@ -30,12 +31,6 @@ const CLASS_PACE_OUTLIER_SECONDS = 2;
 const RACE_DISTANCE_PACE_DOUBT = 0.02;
 /** The most of a lap that doubt holds on to, however long the race. */
 const RACE_DISTANCE_MAX_HOLD_LAPS = 0.25;
-/**
- * Taken off a projected finish before it is rounded up. The player leading
- * the race finishes on exactly the leader's lap, and the rounding of the
- * sums that say so must not be read as the start of another.
- */
-const FINISH_ROUNDING_LAPS = 1e-9;
 
 /** A full virtual energy budget, in the percent it is counted in. */
 const VIRTUAL_ENERGY_CAPACITY = 100;
@@ -111,7 +106,7 @@ const isGreenFlag = (flags: number): boolean =>
  * both sims, so the greater of the two is used. Without a completed count the
  * lap channel stands as it is.
  */
-const lapStarted = (lap: number, completed: unknown): number =>
+export const lapStarted = (lap: number, completed: unknown): number =>
   typeof completed === 'number' && Number.isFinite(completed)
     ? Math.max(lap, completed + 1)
     : lap;
@@ -133,7 +128,9 @@ const settleFinishLap = (
   held: number | undefined,
   hold: number
 ): number => {
-  const lap = Math.ceil(projected - FINISH_ROUNDING_LAPS);
+  // Rounded up as everything that projects a finish rounds it, so that the
+  // player leading the race finishes on exactly the leader's lap.
+  const lap = finishLapOf(projected);
   if (held === undefined || lap >= held) return lap;
   return projected < held - 1 - hold ? lap : held;
 };
@@ -678,6 +675,7 @@ export class FuelProjectionProcessor implements TelemetryProcessor<FuelProjectio
     // reader that projects the end of the race itself.
     const race: FuelRaceInputs = {
       leaderCarIdx,
+      playerCarIdx,
       leaderPaceS: leaderLapTime >= 10 ? leaderLapTime : 0,
       playerPaceS: playerLapTime >= 10 ? playerLapTime : 0,
       leaderProgress:

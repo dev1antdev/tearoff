@@ -28,6 +28,7 @@ import {
   type DrivingTotalsPersistence,
 } from './CruiseProcessor';
 import { DriverControlsProcessor } from './DriverControlsProcessor';
+import { FinishProjectionProcessor } from './FinishProjectionProcessor';
 import { FlagStateProcessor } from './FlagStateProcessor';
 import { FuelProjectionProcessor } from './FuelProjectionProcessor';
 import { HybridProcessor } from './HybridProcessor';
@@ -222,6 +223,32 @@ export const createProcessorDefinitions = ({
         lapTimes: () => snapshot('lap-times.snapshot'),
         referenceLaps: () => snapshot('reference-laps.snapshot'),
         sourceReplay,
+      }),
+  }),
+  defineProcessor({
+    channel: 'finish-projection.snapshot',
+    // The race as the fuel projection projects it, every car's pace, the
+    // pit lane and the planned stop, every car's stints and pit visits, and
+    // the class order with the race gaps.
+    dependencies: [
+      'fuel.projection',
+      'lap-times.snapshot',
+      'pit-stop.snapshot',
+      'car-pit.snapshot',
+      'standings.snapshot',
+    ],
+    // It keeps nothing itself, but the stints it reads are counted over the
+    // whole race by processors that live only while something wants them:
+    // dropped with a hidden overlay, every rival's stint would start again.
+    processWhileHidden: true,
+    metricsPrefix: 'finishProjection',
+    create: ({ snapshot }) =>
+      new FinishProjectionProcessor({
+        fuel: () => snapshot('fuel.projection'),
+        lapTimes: () => snapshot('lap-times.snapshot'),
+        pitStop: () => snapshot('pit-stop.snapshot'),
+        carPit: () => snapshot('car-pit.snapshot'),
+        standings: () => snapshot('standings.snapshot'),
       }),
   }),
   defineProcessor({

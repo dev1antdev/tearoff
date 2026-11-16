@@ -75,6 +75,11 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // speeds, both of which LMU's scoring gives. Its optional licence badge
   // has nothing to show here.
   'fastercarsfrombehind',
+  // Where the race ends for a set of stop lengths, from the fuel
+  // projection's own pace and progress; the stop that adds exactly what is
+  // needed from the refuelling rates LMU's REST API states; the class
+  // rivals' remaining stops from the fuel or energy scoring gives each car.
+  'finishorder',
   'flag',
   // The flag in force and the car a blue is for, from LMU's session phase,
   // sector flags and scoring. Each sim has states the other cannot report.
