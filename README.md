@@ -1259,7 +1259,7 @@ This is its first stage, and nothing of it has been seen in a live game yet: it 
   - Race: Standings, Fuel Calculator, Pit Stop, Flag Panel, Finish Projection, Stint History, Weather Forecast, Track Map, Traffic, Tyre & Brake Wear
   - Watching: Finish Projection, Stint History, Pit Stop, Timing, Lap Timer, Tyres, Damage, Standings, Weather Forecast
   - Compact: Standings, Fuel Calculator, Pit Stop, Finish Projection, Weather
-- A panel whose widget the running simulator does not support is left out and its neighbours take the room. Under Le Mans Ultimate that is the Track Map for now; under iRacing it is Tyre & Brake Wear, Weather Forecast, Tyres and Damage
+- A panel whose widget the running simulator does not support is left out and its neighbours take the room. Le Mans Ultimate supports every panel; under iRacing Tyre & Brake Wear, Weather Forecast, Tyres and Damage are left out
 - On this page the widgets ignore their "show only when on track" and session switches. Those keep a widget off the game's screen, and this is a screen of its own
 - A widget wider than its panel is drawn smaller to fit, and one taller than its panel scrolls inside it
 - Full screen with F11 or the button in the header; the window remembers its place, its size, its monitor and whether it was maximised

@@ -116,9 +116,9 @@ export const PIT_WALL_LAYOUTS: Readonly<
       {
         width: 0.9,
         slots: [
-          { widget: 'map', rows: 4, minWidth: 260 },
+          { widget: 'map', rows: 3, minWidth: 260 },
           { widget: 'traffic', rows: 4, minWidth: 330 },
-          { widget: 'wear', rows: 4, minWidth: 260 },
+          { widget: 'wear', rows: 5, minWidth: 260 },
         ],
       },
     ],

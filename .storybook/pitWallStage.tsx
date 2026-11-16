@@ -8,6 +8,7 @@ import {
   type DashboardBridge,
   type DashboardLayout,
   type FinishRival,
+  type LmuTrackMap,
   type PitWallLayoutId,
   type Session,
   type TyreWheelState,
@@ -24,10 +25,17 @@ import {
   sampleLedger,
 } from '../src/frontend/domain/ledger/ledgerSample';
 import { defaultDashboard } from '../src/app/storage/defaultDashboard';
+import lmuTrackMaps from '../src/app/lmu/lmu-track-maps.json';
 import { ChannelSnapshotDecorator } from './channelSnapshotDecorator';
-import { lmuEnduranceGrid, LMU_STORY_PLAYER } from './lmuEnduranceGrid';
+import {
+  lmuEnduranceGrid,
+  LMU_STORY_CARS,
+  LMU_STORY_PLAYER,
+} from './lmuEnduranceGrid';
+import { LMU_MAP_STORY_SECTOR_STARTS } from './lmuTrackMapStory';
 import { mockDashboardBridge } from './mockDashboardBridge';
 import { sessionBarStorySnapshot } from './sessionBarSnapshot';
+import { emptyTrackProfileStorySnapshot } from './trackProfileSnapshot';
 import { trackStateStorySnapshot } from './trackStateSnapshot';
 
 /**
@@ -40,6 +48,36 @@ import { trackStateStorySnapshot } from './trackStateSnapshot';
 const grid = lmuEnduranceGrid;
 const slot = grid.slotOf;
 const PLAYER = slot(LMU_STORY_PLAYER);
+
+/** The circuit the grid races on, whose map ships with the app. */
+const CIRCUIT = 'Circuit de la Sarthe';
+const CIRCUIT_LENGTH_M = 13626;
+const TRACK_ID = 1_000_000 + 24;
+const IN_PIT_STALL = 1;
+const ON_TRACK = 3;
+
+/** The session as Le Mans Ultimate sends it, with the circuit's map in it. */
+const stagedSession = {
+  ...grid.session,
+  WeekendInfo: {
+    ...grid.session.WeekendInfo,
+    TrackID: TRACK_ID,
+    TrackName: CIRCUIT,
+    TrackLength: `${CIRCUIT_LENGTH_M} m`,
+  },
+  SplitTimeInfo: {
+    Sectors: [0, 1 / 3, 2 / 3].map((SectorStartPct, SectorNum) => ({
+      SectorNum,
+      SectorStartPct,
+    })),
+  },
+  LmuTrackMap: (lmuTrackMaps as unknown as Record<string, LmuTrackMap>)[
+    CIRCUIT
+  ],
+} as Session;
+
+const stopped = (car: (typeof LMU_STORY_CARS)[number]) =>
+  !!(car.inPits || car.inGarage);
 
 /** Session time at the staged moment, and when the race went green. */
 const SESSION_TIME = 16_524;
@@ -54,10 +92,10 @@ const classSize = grid.session.DriverInfo.Drivers.filter(
 
 /** The session with a team-mate named as the driver of our car. */
 const withDriver = (name: string): Session => ({
-  ...grid.session,
+  ...stagedSession,
   DriverInfo: {
-    ...grid.session.DriverInfo,
-    Drivers: grid.session.DriverInfo.Drivers.map((driver) =>
+    ...stagedSession.DriverInfo,
+    Drivers: stagedSession.DriverInfo.Drivers.map((driver) =>
       driver.CarIdx === PLAYER ? { ...driver, UserName: name } : driver
     ),
   },
@@ -183,6 +221,13 @@ export const pitWallStageSnapshots = ({
     focusCarIdx: PLAYER,
     sessionTime: SESSION_TIME,
     lapDistPct: 0.41,
+    // Where every car is, for the map.
+    carIdxLapDistPct: LMU_STORY_CARS.map((car) => car.progress % 1),
+    carIdxOnPitRoad: LMU_STORY_CARS.map(stopped),
+    carIdxTrackSurface: LMU_STORY_CARS.map((car) =>
+      stopped(car) ? IN_PIT_STALL : ON_TRACK
+    ),
+    carIdxClassPosition: grid.standings.carIdxClassPosition,
     ...(watching
       ? {
           isOnTrack: false,
@@ -192,6 +237,13 @@ export const pitWallStageSnapshots = ({
           watchingOwnCarTelemetry: true,
         }
       : {}),
+  },
+  'track-profile.snapshot': {
+    ...emptyTrackProfileStorySnapshot,
+    trackKey: `lmu:${TRACK_ID}`,
+    trackLengthM: CIRCUIT_LENGTH_M,
+    sectorStartPct: LMU_MAP_STORY_SECTOR_STARTS,
+    sectorSource: 'learned',
   },
   'session-bar.snapshot': {
     ...sessionBarStorySnapshot,
@@ -632,7 +684,7 @@ export const pitWallStage = (stage: PitWallStage = {}) => {
       ? null
       : teamMate
         ? withDriver(teamMate)
-        : grid.session;
+        : stagedSession;
   const runningState = {
     onRunningState: (callback: (running: boolean) => void) => {
       callback(running);

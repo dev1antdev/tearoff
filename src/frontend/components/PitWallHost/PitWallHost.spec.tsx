@@ -245,7 +245,7 @@ describe('PitWallHost', () => {
     expect(screen.getByTestId('widget-fuel')).toBeInTheDocument();
   });
 
-  it('leaves the track map out of the Race layout under Le Mans Ultimate', () => {
+  it('leaves a panel out of the Race layout under a sim that lists its widget', () => {
     mocks.dashboard = compactDashboard([widget('map'), widget('fuel')], 'race');
     render(<PitWallHost />);
     expect(screen.getByTestId('widget-map')).toBeInTheDocument();

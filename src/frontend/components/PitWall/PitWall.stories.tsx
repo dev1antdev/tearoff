@@ -31,9 +31,8 @@ type Story = StoryObj<typeof PitWall>;
 
 /**
  * The Race layout under Le Mans Ultimate, three and a half hours from the
- * flag on the made-up endurance grid. The track map has no place here yet:
- * Le Mans Ultimate does not support that widget, so its panel is left out
- * and Traffic and Wear share the column.
+ * flag on the made-up endurance grid: all ten panels, the Track Map drawn
+ * from the map of Le Mans that ships with the app.
  */
 export const Race: Story = { ...pitWallStage({ layout: 'race' }) };
 
@@ -49,9 +48,9 @@ export const Watching: Story = {
 export const Compact: Story = { ...pitWallStage({ layout: 'compact' }) };
 
 /**
- * Every panel of the Race layout, as with no simulator filter: the track map
- * is in its place on an iRacing session. Wear and the forecast have nothing
- * to read here, which is why iRacing leaves those two panels out.
+ * The Race layout on an iRacing session with no simulator named, so nothing
+ * is left out: the Track Map is iRacing's drawing, and Wear and the forecast
+ * have nothing to read, which is why iRacing leaves those two panels out.
  */
 export const RaceEveryPanel: Story = {
   decorators: [

@@ -100,8 +100,8 @@ export const PitWallSettings = () => {
                   averages, the class rivals table, the crew and stint timeline,
                   the race log and the pace chart. Their places are taken by the
                   nearest widget, or left out. A panel whose widget the running
-                  simulator does not support is left out too, which under Le
-                  Mans Ultimate is the track map for now.
+                  simulator does not support is left out too: under iRacing that
+                  is Tyre &amp; Brake Wear, Weather Forecast, Tyres and Damage.
                 </p>
                 <p>
                   Nothing here has been seen in a live game yet. It has only

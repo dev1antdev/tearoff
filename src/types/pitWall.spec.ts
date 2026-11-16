@@ -183,9 +183,10 @@ describe('pitWallGrid', () => {
       (slot) => slot.widget !== 'map'
     );
     const column = areaRectangles(grid.areas).rows.map((row) => row[3]);
+    // Traffic 4 and wear 5 of nine: 5.33 and 6.67 rows.
     expect(column).toEqual([
-      ...Array<string>(6).fill('traffic'),
-      ...Array<string>(6).fill('wear'),
+      ...Array<string>(5).fill('traffic'),
+      ...Array<string>(7).fill('wear'),
     ]);
     expect(grid.slots.map((slot) => slot.widget)).not.toContain('map');
   });
@@ -349,20 +350,63 @@ describe('resolvePitWall', () => {
 
   it('leaves out the panels the running sim cannot support', () => {
     const dashboard = dashboardWith({ layout: 'race' }, [widget('map')]);
+    // A list of its own, so the case does not move with what each sim gains.
+    const support = {
+      message: 'Not under this sim',
+      disabledWidgets: { lmu: ['map'], iracing: ['wear', 'weatherforecast'] },
+    };
     const shown = (simulator: 'lmu' | 'iracing' | null) =>
-      resolvePitWall(dashboard, {
-        support: DEFAULT_SIM_WIDGET_SUPPORT,
-        simulator,
-      }).panels.map((panel) => panel.slot.widget);
+      resolvePitWall(dashboard, { support, simulator }).panels.map(
+        (panel) => panel.slot.widget
+      );
 
-    expect(shown(null)).toContain('map');
-    expect(shown(null)).toContain('wear');
-    // Not this stage's to enable: the map stays out under Le Mans Ultimate.
+    expect(shown(null)).toHaveLength(10);
     expect(shown('lmu')).not.toContain('map');
     expect(shown('lmu')).toContain('wear');
+    expect(shown('lmu')).toHaveLength(9);
     expect(shown('iracing')).toContain('map');
     expect(shown('iracing')).not.toContain('wear');
     expect(shown('iracing')).not.toContain('weatherforecast');
+  });
+
+  it('shows every panel of every layout under Le Mans Ultimate as shipped', () => {
+    for (const layout of PIT_WALL_LAYOUT_LIST) {
+      const resolved = resolvePitWall(dashboardWith({ layout: layout.id }), {
+        support: DEFAULT_SIM_WIDGET_SUPPORT,
+        simulator: 'lmu',
+      });
+      expect(resolved.panels.map((panel) => panel.slot)).toEqual(
+        layout.columns.flatMap((column) => column.slots)
+      );
+    }
+  });
+
+  it('leaves out under iRacing the panels it has no data for', () => {
+    const shown = (layout: string) =>
+      resolvePitWall(dashboardWith({ layout }), {
+        support: DEFAULT_SIM_WIDGET_SUPPORT,
+        simulator: 'iracing',
+      }).panels.map((panel) => panel.slot.widget);
+
+    expect(shown('race')).toEqual([
+      'standings',
+      'fuel',
+      'pitstop',
+      'flagpanel',
+      'finishorder',
+      'stinthistory',
+      'map',
+      'traffic',
+    ]);
+    expect(shown('watching')).toEqual([
+      'finishorder',
+      'stinthistory',
+      'pitstop',
+      'timing',
+      'laptimelog',
+      'standings',
+    ]);
+    expect(shown('compact')).toHaveLength(5);
   });
 
   it('keeps the grid and the panels in step', () => {
