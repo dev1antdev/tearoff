@@ -1248,6 +1248,124 @@ describe('dashboards', () => {
     });
   });
 
+  describe('Timing Tower and Class Rivals saved before the laps on a set of tyres', () => {
+    const layout = { x: 40, y: 60, width: 900, height: 700 };
+    const without = (config: Record<string, unknown>, keys: string[]) =>
+      Object.fromEntries(
+        Object.entries(config).filter(([key]) => !keys.includes(key))
+      );
+
+    // The two widgets as the build before stored them: the tower's Tyres
+    // column a switch and nothing else, Class Rivals with no such column,
+    // and the driver's own settings on top.
+    const savedTower = () => ({
+      ...(structuredClone(
+        getWidgetDefaultConfig('timingtower')
+      ) as unknown as Record<string, unknown>),
+      background: { opacity: 60 },
+      tyres: { enabled: true },
+      pitStops: { enabled: false },
+      paceAgainst: 'driver',
+    });
+    const savedRivals = () => ({
+      ...without(
+        structuredClone(
+          getWidgetDefaultConfig('classrivals')
+        ) as unknown as Record<string, unknown>,
+        ['showTyres']
+      ),
+      background: { opacity: 45 },
+      carsAhead: 3,
+      showPace: false,
+    });
+    const stored = (
+      tower: Record<string, unknown> = savedTower()
+    ): DashboardLayout => ({
+      widgets: [
+        { id: 'timingtower', enabled: true, layout, config: tower },
+        { id: 'classrivals', enabled: false, layout, config: savedRivals() },
+      ],
+    });
+    const configOf = (dashboard: DashboardLayout, id: string) =>
+      dashboard.widgets.find((w) => w.id === id)?.config as Record<
+        string,
+        unknown
+      >;
+
+    it('gives the tower the laps and the tread, switched on, and keeps every stored setting', () => {
+      const before = savedTower();
+
+      const loaded = withDashboardDefaults(stored());
+      const config = configOf(loaded, 'timingtower');
+
+      expect(without(config, ['tyres'])).toEqual(without(before, ['tyres']));
+      // On beside the compound, with what four tyres take left to the sim.
+      expect(config.tyres).toEqual({
+        enabled: true,
+        set: true,
+        changeSeconds: 0,
+      });
+      expect(loaded.widgets[0]).toMatchObject({ enabled: true, layout });
+    });
+
+    it('keeps a Tyres column the driver had switched off, off', () => {
+      const loaded = withDashboardDefaults(
+        stored({ ...savedTower(), tyres: { enabled: false } })
+      );
+
+      expect(configOf(loaded, 'timingtower').tyres).toEqual({
+        enabled: false,
+        set: true,
+        changeSeconds: 0,
+      });
+    });
+
+    it('gives Class Rivals the Tyres column, switched on, and keeps every stored setting', () => {
+      const before = savedRivals();
+
+      const loaded = withDashboardDefaults(stored());
+      const config = configOf(loaded, 'classrivals');
+
+      expect(without(config, ['showTyres'])).toEqual(before);
+      expect(config.showTyres).toBe(true);
+      // Where it is and whether it is on are the driver's.
+      expect(loaded.widgets[1]).toMatchObject({ enabled: false, layout });
+    });
+
+    it('changes nothing more when the profile is loaded again', () => {
+      const loaded = withDashboardDefaults(stored());
+
+      expect(withDashboardDefaults(loaded)).toEqual(loaded);
+    });
+
+    it('keeps the settings as the driver then leaves them', () => {
+      const loaded = withDashboardDefaults(stored());
+      const chosen: DashboardLayout = {
+        ...loaded,
+        widgets: loaded.widgets.map((widget) =>
+          widget.id === 'timingtower'
+            ? {
+                ...widget,
+                config: {
+                  ...widget.config,
+                  tyres: { enabled: true, set: false, changeSeconds: 18 },
+                },
+              }
+            : { ...widget, config: { ...widget.config, showTyres: false } }
+        ),
+      };
+
+      const again = withDashboardDefaults(chosen);
+
+      expect(configOf(again, 'timingtower').tyres).toEqual({
+        enabled: true,
+        set: false,
+        changeSeconds: 18,
+      });
+      expect(configOf(again, 'classrivals').showTyres).toBe(false);
+    });
+  });
+
   describe('Lap trace layout migration', () => {
     const layout = { x: 20, y: 40, width: 400, height: 120 };
     const lapTraceIn = (dashboard: DashboardLayout) =>

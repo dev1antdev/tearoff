@@ -17,10 +17,10 @@ export default defineWidgetManifest({
     x: 300,
     y: 520,
     // Wide enough for every column, and high enough for the captions,
-    // seven cars and the line that says what the columns are. A larger
+    // seven cars and the lines that say what the columns are. A larger
     // class scrolls under the captions.
-    width: 680,
-    height: 280,
+    width: 790,
+    height: 290,
   },
   config: {
     background: { opacity: 80 },
@@ -30,6 +30,7 @@ export default defineWidgetManifest({
     showNextStop: true,
     showNetGap: true,
     showPace: true,
+    showTyres: true,
     showLegend: true,
     // Off, so it can be read from the garage and the pit wall.
     showOnlyWhenOnTrack: false,
@@ -90,11 +91,17 @@ export default defineWidgetManifest({
       description:
         'Each car’s mean of its last five clean laps against yours, green when you are the faster. Your own row shows your mean.',
     },
+    showTyres: {
+      type: 'boolean',
+      label: 'Tyres',
+      description:
+        'The compound each car is on, the laps it has run on the set and the tread left. No sim says that a rival changed tyres, so the laps come with how sure they are. Bare: another compound was seen on the car after a stop, or it has not stopped. With ?: told from how long it stood at a stop. With +: at least that many. The tread is an estimate marked ~: what a lap costs your own car on that compound, times those laps; another car wears its tyres differently. It reads -- until your own car has three clean laps on the compound. Your own row shows your real tread. What a tyre change is taken to last is set once, on the Timing Tower’s page: Tyre Change Takes.',
+    },
     showLegend: {
       type: 'boolean',
       label: 'Legend',
       description:
-        'A line under the table that says what Net Gap and Pace 5 are.',
+        'A line under the table that says what Net Gap, Pace 5 and the marks in Tyres are.',
     },
     showOnlyWhenOnTrack: {
       type: 'boolean',

@@ -4,6 +4,7 @@ import {
   useCarIdxStintPace,
   useCarPitSnapshot,
   useCarSectorsSnapshot,
+  useClassTyresSnapshot,
   useDriverCarIdx,
   useDrivingState,
   useElementSize,
@@ -14,6 +15,7 @@ import {
   useWeekendInfoNumCarClasses,
 } from '@irdashies/context';
 import type { Gap, Standings } from '@irdashies/domain';
+import { hasTreadFigures, tyreSetDisplay } from '@irdashies/domain/classTyres';
 import { carSectorMarks } from '@irdashies/domain/sectors/sectorMarks';
 import { useFieldStandings } from '@irdashies/domain/standings/overallStandings';
 import { useCarClassStats } from '@irdashies/domain/standings/useCarClassStats';
@@ -31,6 +33,8 @@ import {
   enabledTowerColumns,
   fitTowerColumns,
   towerColumn,
+  towerColumnWidth,
+  type TowerTyresDetail,
 } from './towerColumns';
 import { ALL_TAB, resolveTowerTab, towerTabs, towerTag } from './towerRows';
 import { showOwnRow } from './towerScroll';
@@ -99,6 +103,21 @@ const TowerTable = ({ settings }: { settings: TimingTowerConfig }) => {
   const carPit = useCarPitSnapshot(
     settings.pitStops.enabled || settings.stintLaps.enabled
   );
+  // How long each car of our class has run on its tyres. Reading it has
+  // the race recorded, so it is read only while the cell shows it.
+  const classTyres = useClassTyresSnapshot(
+    settings.tyres.enabled && settings.tyres.set
+  );
+  // The column is as wide as what it carries, decided over the class so
+  // that it does not move as figures arrive: the laps once there are any,
+  // and the tread where the sim gives one to work from.
+  const tyresDetail: TowerTyresDetail = !classTyres?.setLaps.some(
+    (laps) => laps >= 0
+  )
+    ? 'compound'
+    : hasTreadFigures(classTyres)
+      ? 'tread'
+      : 'laps';
 
   const tabs = useMemo(
     () => towerTabs(field.classes, classStats),
@@ -138,9 +157,10 @@ const TowerTable = ({ settings }: { settings: TimingTowerConfig }) => {
           sectors: sectorsAvailable,
           energy: hasEnergy,
         }),
-        width
+        width,
+        tyresDetail
       ),
-    [settings, sectorsAvailable, hasEnergy, width]
+    [settings, sectorsAvailable, hasEnergy, width, tyresDetail]
   );
 
   // Our car's row is kept where it can be read: brought into view when the
@@ -199,7 +219,7 @@ const TowerTable = ({ settings }: { settings: TimingTowerConfig }) => {
         <table className="w-full table-fixed border-collapse text-[13px] leading-tight">
           <colgroup>
             {columns.map((id) => {
-              const { width: columnWidth } = towerColumn(id);
+              const columnWidth = towerColumnWidth(id, tyresDetail);
               return (
                 <col
                   key={id}
@@ -238,6 +258,7 @@ const TowerTable = ({ settings }: { settings: TimingTowerConfig }) => {
                 row.carClass.id
               );
               const interval = row.interval;
+              const tyres = tyreSetDisplay(classTyres, row.carIdx);
               return (
                 <TowerRow
                   key={row.carIdx}
@@ -284,6 +305,9 @@ const TowerTable = ({ settings }: { settings: TimingTowerConfig }) => {
                   energyIsVirtual={row.energyIsVirtual}
                   tireCompound={row.tireCompound}
                   wheelCompounds={row.wheelCompounds}
+                  tyreLaps={tyres.laps}
+                  tyreTread={tyresDetail === 'tread' ? tyres.tread : ''}
+                  tyreTitle={tyres.title}
                 />
               );
             })}

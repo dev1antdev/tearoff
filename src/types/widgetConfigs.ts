@@ -2069,7 +2069,21 @@ export interface TimingTowerConfig {
   /** Virtual energy or fuel left, percent. Le Mans Ultimate. */
   energy: { enabled: boolean };
   /** The compound on the car. */
-  tyres: { enabled: boolean };
+  tyres: {
+    enabled: boolean;
+    /**
+     * Beside the compound, for the cars of our own class: the laps on the
+     * set and the tread left.
+     */
+    set: boolean;
+    /**
+     * Seconds a change of four tyres takes, for telling one from how long
+     * a car stood at its stop; 0 leaves it to what the sim states. Read by
+     * the main process (`ClassTyresTuning`), and by Class Rivals' column
+     * through the same channel.
+     */
+    changeSeconds: number;
+  };
   showOnlyWhenOnTrack: boolean;
   sessionVisibility: SessionVisibilitySettings;
 }
@@ -2776,6 +2790,8 @@ export interface ClassRivalsConfig {
   showNetGap: boolean;
   /** The mean of five clean laps against the own car's. */
   showPace: boolean;
+  /** The compound, the laps on the set and the tread left. */
+  showTyres: boolean;
   /** The line under the table that says what the columns are. */
   showLegend: boolean;
   sessionVisibility: SessionVisibilitySettings;

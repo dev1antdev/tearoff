@@ -82,6 +82,15 @@ export interface TowerRowProps {
   /** Left out where the car has no compound to show. */
   tireCompound?: number;
   wheelCompounds?: readonly number[];
+  /**
+   * The laps on the set, as written: "17", "17?" or "17+". Left out, or
+   * empty, where nothing is said of the car, as for one of another class.
+   */
+  tyreLaps?: string;
+  /** The tread left, as written: "86%", "~86%", "<86%" or "--". */
+  tyreTread?: string;
+  /** Both in a sentence, for whoever points at the cell. */
+  tyreTitle?: string;
 }
 
 const sameList = (a: readonly unknown[], b: readonly unknown[]) =>
@@ -150,6 +159,9 @@ export const TowerRow = memo((props: TowerRowProps) => {
     energyIsVirtual,
     tireCompound,
     wheelCompounds,
+    tyreLaps,
+    tyreTread,
+    tyreTitle,
   } = props;
 
   const tailwindStyles = useMemo(
@@ -325,15 +337,39 @@ export const TowerRow = memo((props: TowerRowProps) => {
         );
       case 'tyres':
         return (
-          <td key={id} data-column="tyres" className="px-1.5">
-            {/* From the left edge: what a later build knows of the set goes
-                after the compound and only widens the cell. */}
+          <td
+            key={id}
+            data-column="tyres"
+            title={tyreTitle || undefined}
+            className="px-1.5 whitespace-nowrap"
+          >
+            {/* From the left edge: what is known of the set goes after the
+                compound, each figure in a place of its own so that they
+                line up down the column. */}
             <div className="flex items-center gap-1.5">
-              {tireCompound !== undefined && (
-                <Compound
-                  tireCompound={tireCompound}
-                  wheelCompounds={wheelCompounds}
-                />
+              <span className="flex w-[1.2em] shrink-0 items-center">
+                {tireCompound !== undefined && (
+                  <Compound
+                    tireCompound={tireCompound}
+                    wheelCompounds={wheelCompounds}
+                  />
+                )}
+              </span>
+              {tyreLaps && (
+                <span
+                  data-testid="tower-tyre-laps"
+                  className="w-[26px] shrink-0 text-right"
+                >
+                  {tyreLaps}
+                </span>
+              )}
+              {tyreLaps && tyreTread && (
+                <span
+                  data-testid="tower-tyre-tread"
+                  className={`w-[38px] shrink-0 text-right ${isOwn ? 'text-amber-300/70' : 'text-slate-400'}`}
+                >
+                  {tyreTread}
+                </span>
               )}
             </div>
           </td>

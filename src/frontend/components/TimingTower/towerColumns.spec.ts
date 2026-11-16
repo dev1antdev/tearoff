@@ -7,6 +7,8 @@ import {
   TOWER_COLUMNS,
   TOWER_DROP_ORDER,
   towerColumnsWidth,
+  towerColumnWidth,
+  TYRES_COLUMN_WIDTH,
   type TowerColumnId,
 } from './towerColumns';
 
@@ -91,6 +93,41 @@ describe('fitting the columns to a panel', () => {
     // come off it.
     expect(needed).toBeLessThanOrEqual(864);
     expect(needed).toBeGreaterThan(DRIVER_MIN_WIDTH);
+  });
+
+  it('makes the Tyres column as wide as what it carries', () => {
+    expect(towerColumnWidth('tyres')).toBe(TYRES_COLUMN_WIDTH.compound);
+    expect(towerColumnWidth('tyres', 'laps')).toBe(TYRES_COLUMN_WIDTH.laps);
+    expect(towerColumnWidth('tyres', 'tread')).toBe(TYRES_COLUMN_WIDTH.tread);
+    expect(TYRES_COLUMN_WIDTH.compound).toBeLessThan(TYRES_COLUMN_WIDTH.laps);
+    expect(TYRES_COLUMN_WIDTH.laps).toBeLessThan(TYRES_COLUMN_WIDTH.tread);
+    // No other column's width depends on it, and the driver's has none.
+    expect(towerColumnWidth('energy', 'tread')).toBe(
+      towerColumnWidth('energy')
+    );
+    expect(towerColumnWidth('driver', 'tread')).toBeNull();
+    expect(towerColumnsWidth(ALL, 'tread') - needed).toBe(
+      TYRES_COLUMN_WIDTH.tread - TYRES_COLUMN_WIDTH.compound
+    );
+  });
+
+  it('fits every column with the laps and the tread in the default window', () => {
+    // 960 wide, less the place of the scrollbar.
+    expect(towerColumnsWidth(ALL, 'tread')).toBeLessThanOrEqual(940);
+    expect(fitTowerColumns(ALL, 940, 'tread')).toEqual(ALL);
+  });
+
+  it('leaves Stops out first where the wider Tyres column no longer fits', () => {
+    // Every column fits 864 with the compound alone, and not with the
+    // laps and the tread beside it.
+    expect(fitTowerColumns(ALL, 864)).toEqual(ALL);
+    expect(fitTowerColumns(ALL, 864, 'tread')).toEqual(
+      ALL.filter((id) => id !== 'pitStops' && id !== 'interval')
+    );
+    // What goes with the Tyres column is its width as drawn.
+    const without = fitTowerColumns(ALL, 600, 'tread');
+    expect(without).not.toContain('tyres');
+    expect(towerColumnsWidth(without, 'tread')).toBeLessThanOrEqual(600);
   });
 
   it('leaves nothing out of a panel that has not been measured', () => {

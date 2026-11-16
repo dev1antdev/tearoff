@@ -1,6 +1,7 @@
-import { memo, type CSSProperties, type Ref } from 'react';
+import { memo, useMemo, type CSSProperties, type Ref } from 'react';
 import type { ForecastTone } from '@irdashies/domain/raceForecast';
 import { ClassLabel } from '../../shared/ClassLabel/ClassLabel';
+import { Compound } from '../../shared/Compound/Compound';
 
 const TONE_CLASS: Record<ForecastTone, string> = {
   good: 'text-green-400',
@@ -12,10 +13,21 @@ const TONE_CLASS: Record<ForecastTone, string> = {
 /** Which groups of columns the table has. */
 export interface ClassRivalColumns {
   stops: boolean;
+  /** The compound and the laps on the set. */
+  tyres: boolean;
+  /** The tread left as well, where the sim gives one to work from. */
+  tread: boolean;
   nextStop: boolean;
   netGap: boolean;
   pace: boolean;
 }
+
+/**
+ * The Tyres column in rem: the compound and room for "136+", and with the
+ * tread room for "<100%" as well.
+ */
+const TYRES_REM = 3.25;
+const TYRES_WITH_TREAD_REM = 5.75;
 
 /** The least the driver's name is given, rem; it takes what is left over. */
 const DRIVER_MIN_REM = 5.5;
@@ -29,6 +41,9 @@ const fixedColumns = (columns: ClassRivalColumns): number[][] => [
   [
     3.25,
     ...(columns.stops ? [2.5, 6.5, 2.5] : []),
+    ...(columns.tyres
+      ? [columns.tread ? TYRES_WITH_TREAD_REM : TYRES_REM]
+      : []),
     ...(columns.nextStop ? [5.75] : []),
     ...(columns.netGap ? [3.75] : []),
     ...(columns.pace ? [4] : []),
@@ -37,7 +52,8 @@ const fixedColumns = (columns: ClassRivalColumns): number[][] => [
 
 /**
  * The columns as a CSS grid, shared by the captions and every row so they
- * line up: place, number, driver, gap, then the groups switched on.
+ * line up: place, number, driver, gap, then the groups switched on, the
+ * tyres after the stops they are counted from.
  */
 export const classRivalGrid = (columns: ClassRivalColumns): CSSProperties => {
   const [before, after] = fixedColumns(columns);
@@ -87,6 +103,7 @@ export const ClassRivalCaptions = memo(
           <span className={RIGHT}>Since</span>
         </>
       )}
+      {columns.tyres && <span className={RIGHT}>Tyres</span>}
       {columns.nextStop && <span className={RIGHT}>Next</span>}
       {columns.netGap && <span className={RIGHT}>Net gap</span>}
       {columns.pace && <span className={RIGHT}>Pace 5</span>}
@@ -115,7 +132,20 @@ export interface ClassRivalRowProps {
   netGapTone: ForecastTone;
   pace: string;
   paceTone: ForecastTone;
+  /**
+   * The four compounds on the car, LF RF LR RR, as indices of the session's
+   * tyre list joined by commas; '' where they are not known.
+   */
+  tyreCompounds: string;
+  /** The laps on the set, as written: "17", "17?" or "17+". */
+  tyreLaps: string;
+  /** The tread left, as written: "86%", "~86%", "<86%" or "--". */
+  tyreTread: string;
+  /** Both in a sentence, for whoever points at the cell. */
+  tyreTitle: string;
   showStops: boolean;
+  showTyres: boolean;
+  showTread: boolean;
   showNextStop: boolean;
   showNetGap: boolean;
   showPace: boolean;
@@ -147,13 +177,23 @@ export const ClassRivalRow = memo(
     netGapTone,
     pace,
     paceTone,
+    tyreCompounds,
+    tyreLaps,
+    tyreTread,
+    tyreTitle,
     showStops,
+    showTyres,
+    showTread,
     showNextStop,
     showNetGap,
     showPace,
     rowRef,
   }: ClassRivalRowProps) => {
     const faint = assumed ? 'opacity-60' : '';
+    const wheels = useMemo(
+      () => (tyreCompounds ? tyreCompounds.split(',').map(Number) : undefined),
+      [tyreCompounds]
+    );
     return (
       <div
         ref={rowRef}
@@ -166,6 +206,8 @@ export const ClassRivalRow = memo(
         }`}
         style={classRivalGrid({
           stops: showStops,
+          tyres: showTyres,
+          tread: showTread,
           nextStop: showNextStop,
           netGap: showNetGap,
           pace: showPace,
@@ -202,6 +244,35 @@ export const ClassRivalRow = memo(
               {since}
             </span>
           </>
+        )}
+        {showTyres && (
+          <span
+            data-testid="class-rival-tyres"
+            title={tyreTitle || undefined}
+            // Each figure in a place of its own, so that they line up down
+            // the column whatever the row holds.
+            className="flex items-center justify-end gap-1"
+          >
+            <span className="flex w-[1.2em] shrink-0 items-center">
+              {wheels && (
+                <Compound tireCompound={wheels[0]} wheelCompounds={wheels} />
+              )}
+            </span>
+            <span
+              data-testid="class-rival-tyre-laps"
+              className="w-7 shrink-0 text-right"
+            >
+              {tyreLaps}
+            </span>
+            {showTread && (
+              <span
+                data-testid="class-rival-tyre-tread"
+                className={`w-[2.4rem] shrink-0 text-right ${own ? 'text-amber-300/70' : 'text-slate-400'}`}
+              >
+                {tyreTread}
+              </span>
+            )}
+          </span>
         )}
         {showNextStop && (
           <span

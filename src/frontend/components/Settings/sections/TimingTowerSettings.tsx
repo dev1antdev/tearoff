@@ -63,6 +63,8 @@ export const TimingTowerSettings = () => {
 
   const { config } = settings;
   const driverOn = config.driver?.enabled ?? defaultConfig.driver.enabled;
+  const tyresOn = config.tyres?.enabled ?? defaultConfig.tyres.enabled;
+  const tyreSetOn = config.tyres?.set ?? defaultConfig.tyres.set;
 
   return (
     <BaseSettingsSection
@@ -137,6 +139,14 @@ export const TimingTowerSettings = () => {
                     <SettingProp path="stintLaps.enabled" />
                     <SettingProp path="energy.enabled" />
                     <SettingProp path="tyres.enabled" />
+                    {tyresOn && (
+                      <SettingsSection>
+                        <SettingProp path="tyres.set" />
+                        {tyreSetOn && (
+                          <SettingProp path="tyres.changeSeconds" />
+                        )}
+                      </SettingsSection>
+                    )}
                   </SettingsSection>
                 </>
               )}

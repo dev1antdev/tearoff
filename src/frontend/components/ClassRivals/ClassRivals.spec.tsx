@@ -34,12 +34,16 @@ const ALL_SESSIONS = {
   offlineTesting: true,
 };
 
+/** The channels the widget asked for since it was last shown. */
+let subscribed: string[] = [];
+
 /** A bridge that answers each subscription once, with the staged snapshot. */
 const stubBridge = (snapshots: Partial<ChannelPayloads>): ChannelBridge => ({
   subscribe: <K extends ChannelName>(
     channel: K,
     callback: (payload: ChannelPayloads[K]) => void
   ) => {
+    subscribed.push(channel);
     const snapshot = snapshots[channel];
     if (snapshot !== undefined) callback(snapshot as ChannelPayloads[K]);
     return () => undefined;
@@ -52,6 +56,7 @@ const show = (
   snapshots: Partial<ChannelPayloads> = {}
 ) => {
   const staged = strategyStage(stage);
+  subscribed = [];
   window.channelBridge = stubBridge({ ...staged.snapshots, ...snapshots });
   useSessionStore.setState({ session: staged.session });
   vi.mocked(useDashboard).mockReturnValue({
@@ -73,6 +78,18 @@ const rowOf = (carNumber: string): HTMLElement => {
 /** A cell of a row, as written. */
 const cell = (row: HTMLElement, name: string): string =>
   within(row).getByTestId(`class-rival-${name}`).textContent ?? '';
+
+/** What a row says of its tyres: the laps on the set, and the tread. */
+const tyres = (carNumber: string) => {
+  const row = within(rowOf(carNumber));
+  return {
+    laps: row.getByTestId('class-rival-tyre-laps').textContent,
+    tread: row.queryByTestId('class-rival-tyre-tread')?.textContent ?? null,
+    compound:
+      row.getByTestId('class-rival-tyres').querySelector('svg, span span') !==
+      null,
+  };
+};
 
 /** What a row says, cell by cell. */
 const cells = (carNumber: string) => {
@@ -127,7 +144,7 @@ describe('ClassRivals (staged)', () => {
   it('names the columns', () => {
     show();
     expect(screen.getByTestId('class-rivals-captions')).toHaveTextContent(
-      'P#DriverGapStopsLast stopSinceNextNet gapPace 5'
+      'P#DriverGapStopsLast stopSinceTyresNextNet gapPace 5'
     );
   });
 
@@ -201,11 +218,62 @@ describe('ClassRivals (staged)', () => {
     expect(cells('88').netGap).toBe('+5:50');
   });
 
-  it('explains its two forecast columns', () => {
+  it('explains its two forecast columns, and the marks in Tyres', () => {
     show();
     expect(screen.getByTestId('class-rivals-legend')).toHaveTextContent(
-      'Net gap: the gap once both cars have made the stops they still owe. Pace 5: their mean of five clean laps against ours; green means we are faster. ~ marks an estimate.'
+      'Net gap: the gap once both cars have made the stops they still owe. Pace 5: their mean of five clean laps against ours; green means we are faster. Tyres: laps on the set, with ? when told from the length of a stop and + when it is at least that many; the tread is our own wear applied to their laps. ~ marks an estimate.'
     );
+  });
+
+  describe('the tyres of each car', () => {
+    it('are the compound, the laps on the set and an estimate of the tread', () => {
+      show();
+      // Seen to go on twelve laps ago: 0.8 % a lap of our own wear.
+      expect(tyres('33')).toEqual({
+        laps: '12',
+        tread: '~90%',
+        compound: true,
+      });
+    });
+
+    it('mark laps told from the length of a stop, and laps that are a floor', () => {
+      show();
+      expect(tyres('46')).toMatchObject({ laps: '13?', tread: '~90%' });
+      // Through a stop on the same set: its stint and the one before.
+      expect(tyres('54')).toMatchObject({ laps: '47?', tread: '~62%' });
+      // At least fifteen laps, so no more than about 88 %.
+      expect(tyres('85')).toMatchObject({ laps: '15+', tread: '<88%' });
+      // In its box now: what goes on is not known yet.
+      expect(tyres('23')).toMatchObject({ laps: '0+', tread: '<100%' });
+    });
+
+    it('read -- for a compound our own car has not run', () => {
+      show();
+      expect(tyres('91')).toMatchObject({ laps: '9', tread: '--' });
+      // Mediums at the front and softs at the rear.
+      expect(tyres('10')).toMatchObject({ laps: '18+', tread: '--' });
+    });
+
+    it('are our own car’s real tread, without a mark', () => {
+      show();
+      // The mean of 84.2, 85.1, 88.4 and 89.
+      expect(tyres('77')).toMatchObject({ laps: '17', tread: '87%' });
+    });
+
+    it('say what each figure is to whoever points at it', () => {
+      show();
+      expect(
+        within(rowOf('85')).getByTestId('class-rival-tyres')
+      ).toHaveAttribute(
+        'title',
+        'At least 15 laps on this set: what it was given before that was not seen; no more than about 88% of the tread left, at what a lap costs our own car.'
+      );
+    });
+
+    it('are an estimate for our own car too, while a team-mate drives it unread', () => {
+      show({ teamMate: 'Andrei Petrov' });
+      expect(tyres('77')).toMatchObject({ laps: '17', tread: '~86%' });
+    });
   });
 
   describe('a row whose stops are assumed', () => {
@@ -248,6 +316,18 @@ describe('ClassRivals (staged)', () => {
       expect(cells('33')).toMatchObject({ next: '~lap 160', netGap: '-25.3' });
       expect(rowOf('33')).toHaveAttribute('data-assumed', 'false');
     });
+
+    it('shows the laps on the set and leaves the tread out', () => {
+      show({ iracing: true });
+      // No tread is read that a figure could be made from, for any car.
+      expect(tyres('33')).toEqual({ laps: '12', tread: null, compound: true });
+      // No rates to hold a stop against: at least the laps since it.
+      expect(tyres('46')).toMatchObject({ laps: '13+', tread: null });
+      expect(tyres('77')).toMatchObject({ laps: '17', tread: null });
+      expect(screen.getByTestId('class-rivals-legend')).toHaveTextContent(
+        /at least that many\. ~ marks an estimate\.$/
+      );
+    });
   });
 
   describe('its settings', () => {
@@ -273,6 +353,7 @@ describe('ClassRivals (staged)', () => {
         {},
         {
           showStops: false,
+          showTyres: false,
           showNextStop: false,
           showNetGap: false,
           showPace: false,
@@ -283,7 +364,14 @@ describe('ClassRivals (staged)', () => {
         /^P#DriverGap$/
       );
       const row = rowOf('33');
-      for (const name of ['stops', 'last-stop', 'since', 'next', 'net-gap']) {
+      for (const name of [
+        'stops',
+        'last-stop',
+        'since',
+        'tyres',
+        'next',
+        'net-gap',
+      ]) {
         expect(within(row).queryByTestId(`class-rival-${name}`)).toBeNull();
       }
       expect(within(row).queryByTestId('class-rival-pace')).toBeNull();
@@ -292,10 +380,28 @@ describe('ClassRivals (staged)', () => {
     });
 
     it('explains only the columns it shows', () => {
-      show({}, { showPace: false });
+      show({}, { showPace: false, showTyres: false });
       expect(screen.getByTestId('class-rivals-legend')).toHaveTextContent(
         /^Net gap: the gap once both cars have made the stops they still owe\. ~ marks an estimate\.$/
       );
+    });
+
+    it('reads the tyres only while their column is on, so that no race is recorded for it', () => {
+      show();
+      expect(subscribed).toContain('class-tyres.snapshot');
+
+      show({}, { showTyres: false });
+      expect(subscribed).not.toContain('class-tyres.snapshot');
+      expect(subscribed).toContain('race-forecast.snapshot');
+    });
+
+    it('shows the tyres to a profile saved before there was such a column', () => {
+      // No `showTyres` in the saved config: on, as a new one has it.
+      show({}, { showStops: true, showLegend: false });
+      expect(screen.getByTestId('class-rivals-captions')).toHaveTextContent(
+        'Tyres'
+      );
+      expect(tyres('33').laps).toBe('12');
     });
 
     it('hides in a session it is not set to show in', () => {

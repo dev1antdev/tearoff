@@ -110,6 +110,7 @@ export const ClassRivalsSettings = () => {
 
                   <SettingsSection title="Columns">
                     <SettingProp path="showStops" />
+                    <SettingProp path="showTyres" />
                     <SettingProp path="showNextStop" />
                     <SettingProp path="showNetGap" />
                     <SettingProp path="showPace" />

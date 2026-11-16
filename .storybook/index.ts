@@ -23,6 +23,7 @@ export * from './pitWallStage';
 export * from './strategyStage';
 export * from './strategyStory';
 export * from './timingTowerStage';
+export * from './classTyresStage';
 export * from './raceHistoryStage';
 export * from './raceHistoryStory';
 export * from './ScrollToText';

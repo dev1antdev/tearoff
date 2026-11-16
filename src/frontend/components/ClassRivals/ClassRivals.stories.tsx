@@ -6,6 +6,13 @@ import { ClassRivals } from './ClassRivals';
  * Class Rivals on the staged eight-hour race: the fourteen LMGT3s, ours
  * fourth. Every figure is what the real forecast makes of the staged cars;
  * none comes from a recording, because no recorded race has a pit stop.
+ *
+ * The Tyres column is written out by hand (`.storybook/classTyresStage.ts`)
+ * so that every state it has is in the class: #33, seen to go on; #46,
+ * told from the length of a stop; #54 and #27, through a stop on the same
+ * set; #85, at least so many; #23, in its box; #91 and #31 on hards and
+ * #10 with softs at the rear, which our own car has not run; #77, ours,
+ * with its real tread.
  */
 const meta: Meta<typeof ClassRivals> = {
   component: ClassRivals,
@@ -32,10 +39,40 @@ export const EightHourRace: Story = { ...strategyStory('classrivals') };
 
 /** Tall enough for all fourteen cars. */
 export const WholeClass: Story = {
-  ...strategyStory('classrivals', { size: { width: 760, height: 500 } }),
+  ...strategyStory('classrivals', { size: { width: 800, height: 520 } }),
 };
 
-/** A team-mate at the wheel: the same table, about the same car. */
+/**
+ * The Tyres column with only the gap beside it, so that its states can be
+ * read: bare laps for a set seen to go on, ? for one told from the length
+ * of a stop, + for at least so many; ~ before an estimate of the tread, <
+ * where the laps are only a floor, -- for a compound our own car has not
+ * run, and no mark on our own car's real figure.
+ */
+export const TyresOnly: Story = {
+  ...strategyStory('classrivals', {
+    config: {
+      showStops: false,
+      showNextStop: false,
+      showNetGap: false,
+      showPace: false,
+    },
+    size: { width: 420, height: 520 },
+  }),
+};
+
+/** The Tyres column switched off: the table as it was before it. */
+export const WithoutTyres: Story = {
+  ...strategyStory('classrivals', {
+    config: { showTyres: false },
+    size: { width: 680, height: 280 },
+  }),
+};
+
+/**
+ * A team-mate at the wheel: the same table, about the same car. Its tread
+ * is not read then, so our own row carries an estimate like the rest.
+ */
 export const TeamMateDriving: Story = {
   ...strategyStory('classrivals', { stage: { teamMate: 'Andrei Petrov' } }),
 };
@@ -77,7 +114,10 @@ export const LapRace: Story = {
 
 /**
  * iRacing: no car's fuel is published, so every next stop is the end of the
- * longest stint the car has been seen to drive.
+ * longest stint the car has been seen to drive. No tread is read either:
+ * the Tyres column shows the laps on the set and nothing more, and a stop
+ * cannot be held against a refill, so a set is at least as old as the laps
+ * since it.
  */
 export const IRacing: Story = {
   ...strategyStory('classrivals', { stage: { iracing: true } }),
