@@ -8,9 +8,24 @@ import {
   timedRaceTimingSnapshot,
   trackStateStorySnapshot,
 } from '@irdashies/storybook';
-import { EMPTY_FLAG_STATE } from '@irdashies/types';
+import { EMPTY_FLAG_STATE, type IrSdkBridge } from '@irdashies/types';
+import { PitWallBrowserPage } from '../../windows/PitWallBrowserPage';
 import { PitWallContent } from '../../windows/PitWallWindow';
 import { PitWall } from './PitWall';
+
+/**
+ * The stage hands the session to its store, so the page's own session
+ * source has nothing to add: it is one that never speaks.
+ */
+const silentSession = {
+  onSessionData: () => () => undefined,
+} as unknown as IrSdkBridge;
+
+const inABrowser = () => (
+  <div className="h-screen w-screen">
+    <PitWallBrowserPage bridge={silentSession} />
+  </div>
+);
 
 /**
  * The Pit Wall as its window shows it: the page with its panels filled by
@@ -100,4 +115,34 @@ export const WithoutHost: Story = {
       <PitWall />
     </div>
   ),
+};
+
+/**
+ * The page as a browser shows it, at the 1180 by 820 of a tablet: the same
+ * page as the window, with no gear in the header or on a panel, because a
+ * browser has no settings window to open. The layout switch works here and
+ * keeps its choice in the browser.
+ */
+export const InABrowser: Story = {
+  ...pitWallStage({ layout: 'compact', browser: true }),
+  render: inABrowser,
+};
+
+/**
+ * The same page on a phone held upright, 390 wide. The layouts are made for
+ * a monitor or a tablet: the panels keep their places and are drawn smaller.
+ */
+export const InABrowserOnAPhone: Story = {
+  ...pitWallStage({ layout: 'compact', browser: true }),
+  render: inABrowser,
+};
+
+/** In a browser, a profile that has lost a widget says so and offers nothing. */
+export const InABrowserMissingWidgets: Story = {
+  ...pitWallStage({
+    layout: 'compact',
+    browser: true,
+    without: ['fuel', 'weather'],
+  }),
+  render: inABrowser,
 };

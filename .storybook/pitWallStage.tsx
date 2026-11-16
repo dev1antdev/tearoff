@@ -627,6 +627,11 @@ export interface PitWallStage {
   without?: readonly string[];
   /** The Pit Wall's own content scale, percent. */
   scale?: number;
+  /**
+   * Stages the page as a browser has it: a dashboard bridge with no way to
+   * open the settings window, as the one over a socket has none.
+   */
+  browser?: boolean;
 }
 
 /**
@@ -638,6 +643,7 @@ const stageBridge = ({
   simulator = 'lmu',
   without = [],
   scale,
+  browser = false,
 }: PitWallStage): DashboardBridge => {
   let dashboard: DashboardLayout = {
     ...defaultDashboard,
@@ -655,7 +661,7 @@ const stageBridge = ({
   return {
     ...mockDashboardBridge,
     getActiveSimulator: async () => simulator,
-    openWidgetSettings: async () => undefined,
+    ...(browser ? {} : { openWidgetSettings: async () => undefined }),
     resetDashboard: async () => dashboard,
     saveDashboard: (next) => {
       dashboard = next;

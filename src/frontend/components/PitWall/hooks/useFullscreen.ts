@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import logger from '@irdashies/utils/logger';
 
-const isFullscreen = () => document.fullscreenElement !== null;
+// Undefined, not null, in a browser that has no full screen for a page.
+const isFullscreen = () => !!document.fullscreenElement;
 
 /**
  * Full screen through the page's own Fullscreen API, so the same page works
@@ -12,9 +13,17 @@ export const useFullscreen = () => {
   const [fullscreen, setFullscreen] = useState(isFullscreen);
 
   const toggle = useCallback(() => {
+    // Typed as always there. A phone's browser offers a page neither.
+    const root: Partial<Pick<HTMLElement, 'requestFullscreen'>> =
+      document.documentElement;
+    const page: Partial<Pick<Document, 'exitFullscreen'>> = document;
     const request = isFullscreen()
-      ? document.exitFullscreen()
-      : document.documentElement.requestFullscreen();
+      ? page.exitFullscreen?.call(document)
+      : root.requestFullscreen?.call(document.documentElement);
+    if (!request) {
+      logger.warn('[PitWall] This browser has no full screen for a page');
+      return;
+    }
     // Refused where the page is not allowed to, such as an embedded preview.
     request.catch((error: unknown) =>
       logger.warn('[PitWall] Full screen was refused', error)
