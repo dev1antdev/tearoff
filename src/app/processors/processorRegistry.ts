@@ -60,6 +60,7 @@ import { CarSystemsProcessor } from './CarSystemsProcessor';
 import { SessionTimingProcessor } from './SessionTimingProcessor';
 import { StandingsProcessor } from './StandingsProcessor';
 import { TrackStateProcessor } from './TrackStateProcessor';
+import { TrafficProcessor } from './TrafficProcessor';
 import { TyreStateProcessor } from './TyreStateProcessor';
 import { WheelDynamicsProcessor } from './WheelDynamicsProcessor';
 import { DamageProcessor } from './DamageProcessor';
@@ -258,6 +259,19 @@ export const createProcessorDefinitions = ({
         carSpeeds: () =>
           snapshot('car-speeds.snapshot')?.carSpeeds ?? noCarSpeeds,
         tuning: flagTuning,
+      }),
+  }),
+  defineProcessor({
+    channel: 'traffic.snapshot',
+    // Speeds say when a car behind reaches the player; measured lap times
+    // turn seconds into laps and steady a forecast further off.
+    dependencies: ['car-speeds.snapshot', 'lap-times.snapshot'],
+    metricsPrefix: 'traffic',
+    create: ({ snapshot }) =>
+      new TrafficProcessor({
+        carSpeeds: () =>
+          snapshot('car-speeds.snapshot')?.carSpeeds ?? noCarSpeeds,
+        lapTimes: () => (snapshot('lap-times.snapshot') ?? noLapTimes).lapTimes,
       }),
   }),
   defineProcessor({

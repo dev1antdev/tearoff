@@ -47,6 +47,11 @@ describe('SessionTimingStore', () => {
       totalRaceLaps: 20,
       totalRaceTime: 2400,
       adjustedRaceTime: 2350,
+      lapsCompleted: 2,
+      lapProgress: 0.72,
+      projectedLaps: 20,
+      projectedLapsExact: true,
+      extraLaps: 0,
     });
 
     expect(useSessionTimingStore.getState()).toMatchObject({
@@ -61,6 +66,23 @@ describe('SessionTimingStore', () => {
       totalRaceLaps: 20,
       totalRaceTime: 2400,
       adjustedRaceTime: 2350,
+      lapsCompleted: 2,
+      lapProgress: 0.72,
+      projectedLaps: 20,
+      projectedLapsExact: true,
+      extraLaps: 0,
+    });
+  });
+
+  it('starts with no laps done and nothing projected', () => {
+    useSessionTimingStore.setState(useSessionTimingStore.getInitialState());
+
+    expect(useSessionTimingStore.getState()).toMatchObject({
+      lapsCompleted: 0,
+      lapProgress: 0,
+      projectedLaps: 0,
+      projectedLapsExact: false,
+      extraLaps: 0,
     });
   });
 });

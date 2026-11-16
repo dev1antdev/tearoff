@@ -1,6 +1,7 @@
 export * from './channel';
 export * from './flagState';
 export * from './hybrid';
+export * from './traffic';
 export * from './replayContext';
 export * from './racePlanProgress';
 export * from './pitStops';

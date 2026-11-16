@@ -20,8 +20,8 @@ export function widgetUpdaterNeeds(widget: DashboardWidget) {
   return {
     sectorTiming: SECTOR_WIDGETS.has(type),
     pushToPass: TABLE_WIDGETS.has(type) && enabled('pushToPass'),
-    pitLap:
-      (TABLE_WIDGETS.has(type) && enabled('pitStatus')) ||
-      (type === 'battle' && enabled('stint')),
+    // The rivals box reads its stints from the per-car pit tracker's
+    // channel, not from this store.
+    pitLap: TABLE_WIDGETS.has(type) && enabled('pitStatus'),
   };
 }

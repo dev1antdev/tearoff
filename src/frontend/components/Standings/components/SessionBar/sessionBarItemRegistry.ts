@@ -20,6 +20,8 @@ import { LastLapItem } from './components/LastLapItem/LastLapItem';
 import { BestLapItem } from './components/BestLapItem/BestLapItem';
 import { ManufacturerPositionItem } from './components/ManufacturerPositionItem/ManufacturerPositionItem';
 import { ClassRankItem } from './components/ClassRankItem/ClassRankItem';
+import { PositionItem } from './components/PositionItem/PositionItem';
+import { PositionChangeItem } from './components/PositionChangeItem/PositionChangeItem';
 import { TopSpeedItem } from './components/TopSpeedItem/TopSpeedItem';
 import { isSessionBarItemKey } from './sessionBarItemTypes';
 import type {
@@ -50,6 +52,8 @@ export const SESSION_BAR_ITEM_COMPONENTS: Record<
   bestLap: BestLapItem,
   manufacturerPosition: ManufacturerPositionItem,
   classRank: ClassRankItem,
+  position: PositionItem,
+  positionChange: PositionChangeItem,
   topSpeed: TopSpeedItem,
   trackLimits: TrackLimitsItem,
 };
@@ -79,6 +83,8 @@ const DEFAULT_ENABLED: Record<
   bestLap: () => false,
   manufacturerPosition: () => false,
   classRank: () => false,
+  position: () => false,
+  positionChange: () => false,
   topSpeed: () => false,
   // Only LMU reports these, and the item renders nothing without them --
   // so defaulting on would cost an iRacing user nothing but is still a

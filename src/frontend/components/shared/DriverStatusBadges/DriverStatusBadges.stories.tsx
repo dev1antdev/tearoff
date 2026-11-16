@@ -43,3 +43,18 @@ export const Disqualified: Story = {
 export const FinishedWithPenalty: Story = {
   args: { finishState: 'FINISHED', penaltyKind: 'SG' },
 };
+
+/** In the pit lane, with the seconds spent there so far: the rivals box. */
+export const InThePitLaneWithTime: Story = {
+  args: { pit: true, pitTime: '12.3' },
+};
+
+/** Back out, with the seconds the visit took. */
+export const OutWithTime: Story = {
+  args: { out: true, pitTime: '41.2' },
+};
+
+/** Parked in the garage. */
+export const InTheGarage: Story = {
+  args: { garage: true },
+};

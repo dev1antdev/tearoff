@@ -2,6 +2,7 @@ import type { DashboardWidget } from './dashboardLayout';
 import type { GantryPitStopsConfig } from './gantryPitStops';
 import type { CornerNameOverlayConfig } from './cornerName';
 import type { FlagPanelConfig } from './flagPanel';
+import type { TrafficConfig } from './traffic';
 import type { LapTraceColors, LapTraceSound, LapTraceSource } from './lapTrace';
 import type { LmuBadgeFormat } from './lmu';
 
@@ -73,7 +74,18 @@ export interface SessionBarConfig {
     totalFormat?: 'hh:mm' | 'minimal';
     labelStyle?: 'none' | 'short' | 'minimal';
   };
-  sessionLaps: { enabled: boolean; mode?: 'Elapsed' | 'Remaining' };
+  sessionLaps: {
+    enabled: boolean;
+    mode?: 'Elapsed' | 'Remaining';
+    /**
+     * 'lap' is the lap number against the race distance: "L3 / 11.6".
+     * 'progress' is the laps done with the share of the lap under way,
+     * against the car's own distance at the flag: "2.72 / ~10.3".
+     */
+    format?: 'lap' | 'progress';
+    /** The "+1" or "-1" behind the projection. Progress format only. */
+    showExtraLaps?: boolean;
+  };
   incidentCount: { enabled: boolean };
   brakeBias: { enabled: boolean };
   localTime: { enabled: boolean };
@@ -102,6 +114,14 @@ export interface SessionBarConfig {
     hideIfSingleDriver?: boolean;
   };
   classRank?: { enabled: boolean };
+  /** Overall place against the field: "P26/38". */
+  position?: { enabled: boolean };
+  /** Places gained or lost since the grid. Race only. */
+  positionChange?: {
+    enabled: boolean;
+    /** Which grid the change is measured on. Class unless stated. */
+    scope?: 'class' | 'overall';
+  };
   /** LMU's track-limits penalty points for the player. */
   trackLimits?: { enabled: boolean };
   displayOrder: string[];
@@ -1868,16 +1888,51 @@ export interface DeltaSpeedConfig {
   sessionVisibility: SessionVisibilitySettings;
 }
 
+/**
+ * The rivals box: the class car ahead of the focus car, the focus car and
+ * the class car behind.
+ */
 export interface BattleConfig {
   background: { opacity: number };
   showOnlyWhenOnTrack: boolean;
+  /** A line of small labels above the rows, naming each column. */
+  header: { enabled: boolean };
   position: { enabled: boolean };
+  /** Places gained or lost against the class grid. Race only. */
+  positionChange: { enabled: boolean };
   carNumber: { enabled: boolean };
   driverName: { enabled: boolean };
-  stint: { enabled: boolean };
+  /** PIT and OUT, a penalty, finished, DNF and DQ. */
+  status: {
+    enabled: boolean;
+    /** Seconds in the pit lane beside PIT and OUT. */
+    showPitTime: boolean;
+  };
+  /** Tyre compound; four wheels where the sim states each. */
+  compound: { enabled: boolean };
+  stint: {
+    enabled: boolean;
+    /**
+     * "7/24": beside the laps since the last stop, the lap the stint can
+     * reach on what the car has left. Only where the sim publishes it.
+     */
+    showEstimate: boolean;
+  };
+  /** Stops made; highlighted while the car has asked for one. */
+  pitStops: { enabled: boolean };
+  /** Virtual energy or fuel remaining, percent. */
+  energy: { enabled: boolean };
+  /** The last lap's usage, percent of a full allocation. */
+  energyUse: { enabled: boolean };
+  bestTime: { enabled: boolean; timeFormat: TimeFormat };
   lastTime: LastTimeColumnConfig;
   speed: { enabled: boolean; unit: 'mph' | 'km/h' | 'auto' };
+  /** Track-limits penalty points. */
+  trackLimits: { enabled: boolean };
+  /** The gap now, the gap over the line last lap, and the trend a lap. */
   gap: { enabled: boolean; decimalPlaces: number };
+  /** About how many laps until the gap is gone, where that can be said. */
+  forecast: { enabled: boolean };
   displayOrder: string[];
   sessionVisibility: SessionVisibilitySettings;
 }
@@ -2461,6 +2516,7 @@ export interface WidgetConfigMap {
   rejoin: RejoinIndicatorConfig;
   flag: FlagConfig;
   flagpanel: FlagPanelConfig;
+  traffic: TrafficConfig;
   telemetryinspector: TelemetryInspectorConfig;
   fastercarsfrombehind: FasterCarsFromBehindConfig;
   pitlanehelper: PitlaneHelperConfig;
@@ -2603,6 +2659,7 @@ export type FlagWidgetSettings = BaseWidgetSettings<FlagConfig> & {
   id: 'flag';
 };
 export type FlagPanelWidgetSettings = BaseWidgetSettings<FlagPanelConfig>;
+export type TrafficWidgetSettings = BaseWidgetSettings<TrafficConfig>;
 export type ClassFieldsWidgetSettings = BaseWidgetSettings<ClassFieldsConfig>;
 export type GarageCoverWidgetSettings = BaseWidgetSettings<GarageCoverConfig>;
 export type TelemetryInspectorWidgetSettings =

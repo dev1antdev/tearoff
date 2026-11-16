@@ -51,6 +51,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Hybrid (for cars that have the system), Lift and Coast Lights, Weather Forecast, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Tyre & Brake Wear, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Elevation, Cruise, Track Notes, Lap Delta, Corner Delta, Timing, Lap Timer, Car Systems, Fuel Calculator, Fuel Saver, Pit Stop, and Stint History. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Traffic, Faster Cars From Behind, Slow Car Ahead, Rejoin Indicator, Information Bar, System Performance (without its Sim row), Tyres, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
@@ -353,6 +354,8 @@ Displays standings information for the current session.
   - Air and track temperature (Metric/Imperial units)
   - Track name
   - Fuel level, last and best lap times, top speed, manufacturer position, and class rank
+  - Overall position against the field, and places gained or lost since the grid (in class or overall)
+  - Session laps as a lap number, or as laps done against your own projected distance at the flag ("2.72 / ~10.3 +1")
   - Session time: configurable mode (Remaining/Elapsed), format, and label style
   - Accurate race clock for fixed-lap races (calculated from P1 average lap time)
   - Remaining-lap estimates in lone qualifying
@@ -417,6 +420,7 @@ Displays drive relative delta information for the current session.
   - Air and track temperature (Metric/Imperial units)
   - Track name
   - Fuel level, last and best lap times, top speed, manufacturer position, and class rank
+  - Overall position, places gained since the grid, and session laps as laps done against your projected distance
   - Session time: configurable mode (Remaining/Elapsed), format, and label style
 - Configurable number of drivers to show around player (1-10)
 - Optional position change column showing positions gained or lost within each class from the qualifying grid during races
@@ -778,12 +782,16 @@ Shows nearby rivals ahead, behind, and alongside your car. iRacing positions are
 
 ### Battle
 
-Displays a compact three-row view of the cars immediately ahead of and behind you in class position, alongside your own row.
+Your rivals: a compact three-row view of the cars immediately ahead of and behind you in class position, alongside your own row. While you watch another car, the rivals are that car's.
 
 **Features:**
 
-- Live gap, previous-lap gap, and gap-change display
-- Optional position, car number, driver name, stint length, last lap time, and speed columns
+- The gap as the race counts it: in laps once more than a lap apart, and never the short way round the track
+- The gap over the line last lap, and how much the gap has moved a lap over the last three laps
+- A catch forecast: about how many laps until you catch the car ahead or the car behind catches you. Shown only after three laps in a row without a pit stop, and only while the gap is closing on at least two of them
+- PIT and OUT badges with the time spent in the pit lane, penalties, and finished / DNF / DQ
+- Stint length, with the lap the stint can reach on the energy or fuel left, pit stops made (lit while the car has asked for one), energy left and energy per lap (Le Mans Ultimate only)
+- Optional position, places gained since the grid, car number, driver name, tyre compound, best and last lap time, speed, and track-limits points columns, with optional column labels
 - Reorderable columns and configurable gap precision, lap-time format, and speed units
 - Last-lap highlights for personal-best and session-fastest laps, and a mark on a last lap the sim gave no time (Le Mans Ultimate only)
 - Adjustable background opacity and on-track/session visibility controls
@@ -1028,6 +1036,23 @@ A wide card that names the flag that applies to you right now and explains it in
 
 Le Mans Ultimate has no white flag and does not say which car a blue flag is for, so the last lap and the car are worked out from the timing data. Its sector flags are read in the order its sector numbers use, which no recording has confirmed yet, so naming the sector of a yellow is an option that is off by default. iRacing reports no sector yellows, no start-light count and no penalty kind.
 
+### Traffic
+
+Who is coming, and when. In a multi-class race it stands in for the mirror: the cars closing from behind, how fast, and a forecast of when and where the next one arrives. Works in iRacing and Le Mans Ultimate.
+
+**Features:**
+
+- The cars behind you inside 500 m and 8 s, nearest first: car number on its class colour, driver or class, the gap in seconds and an arrow for how fast it is closing, with the seconds a lap it gains
+- Cars are told apart by the rule the Flag Panel uses for a blue: a car a lap or more ahead is lapping you and is outlined in blue with its laps, a faster class is traffic whatever the laps, and a car of your own class on your lap within three seconds is shown muted as a rival, not as traffic. Further traffic queued behind the rows is counted
+- A forecast for the car that reaches you soonest: "in about 18 s, at Turn 6". It is an estimate and says so: nothing is forecast until the gap has closed steadily for six seconds and by at least half a second; it becomes a range ("in 14 to 40 s") when the closing rate has swung, and disappears when the car stops closing; a corner is named only for an arrival no further off than the closing was measured for (twenty seconds), and only when the earliest and latest arrival fall on the same corner or neighbouring ones; an arrival a lap or more off is given in laps
+- The gap is the interval a timing line would read: how long ago you were where the other car is now, measured from your own running rather than from distance, so it does not shrink in every braking zone
+- A table of laps until you meet three cars: the one ahead you are catching soonest, the race leader coming round to lap you, and the one behind that catches you soonest, each with its gap now. A meeting inside the lap under way is highlighted
+- In the pit lane the widget becomes the pit exit: who goes past the exit before you get there and who arrives just behind, in seconds, on green, amber or red. It reads where the pit exit is on the lap from the data the Pitlane Helper learns, and stays for a few seconds after you rejoin
+- The same block when you are slower than 29 km/h on the track or off it, with the car arriving behind
+- Rows, labels, corner names or numbers, which columns to show, the windows and gaps of the pit exit block, background opacity, session visibility and an option to show only when on track
+
+Gaps and closing rates are measured from lap positions and the clock, and laps from measured lap times; the lap time a sim estimates is not used (Le Mans Ultimate states one figure for every class). While you stand in your pit box the pit exit figures are for leaving now, since no pit stop timings are read. The corner list comes from the bundled track data; on a track without one the forecast says how far round the lap. Shown for your own car while a team-mate drives it, hidden while the camera is on another car.
+
 ### Setup Comparison Tool
 
 Side-by-side setup analysis to compare car setup changes between sessions.
@@ -1083,6 +1108,7 @@ A standalone widget that displays session and timing information independently f
 
 - Displays flag status, lap counter, session time, and other session info
 - Optional fuel level, last and best lap times, top speed, manufacturer position, and class rank
+- Optional overall position, places gained since the grid, and laps done against your projected distance at the flag
 - Weather items including humidity, precipitation, wind, and air/track temperature
 - In-game clock in the system's, the 24-hour or the 12-hour format, with how fast the in-game day runs beside it ("x2") when that is not real time
 - Fully configurable: reorder items and toggle each one on or off
@@ -1230,6 +1256,7 @@ TV-style overlays for iRacing streams, configured together in **Settings > Broad
   - Overlay on/off: Turn every overlay off and back on, while the sim is running or not, without changing which widgets are enabled. The same switch is the **Overlay** button in the settings window header, **Show Overlay** in the tray menu and the Hide / Show UI shortcut (Alt+H by default), and each follows the others. It applies to this run of the app: the overlay is on again after a restart.
   - Hidden while paused: The overlay goes off the screen while the game is paused and comes back when you resume, within about a second. The same goes for a screen that stops the session without calling it a pause, such as the pit stop screen in a race against the AI (there it takes about two seconds). On by default; turn it off under **Settings > General > Hide Overlay While the Game Is Paused**. Le Mans Ultimate only: iRacing does not report a pause.
   - Shown while watching: Widgets set to show only when on track stay on screen while you watch a car on track from outside it, such as a team-mate's stint in a team race, and follow that car: Standings, Relative, Minimap, Battle, Information Bar, Flag, Flag Panel, Weather and Weather Forecast. The widgets about your own car show your team car's numbers while a team-mate drives it and the camera is on it: Lap Delta, Corner Delta, Lap Time Log, Delta Speed, Corner Names, Timing, the own-car items of the Information Bar, and the Fuel Calculator for a car on virtual energy. Their laps are measured against your own reference laps and are never kept as yours: not as a personal best, a reference lap or fuel history. Input, Shift Light, Tyres and Lap Trace show the team car too, where the game sends that car's pedals and revs: the inputs as the car received them, the shift lights, the brake temperatures and the compound, and their lap drawn against your reference. Tyre temperatures and pressures are sent only for a car you are in, so in Tyres they show as dashes, and so do the pressure offsets, the deflection and the load. The fuel in litres and the tread left are shown while the AI drives your car; for a team-mate driving online they are left out until it is known what the game sends for them. With the camera on another car those widgets hide, as they do not follow it. Car Systems, Chassis, Damage, Friction Circle, Brake Performance, Hybrid and Lift and Coast Lights stay hidden while you watch: they are made of readings the game sends only for a car you are in. A car that is in its garage does not count as one being watched. On by default; turn it off under **Settings > General > Keep Widgets On Screen While Watching**. Le Mans Ultimate only for now.
+  - Shown while watching: Widgets set to show only when on track stay on screen while you watch a car on track from outside it, such as a team-mate's stint in a team race, and follow that car: Standings, Relative, Minimap, Battle, Information Bar, Flag, Flag Panel and Weather. The widgets about your own car show your team car's numbers while a team-mate drives it and the camera is on it: Lap Delta, Corner Delta, Lap Time Log, Delta Speed, Corner Names, Timing, Traffic, the own-car items of the Information Bar, and the Fuel Calculator for a car on virtual energy. Their laps are measured against your own reference laps and are never kept as yours: not as a personal best, a reference lap or fuel history. With the camera on another car those widgets hide, as they do not follow it. Input, Shift Light, Tyres, Car Systems and Lap Trace stay hidden for now, and a car that is in its garage does not count as one being watched. On by default; turn it off under **Settings > General > Keep Widgets On Screen While Watching**. Le Mans Ultimate only for now.
   - Reset widget position: Reset any widget's position to the top-left corner if it gets lost off-screen.
   - Close to tray: Closing the window minimizes to the system tray instead of quitting (configurable).
   - Always on top: Keep your overlays visible even when clicking on other windows.

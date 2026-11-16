@@ -18,6 +18,7 @@ export * from './defaultDashboard';
 export * from './widgetPreview';
 export * from './cornerName';
 export * from './flagPanel';
+export * from './traffic';
 export * from './lapTrace';
 export * from './lapTraceLayout';
 export * from './lapLibrary';

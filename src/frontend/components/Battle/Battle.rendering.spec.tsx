@@ -5,6 +5,7 @@ import {
   type ChannelBridge,
   type TrackStateSnapshot,
 } from '@irdashies/types';
+import type { ClassRivals } from '@irdashies/domain';
 import { Battle } from './Battle';
 
 /**
@@ -14,26 +15,34 @@ import { Battle } from './Battle';
  */
 const renders = vi.hoisted(() => ({ count: 0 }));
 
+const NO_RIVALS: ClassRivals = {
+  focusCarIdx: 4,
+  isRace: true,
+  ahead: undefined,
+  focus: undefined,
+  behind: undefined,
+  available: { pitStops: false, energy: false, trackLimits: false },
+  trackLimitsPointsMax: 0,
+};
+
 vi.mock('@irdashies/context', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@irdashies/context')>()),
-  useDrivingState: () => ({ isDriving: true, isWatching: false }),
+  useDrivingState: () => ({
+    isDriving: true,
+    isWatching: false,
+    isWatchingOwnCar: false,
+    isWatchingOtherCar: false,
+  }),
   useSessionVisibility: () => true,
-  usePitLap: () => [],
-  useCarLap: () => [],
-  useFocusCarIdx: () => 4,
   useGeneralSettings: () => undefined,
-  useLapHistorySnapshot: () => undefined,
   useWeekendInfoNumCarClasses: () => 1,
   useCarIdxSpeed: () => [],
-  useSessionStore: () => -1,
 }));
 
 vi.mock('@irdashies/domain', () => ({
   useHighlightColor: () => 0xffffff,
-  useDriverRelatives: () => [],
-  useDriverStandings: () => [],
-  useDriverLivePositions: () => ({}),
-  lastLineGap: () => null,
+  // The same object every time: the rivals themselves are held still.
+  useClassRivals: () => NO_RIVALS,
 }));
 
 vi.mock('./hooks/useBattleSettings', () => ({

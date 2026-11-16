@@ -27,6 +27,7 @@ import { GarageCoverSettings } from './sections/GarageCoverSettings';
 import { ProfileSettings } from './sections/ProfileSettings';
 import { FlagSettings } from './sections/FlagSettings';
 import { FlagPanelSettings } from './sections/FlagPanelSettings';
+import { TrafficSettings } from './sections/TrafficSettings';
 import { CarSetupSettings } from './sections/CarSetupSettings';
 import { LapLibrarySettings } from './sections/LapLibrary/LapLibrarySettings';
 import { StreamChatSettings } from './sections/StreamChatSettings';
@@ -98,6 +99,7 @@ export const WIDGET_SETTINGS: Record<
   garagecover: GarageCoverSettings,
   flag: FlagSettings,
   flagpanel: FlagPanelSettings,
+  traffic: TrafficSettings,
   streamchat: StreamChatSettings,
   laptimelog: LapTimeLogSettings,
   stinthistory: StintHistorySettings,

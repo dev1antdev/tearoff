@@ -32,6 +32,34 @@ const finiteAt = (values: unknown[], index: number | null): number => {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 };
 
+/** LMU's finish status of a car that has taken the flag. */
+const LMU_FINISHED = 1;
+
+const round2 = (value: number): number => Math.round(value * 100) / 100;
+
+/**
+ * The stop the focus car still has to make before the end, for the one lap
+ * it can cost at the flag.
+ */
+export interface FinalStop {
+  /** Stops still needed to reach the end. Only exactly one is counted. */
+  stopsToGo: number;
+  /** Seconds the stop costs against staying out, pit lane included. */
+  seconds: number;
+}
+
+/** All five, always: they are optional only for snapshots made before them. */
+type RaceProjection = Required<
+  Pick<
+    SessionTimingSnapshot,
+    | 'lapsCompleted'
+    | 'lapProgress'
+    | 'projectedLaps'
+    | 'projectedLapsExact'
+    | 'extraLaps'
+  >
+>;
+
 export class SessionTimingProcessor implements TelemetryProcessor<SessionTimingSnapshot> {
   readonly channel = 'session-timing.snapshot';
   readonly tickRateHz = 5;
@@ -49,7 +77,15 @@ export class SessionTimingProcessor implements TelemetryProcessor<SessionTimingS
   private enabled = true;
   private latest = this.emptySnapshot();
 
-  constructor(private readonly lapTimes: () => readonly number[] = () => []) {}
+  /**
+   * @param lapTimes Each car's pace, by CarIdx: `lap-times.snapshot`.
+   * @param finalStop The focus car's last stop, where something knows it.
+   *   Without it a late stop takes no lap off the forecast.
+   */
+  constructor(
+    private readonly lapTimes: () => readonly number[] = () => [],
+    private readonly finalStop: () => FinalStop | null = () => null
+  ) {}
 
   init(session: Session): void {
     this.session = session;
@@ -147,6 +183,19 @@ export class SessionTimingProcessor implements TelemetryProcessor<SessionTimingS
       timeTotal,
       fixedLapRace
     );
+    const projection = this.calculateProjection(
+      frame,
+      sessionType,
+      state,
+      focusCarIdx,
+      leaderCarIdx,
+      laps,
+      lapDistPcts,
+      totalLaps,
+      timeRemaining,
+      fixedLapRace,
+      raceValues.totalRaceLaps
+    );
 
     this.latest = {
       sessionType,
@@ -159,6 +208,7 @@ export class SessionTimingProcessor implements TelemetryProcessor<SessionTimingS
       greenFlagTimestamp: this.greenFlagTimestamp ?? 0,
       isFixedLapRace: fixedLapRace,
       ...raceValues,
+      ...projection,
       sessionNum,
       version: this.latest.version + 1,
     };
@@ -316,6 +366,136 @@ export class SessionTimingProcessor implements TelemetryProcessor<SessionTimingS
     return { totalRaceLaps, totalRaceTime, adjustedRaceTime };
   }
 
+  /**
+   * Where the focus car is in its race and where it will be at the flag.
+   *
+   * The laps completed and the share of the lap are the car's own in any
+   * session. The rest is a race's, under green:
+   *
+   * - A race decided by laps ends on the scheduled lap, less the whole laps
+   *   the car is down: exact, and nothing to add.
+   * - A race decided by the clock ends for this car where its pace puts it
+   *   when the time runs out, which is a fraction of a lap. It then finishes
+   *   the lap it is on, so the laps it has to do are that rounded up, and
+   *   two things can move the whole number: the leader still has to finish
+   *   his lap after the clock stops, which gives everyone behind him that
+   *   much more time (+1 lap when it carries the car over the line once
+   *   more), and a last pit stop takes time away (-1 when it keeps the car
+   *   from starting a lap).
+   *
+   * Nothing is projected without a pace: a figure made from a guessed lap
+   * time would be printed with the same confidence as a measured one.
+   */
+  private calculateProjection(
+    frame: Telemetry,
+    sessionType: string | undefined,
+    state: number,
+    focusCarIdx: number | null,
+    leaderCarIdx: number,
+    laps: unknown[],
+    lapDistPcts: unknown[],
+    totalLaps: number,
+    timeRemaining: number,
+    fixedLapRace: boolean,
+    totalRaceLaps: number
+  ): RaceProjection {
+    const completed = numberArray(frame, 'CarIdxLapCompleted');
+    // The lap a car is on, less one, where the sim gives no completed count.
+    const lapsDone = (carIdx: number | null): number =>
+      Math.max(
+        0,
+        carIdx !== null && typeof completed[carIdx] === 'number'
+          ? finiteAt(completed, carIdx)
+          : finiteAt(laps, carIdx) - 1
+      );
+    const fractionOf = (carIdx: number | null): number =>
+      Math.min(Math.max(finiteAt(lapDistPcts, carIdx), 0), 1);
+
+    const lapsCompleted = lapsDone(focusCarIdx);
+    const fraction = fractionOf(focusCarIdx);
+    const base = {
+      lapsCompleted,
+      // Rounded down, so the figure never reads a full lap before the line.
+      lapProgress: Math.min(Math.floor(fraction * 100 + 1e-9) / 100, 0.99),
+    };
+    const none: RaceProjection = {
+      ...base,
+      projectedLaps: 0,
+      projectedLapsExact: false,
+      extraLaps: 0,
+    };
+
+    if (sessionType !== 'Race') return none;
+    if (state >= SessionState.Checkered) {
+      return {
+        ...none,
+        projectedLaps: lapsCompleted,
+        projectedLapsExact: true,
+      };
+    }
+    if (state !== SessionState.Racing) return none;
+    if (fixedLapRace && totalLaps > 0) {
+      return {
+        ...none,
+        projectedLaps: totalRaceLaps,
+        projectedLapsExact: true,
+      };
+    }
+
+    const bestLaps = numberArray(frame, 'CarIdxBestLapTime');
+    const focusPace = this.pace(focusCarIdx, bestLaps);
+    if (!(focusPace > 0)) return none;
+    const remaining = Math.max(timeRemaining, 0);
+    const projected = lapsCompleted + fraction + remaining / focusPace;
+    // A race with both limits ends on whichever comes first.
+    if (totalLaps > 0 && projected >= totalLaps) {
+      return { ...none, projectedLaps: totalLaps };
+    }
+
+    /** Laps still to finish, this one included, with `seconds` on the clock. */
+    const whole = (seconds: number): number =>
+      Math.ceil(Math.max(seconds, 0) / focusPace + fraction);
+    let extraLaps = 0;
+    const leaderPace =
+      leaderCarIdx >= 0 && leaderCarIdx !== focusCarIdx
+        ? this.pace(leaderCarIdx, bestLaps)
+        : 0;
+    const leaderFinished =
+      numberArray(frame, 'LmuCarIdxFinishStatus')[leaderCarIdx] ===
+      LMU_FINISHED;
+    if (leaderPace > 0 && !leaderFinished) {
+      const leaderAtZero =
+        lapsDone(leaderCarIdx) +
+        fractionOf(leaderCarIdx) +
+        remaining / leaderPace;
+      const intoLap = leaderAtZero - Math.floor(leaderAtZero);
+      const overrun = intoLap > 0 ? (1 - intoLap) * leaderPace : 0;
+      extraLaps += whole(remaining + overrun) - whole(remaining);
+      const stop = this.finalStop();
+      if (stop && stop.stopsToGo === 1 && stop.seconds > 0) {
+        extraLaps += whole(remaining - stop.seconds) - whole(remaining);
+      }
+    }
+
+    return {
+      ...base,
+      projectedLaps: round2(projected),
+      projectedLapsExact: false,
+      extraLaps,
+    };
+  }
+
+  /**
+   * A car's pace for a projection: its recent laps, then its class's
+   * estimate, then its own best lap. 0 where none of them reads.
+   */
+  private pace(carIdx: number | null, bestLaps: unknown[]): number {
+    const average = this.averageLapTime(carIdx);
+    if (average > 0) return average;
+    const best = finiteAt(bestLaps, carIdx);
+    return best > 1 ? best : 0;
+  }
+
   private averageLapTime(carIdx: number | null): number {
     if (carIdx === null || carIdx < 0) return 0;
     const average = this.lapTimes()[carIdx] ?? 0;
@@ -351,6 +531,11 @@ export class SessionTimingProcessor implements TelemetryProcessor<SessionTimingS
       totalRaceLaps: 0,
       totalRaceTime: 0,
       adjustedRaceTime: 0,
+      lapsCompleted: 0,
+      lapProgress: 0,
+      projectedLaps: 0,
+      projectedLapsExact: false,
+      extraLaps: 0,
       sessionNum: null,
       version: 0,
     };

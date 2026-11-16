@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { DriverStatusBadges } from './DriverStatusBadges';
+import { DriverStatusBadges } from '../../../../shared/DriverStatusBadges/DriverStatusBadges';
 
 interface PitStatusCellProps {
   onPitRoad?: boolean;

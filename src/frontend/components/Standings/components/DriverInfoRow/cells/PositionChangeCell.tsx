@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { RatingChange } from '../../RatingChange/RatingChange';
+import { RatingChange } from '../../../../shared/RatingChange/RatingChange';
 
 interface PositionChangeCellProps {
   positionChange?: number;

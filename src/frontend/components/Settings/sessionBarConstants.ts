@@ -20,6 +20,8 @@ export const VALID_SESSION_BAR_ITEM_KEYS = [
   'topSpeed',
   'manufacturerPosition',
   'classRank',
+  'position',
+  'positionChange',
   'trackLimits',
 ] as const;
 
@@ -46,6 +48,8 @@ export const SESSION_BAR_ITEM_LABELS: Record<string, string> = {
   topSpeed: 'Top Speed',
   manufacturerPosition: 'Manufacturer Position',
   classRank: 'Class Rank',
+  position: 'Overall Position',
+  positionChange: 'Position Change',
 };
 
 // Default display order for session bar items (same for headerBar and footerBar)

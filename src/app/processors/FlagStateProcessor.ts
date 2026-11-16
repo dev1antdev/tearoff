@@ -31,7 +31,6 @@ import {
   LMU_FINISH_STATUS,
   SessionState,
   TIMED_SESSION_LAPS,
-  TrackLocation,
   flagDetailFor,
   lmuPenaltyBadge,
   lmuPenaltyCode,
@@ -40,22 +39,29 @@ import {
 import type { TelemetryProcessor } from './TelemetryProcessor';
 import { parseTrackLength } from './RadarProcessor';
 import { wrapDelta } from './radarMath';
-import { carClassesFrom, isFasterClass, type CarClassEntry } from './carClass';
+import { carClassesFrom, type CarClassEntry } from './carClass';
+import {
+  TRAFFIC_QUEUE_GAP_S,
+  TRAFFIC_SEARCH_M,
+  TrafficQueue,
+  isOnRacingSurface,
+  relativeTimeGap,
+  speedOf,
+  type TrafficField,
+} from './trafficRules';
 
-/** How far behind the player a car is still looked at for a blue, metres. */
-export const BLUE_SEARCH_M = 500;
-/** A queued car counts while it is at most this many seconds behind. */
-export const BLUE_QUEUE_GAP_S = 8;
+/**
+ * How far behind the player a car is still looked at for a blue, metres, and
+ * how many seconds behind a queued car still counts. The rules themselves,
+ * and the hand-over from one car to the next, are in trafficRules, which the
+ * traffic widget's processor reads too.
+ */
+export const BLUE_SEARCH_M = TRAFFIC_SEARCH_M;
+export const BLUE_QUEUE_GAP_S = TRAFFIC_QUEUE_GAP_S;
 /** With no car meeting the lapping rule, the nearest one this close is named. */
 const BLUE_FALLBACK_M = 150;
-/** Another car takes the plate once it is this much nearer than the holder. */
-const BLUE_SWAP_M = 10;
-/** The holder has gone by once it is this far ahead of the player. */
-const BLUE_PASSED_M = 5;
 /** LMU's flag is a 5 Hz value and flickers at the edge of a blue. */
 const BLUE_HOLD_S = 1;
-/** Outside a race a car counts as closing from this much more speed, m/s. */
-const BLUE_CLOSING_MS = 2;
 /** How long the green is announced after the start or after a yellow. */
 const GREEN_ANNOUNCE_S = 5;
 /** TinyPedal's rule: a car slower than this on the track is the incident. */
@@ -66,7 +72,6 @@ const INCIDENT_SPEED_MS = 8;
  * from while the fraction was held read as standing still.
  */
 const SPEED_SETTLE_S = 0.7;
-const KMH_PER_MS = 3.6;
 
 const FLAG_TICK_HZ = 10;
 
@@ -204,7 +209,6 @@ export class FlagStateProcessor implements TelemetryProcessor<
   /** SessionTime the sim last showed the blue. */
   private blueSeenAt = Number.NEGATIVE_INFINITY;
   private blueOut = false;
-  private blueHolder = -1;
   /** A car has met the lapping rule since this blue came out. */
   private blueQualified = false;
 
@@ -224,13 +228,23 @@ export class FlagStateProcessor implements TelemetryProcessor<
    */
   private readonly speedSettlesAt: number[] = [];
 
-  /** Scratch for the blue search, indexed by car slot; reused every tick. */
-  private readonly candidates: number[] = [];
-  private readonly listed: number[] = [];
-  private readonly distOf: number[] = [];
-  private readonly lapsOf: number[] = [];
-  private readonly fasterOf: boolean[] = [];
-  private readonly qualifiesOf: boolean[] = [];
+  /** The cars behind, the lapping rule and who holds the plate. */
+  private readonly queue = new TrafficQueue();
+  /** The field as the queue reads it; refilled every tick, never replaced. */
+  private readonly field: TrafficField = {
+    pcts: NO_VALUES,
+    laps: NO_VALUES,
+    surfaces: NO_VALUES,
+    onPitRoad: NO_VALUES,
+    speedsKmh: NO_SPEEDS,
+    player: -1,
+    playerPct: -1,
+    trackLength: 0,
+    raceRule: false,
+    isLmu: false,
+    classes: [],
+    excluded: this.excluded,
+  };
 
   constructor(dependencies: FlagStateDependencies = {}) {
     this.carSpeeds = dependencies.carSpeeds ?? (() => NO_SPEEDS);
@@ -494,7 +508,7 @@ export class FlagStateProcessor implements TelemetryProcessor<
       (simBlue || (this.blueOut && time - this.blueSeenAt <= BLUE_HOLD_S));
     if (blueOut !== this.blueOut) {
       this.blueOut = blueOut;
-      this.blueHolder = -1;
+      this.queue.drop();
       this.blueQualified = false;
     }
     // LMU holds a car's lap fraction at exactly 0 until it first reaches the
@@ -697,7 +711,7 @@ export class FlagStateProcessor implements TelemetryProcessor<
     this.greenReason = FLAG_ACTIVE_GREEN_START;
     this.blueSeenAt = Number.NEGATIVE_INFINITY;
     this.blueOut = false;
-    this.blueHolder = -1;
+    this.queue.drop();
     this.blueQualified = false;
     this.speedSettlesAt.length = 0;
   }
@@ -711,32 +725,6 @@ export class FlagStateProcessor implements TelemetryProcessor<
       if (published[index] !== (next[index] === true)) return false;
     }
     return true;
-  }
-
-  /** Smoothed speed of a car in m/s, or undefined where none is known. */
-  private speedOf(
-    speeds: readonly number[],
-    carIdx: number
-  ): number | undefined {
-    const kmh = speeds[carIdx];
-    return typeof kmh === 'number' && Number.isFinite(kmh)
-      ? kmh / KMH_PER_MS
-      : undefined;
-  }
-
-  /** Whether a slot holds a car on the racing surface, out of the pits. */
-  private isOnSurface(
-    carIdx: number,
-    surfaces: readonly unknown[],
-    onPitRoad: readonly unknown[]
-  ): boolean {
-    if (this.excluded.has(carIdx)) return false;
-    const surface = surfaces[carIdx];
-    return (
-      (surface === TrackLocation.OnTrack ||
-        surface === TrackLocation.OffTrack) &&
-      onPitRoad[carIdx] !== true
-    );
   }
 
   /**
@@ -806,7 +794,7 @@ export class FlagStateProcessor implements TelemetryProcessor<
     let anyMoving = false;
 
     for (let carIdx = 0; carIdx < pcts.length; carIdx += 1) {
-      const speed = this.speedOf(speeds, carIdx);
+      const speed = speedOf(speeds, carIdx);
       if (speed === undefined) continue;
       if (speed > 0) anyMoving = true;
       if (speed >= INCIDENT_SPEED_MS) continue;
@@ -815,7 +803,9 @@ export class FlagStateProcessor implements TelemetryProcessor<
       // A car LMU holds at the line, or has only just let go, has not moved
       // on the lap as far as the speeds can tell. That is not standing still.
       if (time < (this.speedSettlesAt[carIdx] ?? 0)) continue;
-      if (!this.isOnSurface(carIdx, surfaces, onPitRoad)) continue;
+      if (!isOnRacingSurface(carIdx, surfaces, onPitRoad, this.excluded)) {
+        continue;
+      }
       const metres =
         carIdx === player ? 0 : wrapDelta(pct, playerPct) * this.trackLength;
       if (metres >= 0) {
@@ -844,14 +834,14 @@ export class FlagStateProcessor implements TelemetryProcessor<
     return -1;
   }
 
-  private readonly byDistance = (a: number, b: number): number =>
-    Math.round(this.distOf[a]) - Math.round(this.distOf[b]) ||
-    this.lapsOf[b] - this.lapsOf[a] ||
-    a - b;
-
   /**
    * Finds the car the blue is for and fills `blueCar` with it. Returns false
    * when there is no car to name.
+   *
+   * Who is behind, who of them meets the lapping rule, their order and the
+   * hand-over are the shared traffic rules. What is the flag's own is the
+   * fallback: a blue the sim has raised names somebody even when no car
+   * meets the rule.
    */
   private findBlueCar(
     cells: Cells,
@@ -863,49 +853,24 @@ export class FlagStateProcessor implements TelemetryProcessor<
     isLmu: boolean
   ): boolean {
     const speeds = this.carSpeeds();
-    const surfaces = valuesOf(cells, 'CarIdxTrackSurface');
-    const onPitRoad = valuesOf(cells, 'CarIdxOnPitRoad');
-    const playerSpeed = this.speedOf(speeds, player);
-    const playerProgress = (finiteAt(laps, player) ?? 0) + playerPct;
-    const { candidates, listed, distOf, lapsOf, fasterOf, qualifiesOf } = this;
-    candidates.length = 0;
-    listed.length = 0;
+    const { queue, field } = this;
+    field.pcts = pcts;
+    field.laps = laps;
+    field.surfaces = valuesOf(cells, 'CarIdxTrackSurface');
+    field.onPitRoad = valuesOf(cells, 'CarIdxOnPitRoad');
+    field.speedsKmh = speeds;
+    field.player = player;
+    field.playerPct = playerPct;
+    field.trackLength = this.trackLength;
+    field.raceRule = raceRule;
+    field.isLmu = isLmu;
+    field.classes = this.classes;
     this.blueCarChanged = false;
 
-    for (let carIdx = 0; carIdx < pcts.length; carIdx += 1) {
-      if (carIdx === player) continue;
-      const pct = finiteAt(pcts, carIdx);
-      // LMU holds a car at exactly 0 until it first reaches the line.
-      if (pct === undefined || pct < 0 || (isLmu && pct === 0)) continue;
-      if (!this.isOnSurface(carIdx, surfaces, onPitRoad)) continue;
-      const metres = wrapDelta(pct, playerPct) * this.trackLength;
-      // Behind on the road; the holder stays until it is clearly ahead.
-      const passed =
-        carIdx === this.blueHolder ? metres >= BLUE_PASSED_M : metres >= 0;
-      if (passed) continue;
-      const dist = Math.max(0, -metres);
-      if (dist > BLUE_SEARCH_M) continue;
-
-      const speed = this.speedOf(speeds, carIdx);
-      const lapsAhead = raceRule
-        ? Math.round((finiteAt(laps, carIdx) ?? 0) + pct - playerProgress)
-        : 0;
-      const faster = isFasterClass(this.classes, carIdx, player);
-      // In a race: a car lapping the player, or one of a faster class.
-      // Outside one every car behind qualifies, and a closing one counts.
-      const qualifies = raceRule
-        ? lapsAhead >= 1 || faster
-        : speed !== undefined &&
-          playerSpeed !== undefined &&
-          speed - playerSpeed >= BLUE_CLOSING_MS;
-
-      distOf[carIdx] = dist;
-      lapsOf[carIdx] = Math.max(0, lapsAhead);
-      fasterOf[carIdx] = faster;
-      qualifiesOf[carIdx] = qualifies;
-      candidates.push(carIdx);
-      if (qualifies) listed.push(carIdx);
-    }
+    // In a race: a car lapping the player, or one of a faster class.
+    // Outside one every car behind qualifies, and a closing one counts.
+    queue.scan(field);
+    const { candidates, listed, distOf } = queue;
 
     // Outside a race, with nobody closing, the nearest car behind is it.
     let confirmed = listed.length > 0;
@@ -925,34 +890,15 @@ export class FlagStateProcessor implements TelemetryProcessor<
     }
     if (pool.length === 0) return this.dropHolder();
     if (confirmed) this.blueQualified = true;
-    pool.sort(this.byDistance);
 
     // The holder keeps the plate until another car is clearly nearer.
-    const nearest = pool[0];
-    let holder = this.blueHolder;
-    if (
-      !pool.includes(holder) ||
-      distOf[holder] - distOf[nearest] >= BLUE_SWAP_M
-    ) {
-      holder = nearest;
-    }
-    this.blueHolder = holder;
-
+    const holder = queue.settle(pool);
     const dist = distOf[holder];
-    const speed = this.speedOf(speeds, holder);
-    let othersCount = 0;
-    if (confirmed && pool === listed) {
-      for (const carIdx of listed) {
-        if (carIdx === holder) continue;
-        const gap = this.gapSeconds(
-          distOf[carIdx],
-          this.speedOf(speeds, carIdx),
-          playerSpeed
-        );
-        if (gap === null || gap <= BLUE_QUEUE_GAP_S) othersCount += 1;
-      }
-    }
-    const gapS = this.gapSeconds(dist, speed, playerSpeed);
+    const speed = speedOf(speeds, holder);
+    const playerSpeed = queue.playerSpeed;
+    const othersCount =
+      confirmed && pool === listed ? queue.queuedBehind(field, holder) : 0;
+    const gapS = relativeTimeGap(dist, speed, playerSpeed);
     const closingMs =
       speed !== undefined && playerSpeed !== undefined
         ? round1(speed - playerSpeed)
@@ -960,13 +906,15 @@ export class FlagStateProcessor implements TelemetryProcessor<
 
     const car = this.blueCar;
     const distanceM = Math.round(dist);
+    const lapsAhead = Math.max(0, queue.lapsOf[holder]);
+    const fasterClass = queue.fasterOf[holder];
     if (
       car.carIdx !== holder ||
       car.distanceM !== distanceM ||
       car.gapS !== gapS ||
       car.closingMs !== closingMs ||
-      car.lapsAhead !== lapsOf[holder] ||
-      car.fasterClass !== fasterOf[holder] ||
+      car.lapsAhead !== lapsAhead ||
+      car.fasterClass !== fasterClass ||
       car.confirmed !== confirmed ||
       car.othersCount !== othersCount
     ) {
@@ -974,8 +922,8 @@ export class FlagStateProcessor implements TelemetryProcessor<
       car.distanceM = distanceM;
       car.gapS = gapS;
       car.closingMs = closingMs;
-      car.lapsAhead = lapsOf[holder];
-      car.fasterClass = fasterOf[holder];
+      car.lapsAhead = lapsAhead;
+      car.fasterClass = fasterClass;
       car.confirmed = confirmed;
       car.othersCount = othersCount;
       this.blueCarChanged = true;
@@ -984,20 +932,7 @@ export class FlagStateProcessor implements TelemetryProcessor<
   }
 
   private dropHolder(): false {
-    this.blueHolder = -1;
+    this.queue.drop();
     return false;
-  }
-
-  /**
-   * TinyPedal's relative time gap: the distance over the higher of the two
-   * speeds. Null below 1 m/s and where neither speed is known.
-   */
-  private gapSeconds(
-    dist: number,
-    speed: number | undefined,
-    playerSpeed: number | undefined
-  ): number | null {
-    const faster = Math.max(speed ?? 0, playerSpeed ?? 0);
-    return faster >= 1 ? round1(dist / faster) : null;
   }
 }

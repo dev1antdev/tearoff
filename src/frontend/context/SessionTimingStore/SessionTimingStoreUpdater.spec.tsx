@@ -73,6 +73,47 @@ describe('useSessionTimingStoreUpdater', () => {
     expect(useSessionTimingStore.getState().currentLap).toBe(4);
   });
 
+  it('carries the laps done and the projection into the store', () => {
+    vi.mocked(useSessionTimingSnapshot).mockReturnValue({
+      ...snapshot,
+      lapsCompleted: 2,
+      lapProgress: 0.72,
+      projectedLaps: 10.28,
+      projectedLapsExact: false,
+      extraLaps: 1,
+    });
+    renderHook(() => useSessionTimingStoreUpdater(true));
+
+    expect(useSessionTimingStore.getState()).toMatchObject({
+      lapsCompleted: 2,
+      lapProgress: 0.72,
+      projectedLaps: 10.28,
+      projectedLapsExact: false,
+      extraLaps: 1,
+    });
+  });
+
+  it('reads a snapshot from before the projection as nothing projected', () => {
+    // A recording, or a mock, made before the five fields existed. What the
+    // last snapshot left in the store must not stay there.
+    useSessionTimingStore.setState({
+      lapsCompleted: 7,
+      lapProgress: 0.5,
+      projectedLaps: 30,
+      projectedLapsExact: true,
+      extraLaps: 1,
+    });
+    renderHook(() => useSessionTimingStoreUpdater(true));
+
+    expect(useSessionTimingStore.getState()).toMatchObject({
+      lapsCompleted: 0,
+      lapProgress: 0,
+      projectedLaps: 0,
+      projectedLapsExact: false,
+      extraLaps: 0,
+    });
+  });
+
   it('does not write to the store when disabled', () => {
     renderHook(() => useSessionTimingStoreUpdater(false));
 

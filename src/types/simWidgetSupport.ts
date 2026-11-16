@@ -71,6 +71,10 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // first clean lap of a track, with the sector starts learned on the same
   // lap. Under iRacing the profile is added up from the car's motion.
   'elevation',
+  // The cars behind by the Relative's own gaps and the session's class
+  // speeds, both of which LMU's scoring gives. Its optional licence badge
+  // has nothing to show here.
+  'fastercarsfrombehind',
   'flag',
   // The flag in force and the car a blue is for, from LMU's session phase,
   // sector flags and scoring. Each sim has states the other cannot report.
@@ -106,6 +110,9 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // menu's level, and a pit lane learned from the cars seen crossing its
   // lines. Under iRacing the stop is learned from the player's own.
   'pitstop',
+  // The gap to the car behind while the player is slow on the track, from
+  // the Relative's gaps and the player's own speed.
+  'rejoin',
   'relative',
   // LMU's own sector times, which it publishes for the player. It gives no
   // boundary distances, so where the sectors start is learned from where
@@ -114,6 +121,10 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // Shift point from shiftPoints.ts for GT3 and LMP2, else 95% of the rev
   // limit. LMU publishes no shift point of its own.
   'shiftlight',
+  // A slow or stopped car ahead, from the speed each car's lap fraction
+  // moves at. LMU never says a rival is off the road, so the bar is never
+  // drawn in its off-track colour here.
+  'slowcarahead',
   'standings',
   // The player's own stints from the always-on ledger: laps, time, fuel or
   // virtual energy, compounds, tread and brake discs read live, and the
@@ -137,6 +148,10 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // distance, so a TinyPedal notes file comes in as it is. Pit notes follow
   // the pit-road flag.
   'tracknotes',
+  // Who is closing and when it arrives, measured from lap fractions and
+  // the clock, never from LMU's estimated lap time, which is one constant
+  // for the whole grid. Off the road is all four wheels on grass or gravel.
+  'traffic',
   // Tyre and brake temperatures from LMU's per-wheel telemetry block.
   'tyres',
   // Tread from the same block, which LMU writes while the car is moving, and
@@ -190,14 +205,11 @@ export const LMU_DISABLED_WIDGETS: readonly string[] = [
   'broadcastpodium',
   'broadcastticker',
   'broadcastweather',
-  'fastercarsfrombehind',
   'flatmap',
   'gantry',
   'heartrate',
   'map',
   'radar',
-  'rejoin',
-  'slowcarahead',
   // Race plans name drivers by iRacing customer id.
   'stintplan',
   'strategytimeline',
