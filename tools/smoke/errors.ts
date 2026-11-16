@@ -25,7 +25,7 @@ export interface PageProblem {
   widget?: string;
   text: string;
   url?: string;
-  /** What the run was doing: start, capture 1, settings, toggles, quit. */
+  /** What the run was doing: start, capture 1, settings, toggles, server, quit. */
   phase: string;
   /** Milliseconds since the app was started. */
   atMs: number;
@@ -139,6 +139,23 @@ function count(entries: readonly LogEntry[]): CountedLine[] {
   return [...byText.values()];
 }
 
+/**
+ * The two strangers the run itself sends to the built-in web server. The app
+ * warns about each, as it should; those warnings are the run's own doing.
+ */
+export const SMOKE_STRANGERS = {
+  origin: 'https://example.com',
+  host: 'rebound.example',
+} as const;
+
+const OWN_KNOCKS: readonly string[] = [
+  `Origin "${SMOKE_STRANGERS.origin}"`,
+  `Host "${SMOKE_STRANGERS.host}:`,
+];
+
+const isOwnKnock = (text: string): boolean =>
+  text.includes(' refused (') && OWN_KNOCKS.some((mark) => text.includes(mark));
+
 export function summariseLog(entries: readonly LogEntry[]): LogSummary {
   const evidence: Record<string, string[]> = {};
   for (const [name, pattern] of Object.entries(EVIDENCE)) {
@@ -152,7 +169,11 @@ export function summariseLog(entries: readonly LogEntry[]): LogSummary {
   return {
     entries: entries.length,
     errors: count(entries.filter((entry) => entry.level === 'error')),
-    warnings: count(entries.filter((entry) => entry.level === 'warn')),
+    warnings: count(
+      entries.filter(
+        (entry) => entry.level === 'warn' && !isOwnKnock(entry.text)
+      )
+    ),
     evidence,
   };
 }

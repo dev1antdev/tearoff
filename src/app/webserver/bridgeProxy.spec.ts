@@ -462,10 +462,20 @@ describe('browser pit lane calibration requests', () => {
       makeSource().bridge,
       undefined,
       undefined,
-      pitLaneBridge
+      pitLaneBridge,
+      {
+        port: () => 3000,
+        networkAccess: () => false,
+        extraOrigins: () => [],
+        localHosts: () => [],
+      }
     );
     const client = new Client();
-    wss.emit('connection', client);
+    // A page this server served: the only visitor that may report a pit lane.
+    wss.emit('connection', client, {
+      headers: { host: 'localhost:3000', origin: 'http://localhost:3000' },
+      socket: { remoteAddress: '127.0.0.1' },
+    });
     const request = (type: string, data: unknown) =>
       client.emit(
         'message',
@@ -490,12 +500,14 @@ describe('browser pit lane calibration requests', () => {
       )
     );
     expect(client.messages('pitLane:updateData')[0]?.data).toBe(false);
+    // Resetting is the settings window's, over IPC; a page is told no.
     request('pitLane:resetData', { trackId: '47' });
     await vi.waitFor(() =>
       expect(client.messages('pitLane:resetData')[0]).toMatchObject({
-        error: 'Track changed',
+        error: 'Not allowed over a browser connection',
       })
     );
+    expect(pitLaneBridge.resetPitLaneData).not.toHaveBeenCalled();
     client.close();
   });
 });

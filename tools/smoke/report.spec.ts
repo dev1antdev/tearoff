@@ -54,6 +54,7 @@ const result = (overrides: Partial<RunResult> = {}): RunResult => ({
   widgets: [row()],
   settingsPages: [],
   toggles: [],
+  server: [],
   problems: [],
   quit: { clean: true, detail: 'Ended in 0.4s with exit code 0.' },
   realProfile: {

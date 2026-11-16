@@ -122,6 +122,23 @@ describe('summariseLog', () => {
     });
   });
 
+  it("leaves out the warnings about the run's own two strangers, and no others", () => {
+    const stamp = '[2026-11-16 16:33:15.665] [warn] ';
+    const lines = [
+      `${stamp} [ComponentServer] Request refused (origin): Host "localhost:53467", Origin "https://example.com"`,
+      `${stamp} [ComponentServer] Request refused (host): Host "rebound.example:53467", Origin none`,
+      `${stamp} Bridge proxy: connection refused (origin): Host "localhost:53467", Origin "https://example.com"`,
+      `${stamp} Bridge proxy: connection refused (origin): Host "localhost:53467", Origin "https://elsewhere.example"`,
+      `${stamp} [ComponentServer] Request refused (host): Host "another.example:53467", Origin none`,
+    ];
+    const kinds = summariseLog(parseMainLog(lines.join('\n'))).warnings;
+
+    expect(kinds.map((kind) => kind.text)).toEqual([
+      expect.stringContaining('https://elsewhere.example'),
+      expect.stringContaining('another.example'),
+    ]);
+  });
+
   it('lists every error', () => {
     expect(summary.errors).toHaveLength(1);
     expect(summary.errors[0].text).toContain('[ErrorBoundary:widget:fuel]');

@@ -338,6 +338,9 @@ export function exposeBridge() {
     getComponentServerPort: () => {
       return ipcRenderer.invoke('getComponentServerPort');
     },
+    getComponentServerHost: () => {
+      return ipcRenderer.invoke('getComponentServerHost');
+    },
     exportDashboardToFile: (dashboard: DashboardLayout) => {
       return ipcRenderer.invoke('exportDashboardToFile', dashboard);
     },

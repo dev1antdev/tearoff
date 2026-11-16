@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import os from 'os';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GeneralSettingsType } from '@irdashies/types';
 
 const listen = vi.fn();
@@ -64,7 +65,10 @@ interface FakeResponse {
 }
 
 /** Drives the request handler startComponentServer handed to http.createServer. */
-async function request(path: string): Promise<FakeResponse> {
+async function request(
+  path: string,
+  headers: Record<string, string> = {}
+): Promise<FakeResponse> {
   const handler = createServer.mock.calls[0][0] as (
     req: unknown,
     res: unknown
@@ -87,7 +91,12 @@ async function request(path: string): Promise<FakeResponse> {
   };
 
   await handler(
-    { url: path, method: 'GET', headers: { host: 'localhost:3000' } },
+    {
+      url: path,
+      method: 'GET',
+      headers: { host: 'localhost:3000', ...headers },
+      socket: { remoteAddress: '127.0.0.1' },
+    },
     fakeRes
   );
   return res;
@@ -280,5 +289,72 @@ describe('single-widget routes', () => {
     const weatherRow = res.body.slice(res.body.indexOf('/widget/weather'));
 
     expect(weatherRow).toContain('off on desktop');
+  });
+});
+
+describe('who may ask the server', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    bridgeProxyState.currentDashboard = {
+      widgets: [{ id: 'standings', enabled: true }],
+    };
+  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it('refuses a page from another site, and tells it nothing', async () => {
+    await startWith({ enableWebServer: true });
+    const res = await request('/components', { origin: 'https://example.com' });
+
+    expect(res.statusCode).toBe(403);
+    expect(res.body).toBe('Forbidden');
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('refuses a name somebody pointed at this machine', async () => {
+    await startWith({ enableWebServer: true });
+    const res = await request('/dashboard', {
+      host: 'attacker.example:3000',
+      origin: 'http://attacker.example:3000',
+    });
+
+    expect(res.statusCode).toBe(403);
+  });
+
+  it('opens no response to every origin any more', async () => {
+    await startWith({ enableWebServer: true });
+    const plain = await request('/components');
+    const own = await request('/components', {
+      origin: 'http://localhost:3000',
+    });
+
+    expect(plain.statusCode).toBe(200);
+    expect(plain.headers['access-control-allow-origin']).toBeUndefined();
+    expect(own.headers['access-control-allow-origin']).toBe(
+      'http://localhost:3000'
+    );
+    expect(own.headers['vary']).toBe('Origin');
+  });
+
+  it("answers to the machine's network address only when open to the network", async () => {
+    vi.spyOn(os, 'networkInterfaces').mockReturnValue({
+      eth: [{ family: 'IPv4', internal: false, address: '192.168.1.50' }],
+    } as unknown as ReturnType<typeof os.networkInterfaces>);
+    const lan = { host: '192.168.1.50:3000' };
+
+    await startWith({ enableWebServer: true, enableNetworkAccess: false });
+    expect((await request('/dashboard', lan)).statusCode).toBe(403);
+
+    await startWith({ enableWebServer: true, enableNetworkAccess: true });
+    expect((await request('/dashboard', lan)).statusCode).toBe(200);
+    // Still by name too, for a browser source on this machine.
+    expect((await request('/dashboard')).statusCode).toBe(200);
+  });
+
+  it('does not hand out the stored configuration outside development', async () => {
+    await startWith({ enableWebServer: true });
+    const res = await request('/debug/dashboard');
+
+    expect(res.statusCode).toBe(404);
+    expect(res.body).not.toContain('standings');
   });
 });

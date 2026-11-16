@@ -1270,6 +1270,7 @@ TV-style overlays for iRacing streams, configured together in **Settings > Broad
   - Single Widget URLs: `http://localhost:3000/widget/<widgetId>` shows one widget filling the page, including widgets hidden from the desktop layout, for hosts that take one page per source such as OpenKneeboard in VR. `http://localhost:3000` lists the URL for every widget in the active dashboard; older component links redirect to the widget pages.
   - Optional Web Server: Disable the built-in server when browser sources are not needed; restart the app to free its port.
   - Network Access: Enable network access in settings to allow other devices on your local network to access the dashboard (useful for dual-PC streaming setups).
+  - Who the server answers: only its own pages, opened by this PC's name or address. A page from another website cannot connect to it, and a browser page can change nothing but where its widgets sit and the pit lane it measured; every other setting is changed in the app.
   - Garage Cover: Automatically hide your screen with a custom image when you enter the garage to keep your car setup private.
   - Transparent backgrounds: All overlays are designed to look great on top of your game or stream.
   - Reduced GPU usage: Overlay windows are sized to fit only the widgets on each display, rather than covering the full screen.

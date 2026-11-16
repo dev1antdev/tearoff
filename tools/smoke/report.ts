@@ -94,6 +94,8 @@ export interface RunResult {
   widgets: WidgetRow[];
   settingsPages: SettingsPageRow[];
   toggles: ToggleCheck[];
+  /** The built-in web server, asked as a browser source and as a stranger. */
+  server: ToggleCheck[];
   problems: PageProblem[];
   quit: { clean: boolean; detail: string };
   inspection?: ProfileInspection;
@@ -201,6 +203,12 @@ export function judge(result: RunResult): Verdict {
   if (failedToggles.length > 0) {
     blocking.push(
       `the overlay did not follow: ${failedToggles.map((toggle) => toggle.name).join(', ')}`
+    );
+  }
+  const failedServer = result.server.filter((check) => !check.passed);
+  if (failedServer.length > 0) {
+    blocking.push(
+      `the browser source server: ${failedServer.map((check) => check.name).join(', ')}`
     );
   }
   if (!result.quit.clean)
@@ -418,6 +426,11 @@ export function buildReport(result: RunResult): string {
     );
   }
   if (result.toggles.length === 0) add('- Not run.');
+  add('', '## Browser source server', '');
+  for (const check of result.server) {
+    add(`- ${check.passed ? 'ok' : 'FAILED'}: ${check.name}. ${check.detail}`);
+  }
+  if (result.server.length === 0) add('- Not run.');
   add(
     '',
     `Quit: ${result.quit.clean ? 'clean' : 'NOT clean'}. ${result.quit.detail}`,

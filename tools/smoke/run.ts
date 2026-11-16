@@ -28,6 +28,7 @@ import {
   type TreeEntry,
 } from './guard.ts';
 import { inspectProfile } from './inspect.ts';
+import { checkBrowserServer } from './server.ts';
 import { planGrid, rectsOverlap } from './layout.ts';
 import {
   click,
@@ -526,6 +527,7 @@ async function main(): Promise<number> {
     widgets: [],
     settingsPages: [],
     toggles: [],
+    server: [],
     problems: [],
     quit: { clean: false, detail: 'The app was never started.' },
     realProfile: {
@@ -609,6 +611,10 @@ async function main(): Promise<number> {
   env.VSCODE_INSPECTOR_OPTIONS = '';
   env.ELECTRON_ENABLE_LOGGING = '1';
   env.IRDASHIES_SIM = options.simulator;
+  // The built-in web server, on a port of this run's own rather than the
+  // first free one from 3000 up.
+  const serverPort = await freePort();
+  env.COMPONENT_PORT = String(serverPort);
   const prefix =
     options.simulator === 'lmu'
       ? 'IRDASHIES_LMU_REPLAY'
@@ -1209,6 +1215,16 @@ async function main(): Promise<number> {
         .send('Emulation.clearDeviceMetricsOverride')
         .catch(() => undefined);
     }
+
+    phase = 'server';
+    result.server = await checkBrowserServer({
+      port: serverPort,
+      packaged: options.target === 'packaged',
+      expectListening: options.profileMode === 'fresh',
+    });
+    say(
+      `browser source server: ${result.server.filter((check) => check.passed).length} of ${result.server.length} checks passed`
+    );
 
     // Quit the way the tray's Quit does: the browser is asked to close, which
     // runs the app's own shutdown and its storage flush. (Closing the

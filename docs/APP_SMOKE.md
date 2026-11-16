@@ -13,6 +13,9 @@ would gather by hand before a release:
   notes, About);
 - whether the overlay follows what a user flips: the overlay on/off switch, one
   widget off and on, one setting changed and changed back;
+- whether the built-in web server serves the browser page and its own
+  connection, and turns away a page from another site and a name pointed at
+  this machine;
 - what the app left in the profile: `logs/main.log`, `laps.db` and its backup,
   `config.json`, the track profiles, and anything a recording should not leave.
 
@@ -151,9 +154,14 @@ app.
    **flips** the overlay switch, one widget's switch in the menu and the first
    on/off setting on that widget's page, checking the overlay each time and
    putting everything back.
-8. **Quits the app** by asking the browser to close (`Browser.close`), which
+8. **Knocks on the built-in web server**, which the run puts on a port of its
+   own (`COMPONENT_PORT`): `/dashboard`, the page bundle, a connection as the
+   server's own page, then a request and a connection as another site and a
+   request under a foreign host name, which must all be refused. A copied
+   profile with the web server switched off is noted and not checked.
+9. **Quits the app** by asking the browser to close (`Browser.close`), which
    runs the app's own shutdown and storage flush, the same as Quit in the tray.
-9. **Inspects the profile and the real profile**, and writes the report.
+10. **Inspects the profile and the real profile**, and writes the report.
 
 Everything the tool starts is stopped by the process id it started, also when
 a run fails.

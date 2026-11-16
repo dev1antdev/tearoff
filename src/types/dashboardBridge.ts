@@ -114,6 +114,8 @@ export interface DashboardBridge {
   getDriverTagSettings?: () => Promise<DriverTagSettings | undefined>;
   saveDriverTagSettings?: (settings: DriverTagSettings) => Promise<void>;
   getComponentServerPort?: () => Promise<number>;
+  /** The host browser-source links should name: localhost or the LAN address. */
+  getComponentServerHost?: () => Promise<string>;
   openWidgetSettings?: (widgetType: string) => Promise<void>;
   onNavigateToSettings?: (
     callback: (widgetType: string) => void
