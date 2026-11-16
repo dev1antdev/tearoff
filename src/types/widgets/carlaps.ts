@@ -46,7 +46,7 @@ export default defineWidgetManifest({
       type: 'boolean',
       label: 'Energy',
       description:
-        'What each lap used, in percent of a full budget: virtual energy for a car that runs on it, fuel otherwise. It reads "refilled" for a lap the car ended with more than it began. Le Mans Ultimate only, and -- for a car the sim publishes neither for.',
+        'What each lap used, in percent of a full budget: virtual energy for a car that runs on it, fuel otherwise. It reads "refilled" for a lap the car ended with more than it began, and -- for a lap with no reading. Le Mans Ultimate only: the column is left out under iRacing, and for a car the sim publishes neither for.',
     },
     showOnlyWhenOnTrack: {
       type: 'boolean',

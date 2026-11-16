@@ -47,6 +47,8 @@ export const crewStintMinWidth = (energy: boolean): string => {
 
 const ROW = 'grid items-baseline gap-x-1.5 px-3';
 const RIGHT = 'text-right';
+/** The stop is words after a run of figures: it stands a little off them. */
+const STOP = 'pl-2';
 
 const PACE_CLASS: Record<StintPaceTone, string> = {
   faster: 'text-green-400',
@@ -77,7 +79,7 @@ export const CrewStintCaptions = memo(
       {energyCaption !== undefined && (
         <span className={RIGHT}>{energyCaption}</span>
       )}
-      <span>Stop after</span>
+      <span className={STOP}>Stop after</span>
     </div>
   )
 );
@@ -147,7 +149,7 @@ export const CrewStintRow = memo(
       )}
       {/* The pace goes under "under way" as one piece where the two do
           not fit side by side. */}
-      <span className="flex flex-wrap gap-x-2">
+      <span className={`${STOP} flex flex-wrap gap-x-2`}>
         <span
           data-testid="crew-stint-end"
           className={underWay ? 'text-slate-400' : ''}

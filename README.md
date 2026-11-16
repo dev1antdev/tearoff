@@ -877,7 +877,7 @@ Who has driven a car for how long and how fast, and every stint it has run with 
 
 **What it cannot see.** A new set of tyres of the same compound, a top-up smaller than what the lap of the stop used, and anything done in the garage are not shown, because nothing in the records tells them apart from nothing having been done. Only drivers who have driven are listed: neither simulator's session names the rest of an entry's crew, so a driver who has yet to take the car does not appear, and what such a driver still owes of a minimum is not shown until they do.
 
-**Under iRacing** there is no column for what a lap used and a stop reads its standing time and "driver" only: iRacing publishes neither another car's fuel nor a compound for each wheel.
+**Under iRacing** there is no column for what a lap used and a stop reads its standing time and "driver" only: iRacing publishes neither another car's fuel nor a compound for each wheel. The column is left out in the same way for a car Le Mans Ultimate publishes neither energy nor fuel for, as it does not for a rival online.
 
 **What it knows, and from when.** Everything is the race history's, kept from the moment the Pit Wall or this widget is switched on. What was driven before that, or while Tearoff was not running, is not counted: a stint that was under way then ends "laps after it not recorded", and the header says how many laps are missing. No recording of a race with a pit stop or a driver change exists, so the stops and the driver totals have been checked on staged data only. In a browser the page says the race history is not available yet.
 
@@ -896,7 +896,7 @@ The laps of one car, newest first, with its sectors, what each lap used and a no
 - The newest 150 rows are drawn; a button at the foot draws the rest
 - The sector and energy columns can be switched off; adjustable background opacity, session visibility and an option to show only when on track
 
-The stop is noted on the lap the car stood still on, which is the lap after the last one of the stint it ended: the in-lap where a circuit's boxes are before the line, the out-lap where they are after it. A note says what the lap's own flags and the car's stints show and nothing else: why a lap was slow, traffic or cold tyres, is not recorded and is not guessed at. Under iRacing the sector and energy columns are left out. The laps are the race history's, as in [Crew and Stints](#crew-and-stints), and the notes about a stop or a driver change have been checked on staged data only.
+The stop is noted on the lap the car stood still on, which is the lap after the last one of the stint it ended: the in-lap where a circuit's boxes are before the line, the out-lap where they are after it. A note says what the lap's own flags and the car's stints show and nothing else: why a lap was slow, traffic or cold tyres, is not recorded and is not guessed at. Under iRacing the sector and energy columns are left out, and so is the energy column for a car Le Mans Ultimate publishes neither energy nor fuel for. The laps are the race history's, as in [Crew and Stints](#crew-and-stints), and the notes about a stop or a driver change have been checked on staged data only.
 
 ### Stint History
 
