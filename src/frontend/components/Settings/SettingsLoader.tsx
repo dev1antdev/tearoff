@@ -73,6 +73,7 @@ import { TimingTowerSettings } from './sections/TimingTowerSettings';
 import { BroadcastSettingsPage } from './sections/BroadcastGroupSettings';
 import { GantrySettings } from './sections/GantrySettings';
 import { PitWallSettings } from './sections/PitWallSettings';
+import { RaceLogSettings } from './sections/RaceLogSettings';
 import { SettingsPreviewContext } from '@irdashies/domain/widgetPreview/settingsPreviewContext';
 import { widgetSettingsType } from './widgetSettingsType';
 import { StintPlanSettings } from './sections/StintPlanSettings';
@@ -152,6 +153,7 @@ export const WIDGET_SETTINGS: Record<
   broadcastpodium: BroadcastSettingsPage,
   gantry: GantrySettings,
   pitwall: PitWallSettings,
+  racelog: RaceLogSettings,
   stintplan: StintPlanSettings,
   strategytimeline: StrategyTimelineSettings,
 };

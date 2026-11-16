@@ -2353,6 +2353,47 @@ export interface PitWallConfig {
 
 export type PitWallWidgetSettings = BaseWidgetSettings<PitWallConfig>;
 
+/** Whose events the race log lists: every car's, a class's or one car's. */
+export type RaceLogScope = 'all' | 'class' | 'car';
+
+/** The kinds of event the race log can list or leave out, as it groups them. */
+export interface RaceLogKinds {
+  /** Into the pits, out of them, and through them. */
+  pits: boolean;
+  /** Another driver in a car, at a stop or without one. */
+  drivers: boolean;
+  /** Each class's fastest lap. */
+  fastestLaps: boolean;
+  /** The flags for the whole field, and the forecast. */
+  flags: boolean;
+  /** Cars out and back, penalties, and the own car's place. */
+  status: boolean;
+}
+
+/**
+ * Race Log: what happened in the race, one line an event, newest first.
+ *
+ * `scope` and `kinds` are what the list shows when it opens. The switches
+ * over the list change them for as long as the widget is on screen and are
+ * not saved: a copy hosted in a Pit Wall panel writes nothing to disk.
+ */
+export interface RaceLogConfig {
+  background: { opacity: number };
+  /**
+   * The time on each line: the clock in the sim, with the session clock
+   * for an event the sim gave none for, or the session clock always.
+   */
+  time: 'timeOfDay' | 'session';
+  scope: RaceLogScope;
+  kinds: RaceLogKinds;
+  /** The row of switches over the list. */
+  showFilters: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+export type RaceLogWidgetSettings = BaseWidgetSettings<RaceLogConfig>;
+
 /** Series look for the broadcast tower. */
 export type BroadcastTheme = 'imsa' | 'wec' | 'f1';
 
@@ -2867,6 +2908,7 @@ export interface WidgetConfigMap {
   laptrace: LapTraceConfig;
   gantry: GantryConfig;
   pitwall: PitWallConfig;
+  racelog: RaceLogConfig;
   broadcast: BroadcastConfig;
   broadcastticker: BroadcastTickerConfig;
   broadcastevents: BroadcastEventsConfig;
