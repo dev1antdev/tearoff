@@ -229,18 +229,31 @@ not either; this is what was seen:
   were up to two seconds off and Lap Delta never found a reference, so the
   default is 2. The tool waits up to four minutes for the recording to start
   and says so in the report when it took more than a few seconds.
-- **Quitting can take long.** In three of ten runs the process stayed for
-  12 s, 16 s and more than 60 s after the app had logged `App quit`. The tool
-  waits 60 s, then stops the process by its id and fails the run.
+- **Quitting can take long on a busy machine.** Once the app has logged
+  `App quit` its own shutdown is over; what is left is Chromium's. That waits
+  for the network service process to end, for its own worker threads, and for
+  every thread to exit, and some of those threads run at background priority
+  (so do the idle-priority threads of the graphics driver in the GPU process).
+  Windows gives such threads no processor while the cores it keeps them on are
+  busy with anything of higher priority: on a hybrid CPU those are the
+  efficiency cores, and another test run on the machine is enough to fill
+  them. The process then stays for seconds to minutes and ends by itself.
+  Measured on 2026-11-16 with both builds (this one and 2.2.1): 60 to 90 ms
+  with the efficiency cores free, 3 s to more than 90 s with them full. A
+  Tearoff started again in the meantime comes up as usual: the old process
+  no longer holds the single-instance lock or the web server's port. The
+  tool waits 60 s, then stops the process by its id and fails the run, so run
+  the gate while nothing else heavy is running, and read a slow quit beside
+  the processor load of the moment.
 - **Global shortcuts** cannot be registered from a session without a desktop:
   `main.log` says `Shortcut unavailable` for each, and the Key Bindings page
   shows its warning on every row.
 - **Closing the settings window from its page does not quit the app**
   (`window.close()` destroys that window without the close handler), which is
   why the tool quits through `Browser.close`.
-- **A fresh profile logs warnings**: `Failed to read config file` with a stack,
-  several times, before the first `config.json` exists. They are in every
-  fresh run's report.
+- **A fresh profile logs one line for each file it does not have yet**:
+  `No config.json yet: starting from the defaults`, at info level. A file that
+  is there and cannot be read or parsed is still a warning with its error.
 - **The tool's own pieces** that are pure (the grid, the error classification,
   the report and verdict, the profile and database comparisons, the guards)
   have specs in `tools/smoke/*.spec.ts`.

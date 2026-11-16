@@ -38,9 +38,12 @@ export const Weather = () => {
   const isOnTrack = useTrackStateSelector(trackStateSelectors.isOnTrack);
   const { isWatching } = useDrivingState();
   const isSessionVisible = useSessionVisibility(settings?.sessionVisibility);
-  // LMU simulates no wind: its wind vector is always zero, so the cell could
-  // only ever show 0 with the arrow fixed on a headwind.
-  const simulatesWind = useActiveSimulator() !== 'lmu';
+  // What LMU has no figure for is left out rather than shown empty. It
+  // simulates no wind: its wind vector is always zero, so the cell could only
+  // ever show 0 with the arrow fixed on a headwind. And it publishes neither
+  // the air's humidity nor how rubbered the track is, which read "- %" and
+  // "N/A" for the whole session.
+  const isLmu = useActiveSimulator() === 'lmu';
 
   // Determine actual unit to use: auto uses iRacing's DisplayUnits setting
   const unitSetting = settings?.units ?? 'auto';
@@ -81,17 +84,20 @@ export const Weather = () => {
     const allColumns: { id: WeatherColumnId; enabled: boolean }[] = [
       { id: 'trackTemp', enabled: settings?.trackTemp?.enabled ?? true },
       { id: 'airTemp', enabled: settings?.airTemp?.enabled ?? true },
+      { id: 'wind', enabled: !isLmu && (settings?.wind?.enabled ?? true) },
       {
-        id: 'wind',
-        enabled: simulatesWind && (settings?.wind?.enabled ?? true),
+        id: 'humidity',
+        enabled: !isLmu && (settings?.humidity?.enabled ?? true),
       },
-      { id: 'humidity', enabled: settings?.humidity?.enabled ?? true },
       {
         id: 'precipitation',
         enabled: settings?.precipitation?.enabled ?? true,
       },
       { id: 'wetness', enabled: settings?.wetness?.enabled ?? true },
-      { id: 'trackState', enabled: settings?.trackState?.enabled ?? true },
+      {
+        id: 'trackState',
+        enabled: !isLmu && (settings?.trackState?.enabled ?? true),
+      },
     ];
 
     const enabledColumns = allColumns.filter((c) => c.enabled);
@@ -113,7 +119,7 @@ export const Weather = () => {
     settings?.trackTemp?.enabled,
     settings?.airTemp?.enabled,
     settings?.wind?.enabled,
-    simulatesWind,
+    isLmu,
     settings?.humidity?.enabled,
     settings?.precipitation?.enabled,
     settings?.wetness?.enabled,

@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
 import logger from '../logger';
+import { isTapeReplaySource } from '../tapeReplaySource';
 
 export interface PersonalBestEntry {
   trackId: string | number;
@@ -17,9 +18,15 @@ export interface PersonalBestData {
 
 const DATA_VERSION = 1;
 
-class PersonalBestLapTimesDatabase {
+export class PersonalBestLapTimesDatabase {
   private filePath: string;
   private data: PersonalBestData;
+  /**
+   * False while a tape plays. Its best lap is somebody's old session: it is
+   * held here for the run, so the lap log shows it as it would live, and the
+   * file is left as it was.
+   */
+  private readonly keepsOnDisk = !isTapeReplaySource();
 
   constructor() {
     this.filePath = path.join(
@@ -34,7 +41,7 @@ class PersonalBestLapTimesDatabase {
       if (fs.existsSync(this.filePath)) {
         const fileContent = fs.readFileSync(this.filePath, 'utf-8');
         const loaded = JSON.parse(fileContent) as Partial<PersonalBestData>;
-        
+
         const isValid =
           loaded?.version === DATA_VERSION &&
           loaded?.bests != null &&
@@ -66,6 +73,7 @@ class PersonalBestLapTimesDatabase {
   }
 
   private save(): void {
+    if (!this.keepsOnDisk) return;
     try {
       fs.writeFileSync(this.filePath, JSON.stringify(this.data, null, 2));
     } catch (error) {
@@ -77,10 +85,7 @@ class PersonalBestLapTimesDatabase {
     }
   }
 
-  private generateKey(
-    trackId: string | number,
-    carName: string
-  ): string {
+  private generateKey(trackId: string | number, carName: string): string {
     return `${trackId}:${carName}`;
   }
 
@@ -110,7 +115,6 @@ class PersonalBestLapTimesDatabase {
       );
     }
   }
-  
 }
 
 export const personalBestDatabase = new PersonalBestLapTimesDatabase();

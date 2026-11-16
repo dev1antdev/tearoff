@@ -64,10 +64,12 @@ export const WindDirection = memo(
           className={`relative flex aspect-square items-center justify-center transition-colors duration-300 ${windIntensityClass}`}
           style={{ width: visualSize, height: visualSize }}
         >
+          {/* The arrow's point is drawn a little outside the view box (the
+              stroke's mitre), which cut it flat: let it show. */}
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 60 60"
-            className="absolute stroke-current stroke-[3] w-full h-full box-border fill-none origin-center transform-gpu transition-transform duration-1000 ease-out"
+            className="absolute overflow-visible stroke-current stroke-[3] w-full h-full box-border fill-none origin-center transform-gpu transition-transform duration-1000 ease-out"
             style={{
               rotate: `calc(${normalizedAngle} * 1rad + 0.5turn)`,
             }}

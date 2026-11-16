@@ -636,3 +636,27 @@ export const LongProfileName: Story = {
     profileName: 'Weekend endurance championship setup',
   },
 };
+
+/**
+ * Everything the desktop app puts in the header at once: the overlay switch
+ * with its shortcut, and the longest simulator name. At 1024 px the buttons
+ * get their labels, which is the width at which they are widest against the
+ * window: the status text must stay beside them, not under them.
+ */
+export const FullHeader: Story = {
+  args: {
+    initialPath: '/settings/relative',
+    profileChoices: true,
+    simulator: 'lmu',
+  },
+  beforeEach: withOverlayVisibility,
+};
+
+/** The same header with a profile name too long for it. */
+export const FullHeaderLongProfileName: Story = {
+  args: {
+    ...FullHeader.args,
+    profileName: 'Weekend endurance championship setup',
+  },
+  beforeEach: withOverlayVisibility,
+};

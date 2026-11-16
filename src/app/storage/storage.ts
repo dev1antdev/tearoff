@@ -109,14 +109,41 @@ const toContents = (raw: unknown): Contents => {
   return {};
 };
 
+const isMissingFile = (error: unknown): boolean =>
+  typeof error === 'object' &&
+  error !== null &&
+  'code' in error &&
+  error.code === 'ENOENT';
+
+// Files already said to be missing. A first start reads the same file
+// several times before its first value is written.
+const reportedMissing = new Set<string>();
+
+/**
+ * A file that is not there yet is a first start, not a fault: one info line
+ * and the defaults. Anything else, a file that cannot be read or does not
+ * parse, stays a warning with its error.
+ */
+const reportReadFailure = (filePath: string, error: unknown): void => {
+  if (isMissingFile(error)) {
+    if (reportedMissing.has(filePath)) return;
+    reportedMissing.add(filePath);
+    logger.info(
+      `No ${path.basename(filePath)} yet: starting from the defaults`
+    );
+    return;
+  }
+  logger.warn('Failed to read config file', error);
+  logger.warn('Creating new config file');
+};
+
 const parseDataAsync = async (filePath: string): Promise<Contents> => {
   const defaultData: Contents = {};
   try {
     const data = await fsp.readFile(filePath, 'utf8');
     return toContents(JSON.parse(data));
   } catch (error) {
-    logger.warn('Failed to read config file', error);
-    logger.warn('Creating new config file');
+    reportReadFailure(filePath, error);
     return defaultData;
   }
 };
@@ -127,8 +154,7 @@ const parseData = (filePath: string): Contents => {
     const data = fs.readFileSync(filePath, 'utf8');
     return toContents(JSON.parse(data));
   } catch (error) {
-    logger.warn('Failed to read config file', error);
-    logger.warn('Creating new config file');
+    reportReadFailure(filePath, error);
     return defaultData;
   }
 };

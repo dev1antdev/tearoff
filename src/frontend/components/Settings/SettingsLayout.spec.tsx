@@ -574,4 +574,31 @@ describe('SettingsLayout navigation', () => {
       screen.getByRole('button', { name: /Choose profile/ })
     ).toHaveAttribute('aria-expanded', 'false');
   });
+
+  it('sizes the header to its buttons and lets the status give way', () => {
+    renderLayout('/settings/relative');
+    const header = screen.getByRole('banner');
+
+    // jsdom lays nothing out, so the rule is what can be held. From the
+    // width at which the status is shown the header has three columns, and
+    // the last is never narrower than the buttons: with equal flexible side
+    // columns the labelled buttons, wider than a third of a 1024 px window,
+    // were drawn over the status.
+    const columns = [...header.classList].filter((name) =>
+      name.includes('grid-cols-[')
+    );
+    expect(columns).toEqual([
+      'grid-cols-[minmax(0,1fr)_auto]',
+      'sm:grid-cols-[minmax(15rem,1fr)_auto_minmax(max-content,1fr)]',
+    ]);
+
+    // What is short of room is the status: it may shrink, and cuts its text.
+    const status = within(header).getByText('iRacing connected');
+    expect(status).toHaveClass('truncate');
+    expect(status.parentElement).toHaveClass('min-w-0');
+    // The buttons do not.
+    expect(
+      within(header).getByRole('button', { name: 'Edit Layout' }).parentElement
+    ).toHaveClass('shrink-0');
+  });
 });

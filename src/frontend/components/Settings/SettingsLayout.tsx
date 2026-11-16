@@ -224,9 +224,15 @@ export const SettingsLayout = () => {
         {/* The window has no native title bar: this row is the drag handle, and
           the side padding keeps clear of the OS window controls. Their
           width comes from the window-controls-overlay env() values, so it
-          follows DPI scaling; without an overlay it resolves to 0. */}
+          follows DPI scaling; without an overlay it resolves to 0.
+
+          Three columns, the status centred while there is room. The buttons
+          always get the width they need and the profile name keeps room to
+          be read, so in a narrow window it is the status that is cut short:
+          with equal side columns the buttons, wider than theirs from the
+          width at which they get labels, were drawn over the status. */}
         <header
-          className="grid min-h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 border-b border-slate-700 px-4 py-1 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] [-webkit-app-region:drag]"
+          className="grid min-h-12 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 border-b border-slate-700 px-4 py-1 sm:grid-cols-[minmax(15rem,1fr)_auto_minmax(max-content,1fr)] [-webkit-app-region:drag]"
           style={{
             paddingLeft: 'calc(env(titlebar-area-x, 0px) + 1rem)',
             paddingRight:
