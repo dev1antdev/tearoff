@@ -7,6 +7,7 @@ export * from './lapValidity';
 export * from './lapAverage';
 export * from './sectorBests';
 export * from './stintPace';
+export * from './stintPaceDelta';
 export * from './wheelFigures';
 export * from './trackPosition';
 export * from './trackNotes';

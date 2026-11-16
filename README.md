@@ -50,7 +50,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Track Map, Flat Track Map, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Hybrid (for cars that have the system), Lift and Coast Lights, Weather Forecast, Minimap, Track Map, Flat Track Map, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
-**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Tyre & Brake Wear, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Track Map, Flat Track Map, Elevation, Cruise, Track Notes, Lap Delta, Corner Delta, Timing, Lap Timer, Car Systems, Fuel Calculator, Fuel Saver, Pit Stop, Finish Projection, Our Car, Class Rivals, Stint Timeline, and Stint History. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Radar, Gantry, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Tyre & Brake Wear, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Track Map, Flat Track Map, Elevation, Cruise, Track Notes, Lap Delta, Corner Delta, Timing, Timing Tower, Lap Timer, Car Systems, Fuel Calculator, Fuel Saver, Pit Stop, Finish Projection, Our Car, Class Rivals, Stint Timeline, and Stint History. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Radar, Gantry, Tachometer, and Shift Light.
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Traffic, Faster Cars From Behind, Slow Car Ahead, Rejoin Indicator, Information Bar, System Performance (without its Sim row), Tyres, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Track Map, Flat Track Map, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
@@ -337,6 +337,7 @@ Displays standings information for the current session.
   - A last lap the sim gave no time is dimmed and marked with a warning sign: a lap voided for track limits or a cut, or an out-lap (Le Mans Ultimate only; can be switched off)
   - Optional **Avg 5** and **Avg 10** columns: each car's average lap time over its last 5 and its last 10 laps, each in a time format of its own like Last and Best. A column reads `--` until the car has that many laps; it never shows the average of fewer. Off by default, in iRacing and Le Mans Ultimate
   - **Averages over** (Options tab) chooses which laps those two columns count. **Clean laps**, the default: laps Tearoff watched from line to line with the car never on pit road, so in-laps and out-laps are left out, and so is the lap a car was on when it was first seen. Nothing else is left out: a lap under yellow counts, and so does a lap Le Mans Ultimate voided for track limits, with the time it took. **All laps**: every lap that has a time, pit laps included
+  - Optional **vs stint** column, the one the [Timing Tower](#timing-tower) has: the average clean lap of the stint a car is on, less that of an earlier stint of the same car, negative and green when it is quicker, positive and red when slower, `--` until the stint has three clean laps and there is an earlier stint to compare with. **Pace against** (Options tab) holds it against the previous stint or the previous driver. Off by default, in iRacing and Le Mans Ultimate. While the column is on Tearoff records the race for it; while it is off nothing is recorded on its account
 - Optional column headers
 - Class headers:
   - Estimated race lap counts, or scheduled totals in fixed-lap races
@@ -408,6 +409,7 @@ Displays drive relative delta information for the current session.
 - Timing information: best lap time, last lap time (multiple time format options: full, mixed, minutes, seconds-full, seconds-mixed, seconds)
   - A last lap the sim gave no time is dimmed and marked with a warning sign (Le Mans Ultimate only; can be switched off)
   - Optional **Avg 5** and **Avg 10** columns, the average of each car's last 5 and last 10 laps over clean laps or all laps, as in [Standings](#standings); they need a wider widget than the default
+  - Optional **vs stint** column with its **Pace against** choice, the pace of each car's stint against an earlier one, as in [Standings](#standings); off by default
 - Optional Push-to-Pass column, showing a driver's active state and remaining time in supported series
 - Configurable radio icon duration, so recent transmissions remain visible without flickering
 - Lap time delta column (configurable number of laps: 1-5)
@@ -453,6 +455,35 @@ The field at a glance: one chip per class with the cars still running and the ca
 - Adjustable background opacity, session visibility and an option to show only when on track
 
 iRacing has no garage flag: a car that is not in the world counts as out, which covers both a driver who has left and one sitting in the garage, so most of a practice field reads as out. Le Mans Ultimate states the garage stall and the finish status for every car.
+
+### Timing Tower
+
+The whole field in one dense table, a row a car: made for a panel of [the Pit Wall](#the-pit-wall), where it fills the panel and scrolls under a header row that stays, and usable on the overlay as a window of its own. Off by default. Works in iRacing and Le Mans Ultimate.
+
+Where the overlay Standings is trimmed to the cars around you, the tower lists everybody, with the pace of each car beside its times: the average of its last 5 and last 10 laps, and how its stint compares with the one before.
+
+**Features:**
+
+- A tab for each class and one for **All**. It opens on the class of your own car, in class order with places and gaps in class; **All** is the whole field in overall order, each number on its class colour, with places overall, the gap to the leader of the race and the interval to the car one row up. A session of one class has no tabs
+- Your own car in amber. That is your own entry, which stays yours while a team-mate drives it and while the camera is on another car. The list keeps its row in view, as the order changes and when you change tab, until you scroll the list yourself
+- Columns, in this order, each of which can be switched off: **P**, **#**, **Driver** with the team under the name, **Gap**, **Int**, **Last**, **Best**, **Avg 5**, **Avg 10**, **vs stint**, **Sect**, **Stops**, **Stint**, **Energy**, **Tyres**
+- After the driver's name, a tag: **PIT** in the pit lane, **OUT** on the lap a car leaves it on, **GAR** in its garage, **AWAY** when it is not in the world, **DNF** and **DQ**
+- **Last** is purple when it is the best lap of the class and green when it is the car's own best; **Best** is purple for the best of the class. A last lap Le Mans Ultimate gave no time is dimmed and marked
+- **Avg 5** and **Avg 10** by the Standings' own rule: `--` until the car has that many laps, never the average of fewer
+- **vs stint**: the average clean lap of the stint a car is on, less the average clean lap of an earlier stint of the same car. Negative and green is quicker than before, positive and red is slower. It reads `--` until the stint has three clean laps and there is an earlier stint with a clean lap to compare with. A clean lap here is one the sim timed, off pit road, not under a full-course yellow and not the first lap of a race
+- **Sect** (Le Mans Ultimate): three squares for the car's most recent first, second and third sector. Purple is the best of the class, green the car's own best, amber slower than that, grey no time yet. While a lap is under way the squares of the sectors not driven yet are still the lap before's
+- **Stops** and **Stint**: pit stops made, and laps completed since the last
+- **Energy** (Le Mans Ultimate): virtual energy left in percent for a car that runs on it, and fuel left, marked with a pump, for one that does not
+- **Tyres**: the compound, or four marks where the wheels differ
+- Two switches in the tower's header, each starting from a setting and kept for as long as the tower stays on screen: **Averages over** clean laps or all laps, as in [Standings](#standings), and **Pace against** the previous stint or the previous driver. The previous driver is the most recent stint somebody else drove, which after a double stint is not the stint before
+- On a panel too narrow for every column the tower leaves columns out rather than scroll sideways, the least important first: Stops, Int, Best, Sect, Tyres, Energy, Stint, Avg 10, Last, Gap, Avg 5, vs stint. The place, the number and the driver always stay
+- Name format, the team line, the status tag, background opacity, session visibility and an option to show only when on track. Its type does not follow the General font size: use the tower's own scale
+
+**What each sim gives.** Under iRacing the tower has no **Sect** and no **Energy** column, since iRacing times nobody else's sectors and publishes no fuel for another car, and its **Stops** are the stops seen since the tower was first shown. Le Mans Ultimate counts the stops itself.
+
+**What it knows, and from when.** The stints behind **vs stint** are the race history's: they are known from when Tearoff began recording the race, and showing the column is what has the race recorded. The sector bests are the quickest sectors driven since the tower was first shown in the session, and are kept while its window is hidden or closed; only the first sector also takes the sim's own best, which reaches back to the start of the session. Le Mans Ultimate's own best figures for the second and third sectors are not sector bests and are not used.
+
+**Not verified yet.** Nothing of the tower has been seen in a live game. The one Le Mans Ultimate recording has no pit stop and no driver change, so the pace against an earlier stint, the stops and the tags have been checked on staged data only, and the sector marks on the recording's two and a half laps of green running.
 
 ### Track Map
 
@@ -1325,7 +1356,7 @@ This is its first stage, and nothing of it has been seen in a live game yet: it 
 - The page's own scale, in its settings
 - The same page in an ordinary browser, at `http://localhost:3000/pitwall` on this PC. With **Enable Network Access** on, a tablet or a second PC on your network opens it too, by the link under **Settings > Pit Wall > In a browser**. That link carries a key: a device that is not this PC is refused everything the web server has without it, and **New key** there replaces it at once and disconnects whoever held the old one. A layout chosen in a browser is kept by that browser and leaves the window as it is; a browser has no settings window to open, so the page there has no gears
 
-**What is not there yet:** the endurance timing tower with lap averages, the class rivals table, the crew and stint timeline, the race log and the pace chart. Panels cannot be moved or resized. The page is for your own devices on your own network: nothing reaches it from outside.
+**What is not there yet:** the [Timing Tower](#timing-tower) as a panel of this page (the widget exists, and none of the three layouts holds it yet), the class rivals table, the crew and stint timeline, the race log and the pace chart. Panels cannot be moved or resized. The page is for your own devices on your own network: nothing reaches it from outside.
 
 ### Broadcast overlays
 

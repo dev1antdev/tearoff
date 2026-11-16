@@ -16,6 +16,7 @@ import { type StandingsBadgeFormat } from '@irdashies/types';
 import { DriverNamePreview } from '../components/DriverNamePreview';
 import { DEFAULT_SESSION_BAR_DISPLAY_ORDER } from '../sessionBarConstants';
 import { lapAverageHint } from '../lapAverageHint';
+import { STINT_PACE_HINT } from '../stintPaceHint';
 import { SessionVisibility } from '../components/SessionVisibility';
 import { SettingDivider } from '../components/SettingDivider';
 import { SettingsSection } from '../components/SettingSection';
@@ -135,6 +136,12 @@ const sortableSettings: SortableSetting[] = [
     hasSubSetting: true,
   },
   {
+    id: 'stintPace',
+    label: 'vs Stint (Pace Against an Earlier Stint)',
+    configKey: 'stintPace',
+    hasSubSetting: true,
+  },
+  {
     id: 'lapCount',
     label: 'Lap Count',
     configKey: 'lapCount',
@@ -243,6 +250,12 @@ const DisplaySettingsList = ({
                     )}
                   </p>
                 </>
+              )}
+            {setting.configKey === 'stintPace' &&
+              settings.config.stintPace?.enabled && (
+                <p className="pl-8 mt-2 text-sm text-slate-500">
+                  {STINT_PACE_HINT}
+                </p>
               )}
             {setting.hasSubSetting &&
               setting.configKey === 'pitStatus' &&
@@ -646,6 +659,12 @@ const StandingsSettingsPage = ({ widgetId }: { widgetId: string }) => {
 
                     <SettingsSection title="Lap Averages">
                       <SettingProp path="averagesOver" />
+                    </SettingsSection>
+
+                    <SettingDivider />
+
+                    <SettingsSection title="Stint Pace">
+                      <SettingProp path="paceAgainst" />
                     </SettingsSection>
 
                     <SettingDivider />

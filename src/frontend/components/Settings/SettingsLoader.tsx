@@ -67,6 +67,7 @@ import { CornerNameSettings } from './sections/CornerNameSettings';
 import { LapTraceSettings } from './sections/LapTraceSettings';
 import { BattleSettings } from './sections/BattleSettings';
 import { ClassFieldsSettings } from './sections/ClassFieldsSettings';
+import { TimingTowerSettings } from './sections/TimingTowerSettings';
 import { BroadcastSettingsPage } from './sections/BroadcastGroupSettings';
 import { GantrySettings } from './sections/GantrySettings';
 import { PitWallSettings } from './sections/PitWallSettings';
@@ -138,6 +139,7 @@ export const WIDGET_SETTINGS: Record<
   laptrace: LapTraceSettings,
   battle: BattleSettings,
   classfields: ClassFieldsSettings,
+  timingtower: TimingTowerSettings,
   // The broadcast widgets share one page, with a tab per widget.
   broadcast: BroadcastSettingsPage,
   broadcastticker: BroadcastSettingsPage,

@@ -1,5 +1,5 @@
 import { memo, Fragment } from 'react';
-import { buildDeltaPlaceholder } from './deltaPlaceholder';
+import { buildDeltaPlaceholder } from '../../../../shared/DeltaCell/deltaPlaceholder';
 
 interface LapTimeDeltasCellProps {
   lapTimeDeltas?: number[];

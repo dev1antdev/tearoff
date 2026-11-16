@@ -14,6 +14,7 @@ import type { SectorBestsOptions } from './SectorTimingProcessor';
 import { CarSpeedsProcessor } from './CarSpeedsProcessor';
 import { BlindSpotProcessor } from './BlindSpotProcessor';
 import { CarPitProcessor } from './CarPitProcessor';
+import { CarSectorsProcessor } from './CarSectorsProcessor';
 import {
   createMemoryPitLaneModelStore,
   PitStopEstimateProcessor,
@@ -202,6 +203,15 @@ export const createProcessorDefinitions = ({
     processWhileHidden: true,
     metricsPrefix: 'carPit',
     create: () => new CarPitProcessor(),
+  }),
+  defineProcessor({
+    channel: 'car-sectors.snapshot',
+    // The bests are the quickest sectors seen in the session: a window that
+    // is hidden, or closed and opened again, must not start them over.
+    processWhileHidden: true,
+    retainWhenInactive: true,
+    metricsPrefix: 'carSectors',
+    create: () => new CarSectorsProcessor(),
   }),
   defineProcessor({
     channel: 'pit-stop.snapshot',

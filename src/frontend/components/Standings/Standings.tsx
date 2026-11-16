@@ -24,6 +24,7 @@ import {
   useSessionVisibility,
   useCarIdxRollingAvgLapTime,
   useCarIdxLapAverage,
+  useCarIdxStintPace,
   usePitStopDuration,
   usePitLaneStore,
   useFirstObservedLap,
@@ -64,6 +65,7 @@ export const COLUMN_LABELS: Record<string, string> = {
   avgLapTime: 'AVG',
   avgLast5: 'AVG 5',
   avgLast10: 'AVG 10',
+  stintPace: 'VS STINT',
   lapCount: 'LAPS',
   trackLimits: 'TL',
   lmuVirtualEnergy: 'VE',
@@ -230,6 +232,19 @@ export const Standings = () => {
   );
   const avgLast10 = useHeld(
     useCarIdxLapAverage(10, averagesOver, avgLast10Enabled),
+    isEmptyList
+  );
+
+  // The pace of each car's stint against an earlier one. Read only while
+  // the column is on: reading the race history is what has a race
+  // recorded, and a column that is off must not cost that.
+  const stintPaceEnabled = !!settings?.stintPace?.enabled;
+  const stintPace = useHeld(
+    useCarIdxStintPace(
+      // Anything but a stored "driver" is the default.
+      settings?.paceAgainst === 'driver' ? 'driver' : 'stint',
+      stintPaceEnabled
+    ),
     isEmptyList
   );
 
@@ -538,6 +553,11 @@ export const Standings = () => {
                           avgLast10={
                             avgLast10Enabled
                               ? avgLast10[result.carIdx]
+                              : undefined
+                          }
+                          stintPace={
+                            stintPaceEnabled
+                              ? (stintPace[result.carIdx] ?? null)
                               : undefined
                           }
                           displayOrder={settings?.displayOrder}

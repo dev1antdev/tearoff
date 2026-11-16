@@ -8,6 +8,7 @@ export * from './pitStops';
 export * from './playerLedger';
 export * from './wear';
 export * from './carPit';
+export * from './carSectors';
 export * from './pitStop';
 export * from './finishProjection';
 export * from './raceForecast';

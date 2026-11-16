@@ -37,10 +37,24 @@ export interface RaceHistorySummarySnapshot {
   stintLaps: readonly number[];
   /** Who drives it, as the session names them; '' unknown. */
   stintDriver: readonly string[];
+  /** Its mean clean lap so far, seconds; -1 before it has a clean lap. */
+  stintAvgLap: readonly number[];
+  /** How many clean laps that mean is of. */
+  stintCleanLaps: readonly number[];
   /** Mean clean lap of the stint before it, seconds; -1 with none. */
   previousStintAvgLap: readonly number[];
   /** Who drove that one; '' with none. */
   previousStintDriver: readonly string[];
+  /**
+   * Mean clean lap, seconds, of the most recent stint driven by somebody
+   * other than the driver of the stint under way: after a double stint the
+   * driver before, where `previousStintAvgLap` is the same driver's first
+   * half. -1 with none, where that stint had no clean lap, and where the
+   * driver now at the wheel is not named.
+   */
+  previousDriverStintAvgLap: readonly number[];
+  /** Who drove that one; '' with none. */
+  previousDriverStintDriver: readonly string[];
   /** Driver changes seen for the car. */
   driverChanges: readonly number[];
   /** Pit stops seen for the car: visits on which it stood still. */
