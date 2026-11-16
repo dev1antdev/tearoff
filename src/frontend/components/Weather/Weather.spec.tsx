@@ -57,10 +57,19 @@ describe('Weather', () => {
     mocks.showOnlyWhenOnTrack = undefined;
   });
 
-  it('shows the wind cell under iRacing', () => {
+  it('shows every cell under iRacing', () => {
     mocks.simulator = 'iracing';
     render(<Weather />);
     expect(screen.getByText('Wind')).toBeInTheDocument();
+    expect(screen.getByText('Humidity')).toBeInTheDocument();
+    expect(screen.getByText('Rubber')).toBeInTheDocument();
+  });
+
+  it('shows every cell before the simulator is known', () => {
+    render(<Weather />);
+    expect(screen.getByText('Wind')).toBeInTheDocument();
+    expect(screen.getByText('Humidity')).toBeInTheDocument();
+    expect(screen.getByText('Rubber')).toBeInTheDocument();
   });
 
   it('leaves the wind cell out under LMU, which simulates no wind', () => {
@@ -68,7 +77,17 @@ describe('Weather', () => {
     render(<Weather />);
     expect(screen.queryByText('Wind')).not.toBeInTheDocument();
     // The rest of the widget is still there.
-    expect(screen.getByText('Humidity')).toBeInTheDocument();
+    expect(screen.getByText('Track')).toBeInTheDocument();
+    expect(screen.getByText('Air')).toBeInTheDocument();
+  });
+
+  it('leaves out what LMU never publishes, rather than "- %" and "N/A"', () => {
+    mocks.simulator = 'lmu';
+    render(<Weather />);
+    expect(screen.queryByText('Humidity')).not.toBeInTheDocument();
+    expect(screen.queryByText('- %')).not.toBeInTheDocument();
+    expect(screen.queryByText('Rubber')).not.toBeInTheDocument();
+    expect(screen.queryByText('N/A')).not.toBeInTheDocument();
   });
 
   describe('set to show only when on track', () => {
@@ -80,7 +99,7 @@ describe('Weather', () => {
     it('is shown at the wheel', () => {
       render(<Weather />);
 
-      expect(screen.getByText('Humidity')).toBeInTheDocument();
+      expect(screen.getByText('Air')).toBeInTheDocument();
     });
 
     it('is shown while watching a car, as through a team-mate’s stint', () => {
@@ -89,7 +108,7 @@ describe('Weather', () => {
       mocks.isWatching = true;
       render(<Weather />);
 
-      expect(screen.getByText('Humidity')).toBeInTheDocument();
+      expect(screen.getByText('Air')).toBeInTheDocument();
     });
 
     it('is hidden while neither: in the garage, or in the menus', () => {
@@ -104,7 +123,7 @@ describe('Weather', () => {
       mocks.showOnlyWhenOnTrack = false;
       render(<Weather />);
 
-      expect(screen.getByText('Humidity')).toBeInTheDocument();
+      expect(screen.getByText('Air')).toBeInTheDocument();
     });
   });
 });

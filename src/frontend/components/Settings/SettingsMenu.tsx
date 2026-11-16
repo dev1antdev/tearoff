@@ -21,6 +21,7 @@ import {
   menuHasToggle,
   type MenuItem,
 } from './menuItems';
+import { isMenuItemActive } from './menuItemActive';
 import { settingsPageKind, type SettingsPageKind } from './settingsPageKind';
 import { ToggleSwitch } from './components/ToggleSwitch';
 import { MenuSortControl } from './components/MenuSortControl';
@@ -32,13 +33,9 @@ import {
   type MenuSortMode,
 } from './menuSort';
 
-/** Whether the row is the current one: its page, or a layout copy's of it. */
-const isMenuItemActive = (item: MenuItem, pathname: string) =>
-  pathname.startsWith(`/settings${item.path}`);
-
 const MenuLink = ({
   item,
-  pathname,
+  isActive,
   showIcon = false,
   isEnabled,
   onToggle,
@@ -48,7 +45,8 @@ const MenuLink = ({
   revealKey,
 }: {
   item: MenuItem;
-  pathname: string;
+  /** Whether the row is the current one; see {@link isMenuItemActive}. */
+  isActive: boolean;
   showIcon?: boolean;
   isEnabled?: boolean;
   isNew?: boolean;
@@ -64,7 +62,6 @@ const MenuLink = ({
    */
   revealKey?: string;
 }) => {
-  const isActive = isMenuItemActive(item, pathname);
   const linkRef = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
     const link = linkRef.current;
@@ -214,6 +211,8 @@ export const SettingsMenu = ({
       .map((w) => w.type ?? w.id)
   );
   const isWidgetEnabled = (widgetType: string) => enabledTypes.has(widgetType);
+  const isCurrent = (item: MenuItem, path: string) =>
+    isMenuItemActive(item, path, currentDashboard?.widgets);
 
   // The settings page toggles the widget whose id is the widget type, so the
   // menu does the same; extra instances keep their own state. Grouped items
@@ -241,7 +240,7 @@ export const SettingsMenu = ({
   const toggleWidget =
     (item: MenuItem, widgetType: string) => (enabled: boolean) => {
       setWidgetEnabled(widgetType, enabled);
-      if (enabled && !isMenuItemActive(item, pathname)) navigate(item.to);
+      if (enabled && !isCurrent(item, pathname)) navigate(item.to);
     };
 
   // A grouped item is on while any widget sharing its page is.
@@ -284,7 +283,7 @@ export const SettingsMenu = ({
     <MenuLink
       key={item.path}
       item={item}
-      pathname={asidePage ? overlayPath.current : pathname}
+      isActive={isCurrent(item, asidePage ? overlayPath.current : pathname)}
       revealKey={`${sortMode}:${isItemEnabled(item)}`}
       isEnabled={item.widgetType ? isItemEnabled(item) : undefined}
       disabledReason={unsupported(item) ?? undefined}
@@ -347,7 +346,7 @@ export const SettingsMenu = ({
                 <MenuLink
                   key={item.path}
                   item={item}
-                  pathname={pathname}
+                  isActive={isCurrent(item, pathname)}
                   showIcon
                   isNew={
                     item.path === '/release-notes' &&
@@ -372,7 +371,7 @@ export const SettingsMenu = ({
               <MenuLink
                 key={item.path}
                 item={item}
-                pathname={pathname}
+                isActive={isCurrent(item, pathname)}
                 showIcon
               />
             ))}

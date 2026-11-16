@@ -38,6 +38,7 @@ describe('FuelDatabase', () => {
 
   afterEach(async () => {
     vi.restoreAllMocks();
+    vi.unstubAllEnvs();
     await db.flush();
     reportStorageResult('fuel');
   });
@@ -228,6 +229,43 @@ describe('FuelDatabase', () => {
         .size
     ).toBe(500);
   });
+
+  describe.each(['IRDASHIES_TELEMETRY_REPLAY', 'IRDASHIES_LMU_REPLAY'])(
+    'while a tape plays (%s)',
+    (tapeVariable) => {
+      const file = path.join(testDir, 'fuel_data.json');
+
+      it('keeps the tape laps for the run and writes no file', async () => {
+        vi.stubEnv(tapeVariable, 'session.tape');
+        db = new FuelDatabase();
+        db.saveLap(1, 'car', lap);
+        db.saveQualifyMax(1, 'car', 2.5);
+        await db.flush();
+
+        // The calculator still reads them back, as it does live.
+        expect(db.getLaps(1, 'car')).toHaveLength(1);
+        expect(db.getQualifyMax(1, 'car')).toBe(2.5);
+        expect(fs.existsSync(file)).toBe(false);
+      });
+
+      it("leaves the user's own history on disk as it was", async () => {
+        db.saveLap(1, 'car', { ...lap, lapNumber: 7 });
+        await db.flush();
+        const before = await fsp.readFile(file, 'utf8');
+
+        vi.stubEnv(tapeVariable, 'session.tape');
+        db = new FuelDatabase();
+        db.saveLap(1, 'car', { ...lap, lapNumber: 8 });
+        db.clearLaps(2, 'other-car');
+        await db.flush();
+
+        // Read with the tape's laps in front of the stored ones...
+        expect(db.getLaps(1, 'car').map((l) => l.lapNumber)).toEqual([8, 7]);
+        // ...and none of it on disk.
+        expect(await fsp.readFile(file, 'utf8')).toBe(before);
+      });
+    }
+  );
 
   it('loads legacy files without recency metadata and retains newly saved contexts', async () => {
     const settings = Object.fromEntries(

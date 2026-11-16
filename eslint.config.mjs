@@ -35,6 +35,9 @@ export default defineConfig([
       'storybook-static/**',
       '**/dist/**',
       '**/.remember/**',
+      // The app smoke's reports. Each holds the profile folder of its run,
+      // and the app writes a script of its own into a profile.
+      'smoke-results/**',
     ],
   },
   { files: ['**/*.{js,mjs,cjs,ts,jsx,tsx}'] },

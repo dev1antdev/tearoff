@@ -7,6 +7,7 @@ import { app } from 'electron';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import logger from '../logger';
+import { isTapeReplaySource } from '../tapeReplaySource';
 
 const dataPath = app.getPath('userData');
 const filePath = path.join(dataPath, 'lapTraces.json');
@@ -182,6 +183,11 @@ const enqueueFlush = (): void => {
 };
 
 const scheduleWrite = (): void => {
+  // A tape's lap is somebody's old session. It stays in the cache for the
+  // run, so the widget draws it as it would live, and the file is left as it
+  // was. Nothing else is written while a tape plays either: one write would
+  // carry the tape's lap with it.
+  if (isTapeReplaySource()) return;
   if (writeTimer) {
     clearTimeout(writeTimer);
   }

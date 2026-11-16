@@ -3,6 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import type { FuelLapData } from '../../types';
 import logger from '../logger';
+import { isTapeReplaySource } from '../tapeReplaySource';
 import { createDebouncedAtomicWriter } from './debouncedAtomicWriter';
 import { reportStorageResult, storageErrorCode } from './storageStatus';
 
@@ -19,6 +20,13 @@ export class FuelDatabase {
   private filePath: string;
   private data: FuelStorageFormat;
   private contextOrder: Set<string>;
+  /**
+   * False while a tape plays. Its laps are somebody's old session: they are
+   * held here for the run, so the calculator works as it does live, and the
+   * file is left as it was. Nothing else is written either, since one write
+   * would carry the tape's laps with it.
+   */
+  private readonly keepsOnDisk = !isTapeReplaySource();
 
   // Ten laps per context, at most 500 track/car contexts.
   private writer: ReturnType<typeof createDebouncedAtomicWriter>;
@@ -90,7 +98,7 @@ export class FuelDatabase {
       );
     }
     this.data.contextOrder = [...this.contextOrder];
-    this.writer.schedule();
+    if (this.keepsOnDisk) this.writer.schedule();
   }
 
   /** Awaited by the before-quit coordinator; callers keep immediate cache reads. */

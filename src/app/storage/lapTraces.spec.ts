@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 const mockLoggerInfo = vi.hoisted(() => vi.fn());
 const mockLoggerWarn = vi.hoisted(() => vi.fn());
@@ -143,6 +143,41 @@ describe('lapTraces storage', () => {
     await flushLapTracesOnShutdown();
     expect(mockWriteFile).toHaveBeenCalledTimes(1);
   });
+
+  describe.each(['IRDASHIES_TELEMETRY_REPLAY', 'IRDASHIES_LMU_REPLAY'])(
+    'while a tape plays (%s)',
+    (tapeVariable) => {
+      beforeEach(() => {
+        vi.stubEnv(tapeVariable, 'session.tape');
+      });
+      afterEach(() => {
+        vi.unstubAllEnvs();
+      });
+
+      it('keeps the tape lap for the run and writes nothing', async () => {
+        const record = makeRecord();
+        await saveLapTrace(1, 'car1', 'best', record);
+        // Past the debounce, and through the shutdown flush.
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        await flushLapTracesOnShutdown();
+
+        // The widget still reads the lap back, as it does live.
+        expect(await getLapTrace(1, 'car1', 'best')).toBe(record);
+        expect(mockWriteFile).not.toHaveBeenCalled();
+      });
+
+      it("does not write a clear of the user's own lap either", async () => {
+        mockReadFile.mockResolvedValue(
+          JSON.stringify({ '1:car1:best': makeRecord() })
+        );
+        await clearLapTrace(1, 'car1', 'best');
+        await flushLapTracesOnShutdown();
+
+        expect(await getLapTrace(1, 'car1', 'best')).toBeNull();
+        expect(mockWriteFile).not.toHaveBeenCalled();
+      });
+    }
+  );
 
   it('writes the latest cache last when shutdown meets a write in flight', async () => {
     // A slow write, already running when the app quits.
