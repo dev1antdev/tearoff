@@ -103,6 +103,7 @@ describe('widget runtime metadata', () => {
         'session-bar.snapshot',
         'standings.snapshot',
         'track-state.snapshot',
+        'track-profile.snapshot',
       ],
       channelRates: { 'radio.snapshot': 25 },
     });
@@ -116,6 +117,7 @@ describe('widget runtime metadata', () => {
         'standings.snapshot',
         'track-state.snapshot',
         'flag-state.snapshot',
+        'track-profile.snapshot',
       ],
       channelRates: { 'radio.snapshot': 25 },
     });

@@ -168,6 +168,80 @@ describe.skipIf(!lmuTapeAvailable())(
       expect(worst).toBeLessThan(0.05);
     }, 90_000);
 
+    it("never shows the full tank the sim's fuel byte reads as a car crosses the line", async () => {
+      // As recorded. LMU's per-car fuel byte reads 255, a full tank, for
+      // the one scoring update in which a car completes a lap, and its own
+      // level again in the next. Nobody stops on the recording, so no car's
+      // budget ever really goes up.
+      const FULL = 255;
+      /** Per car: the frames its byte read full after a lower one. */
+      const blips = new Map<number, { frames: number; laps: Set<number> }>();
+      const lastByte: number[] = [];
+      const inBlip: boolean[] = [];
+      const shown: number[] = [];
+      /** A published figure higher than the one before it. */
+      let rises = 0;
+      /** Published as full on a frame of a blip. */
+      let shownFull = 0;
+      /** A frame outside a blip whose published figure is not the sim's. */
+      let altered = 0;
+      let virtual: boolean[] = [];
+      const frames = await playStandings(({ snapshot, recorded }) => {
+        const bytes = recorded.vehFuelFraction ?? [];
+        virtual = snapshot.carIdxEnergyIsVirtual;
+        for (let carIdx = 0; carIdx < CARS; carIdx += 1) {
+          const byte = bytes[carIdx];
+          const before = lastByte[carIdx];
+          lastByte[carIdx] = byte;
+          // Full after something lower, for as long as it stays full.
+          inBlip[carIdx] =
+            byte === FULL &&
+            ((before !== undefined && before < FULL) ||
+              inBlip[carIdx] === true);
+          const published = snapshot.carIdxEnergyRemaining[carIdx];
+          if (inBlip[carIdx]) {
+            const blip = blips.get(carIdx) ?? { frames: 0, laps: new Set() };
+            blip.frames += 1;
+            blip.laps.add(recorded.vehTotalLaps[carIdx]);
+            blips.set(carIdx, blip);
+            if (published >= 1) shownFull += 1;
+          } else if (!snapshot.carIdxEnergyIsVirtual[carIdx]) {
+            // A fuel car outside a blip: the byte over 255, untouched.
+            if (published !== byte / FULL) altered += 1;
+          }
+          if (shown[carIdx] !== undefined && published > shown[carIdx] + 1e-6) {
+            rises += 1;
+          }
+          shown[carIdx] = published;
+        }
+      });
+
+      expect(frames).toBeGreaterThan(15_000);
+      // What the recording holds: nine cars, once each, for one scoring
+      // update of a fifth of a second (12 or 13 recorded frames), on the
+      // frames after a lap count moved. Three of them are LMGT3s, whose
+      // figure is their virtual energy and never was the byte; the other
+      // six run on fuel, and it was their column that jumped to 100 %.
+      expect([...blips.keys()].sort((a, b) => a - b)).toEqual([
+        6, 10, 11, 12, 19, 21, 23, 28, 34,
+      ]);
+      expect(
+        [...blips.keys()]
+          .filter((carIdx) => !virtual[carIdx])
+          .sort((a, b) => a - b)
+      ).toEqual([6, 10, 11, 12, 28, 34]);
+      for (const [carIdx, blip] of blips) {
+        expect(blip.frames, `car ${carIdx}`).toBeGreaterThanOrEqual(12);
+        expect(blip.frames, `car ${carIdx}`).toBeLessThanOrEqual(13);
+        expect(blip.laps.size, `car ${carIdx}`).toBe(1);
+      }
+      // What the column shows of it: nothing. No figure reads full, none
+      // ever goes up, and every other frame's is the sim's own.
+      expect(shownFull).toBe(0);
+      expect(rises).toBe(0);
+      expect(altered).toBe(0);
+    }, 90_000);
+
     it('has every car out of its garage, in the world and unfinished', async () => {
       // What the class summary counts as "still running": 38 of 38.
       let inGarage = 0;

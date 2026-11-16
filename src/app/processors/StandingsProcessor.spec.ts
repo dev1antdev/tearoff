@@ -301,4 +301,116 @@ describe('StandingsProcessor', () => {
     processor.onLifecycle({ type: 'disconnect' });
     expect(processor.snapshot().carIdxEnergyIsVirtual).toEqual([]);
   });
+
+  describe("a full tank that is not one: LMU's fuel byte at the line", () => {
+    /** Car 0 is the one read; car 1 burns steadily beside it. */
+    const start = () => {
+      const processor = new StandingsProcessor();
+      processor.init(session);
+      const feed = (
+        sessionTime: number,
+        reading: number,
+        extra: Partial<Record<keyof Telemetry, unknown>> = {}
+      ) => {
+        processor.onFrame(
+          frame(sessionTime, {
+            LmuCarIdxEnergyRemaining: { value: [reading, 0.5] },
+            LmuCarIdxEnergyIsVirtual: { value: [false, true] },
+            ...extra,
+          })
+        );
+        return processor.snapshot().carIdxEnergyRemaining[0];
+      };
+      return { processor, feed };
+    };
+
+    it('never shows a leap to full that is gone by the next update', () => {
+      const { processor, feed } = start();
+
+      expect(feed(100, 0.3725)).toBe(0.3725);
+      // One scoring update at 255, read on two ticks of five a second.
+      expect(feed(100.2, 1)).toBe(0.3725);
+      expect(feed(100.4, 1)).toBe(0.3725);
+      // The car's own level again, a lap's worth lower.
+      expect(feed(100.6, 0.3686)).toBe(0.3686);
+      expect(feed(100.8, 0.3686)).toBe(0.3686);
+      // The car beside it was never touched.
+      expect(processor.snapshot().carIdxEnergyRemaining[1]).toBe(0.5);
+    });
+
+    it('shows a tank filled on pit road at once', () => {
+      const { feed } = start();
+      const onPitRoad = { CarIdxOnPitRoad: { value: [true, false] } };
+
+      feed(100, 0.2);
+      expect(feed(100.2, 0.6, onPitRoad)).toBe(0.6);
+      expect(feed(100.4, 1, onPitRoad)).toBe(1);
+      // And it is still full when the car is back on track.
+      expect(feed(130, 1)).toBe(1);
+      expect(feed(131, 0.99)).toBe(0.99);
+    });
+
+    it('shows one filled in the garage at once', () => {
+      const { feed } = start();
+
+      feed(100, 0.2);
+      expect(
+        feed(100.2, 1, { LmuCarIdxInGarage: { value: [true, false] } })
+      ).toBe(1);
+    });
+
+    it('shows one that stays full out on the track, a second late', () => {
+      const { feed } = start();
+
+      feed(100, 0.2);
+      // A car refuelled where the sim does not call it pit road: standing
+      // still, full from here on.
+      expect(feed(100.2, 1)).toBe(0.2);
+      expect(feed(100.8, 1)).toBe(0.2);
+      expect(feed(101.2, 1)).toBe(1);
+      expect(feed(101.4, 1)).toBe(1);
+    });
+
+    it('lets any other rise through as it comes', () => {
+      const { feed } = start();
+
+      feed(100, 0.2);
+      // Not full: not the artefact, whatever it is.
+      expect(feed(100.2, 0.9)).toBe(0.9);
+      expect(feed(100.4, 0.21)).toBe(0.21);
+    });
+
+    it('takes a first reading of full as it is, and one after none', () => {
+      const { feed } = start();
+
+      // The grid, tanks brimmed: nothing before it to have leapt from.
+      expect(feed(100, 1)).toBe(1);
+      expect(feed(100.2, 1)).toBe(1);
+
+      const later = start();
+      // No reading, as for a car with no telemetry yet, and then one.
+      expect(later.feed(100, -1)).toBe(-1);
+      expect(later.feed(100.2, 1)).toBe(1);
+    });
+
+    it('holds each leap for its own second, and starts over with the session', () => {
+      const { processor, feed } = start();
+
+      feed(100, 0.4);
+      expect(feed(100.2, 1)).toBe(0.4);
+      expect(feed(100.4, 0.39)).toBe(0.39);
+      // A lap on, the same again: held as the first was.
+      expect(feed(190.2, 1)).toBe(0.39);
+      expect(feed(190.4, 0.38)).toBe(0.38);
+
+      // A new session has no figure before its first.
+      processor.onFrame(
+        frame(5, {
+          SessionNum: { value: [3] },
+          LmuCarIdxEnergyRemaining: { value: [1, 0.5] },
+        })
+      );
+      expect(processor.snapshot().carIdxEnergyRemaining[0]).toBe(1);
+    });
+  });
 });

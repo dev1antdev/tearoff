@@ -4,6 +4,7 @@ import type {
   TrackNoteKind,
   TrackProfileSummary,
   TrackSectorSource,
+  TrackSunTimes,
 } from './trackProfile';
 
 /**
@@ -83,6 +84,13 @@ export interface TrackProfileBridge {
    * again. Resolves true when there was one to forget.
    */
   clearElevation: (trackKey: string) => Promise<boolean>;
+  /**
+   * Sets when the sun rises and sets at a track, or clears either: whole
+   * minutes since midnight, 0 to 1439, or null. Resolves true when that
+   * changed what is kept; false for a track that is neither stored nor the
+   * running session's.
+   */
+  saveSunTimes: (trackKey: string, times: TrackSunTimes) => Promise<boolean>;
   /** Fires when any track's profile changes: a lap recorded, a note edited. */
   onChanged: (callback: () => void) => () => void;
 }

@@ -4,6 +4,8 @@ import {
   formatTrackClock,
   nextSunPhase,
   sunPhaseTimes,
+  sunTimeFieldMinutes,
+  sunTimeFieldValue,
   timeScaleLabel,
 } from './trackClock';
 
@@ -181,6 +183,36 @@ describe('nextSunPhase', () => {
       nextSunPhase({ ...track, timeOfDay: undefined, timeScale: 1 })
     ).toBeNull();
   });
+});
+
+describe('a sunrise or a sunset in a time field', () => {
+  it.each([
+    [0, '00:00'],
+    [6 * 60 + 12, '06:12'],
+    [20 * 60, '20:00'],
+    [1439, '23:59'],
+  ])('writes %s minutes as %s and reads it back', (minutes, text) => {
+    expect(sunTimeFieldValue(minutes)).toBe(text);
+    expect(sunTimeFieldMinutes(text)).toBe(minutes);
+  });
+
+  it.each([[undefined], [null], [-1], [1440], [6.5], [Number.NaN]])(
+    'leaves the field empty for %s',
+    (minutes) => {
+      expect(sunTimeFieldValue(minutes)).toBe('');
+    }
+  );
+
+  it('reads a field with seconds in it to the minute', () => {
+    expect(sunTimeFieldMinutes('06:12:30')).toBe(6 * 60 + 12);
+  });
+
+  it.each([[''], ['6'], ['06:'], ['24:00'], ['12:60'], ['noon']])(
+    'reads %j as no time',
+    (text) => {
+      expect(sunTimeFieldMinutes(text)).toBeNull();
+    }
+  );
 });
 
 describe('formatSunCountdown', () => {

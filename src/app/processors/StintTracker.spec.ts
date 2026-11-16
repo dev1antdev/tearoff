@@ -255,6 +255,51 @@ describe('StintTracker', () => {
     expect(opened[1]).toMatchObject({ openedBy: 'joined', driver: 'B' });
   });
 
+  describe('a session clock that goes back', () => {
+    it('ends the stint with the levels of the frame before, and opens the next', () => {
+      const { tracker, frame, run, feed, closed, opened } = setup();
+      run(10);
+      tracker.noteCrossing();
+      feed({}, 55);
+      // The session starts again under the same number: its clock near
+      // zero, the tank full.
+      frame.sessionTime = 0;
+      feed({}, 60);
+      run(3);
+
+      expect(closed).toHaveLength(1);
+      expect(closed[0]).toMatchObject({
+        closedBy: 'session',
+        startTime: 0.5,
+        endTime: 5.5,
+        startFuel: 60,
+        endFuel: 55,
+        laps: 1,
+      });
+      expect(opened[1]).toMatchObject({
+        openedBy: 'joined',
+        startTime: 0.5,
+        startFuel: 60,
+      });
+      expect(tracker.state()).toBe('running');
+    });
+
+    it('takes a step back of two seconds or less for the same session', () => {
+      const { tracker, frame, run, feed, closed, opened } = setup();
+      run(8);
+      tracker.noteCrossing();
+      // One clock source trailing another: back 2 s, less the half second
+      // the next frame moves on.
+      frame.sessionTime -= 2;
+      feed({}, 58);
+      run(3);
+
+      expect(closed).toHaveLength(0);
+      expect(opened).toHaveLength(1);
+      expect(tracker.state()).toBe('running');
+    });
+  });
+
   it('works out the pace of a stint from its clean laps', () => {
     const { tracker, feed } = setup();
     feed();

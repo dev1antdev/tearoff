@@ -1,8 +1,14 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { DashboardProvider, useDashboard } from '@irdashies/context';
-import { createMockBridgeWithConfig } from '@irdashies/storybook';
+import {
+  ChannelSnapshotDecorator,
+  createMockBridgeWithConfig,
+  trackProfileStorySnapshot,
+} from '@irdashies/storybook';
+import type { TrackProfileSnapshot } from '@irdashies/types';
 import { InformationBarSettings } from './InformationBarSettings';
+import { createMockTrackProfileBridge } from './TrackNotes/mockTrackProfileBridge';
 
 const meta = {
   title: 'components/Settings/InformationBarSettings',
@@ -68,3 +74,71 @@ export const LapsAndPosition: Story = {
     },
   ],
 };
+
+/** The in-game clock first in the list, so its options are on one screen. */
+const clockPage = (
+  clock: Record<string, unknown>,
+  profile?: TrackProfileSnapshot
+): Story => {
+  const bridge = createMockBridgeWithConfig({
+    infobar: {
+      sessionClockTime: { enabled: true, format: '24h', ...clock },
+      displayOrder: [
+        'sessionClockTime',
+        'sessionName',
+        'sessionTime',
+        'incidentCount',
+        'localTime',
+      ],
+    },
+  });
+  const profiles = createMockTrackProfileBridge();
+  return {
+    decorators: [
+      (Story) => {
+        localStorage.setItem('infobarTab', 'display');
+        // What the page talks to in the app, for as long as the story is up.
+        useEffect(() => {
+          const previous = window.trackProfileBridge;
+          window.trackProfileBridge = profiles;
+          return () => {
+            window.trackProfileBridge = previous;
+          };
+        }, []);
+        return (
+          <DashboardProvider bridge={bridge}>
+            <div className="h-[760px] w-[880px] bg-slate-900 p-6 text-white">
+              <OnceTheDashboardIsLoaded>
+                <Story />
+              </OnceTheDashboardIsLoaded>
+            </div>
+          </DashboardProvider>
+        );
+      },
+      ChannelSnapshotDecorator(
+        profile ? { 'track-profile.snapshot': profile } : {}
+      ),
+    ],
+  };
+};
+
+/** The clock's options as they come: its format and the time scale. */
+export const ClockOptions: Story = clockPage({});
+
+/**
+ * The countdown to the next of sunrise, midday, sunset and midnight switched
+ * on, with the two times entered for the track of the running session.
+ */
+export const ClockSunCountdown: Story = clockPage(
+  { sunPhase: true },
+  { ...trackProfileStorySnapshot, sunriseMinutes: 372, sunsetMinutes: 1231 }
+);
+
+/** The same for a track that has no times yet. */
+export const ClockSunCountdownNoTimes: Story = clockPage(
+  { sunPhase: true, sunPhaseInGameTime: true },
+  trackProfileStorySnapshot
+);
+
+/** The same with no session running: no track to keep the times for. */
+export const ClockSunCountdownNoSession: Story = clockPage({ sunPhase: true });

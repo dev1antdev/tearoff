@@ -47,6 +47,15 @@ const copyBooleanArray = (
   }
 };
 
+/** A budget reading of a whole tank, or a whole allowance of energy. */
+const ENERGY_FULL = 1;
+/**
+ * How long a leap to full has to stand, on a car out on the track, before
+ * it is believed. The sim's false one lasts a scoring update, a fifth of a
+ * second; the per-car pit tracker waits the same second for the same reason.
+ */
+const ENERGY_LEAP_SECONDS = 1;
+
 export class StandingsProcessor implements TelemetryProcessor<StandingsSnapshot> {
   readonly channel = 'standings.snapshot';
   readonly tickRateHz = 5;
@@ -77,6 +86,10 @@ export class StandingsProcessor implements TelemetryProcessor<StandingsSnapshot>
   private p1LapAtCheckered: number | null = null;
   private sortLaps: unknown[] = [];
   private sortSessionState = 0;
+  /** What each car's budget was last published as; see `settleEnergy`. */
+  private readonly energyShown: number[] = [];
+  /** Session time a car's reading leapt to full out on track; NaN with none. */
+  private readonly energyLeapAt: number[] = [];
   private readonly raceFinish = new RaceFinishTracker();
   private latest: StandingsSnapshot = this.emptySnapshot();
 
@@ -217,6 +230,7 @@ export class StandingsProcessor implements TelemetryProcessor<StandingsSnapshot>
     // stop at the box. For the count of cars still running in each class.
     // iRacing has no such flag; a car in the garage is not in the world.
     copyBooleanArray(frame, 'LmuCarIdxInGarage', this.latest.carIdxInGarage);
+    this.settleEnergy(sessionTime);
     // LMU only: the stops the sim has counted for each car, and where it is
     // in one (1 is a stop asked for, which a rival's row shows before the
     // car turns in). -1 in both for an empty slot. iRacing has neither.
@@ -283,11 +297,59 @@ export class StandingsProcessor implements TelemetryProcessor<StandingsSnapshot>
     return this.latest;
   }
 
+  /**
+   * Keeps a full tank that is not one out of the budget column.
+   *
+   * Le Mans Ultimate's per-car fuel byte reads 255, a full tank, for the one
+   * scoring update in which a car crosses the line, and the car's own level
+   * again in the next: on the recorded race six fuel cars did, once each,
+   * for a fifth of a second, and their figure jumped to 100 % and back.
+   *
+   * So a reading that leaps to full from less, on a car out on the track, is
+   * not published until it has stood for a second; the figure before it is.
+   * One that comes back was never shown. A tank that really was filled is
+   * shown at once where tanks are filled, on pit road or in the garage, and
+   * anywhere else a second late.
+   */
+  private settleEnergy(sessionTime: number): void {
+    const energy = this.latest.carIdxEnergyRemaining;
+    const shown = this.energyShown;
+    const leapAt = this.energyLeapAt;
+    for (let carIdx = 0; carIdx < energy.length; carIdx += 1) {
+      const reading = energy[carIdx];
+      const before = shown[carIdx];
+      if (
+        reading >= ENERGY_FULL &&
+        before !== undefined &&
+        before >= 0 &&
+        before < ENERGY_FULL &&
+        !this.latest.carIdxOnPitRoad[carIdx] &&
+        !this.latest.carIdxInGarage[carIdx]
+      ) {
+        const since = leapAt[carIdx];
+        if (since === undefined || Number.isNaN(since)) {
+          leapAt[carIdx] = sessionTime;
+        }
+        const stoodFor = sessionTime - leapAt[carIdx];
+        if (stoodFor >= 0 && stoodFor < ENERGY_LEAP_SECONDS) {
+          energy[carIdx] = before;
+          continue;
+        }
+      }
+      leapAt[carIdx] = Number.NaN;
+      shown[carIdx] = reading;
+    }
+    shown.length = energy.length;
+    leapAt.length = energy.length;
+  }
+
   private reset(sessionNum: number | null): void {
     this.raceFinish.reset();
     delete this.latest.finalRaceTiming;
     const version = this.latest.version + 1;
     this.lastUpdateTime = null;
+    this.energyShown.length = 0;
+    this.energyLeapAt.length = 0;
     this.actualTrackSurface.length = 0;
     this.activeClassIds.length = 0;
     this.classBuffers.forEach((buffer) => {

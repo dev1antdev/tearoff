@@ -38,6 +38,12 @@ const MAX_PASSES = 10;
  * longer, and somebody else has the car or it is back in its garage.
  */
 const CAR_GONE_SECONDS = 3;
+/**
+ * How far the session clock may step back and still be the same session.
+ * Further than this it has started again: the figure Le Mans Ultimate's
+ * session identity and its clock tell the two apart by.
+ */
+const SESSION_REWIND_SECONDS = 2;
 
 /** One frame as the tracker reads it. Reused by its owner. */
 export interface StintFrame {
@@ -131,6 +137,8 @@ export class StintTracker {
   private ordinal = 0;
   private ordinalToken = '';
   private sessionNum: number | null = null;
+  /** The session clock on the last frame taken; null before one. */
+  private frameTime: number | null = null;
 
   /** Nothing with a car in it has been seen since the last reset. */
   private first = true;
@@ -211,6 +219,7 @@ export class StintTracker {
     this.stateNow = 'idle';
     this.open = null;
     this.sessionNum = null;
+    this.frameTime = null;
     this.first = true;
     this.heldForGreen = false;
     this.driver = null;
@@ -263,10 +272,23 @@ export class StintTracker {
   /** Takes one frame. Call after the meter has taken it. */
   update(frame: StintFrame): void {
     if (frame.frozen) return;
-    if (this.sessionNum !== null && frame.sessionNum !== this.sessionNum) {
+    // A session that starts again says so first by its clock: its number
+    // may be the same one, and the session that names it another is
+    // published a moment after its frames have begun. Ended here, the stint
+    // keeps the levels of the last frame of the session it was driven in;
+    // ended when the news came, it had taken the next session's start for
+    // its own end, and read as no time driven and nothing used.
+    const startedAgain =
+      this.frameTime !== null &&
+      frame.sessionTime < this.frameTime - SESSION_REWIND_SECONDS;
+    if (
+      startedAgain ||
+      (this.sessionNum !== null && frame.sessionNum !== this.sessionNum)
+    ) {
       this.end('session');
     }
     this.sessionNum = frame.sessionNum;
+    this.frameTime = frame.sessionTime;
 
     if (!frame.hasCar) {
       this.withoutCar(frame);

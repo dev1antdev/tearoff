@@ -194,5 +194,98 @@ describe.skipIf(!lmuTapeAvailable())(
       expect(stored?.bests.bestSectorTimes[2]).toBeCloseTo(18.851, 2);
       expect(stored?.bests.bestLapSectorTimes).toEqual(bestLap);
     }, 90_000);
+
+    it('leaves nothing of the lap before in a lap the sim did not time (staged)', async () => {
+      // STAGED: the recording has no lap the sim refused to time, so the
+      // flying lap is made one. From the scoring update that publishes its
+      // 86.660 s, the player's last lap time reads -1 instead, as it does
+      // for a lap that did not count. Everything else is as recorded: the
+      // sim's sector index, its first two sector times, the car.
+      const processor = new SectorTimingProcessor();
+      processor.onLifecycle({ type: 'enter', replay: false });
+      /** The snapshot in the frame each lap ended, and the sim's own S3. */
+      const atLine: {
+        previous: (number | null)[];
+        cleanPrevious: (number | null)[];
+        finished: (number | null)[];
+        current: (number | null)[];
+        entryValid: boolean;
+        simSector3: number;
+      }[] = [];
+      let lastSectorIdx = -1;
+      let withheld = 0;
+      await playLmuTape({
+        tapePath: LMU_CURATED_TAPE_PATH,
+        transformRaw: (raw) => {
+          const player = raw.playerVehicleIdx;
+          const lapTime = raw.vehLastLapTime[player];
+          if (!(lapTime > 86 && lapTime < 87)) return raw;
+          withheld += 1;
+          return {
+            ...raw,
+            vehLastLapTime: Float64Array.from(
+              raw.vehLastLapTime,
+              (time, carIdx) => (carIdx === player ? -1 : time)
+            ),
+          };
+        },
+        onFrame: ({ raw, telemetry, session, sessionChanged }) => {
+          if (sessionChanged) processor.init(session);
+          processor.onFrame(telemetry);
+          const snapshot = processor.snapshot();
+          if (snapshot.currentSectorIdx === 0 && lastSectorIdx === 2) {
+            const player = raw.playerVehicleIdx;
+            atLine.push({
+              previous: [...snapshot.inclusive.previousLapSectorTimes],
+              cleanPrevious: [...snapshot.clean.previousLapSectorTimes],
+              finished: [...snapshot.inclusive.finishedLapSectorTimes],
+              current: [...snapshot.inclusive.currentLapSectorTimes],
+              entryValid: snapshot.sectorEntryValid,
+              simSector3:
+                raw.vehLastLapTime[player] - raw.vehLastSector2[player],
+            });
+          }
+          lastSectorIdx = snapshot.currentSectorIdx;
+        },
+      });
+
+      expect(withheld).toBeGreaterThan(3_000);
+      expect(atLine).toHaveLength(2);
+      const [fromGrid, untimed] = atLine;
+
+      // The lap from the grid is timed as recorded: its third sector is the
+      // sim's own, 19.007 s of the 97.823 s it gave the lap.
+      expect(fromGrid.previous[0]).toBeNull();
+      expect(fromGrid.previous[1]).not.toBeNull();
+      expect(fromGrid.previous[2]).toBeCloseTo(fromGrid.simSector3, 3);
+      expect(fromGrid.previous[2]).toBeCloseTo(19.007, 2);
+
+      // The lap after it has its first two sectors and, with no lap time,
+      // no third. What is published as the previous lap is that lap: the
+      // third sector of the lap from the grid is not left standing in it,
+      // where the panel would hold it up for five seconds as just driven.
+      expect(untimed.finished[0]).toBeCloseTo(32.739, 2);
+      expect(untimed.finished[1]).toBeCloseTo(35.07, 2);
+      expect(untimed.finished[2]).toBeNull();
+      expect(untimed.previous).toEqual(untimed.finished);
+      expect(untimed.cleanPrevious).toEqual(untimed.finished);
+      // The frame the panel's hold begins in: over the line, in the first
+      // sector, this lap's list cleared.
+      expect(untimed.entryValid).toBe(true);
+      expect(untimed.current).toEqual([null, null, null]);
+
+      // And it stays so through the third lap's first sector, the last
+      // thing on the tape: a fresh S1, the untimed lap's S2, no S3.
+      const final = processor.snapshot();
+      expect(final.currentSectorIdx).toBe(1);
+      expect(final.inclusive.previousLapSectorTimes[0]).toBeCloseTo(32.461, 2);
+      expect(final.inclusive.previousLapSectorTimes[1]).toBeCloseTo(35.07, 2);
+      expect(final.inclusive.previousLapSectorTimes[2]).toBeNull();
+      // The session's best third sector is still the one that was timed.
+      expect(final.inclusive.sessionBestSectorTimes[2]).toBeCloseTo(
+        fromGrid.simSector3,
+        3
+      );
+    }, 90_000);
   }
 );

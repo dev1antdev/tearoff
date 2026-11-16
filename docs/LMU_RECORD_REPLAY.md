@@ -144,6 +144,20 @@ await playLmuTape({
 });
 ```
 
+Every recorded snapshot reaches the callback, in order, on every run and
+however busy the machine is: the curated tape is always the same 15,429
+frames. The addon itself plays against the wall clock, so the player takes
+every read it makes as a frame, the one a session is rebuilt from included,
+and asks for the tape at the addon's fastest pace. The one snapshot it cannot
+hand over is the first, which the addon's own `start()` takes. Use it rather
+than a loop of your own on the addon: a `readSession()` beside a `read()`
+takes a snapshot the loop then never sees.
+
+A replay costs about ten seconds of one core, most of it the addon copying
+the 325 KB snapshot for each frame, and that does not get faster with more
+of them running: `vitest.config.mts` caps the node project at eight spec
+files at once for that reason.
+
 `transformRaw` changes each raw snapshot before it is mapped, for the
 questions a recording cannot answer as it stands: the same cars as a practice
 session rather than a race, or a class put two laps behind the leader

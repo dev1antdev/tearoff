@@ -9,6 +9,9 @@ export default {
     // The focus car's place, for the position items; subscribed to only
     // while one of them is on the bar.
     'standings.snapshot',
+    // The track's sunrise and sunset, for the in-game clock's countdown;
+    // subscribed to only while that is switched on.
+    'track-profile.snapshot',
   ],
   ratePreset: 'gapTiming',
 } satisfies WidgetRuntimeDefinition;

@@ -4,6 +4,13 @@ import { SessionBarItemsList } from './SessionBarItemsList';
 import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 
+// The fields for a track's sunrise and sunset read the track's profile off a
+// channel and have a spec of their own; here it is enough that they are put
+// where they belong.
+vi.mock('./TrackSunTimes', () => ({
+  TrackSunTimesFields: () => <div data-testid="track-sun-times" />,
+}));
+
 describe('session bar secondary options', () => {
   it('moves only rendered rows and preserves unconfigured IDs in their saved slots', async () => {
     const user = userEvent.setup();
@@ -277,5 +284,73 @@ describe('session bar secondary options', () => {
       />
     );
     expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+  });
+
+  it('offers the in-game clock a countdown to the sun, off until asked for', () => {
+    const update = vi.fn();
+    const { rerender } = render(
+      <SessionBarItemsList
+        items={['sessionClockTime']}
+        onReorder={vi.fn()}
+        getItemConfig={() => ({ enabled: true })}
+        updateItemConfig={update}
+      />
+    );
+    const countdown = screen.getByRole('switch', {
+      name: 'Session Clock Time sun countdown',
+    });
+    expect(countdown).toHaveAttribute('aria-checked', 'false');
+    // What belongs to the countdown is not there until it is on.
+    expect(
+      screen.queryByRole('switch', {
+        name: 'Session Clock Time sun countdown in in-game time',
+      })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId('track-sun-times')).not.toBeInTheDocument();
+
+    fireEvent.click(countdown);
+    expect(update).toHaveBeenLastCalledWith('sessionClockTime', {
+      sunPhase: true,
+    });
+
+    rerender(
+      <SessionBarItemsList
+        items={['sessionClockTime']}
+        onReorder={vi.fn()}
+        getItemConfig={() => ({ enabled: true, sunPhase: true })}
+        updateItemConfig={update}
+      />
+    );
+    expect(
+      screen.getByRole('switch', { name: 'Session Clock Time sun countdown' })
+    ).toHaveAttribute('aria-checked', 'true');
+    // The track's sunrise and sunset, which the countdown is worked out from.
+    expect(screen.getByTestId('track-sun-times')).toBeInTheDocument();
+    const inGameTime = screen.getByRole('switch', {
+      name: 'Session Clock Time sun countdown in in-game time',
+    });
+    expect(inGameTime).toHaveAttribute('aria-checked', 'false');
+    fireEvent.click(inGameTime);
+    expect(update).toHaveBeenLastCalledWith('sessionClockTime', {
+      sunPhaseInGameTime: true,
+    });
+
+    rerender(
+      <SessionBarItemsList
+        items={['sessionClockTime']}
+        onReorder={vi.fn()}
+        getItemConfig={() => ({
+          enabled: true,
+          sunPhase: true,
+          sunPhaseInGameTime: true,
+        })}
+        updateItemConfig={update}
+      />
+    );
+    expect(
+      screen.getByRole('switch', {
+        name: 'Session Clock Time sun countdown in in-game time',
+      })
+    ).toHaveAttribute('aria-checked', 'true');
   });
 });

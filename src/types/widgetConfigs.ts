@@ -89,13 +89,21 @@ export interface SessionBarConfig {
   incidentCount: { enabled: boolean };
   brakeBias: { enabled: boolean };
   localTime: { enabled: boolean };
-  /** The in-game clock. Both options are optional: unset is the default. */
+  /** The in-game clock. Every option is optional: unset is the default. */
   sessionClockTime: {
     enabled: boolean;
     /** 'locale' follows the system's own clock format. */
     format?: TrackClockFormat;
     /** When to show how fast the in-game day runs, as "x2". */
     timeScale?: TrackClockTimeScaleDisplay;
+    /**
+     * Counts down to the next of sunrise, midday, sunset and midnight, from
+     * the sunrise and sunset kept for the track. Off unless set; and nothing
+     * is drawn for a track that has neither.
+     */
+    sunPhase?: boolean;
+    /** Counts that in in-game time instead of real time. */
+    sunPhaseInGameTime?: boolean;
   };
   trackWetness: { enabled: boolean };
   precipitation?: { enabled: boolean };

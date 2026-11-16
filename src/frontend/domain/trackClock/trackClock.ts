@@ -161,3 +161,34 @@ export const formatSunCountdown = (seconds: number): string => {
   const rest = String(whole % 60).padStart(2, '0');
   return `${hours}:${minutes}:${rest}`;
 };
+
+/**
+ * A track's sunrise or sunset, minutes since midnight, as the "06:12" a time
+ * field holds; empty for one that is not set.
+ */
+export const sunTimeFieldValue = (
+  minutes: number | null | undefined
+): string => {
+  if (
+    typeof minutes !== 'number' ||
+    !Number.isInteger(minutes) ||
+    minutes < 0 ||
+    minutes >= MINUTES_PER_DAY
+  ) {
+    return '';
+  }
+  const hours = String(Math.floor(minutes / 60)).padStart(2, '0');
+  return `${hours}:${String(minutes % 60).padStart(2, '0')}`;
+};
+
+/**
+ * What a time field holds as minutes since midnight; null for an empty one,
+ * one still being typed, or anything that is not a time of day.
+ */
+export const sunTimeFieldMinutes = (value: string): number | null => {
+  const match = /^(\d{1,2}):(\d{2})(?::\d{2}(?:\.\d+)?)?$/.exec(value.trim());
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  return hours < 24 && minutes < 60 ? hours * 60 + minutes : null;
+};

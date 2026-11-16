@@ -350,6 +350,7 @@ Displays standings information for the current session.
   - Session name, session time (remaining/elapsed), session clock time, incident count
   - Enhanced incident display showing your count against the initial and subsequent incident limits (e.g. "3 / 8 / 12 x")
   - Session clock time: the in-game time of day in the system's, the 24-hour or the 12-hour format, with how fast the in-game day runs beside it ("x2") when that is not real time. The speed is measured from the sim's two clocks, so it appears about five seconds into a session
+  - Optional countdown beside the clock to the next of sunrise, midday, sunset and midnight ("4:47:40"), in real time or in in-game time. Neither sim says when the sun rises and sets, so you enter the two times for a track once, in the item's own settings while a session at that track is running; they are kept with the track, and there is no countdown for a track that has none
   - Brake bias, local time, track wetness, precipitation, humidity, wind speed/direction
   - Air and track temperature (Metric/Imperial units)
   - Track name
@@ -1111,6 +1112,7 @@ A standalone widget that displays session and timing information independently f
 - Optional overall position, places gained since the grid, and laps done against your projected distance at the flag
 - Weather items including humidity, precipitation, wind, and air/track temperature
 - In-game clock in the system's, the 24-hour or the 12-hour format, with how fast the in-game day runs beside it ("x2") when that is not real time
+- Optional countdown beside the clock to the next of sunrise, midday, sunset and midnight, from the sunrise and sunset you enter for the track
 - Fully configurable: reorder items and toggle each one on or off
 - Adjustable background opacity
 - Session visibility settings (Race, Lone Qualify, Open Qualify, Practice, Offline Testing)

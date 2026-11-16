@@ -229,6 +229,29 @@ describe('Sector Delta against a best lap', () => {
     });
     expect(accent(container, 'S1')).toContain('border-slate-700');
   });
+
+  it('shows dashes for a sector the lap before has no time for', () => {
+    // A lap the sim did not time leaves no third sector behind, and the
+    // card does not show the one from the lap before that in its place.
+    const { container } = render(
+      <SectorDeltaDisplay
+        {...config}
+        ghostComparison="session-best-lap"
+        data={{
+          ...data,
+          sectorColors: ['green', 'red', 'default'],
+          previousLapSectorTimes: [41, 40, null],
+        }}
+      />
+    );
+
+    expect(cards(container)).toEqual({
+      S1: '-0.500',
+      S2: '-0.800',
+      S3: '--',
+    });
+    expect(accent(container, 'S3')).toContain('border-slate-700');
+  });
 });
 
 describe('Sector Delta against the all-time bests', () => {

@@ -12,6 +12,9 @@ export default {
     'session-bar.snapshot',
     'standings.snapshot',
     'track-state.snapshot',
+    // The track's sunrise and sunset, for the in-game clock's countdown in
+    // the header and footer bars; subscribed to only while that is on.
+    'track-profile.snapshot',
   ],
   ratePreset: 'gapTiming',
   channelRates: { 'radio.snapshot': 25 },

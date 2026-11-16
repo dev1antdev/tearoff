@@ -6,6 +6,7 @@ import type {
   TrackProfile,
   TrackProfileDetails,
   TrackProfileKey,
+  TrackSunTimes,
 } from '../../types';
 import {
   TRACK_NOTE_COMMENT_LENGTH,
@@ -14,13 +15,15 @@ import {
   TRACK_NOTE_TEXT_LENGTH,
   parseTrackProfileKey,
   trackProfileKeyOf,
+  trackSunMinutesOf,
 } from '../../types';
 import type { TrackProfileStore } from '../storage/trackProfiles';
 import { defineRendererSubscriptionBridge } from './defineBridge';
 
 /**
  * What the settings window may ask of the track profiles, over IPC: the
- * notes editor, and the elevation widget's "record again".
+ * notes editor, the elevation widget's "record again", and the sunrise and
+ * sunset the in-game clock counts down to.
  *
  * Nothing a renderer sends is taken as it comes. A track is named by its
  * key and by nothing else: the name, the length and the bucket count the
@@ -37,6 +40,7 @@ const CHANNELS = [
   'trackProfile:importNotes',
   'trackProfile:exportNotes',
   'trackProfile:clearElevation',
+  'trackProfile:saveSunTimes',
 ] as const;
 
 const MAX_ID_LENGTH = 64;
@@ -102,6 +106,30 @@ const notesOrThrow = (
   });
 };
 
+/**
+ * A sunrise or a sunset a renderer sent: a whole minute of the day, or null
+ * to clear it. Anything else is refused, not rounded or clamped into one.
+ */
+const sunMinutesOrThrow = (value: unknown): number | null => {
+  if (value === null) return null;
+  const minutes = trackSunMinutesOf(value);
+  if (minutes === null) {
+    throw new TypeError('Invalid time for trackProfile:saveSunTimes');
+  }
+  return minutes;
+};
+
+/** Rebuilt from the two fields there are, whatever else was sent along. */
+const sunTimesOrThrow = (value: unknown): TrackSunTimes => {
+  if (!isObject(value)) {
+    throw new TypeError('Invalid times for trackProfile:saveSunTimes');
+  }
+  return {
+    sunriseMinutes: sunMinutesOrThrow(value.sunriseMinutes),
+    sunsetMinutes: sunMinutesOrThrow(value.sunsetMinutes),
+  };
+};
+
 const detailsOf = (profile: TrackProfile): TrackProfileDetails => ({
   trackKey: trackProfileKeyOf(profile.simulator, profile.trackId),
   simulator: profile.simulator,
@@ -137,6 +165,7 @@ export interface TrackProfileBridgeOptions {
     | 'importNotes'
     | 'exportNotes'
     | 'clearElevation'
+    | 'saveSunTimes'
     | 'onChanged'
   >;
   /**
@@ -245,6 +274,16 @@ export function setupTrackProfileBridge({
     const track = trackOrThrow(trackKey, 'trackProfile:clearElevation');
     return store.clearElevation(track.simulator, track.trackId);
   });
+
+  ipcMain.handle(
+    'trackProfile:saveSunTimes',
+    async (_event, trackKey: unknown, times: unknown) => {
+      const track = trackOrThrow(trackKey, 'trackProfile:saveSunTimes');
+      const checked = sunTimesOrThrow(times);
+      const key = await keyFor(track);
+      return key ? store.saveSunTimes(key, checked) : false;
+    }
+  );
 
   const unsubscribe = store.onChanged(() => {
     for (const window of BrowserWindow.getAllWindows()) {

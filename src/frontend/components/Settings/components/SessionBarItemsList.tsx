@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { DotsSixVerticalIcon } from '@phosphor-icons/react';
 import { ToggleSwitch } from './ToggleSwitch';
 import { ReorderControls } from './ReorderControls';
+import { TrackSunTimesFields } from './TrackSunTimes';
 import { useSortableList } from '../../SortableList';
 import { SESSION_BAR_ITEM_LABELS } from '../sessionBarConstants';
 import type {
@@ -27,6 +28,10 @@ export interface SessionBarItemConfig {
   format?: TrackClockFormat | 'lap' | 'progress';
   /** The in-game clock: when the day's speed is shown beside it. */
   timeScale?: TrackClockTimeScaleDisplay;
+  /** The in-game clock: the countdown to the next sunrise, sunset and so on. */
+  sunPhase?: boolean;
+  /** That countdown in in-game time instead of real time. */
+  sunPhaseInGameTime?: boolean;
   /** Session laps, progress format: the "+1" / "-1" at the flag. */
   showExtraLaps?: boolean;
   /** Position change: which grid it is measured on. */
@@ -300,6 +305,33 @@ export const SessionBarItemsList = ({
                   from the sim&apos;s two clocks, so it appears a few seconds
                   into a session.
                 </p>
+                <div className="col-span-full flex items-center justify-between gap-3">
+                  <span className="text-sm text-slate-300">
+                    Count down to sunrise, midday, sunset and midnight
+                  </span>
+                  <ToggleSwitch
+                    ariaLabel={`${SESSION_BAR_ITEM_LABELS[item.id]} sun countdown`}
+                    enabled={itemConfig.sunPhase ?? false}
+                    onToggle={(v) => updateItemConfig(item.id, { sunPhase: v })}
+                  />
+                </div>
+                {itemConfig.sunPhase && (
+                  <>
+                    <div className="col-span-full flex items-center justify-between gap-3">
+                      <span className="text-sm text-slate-300">
+                        Count in in-game time instead of real time
+                      </span>
+                      <ToggleSwitch
+                        ariaLabel={`${SESSION_BAR_ITEM_LABELS[item.id]} sun countdown in in-game time`}
+                        enabled={itemConfig.sunPhaseInGameTime ?? false}
+                        onToggle={(v) =>
+                          updateItemConfig(item.id, { sunPhaseInGameTime: v })
+                        }
+                      />
+                    </div>
+                    <TrackSunTimesFields />
+                  </>
+                )}
               </div>
             )}
 

@@ -36,6 +36,13 @@ export interface TrackProfileSnapshot {
   sectorStartPct: readonly number[];
   /** Every note of the track, sorted by distanceM. */
   notes: readonly TrackNote[];
+  /**
+   * When the sun rises and sets at the track, minutes since midnight on the
+   * in-game clock, as the driver entered them. Each is absent until it has
+   * been set: there is no default.
+   */
+  sunriseMinutes?: number;
+  sunsetMinutes?: number;
   sessionNum: number | null;
   version: number;
 }

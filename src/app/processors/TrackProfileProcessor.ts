@@ -207,6 +207,9 @@ export class TrackProfileProcessor implements TelemetryProcessor<
       this.trackId === null ? null : `${this.simulator}:${this.trackId}`;
     latest.trackLengthM = this.trackLengthM;
     latest.notes = profile?.notes ?? [];
+    // As the driver entered them; absent where they did not.
+    latest.sunriseMinutes = profile?.sunriseMinutes;
+    latest.sunsetMinutes = profile?.sunsetMinutes;
     latest.sectorStartPct =
       profile &&
       profile.sectorSource !== 'nominal' &&

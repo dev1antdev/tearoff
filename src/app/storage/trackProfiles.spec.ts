@@ -926,6 +926,115 @@ describe('the track profile store', () => {
     });
   });
 
+  describe('sunrise and sunset', () => {
+    const SUN = { sunriseMinutes: 372, sunsetMinutes: 1231 };
+
+    it('are kept for a track with no profile yet, and read back in another run', async () => {
+      const changed = vi.fn();
+      store.onChanged(changed);
+      const before = store.revision();
+
+      expect(await store.saveSunTimes(KEY, SUN)).toBe(true);
+      expect(changed).toHaveBeenCalledTimes(1);
+      expect(store.revision()).toBeGreaterThan(before);
+      expect(store.get('lmu', KEY.trackId)).toMatchObject(SUN);
+
+      await store.flush();
+      expect(await onDisk()).toMatchObject({
+        version: 1,
+        trackName: KEY.trackName,
+        elevationM: null,
+        notes: [],
+        ...SUN,
+      });
+      expect(await createStore().whenLoaded('lmu', KEY.trackId)).toMatchObject(
+        SUN
+      );
+    });
+
+    it('change nothing when they are the ones already kept', async () => {
+      await store.saveSunTimes(KEY, SUN);
+      const changed = vi.fn();
+      store.onChanged(changed);
+
+      expect(await store.saveSunTimes(KEY, { ...SUN })).toBe(false);
+      expect(changed).not.toHaveBeenCalled();
+      // Nor is a file made for a track only to say it has none.
+      expect(
+        await store.saveSunTimes(IRACING_KEY, {
+          sunriseMinutes: null,
+          sunsetMinutes: null,
+        })
+      ).toBe(false);
+      expect(store.get('iracing', IRACING_KEY.trackId)).toBeNull();
+    });
+
+    it('are cleared one at a time, leaving no key behind', async () => {
+      await store.saveSunTimes(KEY, SUN);
+
+      expect(
+        await store.saveSunTimes(KEY, { ...SUN, sunriseMinutes: null })
+      ).toBe(true);
+      const profile = store.get('lmu', KEY.trackId);
+      expect(profile?.sunsetMinutes).toBe(1231);
+      expect(profile && 'sunriseMinutes' in profile).toBe(false);
+
+      await store.flush();
+      const file = await onDisk();
+      expect(file.sunsetMinutes).toBe(1231);
+      expect('sunriseMinutes' in file).toBe(false);
+    });
+
+    it.each([[-1], [1440], [372.5], [Number.NaN], ['06:12'], [undefined]])(
+      'are refused when one is %s',
+      async (bad) => {
+        expect(
+          await store.saveSunTimes(KEY, {
+            sunriseMinutes: bad as number,
+            sunsetMinutes: 1231,
+          })
+        ).toBe(false);
+        // Nothing is kept of the pair, the good half included.
+        expect(store.get('lmu', KEY.trackId)).toBeNull();
+      }
+    );
+
+    it('are refused for a track that cannot be named', async () => {
+      expect(
+        await store.saveSunTimes({ ...KEY, simulator: '../lmu' }, SUN)
+      ).toBe(false);
+    });
+
+    it('stay when a lap is recorded after them, and when the notes change', async () => {
+      await store.saveSunTimes(KEY, SUN);
+      await store.recordLap(KEY, recordedLap());
+      await store.saveNotes(KEY, [note()]);
+      await store.clearElevation('lmu', KEY.trackId);
+
+      expect(store.get('lmu', KEY.trackId)).toMatchObject({
+        ...SUN,
+        elevationSource: null,
+        notes: [note()],
+      });
+    });
+
+    it('are read back only when they are minutes of a day', async () => {
+      await plant(
+        FILE,
+        JSON.stringify({
+          ...merged(null, recordedLap()),
+          sunriseMinutes: 372,
+          sunsetMinutes: 2000,
+        })
+      );
+
+      const loaded = await store.whenLoaded('lmu', KEY.trackId);
+      expect(loaded?.sunriseMinutes).toBe(372);
+      expect(loaded && 'sunsetMinutes' in loaded).toBe(false);
+      expect(loaded?.elevationSource).toBe('recorded');
+    });
+  });
+
   describe('notes', () => {
     it('are kept for a track with no profile yet', async () => {
       const changed = vi.fn();
@@ -1194,6 +1303,28 @@ describe('the track profile store', () => {
       // 2 and 3 went: the oldest without a note. 1 keeps its note, 4 is
       // the newest of the rest, 5 is the one just written.
       expect(await files()).toEqual(['lmu_1.json', 'lmu_4.json', 'lmu_5.json']);
+    });
+
+    it('never drops one with a sunrise or a sunset entered for it', async () => {
+      const earlier = createStore(2);
+      for (const trackId of [1, 2, 3]) {
+        now = trackId * 100;
+        await earlier.recordLap(trackKey(trackId), recordedLap());
+      }
+      now = 150;
+      await earlier.saveSunTimes(trackKey(1), {
+        sunriseMinutes: 372,
+        sunsetMinutes: null,
+      });
+      await earlier.flush();
+
+      store = createStore(2);
+      now = 900;
+      await store.recordLap(trackKey(4), recordedLap());
+      await store.flush();
+
+      // Two too many: 2 and 3 went, 1 is the driver's own.
+      expect(await files()).toEqual(['lmu_1.json', 'lmu_4.json']);
     });
 
     it('leaves alone a track this run has asked for', async () => {

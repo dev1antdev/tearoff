@@ -686,6 +686,12 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
       resetLap,
       lapCounts
     );
+    if (resetLap) {
+      this.forgetUntimedSectors(inclusive.finishedLapSectorTimes, [
+        inclusive,
+        clean,
+      ]);
+    }
     // The all-time bests take less than the session's clean view does: no
     // sector on pit road, and not the one a race starts in.
     const fitForAllTime =
@@ -719,6 +725,35 @@ export class SectorTimingProcessor implements TelemetryProcessor<SectorTimingSna
       this.lapFromStart =
         this.lastHeldAt !== null &&
         Math.abs(crossingTime - this.lastHeldAt) <= HELD_RELEASE_SECONDS;
+    }
+  }
+
+  /**
+   * At the line, takes out of the previous lap's times what belongs to a lap
+   * older than the one that has just ended.
+   *
+   * A sector's previous time is written when the sector ends with a time,
+   * and otherwise left as it was. So a lap with a sector that has none --
+   * a lap Le Mans Ultimate did not time, whose last sector is the lap time
+   * it never gave, an out-lap, a sector the car was put into -- ended with
+   * the lap before's time still standing there, and whoever shows the lap
+   * just finished showed that as part of it. Such a sector has no previous
+   * time: the lap before this one is not the previous lap.
+   *
+   * By the view that keeps every time: a sector that has one and is only
+   * left out of the clean view goes on being stood in for there by its last
+   * clean one, as it is while the lap is driven.
+   */
+  private forgetUntimedSectors(
+    finishedLap: readonly (number | null)[],
+    views: readonly SectorTimingResultSnapshot[]
+  ): void {
+    for (let sector = 0; sector < finishedLap.length; sector += 1) {
+      if (finishedLap[sector] !== null) continue;
+      for (const view of views) {
+        (view.previousLapSectorTimes as (number | null)[])[sector] = null;
+        (view.previousLapSectorUnclean as boolean[])[sector] = false;
+      }
     }
   }
 

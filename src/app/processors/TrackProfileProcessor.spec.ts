@@ -203,6 +203,36 @@ describe('TrackProfileProcessor', () => {
     expect(processor.snapshot().notes).toEqual([]);
   });
 
+  it('publishes the sunrise and sunset entered for the track, and no others', () => {
+    const { processor, state } = start(profile());
+    processor.onFrame(frame());
+    // None entered: neither is there, and nothing stands in for them.
+    expect(processor.snapshot().sunriseMinutes).toBeUndefined();
+    expect(processor.snapshot().sunsetMinutes).toBeUndefined();
+    const before = processor.snapshot().version;
+
+    state.profile = profile({ sunriseMinutes: 372, sunsetMinutes: 1231 });
+    state.revision += 1;
+    processor.onFrame(frame());
+    expect(processor.snapshot()).toMatchObject({
+      sunriseMinutes: 372,
+      sunsetMinutes: 1231,
+      version: before + 1,
+    });
+
+    // One cleared again.
+    state.profile = profile({ sunsetMinutes: 1231 });
+    state.revision += 1;
+    processor.onFrame(frame());
+    expect(processor.snapshot().sunriseMinutes).toBeUndefined();
+    expect(processor.snapshot().sunsetMinutes).toBe(1231);
+    expect(processor.snapshot().version).toBe(before + 2);
+
+    // And none of it outlives the connection.
+    processor.onLifecycle({ type: 'disconnect' });
+    expect(processor.snapshot().sunsetMinutes).toBeUndefined();
+  });
+
   it('does not republish for a change to some other track', () => {
     const { processor, state } = start(profile());
     processor.onFrame(frame());

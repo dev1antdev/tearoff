@@ -160,6 +160,40 @@ describe('sectorTiles, live', () => {
     expect(tiles[0].color).toBe('default');
   });
 
+  it('holds a lap the sim did not time without a third sector', () => {
+    // Over the line with no lap time from the sim: the lap just finished has
+    // its first two sectors, and what is published as the previous lap is
+    // that lap, with nothing of the one before it where S3 would be.
+    const untimed = snapshot({
+      currentSectorIdx: 0,
+      sectorEntryTime: 500,
+      inclusive: result({
+        previousLapSectorTimes: [31.5, 40.1, null],
+        finishedLapSectorTimes: [31.5, 40.1, null],
+        sessionBestSectorTimes: [31.2, 40.1, 29.9],
+      }),
+    });
+    const held = sectorTiles(
+      untimed,
+      options({ holding: sectorHoldActive(untimed, 503) })
+    );
+
+    expect(shown(held)).toEqual([
+      ['S1', 31.5, 'fresh'],
+      ['S2', 40.1, 'fresh'],
+      ['S3', null, 'none'],
+    ]);
+    // Nor does one turn up, dimmed, once the hold is over.
+    expect(
+      shown(
+        sectorTiles(
+          untimed,
+          options({ holding: sectorHoldActive(untimed, 506) })
+        )
+      )[2]
+    ).toEqual(['S3', null, 'none']);
+  });
+
   it("keeps an abandoned sector's previous time, dimmed", () => {
     // Reset to the pits in sector two: its time this lap is gone.
     const tiles = sectorTiles(
