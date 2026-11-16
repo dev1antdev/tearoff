@@ -61,7 +61,11 @@ import { lmuWatchedSlot } from './ownEntry';
 import { lmuFrontWheelAngleDeg, lmuSteeringRangeDeg } from './steering';
 import { writeLmuOwnEntryKeys } from './ownEntryKeys';
 import { lmuPublishedBlock, writeLmuOwnEntryBlockKeys } from './ownEntryBlock';
-import { lmuSectorIdx, mapLmuSectorTimes } from './sectorTimes';
+import {
+  lmuSectorIdx,
+  mapLmuSectorTimes,
+  writeLmuCarSectorTimes,
+} from './sectorTimes';
 
 type Raw = import('./native').LmuRawTelemetry;
 
@@ -899,6 +903,10 @@ export function mapLmuTelemetry(
     ),
   };
   t.LmuSectorIdx = num(lmuSectorIdx(raw.vehSector?.[playerIdx]));
+  // The same three for every car, which is how a rival's and a team-mate's
+  // sectors are read: scoring holds them for the whole grid. Built from the
+  // same figures by the same rule as the player's above; see sectorTimes.ts.
+  writeLmuCarSectorTimes(t, raw);
   t.Speed = num(raw.speed);
   t.Yaw = num(0);
   t.Pitch = num(0);

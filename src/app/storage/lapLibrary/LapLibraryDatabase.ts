@@ -20,6 +20,7 @@ import {
   type StintOpenedBy,
 } from '../../../types/ledger';
 import { stintPace } from '../../../shared/stintPace';
+import { RaceHistoryTables } from './raceHistoryTables';
 import { MIGRATIONS, type Migration } from './schema';
 import { openLapLibraryFile, type OpenOutcome } from './upgrade';
 
@@ -39,6 +40,9 @@ import { openLapLibraryFile, type OpenOutcome } from './upgrade';
  * - A stint goes when the last lap driven in it does: deleted by hand or
  *   dropped by the cap. A stint is otherwise never deleted for being old;
  *   the cap counts laps, and stints follow their laps.
+ *
+ * The same file holds the history of races, every car's laps and stints,
+ * in tables of their own with rules of their own: see `races`.
  */
 
 /** How long after its last lap a session can still be rejoined. */
@@ -489,6 +493,12 @@ export class LapLibraryDatabase {
   readonly opened: OpenOutcome;
 
   /**
+   * The history of races, kept in the same file on the same connection. It
+   * reads and writes none of the tables above, and they none of its.
+   */
+  readonly races: RaceHistoryTables;
+
+  /**
    * Opens the library, bringing its file up to this build's schema first.
    * Throws a `LapLibraryOpenError` if the file is from a newer build, cannot
    * be upgraded or cannot be read; the file is then left as it was found.
@@ -502,10 +512,12 @@ export class LapLibraryDatabase {
     );
     this.db = db;
     this.opened = outcome;
+    this.races = new RaceHistoryTables(db);
   }
 
   close(): void {
     this.statements.clear();
+    this.races.close();
     this.db.close();
   }
 

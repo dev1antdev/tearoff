@@ -19,13 +19,25 @@ import { LapLibraryOpenError, readSchemaVersion } from './upgrade';
 /**
  * The upgrade of a lap library an older build left behind, against real
  * files: a version 1 library made by the version 1 schema and the writers
- * the app records with, then opened by this build.
+ * the app records with, then opened by this build; and a version 2 library,
+ * with its stints and its ledger, brought to version 3.
  */
 
 /** The ladder as the build before the ledger had it: version 1, no further. */
 const VERSION_1_ONLY = MIGRATIONS.slice(0, 1);
+/** The ladder as the build before the race history had it. */
+const VERSION_2_LADDER = MIGRATIONS.slice(0, 2);
 /** Everything a version 1 file holds. */
 const VERSION_1_TABLES = ['session', 'lap', 'reference_pin', 'sqlite_sequence'];
+/** Everything a version 2 file holds. */
+const VERSION_2_TABLES = [...VERSION_1_TABLES, 'stint', 'lap_ledger'];
+/** What version 3 adds. */
+const VERSION_3_TABLES = [
+  'race',
+  'race_lap',
+  'race_stint',
+  'race_driver_change',
+];
 
 /**
  * A folder holding a `laps.db` (and its -wal and -shm, if it has them) taken
@@ -43,6 +55,7 @@ const SAMPLE_FOLDER = process.env.IRDASHIES_LAPS_DB_SAMPLE ?? '';
 const SCHEMA_FINGERPRINTS: Record<number, string> = {
   1: 'f9e3bd0ad6cd679f',
   2: '27dbf5823c4dae37',
+  3: 'ad28a40831aa503f',
 };
 
 const T0 = Date.UTC(2026, 10, 13, 16, 0, 0);
@@ -358,6 +371,68 @@ const countRows = (file: string, table: string, where = '1'): number => {
   }
 };
 
+/** A lap's ledger row, two laps to a stint, as the app's recorder writes it. */
+const ledgerFor = (index: number): LapLedgerInput => {
+  // Two laps to a stint, so that stints come and go at the cap too.
+  const ordinal = Math.floor(index / 2) + 1;
+  return {
+    stint: {
+      stint: {
+        id: `boot9:1:${ordinal}`,
+        ordinal,
+        sessionNum: 0,
+        driver: null,
+        own: true,
+        openedBy: 'pitExit',
+        closedBy: null,
+        startTime: ordinal * 400,
+        endTime: null,
+        startLap: (ordinal - 1) * 2,
+        endLap: null,
+        laps: (index % 2) + 1,
+        startFuel: 50,
+        endFuel: null,
+        startEnergy: null,
+        endEnergy: null,
+        startTread: [1, 1, 1, 1],
+        endTread: [],
+        startBrake: [],
+        endBrake: [],
+        compounds: ['Medium', 'Medium', 'Medium', 'Medium'],
+        bestLap: null,
+        avgLap: null,
+        cleanLaps: 0,
+        paceDelta: null,
+        consistency: null,
+        passes: [],
+        stop: null,
+      },
+      startedAt: T0 + ordinal,
+      endedAt: null,
+    },
+    sessionNum: 0,
+    stintLap: (index % 2) + 1,
+    startTime: index * 200,
+    endTime: index * 200 + 200,
+    simLapTime: null,
+    flags: 0,
+    fuelAtLine: 40,
+    fuelAdded: 0,
+    energyAtLine: null,
+    energyAdded: 0,
+    treadAtLine: [0.9, 0.9, 0.9, 0.9],
+    treadUsed: [0.001, 0.001, 0.001, 0.001],
+    brakeAtLine: [],
+    brakeUsed: [],
+    compounds: ['Medium', 'Medium', 'Medium', 'Medium'],
+    sectors: [60, 70, 70],
+    wetness: 1,
+    rain: 0,
+    position: null,
+    classPosition: null,
+  };
+};
+
 let directory: string;
 let file: string;
 
@@ -403,9 +478,9 @@ const failingHalfWay: Migration = {
 };
 
 /** A step past the top of this build's ladder, as a later build would add. */
-const toVersion3: Migration = {
-  from: 2,
-  to: 3,
+const toVersion4: Migration = {
+  from: 3,
+  to: 4,
   summary: 'something a later build needs',
   up: (db) => db.exec('CREATE TABLE from_the_future (id INTEGER PRIMARY KEY)'),
 };
@@ -426,7 +501,7 @@ describe('the schema ladder', () => {
       expect([step.from, step.to]).toEqual([index, index + 1]);
     });
     expect(SCHEMA_VERSION).toBe(MIGRATIONS.length);
-    expect(SCHEMA_VERSION).toBe(2);
+    expect(SCHEMA_VERSION).toBe(3);
   });
 
   it.each(MIGRATIONS.map((step) => step.to))(
@@ -446,7 +521,7 @@ describe('the schema ladder', () => {
     const error = openError(
       () =>
         new LapLibraryDatabase(file, {
-          migrations: [MIGRATIONS[0], toVersion3],
+          migrations: [MIGRATIONS[0], MIGRATIONS[1], toVersion4],
         })
     );
 
@@ -502,18 +577,20 @@ describe('upgrading a version 1 lap library', () => {
 
     const opened = openAndClose();
 
+    // Both steps above it in one go: there is no stop at version 2.
     expect(opened).toEqual({
-      schemaVersion: 2,
+      schemaVersion: 3,
       upgradedFrom: 1,
       backupName: 'laps.v1.bak.db',
     });
-    expect(readSchemaVersion(file)).toBe(2);
+    expect(readSchemaVersion(file)).toBe(3);
     expect(dump(file)).toEqual(before);
     // The tables themselves are as they were, not rebuilt.
     expect(schemaOf(file, VERSION_1_TABLES)).toEqual(schemaBefore);
     // And the new ones are there, empty.
-    expect(countRows(file, 'stint')).toBe(0);
-    expect(countRows(file, 'lap_ledger')).toBe(0);
+    for (const table of ['stint', 'lap_ledger', ...VERSION_3_TABLES]) {
+      expect(countRows(file, table), table).toBe(0);
+    }
   });
 
   it('reads the upgraded library as the laps that were recorded', () => {
@@ -604,7 +681,7 @@ describe('upgrading a version 1 lap library', () => {
     const opened = openAndClose();
 
     expect(opened).toEqual({
-      schemaVersion: 2,
+      schemaVersion: 3,
       upgradedFrom: null,
       backupName: null,
     });
@@ -632,7 +709,7 @@ describe('upgrading a version 1 lap library', () => {
     const opened = openAndClose();
 
     expect(opened.upgradedFrom).toBe(1);
-    expect(readSchemaVersion(file)).toBe(2);
+    expect(readSchemaVersion(file)).toBe(3);
     expect(dump(file)).toEqual(expected);
     // The copy holds all of it by itself: taken somewhere with no log
     // beside it, it is the whole version 1 library.
@@ -641,6 +718,414 @@ describe('upgrading a version 1 lap library', () => {
     fs.copyFileSync(backupFile(), path.join(alone, 'restored.db'));
     expect(readSchemaVersion(path.join(alone, 'restored.db'))).toBe(1);
     expect(dump(path.join(alone, 'restored.db'))).toEqual(expected);
+  });
+});
+
+/** What a version 2 library holds, by name. */
+interface Version2Library {
+  sessions: number;
+  laps: number;
+  stints: number;
+  ledgerRows: number;
+}
+
+/**
+ * A version 2 library on disk, as an installation that raced before the
+ * ledger and after it would have it: the version 1 library above, brought
+ * to version 2 by the build that added the ledger, then a race with a
+ * ledger row for every lap and a stint for every two. The copy that build
+ * kept of the version 1 file is beside it, as it would be.
+ */
+const buildVersion2Library = (target: string): Version2Library => {
+  const library = buildVersion1Library(target);
+  const db = new LapLibraryDatabase(target, { migrations: VERSION_2_LADDER });
+  const leMans = lmuSession({
+    token: 'boot7:1',
+    trackId: 1234,
+    trackName: 'Circuit de la Sarthe',
+  });
+  stamp = T0 + 30 * 24 * 60 * MINUTE;
+  const LAPS = 9;
+  for (let index = 0; index < LAPS; index += 1) {
+    const recorded = db.recordLap(
+      leMans,
+      lap(index === 4 ? 213.4 : 216 + (index % 3), {
+        lapNumber: index + 1,
+        ledger: ledgerFor(index),
+      })
+    );
+    if (recorded.ledgerError !== null) throw new Error(recorded.ledgerError);
+  }
+  db.close();
+  return {
+    sessions: library.sessions + 1,
+    laps: library.laps + LAPS,
+    stints: Math.ceil(LAPS / 2),
+    ledgerRows: LAPS,
+  };
+};
+
+/** A step from 2 to 3 that does the real work, then more, then fails. */
+const failingAtThree: Migration = {
+  from: 2,
+  to: 3,
+  summary: 'the real step, then damage, then a failure',
+  up(db) {
+    MIGRATIONS[2].up(db);
+    db.exec(
+      "INSERT INTO race_lap SELECT 1, 1, id, 0, 0, 0, 0, 0, 0, 0, 0, 0, '', 0, 0, 0, 0, 0, 0 FROM lap"
+    );
+    db.exec('DELETE FROM lap_ledger');
+    db.exec("UPDATE stint SET driver = 'overwritten'");
+    db.exec('DROP TABLE reference_pin');
+    throw new Error('injected failure');
+  },
+};
+
+describe('upgrading a version 2 lap library', () => {
+  it('starts from a file as version 2 left it', () => {
+    const library = buildVersion2Library(file);
+
+    expect(readSchemaVersion(file)).toBe(2);
+    expect(fingerprint(file)).toBe(SCHEMA_FINGERPRINTS[2]);
+    const names = schemaOf(file).map((row) => row.name);
+    for (const table of VERSION_3_TABLES) expect(names).not.toContain(table);
+    expect(countRows(file, 'session')).toBe(library.sessions);
+    expect(countRows(file, 'lap')).toBe(library.laps);
+    expect(countRows(file, 'stint')).toBe(library.stints);
+    expect(countRows(file, 'lap_ledger')).toBe(library.ledgerRows);
+    expect(countRows(file, 'reference_pin')).toBe(1);
+    // The copy the build before kept of the version 1 file is still there.
+    expect(listing()).toEqual(['laps.db', 'laps.v1.bak.db']);
+  });
+
+  it('keeps every row and every column, and adds the race tables empty', () => {
+    buildVersion2Library(file);
+    const before = dump(file, VERSION_2_TABLES);
+    const schemaBefore = schemaOf(file, VERSION_2_TABLES);
+
+    const opened = openAndClose();
+
+    expect(opened).toEqual({
+      schemaVersion: 3,
+      upgradedFrom: 2,
+      backupName: 'laps.v2.bak.db',
+    });
+    expect(readSchemaVersion(file)).toBe(3);
+    expect(dump(file, VERSION_2_TABLES)).toEqual(before);
+    // The player's tables are as they were, not rebuilt.
+    expect(schemaOf(file, VERSION_2_TABLES)).toEqual(schemaBefore);
+    for (const table of VERSION_3_TABLES) {
+      expect(countRows(file, table), table).toBe(0);
+    }
+    expect(fingerprint(file)).toBe(SCHEMA_FINGERPRINTS[3]);
+  });
+
+  it('ends up as a library made by this build is', () => {
+    buildVersion2Library(file);
+    openAndClose();
+    const fresh = path.join(directory, 'fresh.db');
+    openAndClose(fresh);
+
+    expect(schemaOf(file)).toEqual(schemaOf(fresh));
+  });
+
+  it('backs the file up beside itself before changing it, and leaves the older copy alone', () => {
+    buildVersion2Library(file);
+    const original = fs.readFileSync(file);
+    const olderCopy = fs.readFileSync(backupFile());
+    const before = dump(file, VERSION_2_TABLES);
+
+    openAndClose();
+
+    expect(listing()).toEqual(['laps.db', 'laps.v1.bak.db', 'laps.v2.bak.db']);
+    // The copy is the file as it was found, to the byte.
+    const copy = backupFile('laps.v2.bak.db');
+    expect(fs.readFileSync(copy).equals(original)).toBe(true);
+    expect(fs.readFileSync(backupFile()).equals(olderCopy)).toBe(true);
+    // And is a version 2 library that the build before opens on its own.
+    expect(readSchemaVersion(copy)).toBe(2);
+    expect(dump(copy, VERSION_2_TABLES)).toEqual(before);
+    const alone = path.join(directory, 'elsewhere');
+    fs.mkdirSync(alone);
+    fs.copyFileSync(copy, path.join(alone, 'laps.db'));
+    const restored = new LapLibraryDatabase(path.join(alone, 'laps.db'), {
+      migrations: VERSION_2_LADDER,
+    });
+    try {
+      expect(restored.opened).toEqual({
+        schemaVersion: 2,
+        upgradedFrom: null,
+        backupName: null,
+      });
+      expect(restored.stats().laps).toBe(before.lap.length);
+    } finally {
+      restored.close();
+    }
+  });
+
+  it('reads the upgraded library as the laps, stints and ledger that were recorded', () => {
+    const library = buildVersion2Library(file);
+
+    const db = new LapLibraryDatabase(file);
+    try {
+      expect(db.stats()).toEqual({
+        sessions: library.sessions,
+        laps: library.laps,
+      });
+      const [leMans] = db.listSessions();
+      expect(leMans.trackName).toBe('Circuit de la Sarthe');
+      const laps = db.listLaps(leMans.id);
+      expect(laps).toHaveLength(library.ledgerRows);
+      expect(laps.every((row) => row.ledger !== null)).toBe(true);
+      expect(laps[4]).toMatchObject({ lapTime: 213.4, isReference: true });
+      expect(db.listStints(leMans.id).map((stint) => stint.id)).toEqual([
+        'boot9:1:1',
+        'boot9:1:2',
+        'boot9:1:3',
+        'boot9:1:4',
+        'boot9:1:5',
+      ]);
+      // The pin from version 1 still holds.
+      expect(db.referenceLap('lmu', 694510461, LMU_CAR)?.pinned).toBe(true);
+      // And no race is kept yet.
+      expect(db.races.list()).toEqual([]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('carries on recording the player’s laps, and takes a race, in the upgraded library', () => {
+    const library = buildVersion2Library(file);
+    const db = new LapLibraryDatabase(file);
+    try {
+      const recorded = db.recordLap(
+        lmuSession({ token: 'boot7:1', trackId: 1234 }),
+        lap(215.2, { lapNumber: 10, ledger: ledgerFor(9) })
+      );
+      expect(recorded.ledgerError).toBeNull();
+      expect(db.stats().laps).toBe(library.laps + 1);
+
+      const { raceId } = db.races.write({
+        raceId: null,
+        token: 'boot8:1',
+        info: {
+          id: null,
+          simulator: 'lmu',
+          sessionKey: '',
+          sessionNum: 10,
+          sessionType: 'Race',
+          sessionName: 'Race',
+          trackId: 1234,
+          trackName: 'Circuit de la Sarthe',
+          trackConfig: null,
+          trackLengthM: 13626,
+          startedAt: T0,
+          updatedAt: T0 + MINUTE,
+          sessionTime: 240,
+          entries: [],
+          tyres: [],
+        },
+        laps: [
+          {
+            carIdx: 3,
+            lap: 1,
+            sessionTime: 233.5,
+            lapTime: 213.9,
+            sectors: [70.1, 80.2, 63.6],
+            position: 2,
+            classPosition: 1,
+            classGap: 0,
+            flags: 0,
+            driver: 'A Driver',
+            energy: 0.71,
+            energyIsVirtual: true,
+            compounds: [0, 0, 1, 1],
+          },
+        ],
+        stints: [],
+        driverChanges: [],
+        replacedCars: [],
+        maxRaces: 20,
+      });
+
+      expect(db.races.carLaps(raceId, 3)).toHaveLength(1);
+      // The race's laps are not the player's: the lap library's own counts
+      // and its cap do not see them.
+      expect(db.stats().laps).toBe(library.laps + 1);
+    } finally {
+      db.close();
+    }
+  });
+
+  it('does nothing when the file is opened a second time', () => {
+    buildVersion2Library(file);
+    openAndClose();
+    const upgraded = fs.readFileSync(file);
+    const backupWritten = fs.statSync(backupFile('laps.v2.bak.db')).mtimeMs;
+
+    const opened = openAndClose();
+
+    expect(opened).toEqual({
+      schemaVersion: 3,
+      upgradedFrom: null,
+      backupName: null,
+    });
+    expect(fs.readFileSync(file).equals(upgraded)).toBe(true);
+    expect(listing()).toEqual(['laps.db', 'laps.v1.bak.db', 'laps.v2.bak.db']);
+    expect(fs.statSync(backupFile('laps.v2.bak.db')).mtimeMs).toBe(
+      backupWritten
+    );
+  });
+
+  it('upgrades a file whose last laps are still in its log', () => {
+    // As a crash leaves it: the file and its write-ahead log, copied from
+    // under an open connection.
+    const live = path.join(directory, 'live.db');
+    buildVersion2Library(live);
+    const writer = new LapLibraryDatabase(live, {
+      migrations: VERSION_2_LADDER,
+    });
+    writer.recordLap(
+      lmuSession({ token: 'boot7:1', trackId: 1234 }),
+      lap(214.8, { lapNumber: 10, ledger: ledgerFor(9) })
+    );
+    fs.copyFileSync(live, file);
+    fs.copyFileSync(`${live}-wal`, `${file}-wal`);
+    writer.close();
+    expect(fs.statSync(`${file}-wal`).size).toBeGreaterThan(0);
+    const expected = dump(live, VERSION_2_TABLES);
+
+    const opened = openAndClose();
+
+    expect(opened.upgradedFrom).toBe(2);
+    expect(dump(file, VERSION_2_TABLES)).toEqual(expected);
+    // The copy holds all of it by itself, the lap from the log included.
+    expect(dump(backupFile('laps.v2.bak.db'), VERSION_2_TABLES)).toEqual(
+      expected
+    );
+  });
+
+  describe('when the step fails', () => {
+    const failed = () =>
+      openError(
+        () =>
+          new LapLibraryDatabase(file, {
+            migrations: [...VERSION_2_LADDER, failingAtThree],
+          })
+      );
+
+    it('leaves the file at version 2 with everything in it', () => {
+      buildVersion2Library(file);
+      const original = fs.readFileSync(file);
+      const before = dump(file, VERSION_2_TABLES);
+      const schemaBefore = schemaOf(file);
+
+      const error = failed();
+
+      expect(error.reason).toBe('upgrade');
+      expect(error.message).toContain('injected failure');
+      expect(error.message).toContain('from schema 2 to 3');
+      expect(readSchemaVersion(file)).toBe(2);
+      // Nothing the step did before it failed is there: not the race
+      // tables or the rows put in them, not the ledger rows it deleted or
+      // the stints it changed, not the table it dropped.
+      expect(schemaOf(file)).toEqual(schemaBefore);
+      expect(dump(file, VERSION_2_TABLES)).toEqual(before);
+      // The copy was taken before the step ran, and is the file as found.
+      expect(listing()).toEqual([
+        'laps.db',
+        'laps.v1.bak.db',
+        'laps.v2.bak.db',
+      ]);
+      expect(
+        fs.readFileSync(backupFile('laps.v2.bak.db')).equals(original)
+      ).toBe(true);
+    });
+
+    it('leaves a library the build before still opens and records into', () => {
+      const library = buildVersion2Library(file);
+      failed();
+
+      const older = new LapLibraryDatabase(file, {
+        migrations: VERSION_2_LADDER,
+      });
+      try {
+        expect(older.opened).toEqual({
+          schemaVersion: 2,
+          upgradedFrom: null,
+          backupName: null,
+        });
+        expect(older.stats()).toEqual({
+          sessions: library.sessions,
+          laps: library.laps,
+        });
+        const recorded = older.recordLap(
+          lmuSession({ token: 'boot7:1', trackId: 1234 }),
+          lap(215.2, { lapNumber: 10, ledger: ledgerFor(9) })
+        );
+        expect(recorded.ledgerError).toBeNull();
+        expect(older.stats().laps).toBe(library.laps + 1);
+      } finally {
+        older.close();
+      }
+    });
+
+    it('leaves the app without a library, and the file untouched, rather than a half-made one', () => {
+      buildVersion2Library(file);
+      const original = fs.readFileSync(file);
+
+      const host = createLapLibraryHost(file, {
+        migrations: [...VERSION_2_LADDER, failingAtThree],
+      });
+
+      expect(host.handle({ id: 1, method: 'status', args: [] })).toMatchObject({
+        result: { available: false, reason: 'upgrade', schemaVersion: null },
+      });
+      // Nothing is recorded and no race is written while it is so.
+      expect(
+        host.handle({
+          id: 2,
+          method: 'recordLap',
+          args: [lmuSession(), lap(86)],
+        })
+      ).toEqual({ id: 2, error: expect.stringContaining('injected failure') });
+      expect(host.handle({ id: 3, method: 'raceList', args: [] })).toEqual({
+        id: 3,
+        error: expect.stringContaining('injected failure'),
+      });
+      host.handle({ id: 4, method: 'close', args: [] });
+      expect(fs.readFileSync(file).equals(original)).toBe(true);
+    });
+
+    it('is upgraded by the working step afterwards, from the same copy', () => {
+      buildVersion2Library(file);
+      const original = fs.readFileSync(file);
+      const before = dump(file, VERSION_2_TABLES);
+      failed();
+
+      const opened = openAndClose();
+
+      // The copy from the first try is this same file: it is the backup,
+      // and there is still only the one of version 2.
+      expect(opened).toEqual({
+        schemaVersion: 3,
+        upgradedFrom: 2,
+        backupName: 'laps.v2.bak.db',
+      });
+      expect(listing()).toEqual([
+        'laps.db',
+        'laps.v1.bak.db',
+        'laps.v2.bak.db',
+      ]);
+      expect(
+        fs.readFileSync(backupFile('laps.v2.bak.db')).equals(original)
+      ).toBe(true);
+      expect(dump(file, VERSION_2_TABLES)).toEqual(before);
+      for (const table of VERSION_3_TABLES) {
+        expect(countRows(file, table), table).toBe(0);
+      }
+    });
   });
 });
 
@@ -688,7 +1173,7 @@ describe('an upgrade that fails', () => {
     // The copy from the first try is this same file: it is the backup, and
     // there is still only the one.
     expect(opened).toEqual({
-      schemaVersion: 2,
+      schemaVersion: 3,
       upgradedFrom: 1,
       backupName: 'laps.v1.bak.db',
     });
@@ -708,9 +1193,9 @@ describe('an upgrade that fails', () => {
           migrations: [
             ...MIGRATIONS,
             {
-              ...toVersion3,
+              ...toVersion4,
               up(db) {
-                toVersion3.up(db);
+                toVersion4.up(db);
                 throw new Error('the last step failed');
               },
             },
@@ -719,7 +1204,7 @@ describe('an upgrade that fails', () => {
     );
 
     expect(error.reason).toBe('upgrade');
-    // Not version 2, though that step ran clean.
+    // Not version 2 or 3, though those steps ran clean.
     expect(readSchemaVersion(file)).toBe(1);
     expect(schemaOf(file)).toEqual(schemaBefore);
     expect(dump(file)).toEqual(before);
@@ -806,8 +1291,8 @@ describe('an upgrade that fails', () => {
 describe('a step that rebuilds a table', () => {
   /** The way SQLite has a column dropped or retyped: a new table, copied into. */
   const rebuildSession: Migration = {
-    from: 2,
-    to: 3,
+    from: 3,
+    to: 4,
     summary: 'rebuilds the session table',
     up(db) {
       db.exec(`
@@ -846,7 +1331,7 @@ describe('a step that rebuilds a table', () => {
     });
     db.close();
 
-    expect(readSchemaVersion(file)).toBe(3);
+    expect(readSchemaVersion(file)).toBe(4);
     expect(dump(file).lap).toEqual(laps);
     expect(countRows(file, 'reference_pin')).toBe(1);
     expect(countRows(file, 'session')).toBe(library.sessions);
@@ -912,25 +1397,25 @@ describe('the backup of an older file', () => {
     const before = fs.readFileSync(file);
 
     const db = new LapLibraryDatabase(file, {
-      migrations: [...MIGRATIONS, toVersion3],
+      migrations: [...MIGRATIONS, toVersion4],
     });
     db.close();
 
     expect(db.opened).toEqual({
-      schemaVersion: 3,
-      upgradedFrom: 2,
-      backupName: 'laps.v2.bak.db',
+      schemaVersion: 4,
+      upgradedFrom: 3,
+      backupName: 'laps.v3.bak.db',
     });
-    expect(fs.readFileSync(backupFile('laps.v2.bak.db')).equals(before)).toBe(
+    expect(fs.readFileSync(backupFile('laps.v3.bak.db')).equals(before)).toBe(
       true
     );
   });
 });
 
 describe('a lap library from a newer build', () => {
-  const buildVersion3Library = (target: string) => {
+  const buildVersion4Library = (target: string) => {
     const db = new LapLibraryDatabase(target, {
-      migrations: [...MIGRATIONS, toVersion3],
+      migrations: [...MIGRATIONS, toVersion4],
     });
     db.recordLap(lmuSession(), lap(86.512));
     db.recordLap(iracingSession(), lap(131.301));
@@ -938,23 +1423,23 @@ describe('a lap library from a newer build', () => {
   };
 
   it('is refused and left untouched', () => {
-    buildVersion3Library(file).close();
+    buildVersion4Library(file).close();
     const original = fs.readFileSync(file);
     const filesBefore = listing();
 
     const error = openError(() => new LapLibraryDatabase(file));
 
     expect(error.reason).toBe('newer');
-    expect(error.message).toMatch(/schema 3, newer than this build/);
+    expect(error.message).toMatch(/schema 4, newer than this build/);
     expect(fs.readFileSync(file).equals(original)).toBe(true);
     // Not backed up either: there was nothing to protect it from.
     expect(listing()).toEqual(filesBefore);
     expect(listing()).toEqual(['laps.db']);
-    expect(readSchemaVersion(file)).toBe(3);
+    expect(readSchemaVersion(file)).toBe(4);
   });
 
   it('is not changed by being refused again and again', () => {
-    buildVersion3Library(file).close();
+    buildVersion4Library(file).close();
     const original = fs.readFileSync(file);
 
     for (let start = 0; start < 3; start += 1) {
@@ -964,7 +1449,7 @@ describe('a lap library from a newer build', () => {
     expect(fs.readFileSync(file).equals(original)).toBe(true);
     // The newer build still opens it, with everything in it.
     const newer = new LapLibraryDatabase(file, {
-      migrations: [...MIGRATIONS, toVersion3],
+      migrations: [...MIGRATIONS, toVersion4],
     });
     expect(newer.stats()).toEqual({ sessions: 2, laps: 2 });
     newer.close();
@@ -975,7 +1460,7 @@ describe('a lap library from a newer build', () => {
     // in the log. A connection that could write would move them into the
     // file on closing, which is a change to a file this build may not make.
     const live = path.join(directory, 'live.db');
-    const writer = buildVersion3Library(live);
+    const writer = buildVersion4Library(live);
     fs.copyFileSync(live, file);
     fs.copyFileSync(`${live}-wal`, `${file}-wal`);
     writer.close();
@@ -992,7 +1477,7 @@ describe('a lap library from a newer build', () => {
   });
 
   it('leaves the library unavailable, with the reason, and records nothing', () => {
-    buildVersion3Library(file).close();
+    buildVersion4Library(file).close();
     const original = fs.readFileSync(file);
 
     const host = createLapLibraryHost(file);
@@ -1055,7 +1540,7 @@ describe('the worker host', () => {
         available: true,
         reason: null,
         message: null,
-        schemaVersion: 2,
+        schemaVersion: 3,
         upgradedFrom: 1,
         backupName: 'laps.v1.bak.db',
       },
@@ -1089,67 +1574,6 @@ describe('the worker host', () => {
 });
 
 describe('the cap on an upgraded library', () => {
-  const ledgerFor = (index: number): LapLedgerInput => {
-    // Two laps to a stint, so that stints come and go at the cap too.
-    const ordinal = Math.floor(index / 2) + 1;
-    return {
-      stint: {
-        stint: {
-          id: `boot9:1:${ordinal}`,
-          ordinal,
-          sessionNum: 0,
-          driver: null,
-          own: true,
-          openedBy: 'pitExit',
-          closedBy: null,
-          startTime: ordinal * 400,
-          endTime: null,
-          startLap: (ordinal - 1) * 2,
-          endLap: null,
-          laps: (index % 2) + 1,
-          startFuel: 50,
-          endFuel: null,
-          startEnergy: null,
-          endEnergy: null,
-          startTread: [1, 1, 1, 1],
-          endTread: [],
-          startBrake: [],
-          endBrake: [],
-          compounds: ['Medium', 'Medium', 'Medium', 'Medium'],
-          bestLap: null,
-          avgLap: null,
-          cleanLaps: 0,
-          paceDelta: null,
-          consistency: null,
-          passes: [],
-          stop: null,
-        },
-        startedAt: T0 + ordinal,
-        endedAt: null,
-      },
-      sessionNum: 0,
-      stintLap: (index % 2) + 1,
-      startTime: index * 200,
-      endTime: index * 200 + 200,
-      simLapTime: null,
-      flags: 0,
-      fuelAtLine: 40,
-      fuelAdded: 0,
-      energyAtLine: null,
-      energyAdded: 0,
-      treadAtLine: [0.9, 0.9, 0.9, 0.9],
-      treadUsed: [0.001, 0.001, 0.001, 0.001],
-      brakeAtLine: [],
-      brakeUsed: [],
-      compounds: ['Medium', 'Medium', 'Medium', 'Medium'],
-      sectors: [60, 70, 70],
-      wetness: 1,
-      rain: 0,
-      position: null,
-      classPosition: null,
-    };
-  };
-
   it('still drops the oldest laps first at 5,000, and the new tables follow', () => {
     expect(LAP_LIBRARY_MAX_LAPS).toBe(5000);
     const library = buildVersion1Library(file);

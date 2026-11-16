@@ -9,6 +9,16 @@ import type {
   StintInput,
   StoredReferenceLap,
 } from '../../../types/lapLibrary';
+import type {
+  RaceDriverChange,
+  RaceLap,
+  RaceRecords,
+  RaceStint,
+  RaceWriteBatch,
+  RaceWriteResult,
+  StoredRace,
+  StoredRaceState,
+} from '../../../types/raceHistory';
 import type { LapLibraryDatabase, RecordedLap } from './LapLibraryDatabase';
 
 /** How the library's file opened, as the main process is told it. */
@@ -55,6 +65,19 @@ export interface LapLibraryMethods {
   ): StoredReferenceLap | null;
   stats(): LapLibraryStats;
   prune(maxLaps: number): number;
+  /** The history of races: see RaceHistoryTables for each of these. */
+  raceWrite(batch: RaceWriteBatch): RaceWriteResult;
+  raceList(limit?: number): StoredRace[];
+  raceCandidates(
+    simulator: string,
+    trackId: number,
+    sessionType: string | null,
+    limit?: number
+  ): StoredRaceState[];
+  raceLoad(raceId: number): RaceRecords | null;
+  raceCarLaps(raceId: number, carIdx: number): RaceLap[];
+  raceCarStints(raceId: number, carIdx: number): RaceStint[];
+  raceDriverChanges(raceId: number): RaceDriverChange[];
 }
 
 export type LapLibraryMethod = keyof LapLibraryMethods;
@@ -127,6 +150,25 @@ export const dispatch = (
       return db.stats();
     case 'prune':
       return db.prune(args[0] as number);
+    case 'raceWrite':
+      return db.races.write(args[0] as RaceWriteBatch);
+    case 'raceList':
+      return db.races.list(args[0] as number | undefined);
+    case 'raceCandidates':
+      return db.races.candidates(
+        args[0] as string,
+        args[1] as number,
+        args[2] as string | null,
+        args[3] as number | undefined
+      );
+    case 'raceLoad':
+      return db.races.load(args[0] as number);
+    case 'raceCarLaps':
+      return db.races.carLaps(args[0] as number, args[1] as number);
+    case 'raceCarStints':
+      return db.races.carStints(args[0] as number, args[1] as number);
+    case 'raceDriverChanges':
+      return db.races.driverChanges(args[0] as number);
     default:
       throw new Error(`Unknown lap library method: ${method}`);
   }

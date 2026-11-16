@@ -56,6 +56,51 @@ describe('needsPitStops', () => {
     }
   });
 
+  it('follows the Pit Wall switch under both simulators', () => {
+    // The Pit Wall is shown under Le Mans Ultimate, where the Gantry is not.
+    for (const simulator of ['iracing', 'lmu', undefined, null] as const) {
+      expect(
+        needsPitStops(layout(widget('pitwall', true)), simulator, support)
+      ).toBe(true);
+      expect(
+        needsPitStops(layout(widget('pitwall', false)), simulator, support)
+      ).toBe(false);
+    }
+  });
+
+  it('is true under LMU with the Pit Wall on beside a Gantry that is hidden', () => {
+    expect(
+      needsPitStops(
+        layout(widget('gantry', true), widget('pitwall', true)),
+        'lmu',
+        support
+      )
+    ).toBe(true);
+    expect(
+      needsPitStops(
+        layout(widget('gantry', true), widget('pitwall', false)),
+        'lmu',
+        support
+      )
+    ).toBe(false);
+  });
+
+  it('is false for a Pit Wall the support file hides under the running sim', () => {
+    const edited: SimWidgetSupportConfig = {
+      ...support,
+      disabledWidgets: {
+        ...support.disabledWidgets,
+        iracing: [...support.disabledWidgets.iracing, 'pitwall'],
+      },
+    };
+    expect(
+      needsPitStops(layout(widget('pitwall', true)), 'iracing', edited)
+    ).toBe(false);
+    expect(needsPitStops(layout(widget('pitwall', true)), 'lmu', edited)).toBe(
+      true
+    );
+  });
+
   it('follows a support file that lets the Gantry run under LMU', () => {
     const edited: SimWidgetSupportConfig = {
       ...support,
@@ -127,6 +172,13 @@ describe('watchPitStopDemand', () => {
     expect(app.onChange.mock.calls).toEqual([[false], [true]]);
   });
 
+  it('starts under LMU when the Pit Wall is switched on', () => {
+    const app = fakeApp(layout(widget('gantry', true)), 'lmu');
+    app.setLayout(layout(widget('gantry', true), widget('pitwall', true)));
+    app.setLayout(layout(widget('gantry', true), widget('pitwall', false)));
+    expect(app.onChange.mock.calls).toEqual([[false], [true], [false]]);
+  });
+
   it('stays off under LMU whatever the Gantry switch does', () => {
     const app = fakeApp(layout(widget('gantry', false)), 'lmu');
     app.setLayout(layout(widget('gantry', true)));
@@ -181,9 +233,9 @@ const pitStop: Telemetry[] = [
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('pit stop recording under each simulator', () => {
-  // The Gantry is enabled in the dashboard both times: it was switched on
+  // The Gantry is enabled in the dashboard every time: it was switched on
   // for iRacing, and the setting is kept while another sim hides the widget.
-  const record = async (simulator: ActiveSimulator) => {
+  const record = async (simulator: ActiveSimulator, pitWall = false) => {
     const persistence = {
       load: vi.fn<PitStopPersistence['load']>(() => Promise.resolve(null)),
       save: vi.fn<PitStopPersistence['save']>(),
@@ -195,7 +247,10 @@ describe('pit stop recording under each simulator', () => {
       metrics,
       persistence
     );
-    const app = fakeApp(layout(widget('gantry', true)), simulator);
+    const app = fakeApp(
+      layout(widget('gantry', true), widget('pitwall', pitWall)),
+      simulator
+    );
     app.onChange.mock.calls.forEach(([needed]) =>
       runtime.updateEnabled(needed)
     );
@@ -223,5 +278,16 @@ describe('pit stop recording under each simulator', () => {
     expect(metrics.markStart).not.toHaveBeenCalledWith('pitStopProcessing');
     expect(persistence.load).not.toHaveBeenCalled();
     expect(persistence.save).not.toHaveBeenCalled();
+  });
+
+  it('records a stop under Le Mans Ultimate with the Pit Wall switched on', async () => {
+    const { persistence, metrics } = await record('lmu', true);
+
+    expect(metrics.markStart).toHaveBeenCalledWith('pitStopProcessing');
+    // Handed on to be kept. Whether it is written is the archive's to say:
+    // under a session id the next race shares, it is not.
+    const [, stops] = persistence.save.mock.calls.at(-1) ?? [];
+    expect(stops).toHaveLength(1);
+    expect(stops?.[0]).toMatchObject({ entryTime: 110, exitTime: 150 });
   });
 });

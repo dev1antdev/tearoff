@@ -39,6 +39,13 @@ describe('needsLapHistory', () => {
     expect(needsLapHistory(layout(widget('battle', false)))).toBe(false);
   });
 
+  it('is true for an enabled Pit Wall, which reads none itself', () => {
+    // A page for whole races: the crossings are kept while it is switched
+    // on, whether or not one of its panels shows them.
+    expect(needsLapHistory(layout(widget('pitwall', true)))).toBe(true);
+    expect(needsLapHistory(layout(widget('pitwall', false)))).toBe(false);
+  });
+
   it('matches a widget copy by its type', () => {
     const copy = widget('battle-2', true, { type: 'battle' });
     expect(needsLapHistory(layout(copy))).toBe(true);

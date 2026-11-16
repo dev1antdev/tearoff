@@ -10,6 +10,7 @@ export * from './usePlayerLedgerSnapshot';
 export * from './usePlayerStintSnapshot';
 export * from './useWearSnapshot';
 export * from './useCarPitSnapshot';
+export * from './useRaceHistorySummarySnapshot';
 export * from './usePitStopSnapshot';
 export * from './useTrackProfileSnapshot';
 export * from './useCruiseSnapshot';

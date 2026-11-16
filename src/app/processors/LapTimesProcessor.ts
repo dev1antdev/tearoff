@@ -21,7 +21,7 @@ const OUTLIER_THRESHOLD = 1;
  * by up to 0.15 s. Long enough for that, and far too short for a time that
  * has nothing to do with the lap being counted.
  */
-const EARLY_TIME_WINDOW_SECONDS = 1;
+export const EARLY_TIME_WINDOW_SECONDS = 1;
 
 const median = (numbers: readonly number[]): number => {
   if (numbers.length === 0) return 0;
