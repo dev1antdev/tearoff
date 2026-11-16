@@ -1113,6 +1113,141 @@ describe('dashboards', () => {
     });
   });
 
+  describe('Standings and Relative saved before the vs stint column', () => {
+    const layout = { x: 6, y: 10, width: 560, height: 774 };
+    const NEW_KEYS = ['stintPace', 'paceAgainst'];
+    const without = (config: Record<string, unknown>, keys: string[]) =>
+      Object.fromEntries(
+        Object.entries(config).filter(([key]) => !keys.includes(key))
+      );
+
+    // A widget as the build before the column stored it: what it has today
+    // without it, and then the driver's own settings on top, with the
+    // averages on and the columns in an order of their own.
+    const savedConfig = (type: 'standings' | 'relative') => {
+      const now = structuredClone(
+        getWidgetDefaultConfig(type)
+      ) as unknown as Record<string, unknown>;
+      const order = (now.displayOrder as string[]).filter(
+        (name) => name !== 'stintPace'
+      );
+      return {
+        ...without(now, NEW_KEYS),
+        background: { opacity: 55 },
+        avgLast5: { enabled: true, timeFormat: 'mixed' },
+        averagesOver: 'all',
+        showOnlyWhenOnTrack: true,
+        displayOrder: [
+          'avgLast10',
+          'lastTime',
+          ...order.filter(
+            (name) => name !== 'avgLast10' && name !== 'lastTime'
+          ),
+        ],
+      };
+    };
+    const stored = (): DashboardLayout => ({
+      widgets: [
+        {
+          id: 'standings',
+          enabled: true,
+          layout,
+          config: savedConfig('standings'),
+        },
+        // The Gantry's own Standings layout is a Standings widget too.
+        {
+          id: 'standings-g1',
+          type: 'standings',
+          placement: 'gantry',
+          enabled: true,
+          layout,
+          config: savedConfig('standings'),
+        },
+        {
+          id: 'relative',
+          enabled: false,
+          layout,
+          config: savedConfig('relative'),
+        },
+      ],
+    });
+    const configOf = (dashboard: DashboardLayout, id: string) =>
+      dashboard.widgets.find((w) => w.id === id)?.config as Record<
+        string,
+        unknown
+      >;
+
+    it.each([
+      ['standings', 'standings', 'lapCount'],
+      ['standings-g1', 'standings', 'lapCount'],
+      ['relative', 'relative', 'trackLimits'],
+    ] as const)(
+      'gives %s the column, switched off, and keeps every stored setting',
+      (id, type, next) => {
+        const before = savedConfig(type);
+
+        const loaded = withDashboardDefaults(stored());
+        const config = configOf(loaded, id);
+
+        // Everything the profile held, value for value.
+        expect(without(config, [...NEW_KEYS, 'displayOrder'])).toEqual(
+          without(before, ['displayOrder'])
+        );
+        // The columns in the order the driver left them, plus the new one,
+        // ahead of the column a new dashboard has after it.
+        const order = config.displayOrder as string[];
+        expect(order.filter((name) => name !== 'stintPace')).toEqual(
+          before.displayOrder
+        );
+        expect(order).toHaveLength(before.displayOrder.length + 1);
+        expect(order[order.indexOf('stintPace') + 1]).toBe(next);
+        // Off, against the previous stint: the widget looks as it did, and
+        // no race is recorded for it.
+        expect(config.stintPace).toEqual({ enabled: false });
+        expect(config.paceAgainst).toBe('stint');
+        // The widget itself is untouched: where it is and whether it is on.
+        expect(loaded.widgets.find((w) => w.id === id)).toMatchObject({
+          enabled: id !== 'relative',
+          layout,
+        });
+      }
+    );
+
+    it('changes nothing more when the profile is loaded again', () => {
+      const loaded = withDashboardDefaults(stored());
+
+      expect(withDashboardDefaults(loaded)).toEqual(loaded);
+    });
+
+    it('keeps the column as the driver then sets it', () => {
+      const loaded = withDashboardDefaults(stored());
+      const chosen: DashboardLayout = {
+        ...loaded,
+        widgets: loaded.widgets.map((widget) =>
+          widget.id === 'standings'
+            ? {
+                ...widget,
+                config: {
+                  ...widget.config,
+                  stintPace: { enabled: true },
+                  paceAgainst: 'driver',
+                },
+              }
+            : widget
+        ),
+      };
+
+      const config = configOf(withDashboardDefaults(chosen), 'standings');
+
+      expect(config.stintPace).toEqual({ enabled: true });
+      expect(config.paceAgainst).toBe('driver');
+      // The Relative beside it was not touched.
+      expect(
+        configOf(withDashboardDefaults(chosen), 'relative').stintPace
+      ).toEqual({ enabled: false });
+    });
+  });
+
   describe('Lap trace layout migration', () => {
     const layout = { x: 20, y: 40, width: 400, height: 120 };
     const lapTraceIn = (dashboard: DashboardLayout) =>

@@ -25,6 +25,8 @@ vi.mock('@irdashies/context', async (importOriginal) => ({
   useWeekendInfoTeamRacing: () => false,
   useSessionVisibility: () => true,
   useCarIdxRollingAvgLapTime: () => [],
+  // Reads a channel, and these tests have no channel bridge.
+  useCarIdxStintPace: () => [],
   usePitStopDuration: () => [],
   usePitLaneStore: () => null,
   useFirstObservedLap: () => [],

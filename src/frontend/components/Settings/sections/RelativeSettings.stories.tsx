@@ -14,13 +14,19 @@ const Loaded = () => {
 
 /**
  * The Relative settings page with both lap average columns switched on,
- * opened on a tab and scrolled to the row the story is about.
+ * and the vs stint column where the story asks for it, opened on a tab and
+ * scrolled to the row the story is about.
  */
-const page = (tab: 'display' | 'options', scrollTo: string) => {
+const page = (
+  tab: 'display' | 'options',
+  scrollTo: string,
+  stintPace = false
+) => {
   const bridge = createMockBridgeWithConfig({
     relative: {
       avgLast5: { enabled: true, timeFormat: 'full' },
       avgLast10: { enabled: true, timeFormat: 'full' },
+      stintPace: { enabled: stintPace },
     },
   });
   const Page = () => {
@@ -54,4 +60,14 @@ export const LapAverageColumns: Story = {
 /** Options, with "Averages over" under the relative time's own setting. */
 export const LapAverageOptions: Story = {
   render: page('options', 'Relative Time'),
+};
+
+/** The column list with vs stint on, as on the Standings page. */
+export const StintPaceColumn: Story = {
+  render: page('display', 'Avg 5 (Last 5 Laps)', true),
+};
+
+/** Options, with "Pace against" under the lap averages' own choice. */
+export const StintPaceOptions: Story = {
+  render: page('options', 'Lap Averages', true),
 };

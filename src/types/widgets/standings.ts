@@ -1,6 +1,7 @@
 import {
   lapAveragesOverProperty,
   numberOptions,
+  stintPaceAgainstProperty,
   timeFormatOptions,
 } from './properties';
 import { defineWidgetManifest } from './types';
@@ -123,6 +124,9 @@ export default defineWidgetManifest({
       timeFormat: 'full',
     },
     averagesOver: 'clean',
+    // Off by default: while it is on the race is recorded for it.
+    stintPace: { enabled: false },
+    paceAgainst: 'stint',
     lapCount: {
       enabled: false,
     },
@@ -372,6 +376,7 @@ export default defineWidgetManifest({
       'avgLapTime',
       'avgLast5',
       'avgLast10',
+      'stintPace',
       'lapCount',
       'trackLimits',
       'lmuVirtualEnergy',
@@ -547,6 +552,7 @@ export default defineWidgetManifest({
       options: timeFormatOptions,
     },
     averagesOver: lapAveragesOverProperty,
+    paceAgainst: stintPaceAgainstProperty,
     'pitStatus.showPitTime': { type: 'boolean', label: 'Pit Time' },
     'pitStatus.pitLapDisplayMode': {
       type: 'enum',

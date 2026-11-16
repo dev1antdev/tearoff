@@ -337,6 +337,7 @@ Displays standings information for the current session.
   - A last lap the sim gave no time is dimmed and marked with a warning sign: a lap voided for track limits or a cut, or an out-lap (Le Mans Ultimate only; can be switched off)
   - Optional **Avg 5** and **Avg 10** columns: each car's average lap time over its last 5 and its last 10 laps, each in a time format of its own like Last and Best. A column reads `--` until the car has that many laps; it never shows the average of fewer. Off by default, in iRacing and Le Mans Ultimate
   - **Averages over** (Options tab) chooses which laps those two columns count. **Clean laps**, the default: laps Tearoff watched from line to line with the car never on pit road, so in-laps and out-laps are left out, and so is the lap a car was on when it was first seen. Nothing else is left out: a lap under yellow counts, and so does a lap Le Mans Ultimate voided for track limits, with the time it took. **All laps**: every lap that has a time, pit laps included
+  - Optional **vs stint** column, the one the [Timing Tower](#timing-tower) has: the average clean lap of the stint a car is on, less that of an earlier stint of the same car, negative and green when it is quicker, positive and red when slower, `--` until the stint has three clean laps and there is an earlier stint to compare with. **Pace against** (Options tab) holds it against the previous stint or the previous driver. Off by default, in iRacing and Le Mans Ultimate. While the column is on Tearoff records the race for it; while it is off nothing is recorded on its account
 - Optional column headers
 - Class headers:
   - Estimated race lap counts, or scheduled totals in fixed-lap races
@@ -408,6 +409,7 @@ Displays drive relative delta information for the current session.
 - Timing information: best lap time, last lap time (multiple time format options: full, mixed, minutes, seconds-full, seconds-mixed, seconds)
   - A last lap the sim gave no time is dimmed and marked with a warning sign (Le Mans Ultimate only; can be switched off)
   - Optional **Avg 5** and **Avg 10** columns, the average of each car's last 5 and last 10 laps over clean laps or all laps, as in [Standings](#standings); they need a wider widget than the default
+  - Optional **vs stint** column with its **Pace against** choice, the pace of each car's stint against an earlier one, as in [Standings](#standings); off by default
 - Optional Push-to-Pass column, showing a driver's active state and remaining time in supported series
 - Configurable radio icon duration, so recent transmissions remain visible without flickering
 - Lap time delta column (configurable number of laps: 1-5)

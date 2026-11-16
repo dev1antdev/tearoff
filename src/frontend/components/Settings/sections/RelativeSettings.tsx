@@ -14,6 +14,7 @@ import { FormatSelect } from '../components/FormatSelect';
 import { type RelativeBadgeFormat } from '@irdashies/types';
 import { DEFAULT_SESSION_BAR_DISPLAY_ORDER } from '../sessionBarConstants';
 import { lapAverageHint } from '../lapAverageHint';
+import { STINT_PACE_HINT } from '../stintPaceHint';
 import { SessionVisibility } from '../components/SessionVisibility';
 import { DriverNamePreview } from '../components/DriverNamePreview';
 import { SettingDivider } from '../components/SettingDivider';
@@ -107,6 +108,12 @@ const sortableSettings: SortableSetting[] = [
     id: 'avgLast10',
     label: 'Avg 10 (Last 10 Laps)',
     configKey: 'avgLast10',
+    hasSubSetting: true,
+  },
+  {
+    id: 'stintPace',
+    label: 'vs Stint (Pace Against an Earlier Stint)',
+    configKey: 'stintPace',
     hasSubSetting: true,
   },
   { id: 'compound', label: 'Tire Compound', configKey: 'compound' },
@@ -352,6 +359,12 @@ const DisplaySettingsList = ({
                   </p>
                 </>
               )}
+            {setting.configKey === 'stintPace' &&
+              settings.config.stintPace?.enabled && (
+                <p className="pl-8 mt-2 text-sm text-slate-500">
+                  {STINT_PACE_HINT}
+                </p>
+              )}
             {setting.hasSubSetting &&
               setting.configKey === 'lapTimeDeltas' &&
               settings.config.lapTimeDeltas.enabled && (
@@ -539,6 +552,12 @@ export const RelativeSettings = () => {
 
                     <SettingsSection title="Lap Averages">
                       <SettingProp path="averagesOver" />
+                    </SettingsSection>
+
+                    <SettingDivider />
+
+                    <SettingsSection title="Stint Pace">
+                      <SettingProp path="paceAgainst" />
                     </SettingsSection>
                   </>
                 )}

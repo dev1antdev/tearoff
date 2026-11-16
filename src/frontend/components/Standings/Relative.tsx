@@ -10,6 +10,7 @@ import {
   useLapTimeHistory,
   useCarIdxRollingAvgLapTime,
   useCarIdxLapAverage,
+  useCarIdxStintPace,
   useFocusCarIdx,
   useFlagStateSnapshot,
   useP2PDisplayStates,
@@ -116,6 +117,15 @@ export const Relative = () => {
   const averagesOver = settings?.averagesOver === 'all' ? 'all' : 'clean';
   const avgLast5 = useCarIdxLapAverage(5, averagesOver, avgLast5Enabled);
   const avgLast10 = useCarIdxLapAverage(10, averagesOver, avgLast10Enabled);
+  // The pace of each car's stint against an earlier one. Read only while
+  // the column is on: reading the race history is what has a race
+  // recorded, and a column that is off must not cost that.
+  const stintPaceEnabled = !!settings?.stintPace?.enabled;
+  const stintPace = useCarIdxStintPace(
+    // Anything but a stored "driver" is the default.
+    settings?.paceAgainst === 'driver' ? 'driver' : 'stint',
+    stintPaceEnabled
+  );
   const numLapDeltas = settings?.lapTimeDeltas?.numLaps ?? 3;
   const focusCarIdx = useFocusCarIdx();
   const lapTimeHistory = useLapTimeHistory();
@@ -353,6 +363,9 @@ export const Relative = () => {
           }
           avgLast5={avgLast5Enabled ? avgLast5[result.carIdx] : undefined}
           avgLast10={avgLast10Enabled ? avgLast10[result.carIdx] : undefined}
+          stintPace={
+            stintPaceEnabled ? (stintPace[result.carIdx] ?? null) : undefined
+          }
           hiddenColumns={hiddenColumns}
           hasDriverRatings={hasDriverRatings}
           isAI={result.driver?.isAI}
@@ -396,6 +409,8 @@ export const Relative = () => {
     avgLast5,
     avgLast10Enabled,
     avgLast10,
+    stintPaceEnabled,
+    stintPace,
     pitStopDurations,
     pitExitAfterSF,
   ]);

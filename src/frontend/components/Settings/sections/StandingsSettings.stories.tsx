@@ -5,18 +5,21 @@ import { StandingsSettings } from './StandingsSettings';
 
 /**
  * The Standings settings page with both lap average columns switched on,
- * opened on a tab and scrolled to the row the story is about.
+ * and the vs stint column where the story asks for it, opened on a tab and
+ * scrolled to the row the story is about.
  */
 const page = (
   averagesOver: 'clean' | 'all',
   tab: 'display' | 'options',
-  scrollTo: string
+  scrollTo: string,
+  stintPace = false
 ) => {
   const bridge = createMockBridgeWithConfig({
     standings: {
       avgLast5: { enabled: true, timeFormat: 'full' },
       avgLast10: { enabled: true, timeFormat: 'mixed' },
       averagesOver,
+      stintPace: { enabled: stintPace },
     },
   });
   const Page = () => {
@@ -58,4 +61,18 @@ export const LapAverageColumnsAllLaps: Story = {
 /** Options, with "Averages over" and what a clean lap is here. */
 export const LapAverageOptions: Story = {
   render: page('clean', 'options', 'Use Live Position Standings'),
+};
+
+/**
+ * The column list with vs stint on: a line saying what it waits for, where
+ * the choice of the stint it is held against is, and that it has the race
+ * recorded.
+ */
+export const StintPaceColumn: Story = {
+  render: page('clean', 'display', 'Avg 5 (Last 5 Laps)', true),
+};
+
+/** Options, with "Pace against" and what the column compares. */
+export const StintPaceOptions: Story = {
+  render: page('clean', 'options', 'Lap Averages', true),
 };

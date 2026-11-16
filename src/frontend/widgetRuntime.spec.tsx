@@ -104,8 +104,9 @@ describe('widget runtime metadata', () => {
         'standings.snapshot',
         'track-state.snapshot',
         'track-profile.snapshot',
+        'race-history.summary',
       ],
-      channelRates: { 'radio.snapshot': 25 },
+      channelRates: { 'radio.snapshot': 25, 'race-history.summary': 1 },
     });
     expect(getWidgetRuntimeDefinition('relative')).toMatchObject({
       channels: [
@@ -118,8 +119,9 @@ describe('widget runtime metadata', () => {
         'track-state.snapshot',
         'flag-state.snapshot',
         'track-profile.snapshot',
+        'race-history.summary',
       ],
-      channelRates: { 'radio.snapshot': 25 },
+      channelRates: { 'radio.snapshot': 25, 'race-history.summary': 1 },
     });
   });
 

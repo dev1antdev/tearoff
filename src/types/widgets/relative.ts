@@ -1,6 +1,7 @@
 import {
   lapAveragesOverProperty,
   numberOptions,
+  stintPaceAgainstProperty,
   timeFormatOptions,
 } from './properties';
 import { defineWidgetManifest } from './types';
@@ -105,6 +106,9 @@ export default defineWidgetManifest({
       timeFormat: 'full',
     },
     averagesOver: 'clean',
+    // Off by default: while it is on the race is recorded for it.
+    stintPace: { enabled: false },
+    paceAgainst: 'stint',
     pushToPass: { enabled: false },
     // Off by default: only LMU reports these, so on iRacing the column
     // would be permanently blank.
@@ -133,6 +137,7 @@ export default defineWidgetManifest({
       'avgLapTime',
       'avgLast5',
       'avgLast10',
+      'stintPace',
       'trackLimits',
       'lmuVirtualEnergy',
       'pushToPass',
@@ -394,6 +399,7 @@ export default defineWidgetManifest({
       options: timeFormatOptions,
     },
     averagesOver: lapAveragesOverProperty,
+    paceAgainst: stintPaceAgainstProperty,
     buffer: {
       type: 'enum',
       control: 'select',

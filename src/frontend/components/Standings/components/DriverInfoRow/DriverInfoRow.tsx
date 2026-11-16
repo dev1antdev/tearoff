@@ -30,6 +30,7 @@ import { IratingChangeCell } from './cells/IratingChangeCell';
 import { LapTimeDeltasCell } from './cells/LapTimeDeltasCell';
 import { PositionChangeCell } from './cells/PositionChangeCell';
 import { LastTimeCell } from '../../../shared/LastTimeCell/LastTimeCell';
+import { StintPaceCell } from '../../../shared/StintPaceCell/StintPaceCell';
 import { PitStatusCell } from './cells/PitStatusCell';
 import { PushToPassCell } from './cells/PushToPassCell';
 import { PositionCell } from './cells/PositionCell';
@@ -90,6 +91,11 @@ interface DriverRowInfoProps {
   avgLast5?: number | null;
   /** Seconds over the car's last 10 laps; null until it has 10. */
   avgLast10?: number | null;
+  /**
+   * Seconds the car's stint is off the pace of an earlier stint of its own,
+   * negative for quicker; null while there is nothing to compare.
+   */
+  stintPace?: number | null;
   isMultiClass: boolean;
   displayOrder?: string[];
   /**
@@ -269,6 +275,7 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
     avgLapTime,
     avgLast5,
     avgLast10,
+    stintPace,
     isMultiClass,
     displayOrder,
     hiddenColumns,
@@ -785,6 +792,20 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
           />
         ),
       },
+      // Likewise read with a fallback: without an entry the column is off.
+      {
+        id: 'stintPace',
+        shouldRender:
+          (displayOrder ? displayOrder.includes('stintPace') : false) &&
+          (config?.stintPace?.enabled ?? false),
+        component: (
+          <StintPaceCell
+            key="stintPace"
+            delta={stintPace}
+            compactMode={compactMode}
+          />
+        ),
+      },
       {
         id: 'lapCount',
         shouldRender:
@@ -922,6 +943,7 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
     avgLapTime,
     avgLast5,
     avgLast10,
+    stintPace,
     hideCarManufacturer,
     pitExitAfterSF,
     tagSettings,

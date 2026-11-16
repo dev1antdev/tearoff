@@ -237,6 +237,11 @@ export interface LapAverageColumnConfig {
  */
 export type StintPaceReference = 'stint' | 'driver';
 
+/** The "vs stint" column of the standings and the relative. */
+export interface StintPaceColumnConfig {
+  enabled: boolean;
+}
+
 export interface StandingsConfig {
   customClassOrdering: boolean;
   iratingChange: { enabled: boolean; estimateInPractice?: boolean };
@@ -294,6 +299,13 @@ export interface StandingsConfig {
   avgLast10: LapAverageColumnConfig;
   /** Which laps those two columns count. */
   averagesOver: LapAverageLaps;
+  /**
+   * The pace of the car's stint against an earlier stint of its own: "vs
+   * stint". While it is on the race history is read, and so recorded.
+   */
+  stintPace: StintPaceColumnConfig;
+  /** Which earlier stint that column holds the stint against. */
+  paceAgainst: StintPaceReference;
   lapCount: { enabled: boolean };
   /** LMU's track-limits penalty points. Absent on sims without them. */
   trackLimits: { enabled: boolean };
@@ -379,6 +391,13 @@ export interface RelativeConfig {
   avgLast10: LapAverageColumnConfig;
   /** Which laps those two columns count. */
   averagesOver: LapAverageLaps;
+  /**
+   * The pace of the car's stint against an earlier stint of its own: "vs
+   * stint". While it is on the race history is read, and so recorded.
+   */
+  stintPace: StintPaceColumnConfig;
+  /** Which earlier stint that column holds the stint against. */
+  paceAgainst: StintPaceReference;
   /** LMU's track-limits penalty points. Absent on sims without them. */
   trackLimits: { enabled: boolean };
   /**

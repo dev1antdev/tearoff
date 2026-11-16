@@ -376,6 +376,8 @@ const RelativeWithReorderableConfig = () => {
       avgLast5: { enabled: false, timeFormat: 'full' },
       avgLast10: { enabled: false, timeFormat: 'full' },
       averagesOver: 'clean',
+      stintPace: { enabled: false },
+      paceAgainst: 'stint',
       displayOrder: displayOrder,
       titleBar: { enabled: true, progressBar: { enabled: true } },
       headerBar: {
