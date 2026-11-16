@@ -7,12 +7,15 @@ import { isWidgetDisabledForSim, PIT_WALL_WIDGET_ID } from '@irdashies/types';
 import type { ChannelBus } from './bridge/channelBus';
 
 /**
- * The channels the race history's runtime publishes: the summary of every
- * car, and the race's log. A reader of either is a reason to record.
+ * The channels made from the record: the summary of every car and the
+ * race's log, which the race history's runtime publishes, and the laps
+ * each class car has run on its tyres, which are counted from the stints
+ * and stops it holds. A reader of any of them is a reason to record.
  */
 const CHANNELS: readonly string[] = [
   'race-history.summary',
   'race-log.snapshot',
+  'class-tyres.snapshot',
 ];
 
 /** Ends a subscription, where the source hands one back. */
@@ -62,10 +65,10 @@ export interface RaceHistoryDemandOptions {
  *
  * The Pit Wall needs it for as long as it is switched on, its window open
  * or not: a race is recorded from its start, not from when somebody looks.
- * So does any subscriber to the summary or to the race's log, which is how
- * a page served to a browser asks while the Pit Wall is off on the desktop,
- * and how a widget on the overlay does. With neither, no frame is read at
- * all.
+ * So does any subscriber to the summary, to the race's log or to a channel
+ * made from the record, which is how a page served to a browser asks while
+ * the Pit Wall is off on the desktop, and how a widget on the overlay does.
+ * With neither, no frame is read at all.
  *
  * The simulator is watched as well as the dashboard: left on auto-detect
  * it is named only when a game is found, after the dashboard has been read.

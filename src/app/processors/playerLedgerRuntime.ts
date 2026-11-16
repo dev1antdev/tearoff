@@ -22,6 +22,7 @@ import {
   PLAYER_LEDGER_MAX_STINTS,
   SessionState,
   TrackLocation,
+  TREAD_ESTIMATE_MIN_OWN_LAPS,
 } from '@irdashies/types';
 import {
   BASELINE_EXCLUDED_FLAGS,
@@ -30,6 +31,7 @@ import {
   sessionFlagLapBits,
   voidFlagIsThisLaps,
 } from '../../shared/lapValidity';
+import type { TyreWatch } from '../../shared/tyreSet';
 import { LEDGER_LAP_CAUTION } from '../../types/ledger';
 import type { ChannelBus } from '../bridge/channelBus';
 import type { SessionLifecycle } from '../sessionLifecycle';
@@ -46,8 +48,12 @@ import {
   BASELINE_LAPS,
   baselineFrom,
   LedgerRateBook,
+  treadCostsOf,
+  type LedgerBaseline,
   type LedgerRates,
+  type TreadCost,
 } from './ledgerRates';
+import type { OwnTyres } from './ownTyres';
 import { PlayerLapRecorder, type ClosedLap } from './PlayerLapRecorder';
 import { createStintFrame, StintTracker } from './StintTracker';
 import { createWearFrame, WearForecast } from './WearForecast';
@@ -247,6 +253,20 @@ export class PlayerLedgerRuntime {
   private budget: FuelBudget = 'fuel';
   private hasCar = false;
   private rates: LedgerRates | null = null;
+
+  /**
+   * The tyres on the car as the meter has watched them go on, for
+   * `ownTyres`: since when without a break, and when one was last changed.
+   */
+  private readonly tyreWatch: TyreWatch = {
+    since: Number.NaN,
+    changedAt: Number.NaN,
+    changeLap: -1,
+  };
+  /** What a lap costs the tread on each compound, and what it was made of. */
+  private treadCosts: Map<string, TreadCost> | null = null;
+  private treadCostsVersion = -1;
+  private treadCostsBaseline: LedgerBaseline | null = null;
 
   private readonly sessionTypes = new Map<number, string>();
   private readonly tyreNames = new Map<number, string>();
@@ -472,6 +492,38 @@ export class PlayerLedgerRuntime {
   }
 
   /**
+   * What is known of the tyres on the car, for whoever reckons another
+   * car's from them: the tread as the sim reads it, when a tyre was last
+   * seen to go on, and what a lap costs on each compound it has run.
+   */
+  ownTyres(): OwnTyres {
+    const baseline = this.rateBook.currentBaseline();
+    if (
+      !this.treadCosts ||
+      this.treadCostsVersion !== this.ledgerVersion ||
+      this.treadCostsBaseline !== baseline
+    ) {
+      this.treadCosts = treadCostsOf(
+        this.laps,
+        baseline,
+        TREAD_ESTIMATE_MIN_OWN_LAPS
+      );
+      this.treadCostsVersion = this.ledgerVersion;
+      this.treadCostsBaseline = baseline;
+    }
+    return {
+      // iRacing refreshes tread in the pits alone: what it reads on track
+      // is the tread the car left them with.
+      tread:
+        this.hasCar && this.options.simulator !== 'iracing'
+          ? this.meter.treadLevels()
+          : null,
+      watch: this.tyreWatch,
+      costs: this.treadCosts,
+    };
+  }
+
+  /**
    * The stint under way, or '' with none: where the best lap of a stint
    * ends, for the recorder of the player's reference laps.
    */
@@ -532,6 +584,7 @@ export class PlayerLedgerRuntime {
     this.rateBook.reset();
     this.wear.reset();
     this.rates = null;
+    this.forgetTyres();
     this.watch.open = false;
     this.sessionNum = null;
     this.lapNumber = null;
@@ -555,6 +608,8 @@ export class PlayerLedgerRuntime {
     if (sessionNum !== this.sessionNum) {
       this.sessionNum = sessionNum;
       this.ledgerVersion += 1;
+      // Another session is another set of tyres, fitted out of sight.
+      this.forgetTyres();
       // The session's own laps are what a rate falls back to.
       this.rates = null;
       this.stintDirty = true;
@@ -629,6 +684,20 @@ export class PlayerLedgerRuntime {
         this.rates = null;
         this.wearDirty = true;
       }
+      // Laps completed as the race history counts them, from the lap the
+      // car is on; the driver's own count where the sim gives no such lap.
+      const carLap = numberAt(cells, 'CarIdxLap', player);
+      this.followTyres(
+        changed !== 0,
+        sessionTime,
+        carLap !== null && carLap >= 1
+          ? carLap - 1
+          : Math.max(0, numberAt(cells, 'LapCompleted') ?? 0)
+      );
+    } else {
+      // Out of sight: what goes on the car now is seen only when it is
+      // read again, and not at all if it is as worn as what came off.
+      this.tyreWatch.since = Number.NaN;
     }
 
     // The lap under way, before the recorder may close it on this frame.
@@ -1028,6 +1097,38 @@ export class PlayerLedgerRuntime {
     return this.meter
       .compoundIndices()
       .map((index) => this.tyreNames.get(index) ?? null);
+  }
+
+  /**
+   * One frame of the tyres on the car. They are watched for as long as the
+   * meter has something to tell a change by: the tread itself, or under
+   * iRacing the count of tyres each corner has used.
+   */
+  private followTyres(changed: boolean, now: number, lap: number): void {
+    const reading = this.reading;
+    const read =
+      !reading.frozen &&
+      (reading.tread.some((value) => value !== null) ||
+        reading.tyresUsed.some((value) => value !== null));
+    const watch = this.tyreWatch;
+    if (!read) {
+      // A frame the sim stopped writing says nothing, and ends nothing:
+      // the reading after it is held against the one before.
+      if (!reading.frozen) watch.since = Number.NaN;
+      return;
+    }
+    if (Number.isNaN(watch.since)) watch.since = now;
+    if (changed) {
+      watch.changedAt = now;
+      watch.changeLap = lap;
+    }
+  }
+
+  /** Forgets what was watched of the tyres: another session or connection. */
+  private forgetTyres(): void {
+    this.tyreWatch.since = Number.NaN;
+    this.tyreWatch.changedAt = Number.NaN;
+    this.tyreWatch.changeLap = -1;
   }
 
   /** Asks the library what this track and car usually cost, once per key. */

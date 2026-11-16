@@ -309,6 +309,22 @@ export class RaceHistoryRuntime implements RaceHistoryListener {
   }
 
   /**
+   * What is held of the race in hand, for a reader in this process that
+   * works something out from it as it grows: the recorder's own lists, not
+   * copies, and not to be changed.
+   */
+  readonly records = {
+    /** Frames are being read: the records are being added to. */
+    recording: (): boolean => this.enabled && !this.paused,
+    /** Names the race; '' between two. */
+    raceToken: (): string => this.race?.token ?? '',
+    revision: (carIdx: number): number => this.recorder.carRevision(carIdx),
+    laps: (carIdx: number): readonly RaceLap[] => this.recorder.carLaps(carIdx),
+    stints: (carIdx: number): readonly RaceStint[] =>
+      this.recorder.carStints(carIdx),
+  };
+
+  /**
    * Lets go of everything, storing what is still in hand first. Called when
    * the app quits. Nothing is said to have ended: the race may be picked up
    * again, and a stint left open is then carried on.

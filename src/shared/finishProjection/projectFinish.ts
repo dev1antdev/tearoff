@@ -2,6 +2,7 @@ import type {
   FinishProjectionSnapshot,
   FinishRefuelLine,
   FinishRival,
+  LmuPitService,
 } from '@irdashies/types';
 
 /**
@@ -188,6 +189,81 @@ export const stopsOwedFor = (
 ): number => {
   if (!(lapsLeft > lapsInHand) || !(stintLaps > 0)) return 0;
   return Math.ceil((lapsLeft - lapsInHand) / stintLaps - FINISH_ROUNDING_LAPS);
+};
+
+/** A full budget of virtual energy, in the percent it is counted in. */
+const ENERGY_PERCENT = 100;
+
+/** The rates a session states for refuelling. */
+export type RefuelRates = Pick<
+  LmuPitService,
+  | 'fuelFillRate'
+  | 'fuelInsert'
+  | 'fuelRemove'
+  | 'virtualEnergyFillRate'
+  | 'virtualEnergyInsert'
+  | 'virtualEnergyRemove'
+>;
+
+/** A hose on and off again, or null where the sim does not state both. */
+const hoseS = (
+  insert: number | undefined,
+  remove: number | undefined
+): number | null =>
+  typeof insert === 'number' && typeof remove === 'number'
+    ? insert + remove
+    : null;
+
+/**
+ * The hose of a car that stops on its tank, per litre. Null where the
+ * session does not state the rate and both ends of the hose: a stop costed
+ * without them would be a stop too short.
+ */
+export const fuelRefuelLine = (
+  rates: RefuelRates | undefined
+): FinishRefuelLine | null => {
+  const rate = rates?.fuelFillRate;
+  const hose = hoseS(rates?.fuelInsert, rates?.fuelRemove);
+  if (!(rate && rate > 0) || hose === null) return null;
+  return { fixedS: hose, perUnitS: 1 / rate };
+};
+
+/**
+ * The two hoses of a car on virtual energy, per percent of its budget: the
+ * energy, and the fuel that goes in with it at `litresPerPercent`. Null
+ * where a rate of either is missing.
+ *
+ * @param tankShortL Litres the tank is short of what the energy aboard
+ *   calls for, which the fuel hose makes up as well. 0 for a car whose
+ *   tank is not read: its fuel is then taken to have gone with its energy.
+ */
+export const energyRefuelLines = (
+  rates: RefuelRates | undefined,
+  litresPerPercent: number | null,
+  tankShortL: number
+): FinishRefuelLine[] | null => {
+  const fuel = fuelRefuelLine(rates);
+  const energyRate = rates?.virtualEnergyFillRate;
+  const energyHose = hoseS(
+    rates?.virtualEnergyInsert,
+    rates?.virtualEnergyRemove
+  );
+  if (
+    !fuel ||
+    !(energyRate && energyRate > 0) ||
+    energyHose === null ||
+    litresPerPercent === null ||
+    !(litresPerPercent > 0)
+  ) {
+    return null;
+  }
+  return [
+    { fixedS: energyHose, perUnitS: 1 / (energyRate * ENERGY_PERCENT) },
+    {
+      fixedS: fuel.fixedS + tankShortL * fuel.perUnitS,
+      perUnitS: litresPerPercent * fuel.perUnitS,
+    },
+  ];
 };
 
 /**

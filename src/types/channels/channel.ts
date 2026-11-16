@@ -20,6 +20,7 @@ import type { RacePlanProgressSnapshot } from './racePlanProgress';
 import type { PitStopsSnapshot } from './pitStops';
 import type { PlayerLedgerSnapshot, PlayerStintSnapshot } from './playerLedger';
 import type { WearSnapshot } from './wear';
+import type { ClassTyresSnapshot } from './classTyres';
 import type { CarPitSnapshot } from './carPit';
 import type { PitStopSnapshot } from './pitStop';
 import type { TrackProfileSnapshot } from './trackProfile';
@@ -82,6 +83,7 @@ export interface ChannelPayloads {
   'player-ledger.snapshot': PlayerLedgerSnapshot;
   'player-stint.snapshot': PlayerStintSnapshot;
   'wear.snapshot': WearSnapshot;
+  'class-tyres.snapshot': ClassTyresSnapshot;
   'car-pit.snapshot': CarPitSnapshot;
   'car-sectors.snapshot': CarSectorsSnapshot;
   'pit-stop.snapshot': PitStopSnapshot;
@@ -1389,6 +1391,13 @@ export const channelRegistry = {
     kind: 'snapshot',
     defaultRateHz: 2,
     maxRateHz: 5,
+  },
+  // Laps on a set of tyres and what is left of them, for a class of cars:
+  // a figure moves when a car completes a lap or leaves its pit box.
+  'class-tyres.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 1,
+    maxRateHz: 1,
   },
   // Publishes on change: a car in the pit lane moves its timer five times a
   // second, and with nobody in the lane a lap completion is all that does.

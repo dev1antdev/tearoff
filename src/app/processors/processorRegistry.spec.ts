@@ -18,6 +18,8 @@ import { createProcessorDefinitions } from './processorRegistry';
  * RaceHistoryRuntime keeps every lap of every car for the whole race, which
  * is stored too, and publishes what it holds of each car. The race's log is
  * kept by the same runtime, for the same reason, and published by it.
+ * ClassTyresRuntime reads those records and watches the cars' wear beside
+ * it: a set of tyres that went on while no window looked still went on.
  */
 const RUNTIME_OWNED_CHANNELS = [
   'lap-history.snapshot',
@@ -25,6 +27,7 @@ const RUNTIME_OWNED_CHANNELS = [
   'player-ledger.snapshot',
   'player-stint.snapshot',
   'wear.snapshot',
+  'class-tyres.snapshot',
   'race-history.summary',
   'race-log.snapshot',
   'replay.context',
