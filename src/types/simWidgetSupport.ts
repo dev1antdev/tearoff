@@ -123,6 +123,10 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // menu's level, and a pit lane learned from the cars seen crossing its
   // lines. Under iRacing the stop is learned from the player's own.
   'pitstop',
+  // A page of its own made of the widgets in this list. A panel whose
+  // widget is in the list below is left out of the page, so the page shows
+  // under LMU exactly what the overlay could.
+  'pitwall',
   // The gap to the car behind while the player is slow on the track, from
   // the Relative's gaps and the player's own speed.
   'rejoin',

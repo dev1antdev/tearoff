@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   MIN_VISIBLE_HEIGHT,
   MIN_VISIBLE_WIDTH,
+  PIT_WALL_WINDOW_MIN_SIZE,
+  defaultPitWallWindowBounds,
   defaultSettingsWindowBounds,
   intersection,
   isReachable,
@@ -38,6 +40,35 @@ describe('defaultSettingsWindowBounds', () => {
     expect(
       defaultSettingsWindowBounds({ x: 8, y: -9, width: 1, height: 1 })
     ).toEqual({ x: 8, y: -9, width: 1, height: 1 });
+  });
+});
+
+describe('defaultPitWallWindowBounds', () => {
+  it.each([
+    ['desktop', 2560, 1400, 1600, 900],
+    ['full HD', 1920, 1040, 1600, 900],
+    ['scaled laptop', 1280, 680, 1280, 680],
+    ['portrait', 1080, 1880, 1080, 900],
+    ['very small', 100, 60, 100, 60],
+  ])('opens 1600 by 900, or what a %s workArea holds, centred', (...row) => {
+    const [, w, h, width, height] = row;
+    const area = { x: -1500, y: 44, width: w, height: h };
+    expect(defaultPitWallWindowBounds(area)).toEqual({
+      width,
+      height,
+      x: Math.round(area.x + (w - width) / 2),
+      y: Math.round(area.y + (h - height) / 2),
+    });
+  });
+
+  it('never returns an empty rectangle', () => {
+    expect(
+      defaultPitWallWindowBounds({ x: 3, y: 4, width: 0, height: 0 })
+    ).toEqual({ x: 3, y: 4, width: 1, height: 1 });
+  });
+
+  it('cannot be made smaller than 900 by 560', () => {
+    expect(PIT_WALL_WINDOW_MIN_SIZE).toEqual({ width: 900, height: 560 });
   });
 });
 

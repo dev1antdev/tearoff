@@ -4,6 +4,7 @@ import {
   type Incident,
   type LapTraceBridge,
   type LapTraceRecord,
+  type PitWallBridge,
   type RaceControlBridge,
   type Session,
 } from '@irdashies/types';
@@ -134,10 +135,14 @@ export function createPreviewStorage() {
     showGantryWindow: async () => false,
   };
 
+  // A preview frame is not a window that can open another.
+  const pitWall: PitWallBridge = { showWindow: async () => false };
+
   return {
     fuel,
     lapTrace,
     raceControl,
+    pitWall,
     updateSession: (value: Session) => {
       session = value;
     },

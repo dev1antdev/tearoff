@@ -3,6 +3,7 @@ import { render, screen, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   DashboardProvider,
+  HostedDashboardProvider,
   useDashboard,
   useShowWhileWatching,
 } from './DashboardContext';
@@ -405,5 +406,98 @@ describe('DashboardContext', () => {
         { timeout: 2000 }
       );
     });
+  });
+});
+
+describe('HostedDashboardProvider', () => {
+  const saved: DashboardLayout = {
+    widgets: [
+      {
+        id: 'fuel',
+        enabled: true,
+        layout: { x: 0, y: 0, width: 1, height: 1 },
+        config: { showOnlyWhenOnTrack: true },
+      },
+    ],
+  };
+  const hosted: DashboardLayout = {
+    widgets: [{ ...saved.widgets[0], config: { showOnlyWhenOnTrack: false } }],
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockBridge.listProfiles = vi.fn().mockResolvedValue([]);
+    mockBridge.getCurrentProfile = vi.fn().mockResolvedValue(null);
+    mockBridge.onDemoModeChanged = vi.fn();
+    mockBridge.dashboardUpdated = vi.fn((callback) => {
+      callback(saved, undefined);
+      return () => undefined;
+    });
+  });
+
+  const Probe = ({ name }: { name: string }) => {
+    const { currentDashboard, onDashboardUpdated, bridge, editMode } =
+      useDashboard();
+    return (
+      <div data-testid={name}>
+        {JSON.stringify({
+          onTrack: currentDashboard?.widgets[0].config?.showOnlyWhenOnTrack,
+          canSave: onDashboardUpdated !== undefined,
+          hasBridge: bridge === mockBridge,
+          editMode,
+        })}
+      </div>
+    );
+  };
+
+  it('hands what is below it the changed dashboard and no way to save one', async () => {
+    render(
+      <DashboardProvider bridge={mockBridge}>
+        <Probe name="outside" />
+        <HostedDashboardProvider dashboard={hosted}>
+          <Probe name="inside" />
+          <TestComponent />
+        </HostedDashboardProvider>
+      </DashboardProvider>
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId('outside').textContent).toBe(
+        JSON.stringify({
+          onTrack: true,
+          canSave: true,
+          hasBridge: true,
+          editMode: false,
+        })
+      )
+    );
+    expect(screen.getByTestId('inside').textContent).toBe(
+      JSON.stringify({
+        onTrack: false,
+        canSave: false,
+        hasBridge: true,
+        editMode: false,
+      })
+    );
+
+    // A hosted widget that tries to save changes nothing on disk.
+    act(() => {
+      screen.getByText('Update Dashboard').click();
+    });
+    expect(mockBridge.saveDashboard).not.toHaveBeenCalled();
+  });
+
+  it('needs a dashboard provider above it', () => {
+    const error = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    expect(() =>
+      render(
+        <HostedDashboardProvider dashboard={hosted}>
+          <Probe name="inside" />
+        </HostedDashboardProvider>
+      )
+    ).toThrow('useDashboard must be used within a DashboardProvider');
+    error.mockRestore();
   });
 });

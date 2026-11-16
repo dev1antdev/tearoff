@@ -19,7 +19,18 @@ const FREEZE_TIME = 5;
 /** The lap under way no longer counts: the sim voided it, or an incident. */
 const DIRTY_LAP_FLAGS = LEDGER_LAP_VOIDED | LEDGER_LAP_INCIDENT;
 
-export const useLapTimeLog = () => {
+interface LapTimeLogOptions {
+  /**
+   * Save a new personal best to disk. Off for a copy hosted in another
+   * window, which would write what the overlay's own copy already does, and
+   * would write it even with the overlay's widget switched off.
+   */
+  recordPersonalBest?: boolean;
+}
+
+export const useLapTimeLog = ({
+  recordPersonalBest = true,
+}: LapTimeLogOptions = {}) => {
   // Get settings
   const settings = useLapTimeLogSettings();
 
@@ -190,10 +201,10 @@ export const useLapTimeLog = () => {
       Boolean(currentTrackId) && currentCar !== 'unknown';
     const isBetter =
       savedPB === undefined || savedPB === null || ownBestLapTime < savedPB;
-    if (hasPersonalBestKey && isBetter) {
+    if (recordPersonalBest && hasPersonalBestKey && isBetter) {
       setPersonalBest(currentTrackId, currentCar, ownBestLapTime);
     }
-  }, [ownBestLapTime, setPersonalBest]);
+  }, [ownBestLapTime, setPersonalBest, recordPersonalBest]);
 
   // 6. the history, from the ledger's rows of this session
   const wearMode = settings?.history?.wearMode ?? 'average';

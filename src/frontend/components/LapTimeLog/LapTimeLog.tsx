@@ -40,14 +40,19 @@ const FREEZE_TIME = 5;
 /** A lap wore this many times the usual of the rows shown: drawn amber. */
 const HIGH_WEAR_RATIO = 1.5;
 
-export const LapTimeLog = () => {
+interface LapTimeLogProps {
+  /** A copy hosted in another window: it never writes a personal best. */
+  embedded?: boolean;
+}
+
+export const LapTimeLog = ({ embedded = false }: LapTimeLogProps) => {
   const { isDemoMode } = useDashboard();
   const { isDriving, isWatchingOwnCar } = useDrivingState();
   // The lap being timed is live for the user's own car, whoever drives it:
   // the user, or a team-mate while the user watches that car.
   const isLapLive = isDriving || isWatchingOwnCar;
   const playerIndex = useFocusCarIdx();
-  const data = useLapTimeLog();
+  const data = useLapTimeLog({ recordPersonalBest: !embedded });
   const isSessionVisible = useSessionVisibility(
     data.settings?.sessionVisibility
   );

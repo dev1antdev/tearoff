@@ -96,6 +96,16 @@ describe('Lap Timer personal best', () => {
     );
   });
 
+  it('is not written by a copy hosted in another window', () => {
+    const { rerender } = renderHook(() =>
+      useLapTimeLog({ recordPersonalBest: false })
+    );
+    snapshot = { ...snapshot, bestLapTime: 104.2, ownBestLapTime: 104.2 };
+    rerender();
+
+    expect(setPersonalBest).not.toHaveBeenCalled();
+  });
+
   it('is not taken from the car’s best lap when a team-mate set it', () => {
     // The car's best of the session moves; the user's own does not.
     const { result, rerender } = renderHook(() => useLapTimeLog());

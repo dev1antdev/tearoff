@@ -12,6 +12,7 @@ import type {
   GantryConfig,
 } from '@irdashies/types';
 import {
+  PIT_WALL_WIDGET_ID,
   fitLayoutToDisplay,
   isLayoutOnDisplay,
   isWidgetDisabledForSim,
@@ -32,18 +33,14 @@ import { getDashboard, getCurrentProfileId } from './storage/dashboards';
  */
 const activeDashboard = () => getDashboard(getCurrentProfileId());
 import { getChromiumFlags, parseCustomSwitches } from './storage/chromiumFlags';
-import {
-  markCorrectedBounds,
-  trackSettingsWindowMovement,
-} from './trackWindowMovement';
-import {
-  defaultSettingsWindowBounds,
-  sanitizeWindowBounds,
-} from './windowBounds';
+import { trackSettingsWindowMovement } from './trackWindowMovement';
+import { defaultSettingsWindowBounds } from './windowBounds';
+import { ensureWindowOnScreen, restoreWindowBounds } from './windowPlacement';
 import {
   initializeSettingsWindowBounds,
   readSettingsWindowBounds,
 } from './storage/settingsWindowBounds';
+import { PIT_WALL_WINDOW_ID, PitWallWindow } from './pitWallWindow';
 import logger from './logger';
 import { createRendererPerfArguments } from './perfRendererArguments';
 import {
@@ -108,6 +105,29 @@ export class OverlayManager {
   private gantryEnabled = false;
   /** Last-applied always-on-top state of the current Gantry window. */
   private gantryPinned: boolean | undefined;
+  private pitWallEnabledCallbacks = new Set<(enabled: boolean) => void>();
+  /**
+   * The Pit Wall window. It keeps its own upkeep; this class tells it about
+   * the dashboard, feeds it with the overlay windows and closes it on quit.
+   */
+  private readonly pitWall = new PitWallWindow({
+    isQuitting: () => this.isQuitting,
+    isWidgetVisible: (widget) => this.isWidgetVisible(widget),
+    iconPath: getIconPath,
+    harden: (window) => applyBaselineSecurity(window, 'Pit Wall'),
+    onReady: () =>
+      this.onWindowReadyCallbacks.forEach((cb) => cb(PIT_WALL_WINDOW_ID)),
+    onShown: (window) => {
+      refreshSessionDataForVisibleWindow(
+        window,
+        this.rendererDataSubscriptions,
+        this.latestSessionData
+      );
+    },
+    currentDashboard: () => this.currentDashboard,
+    onEnabledChange: (enabled) =>
+      this.pitWallEnabledCallbacks.forEach((cb) => cb(enabled)),
+  });
   private currentDashboard: DashboardLayout | undefined;
   /** Benchmark empty renderers against the same window layout as the full run. */
   private windowLayoutOverride: DashboardLayout | undefined;
@@ -136,9 +156,17 @@ export class OverlayManager {
     );
   }
 
-  /** Gantry-only widgets live in the Gantry window, so no overlay needs them. */
+  /**
+   * Gantry-only widgets live in the Gantry window, so no overlay needs them.
+   * Nor does one need the Pit Wall, which is a page in a window of its own:
+   * its layout is the size of its preview, not a place on a display.
+   */
   private isOnOverlay(widget: DashboardWidget): boolean {
-    return widget.placement !== 'gantry' && this.isWidgetVisible(widget);
+    return (
+      widget.placement !== 'gantry' &&
+      (widget.type ?? widget.id) !== PIT_WALL_WIDGET_ID &&
+      this.isWidgetVisible(widget)
+    );
   }
 
   /**
@@ -302,6 +330,8 @@ export class OverlayManager {
 
     // Separate framed window, only created when the Gantry widget is enabled.
     this.syncGantryWindow(dashboardLayout);
+    // Likewise the Pit Wall.
+    this.pitWall.sync(dashboardLayout);
   }
 
   /**
@@ -905,6 +935,10 @@ export class OverlayManager {
       this.sendToOverlayWindow(this.gantryWindow, key, value, true);
     }
 
+    // The Pit Wall is fed as an overlay window is: only while it is visible.
+    const pitWallWindow = this.pitWall.current;
+    if (pitWallWindow) this.sendToOverlayWindow(pitWallWindow, key, value);
+
     // Skip high-frequency telemetry messages for the settings window
     if (OverlayManager.OVERLAY_ONLY_MESSAGES.has(key)) {
       return;
@@ -997,7 +1031,11 @@ export class OverlayManager {
   ): void {
     const windowId = id.startsWith('display-') ? Number(id.slice(8)) : id;
     const win =
-      id === 'gantry' ? this.gantryWindow : this.displayWindows.get(windowId);
+      id === 'gantry'
+        ? this.gantryWindow
+        : id === PIT_WALL_WINDOW_ID
+          ? this.pitWall.current
+          : this.displayWindows.get(windowId);
     if (!win || win.isDestroyed()) return;
     if (key === 'sessionData') this.latestSessionData = value;
     if (key === 'runningState') this.latestRunningState = Boolean(value);
@@ -1046,6 +1084,8 @@ export class OverlayManager {
       this.gantryWindow.destroy();
       this.gantryWindow = undefined;
     }
+
+    this.pitWall.destroy();
 
     app.quit();
   }
@@ -1119,6 +1159,7 @@ export class OverlayManager {
       // The Gantry is not an OverlayContainer widget, so it has to be opened
       // and closed here rather than by the renderer toggling visibility.
       this.syncGantryWindow(dashboardLayout);
+      this.pitWall.sync(dashboardLayout);
       return;
     }
     if (this.individualWindows && this.currentDashboard) {
@@ -1458,6 +1499,30 @@ export class OverlayManager {
   }
 
   /**
+   * Open the Pit Wall window, or bring it to the front.
+   *
+   * @returns `false` when the widget is switched off or unsupported by the
+   * running sim and nothing was opened, so the Settings "Show Window" button
+   * can say why.
+   */
+  public showPitWallWindow(
+    dashboardLayout: DashboardLayout | undefined = this.currentDashboard
+  ): boolean {
+    return this.pitWall.show(dashboardLayout);
+  }
+
+  /** Whether the Pit Wall is switched on and the running sim can show it. */
+  public isPitWallEnabled(): boolean {
+    return this.pitWall.isEnabled();
+  }
+
+  /** Called when the Pit Wall is switched on or off; the tray lists it. */
+  public onPitWallEnabledChange(callback: (enabled: boolean) => void) {
+    this.pitWallEnabledCallbacks.add(callback);
+    return () => this.pitWallEnabledCallbacks.delete(callback);
+  }
+
+  /**
    * Apply the Gantry's saved window preferences. Only acts when the value
    * changes, because re-pinning lifts the window above the overlays again.
    */
@@ -1515,7 +1580,10 @@ export class OverlayManager {
     const startHidden = options?.startHidden ?? false;
 
     // Load saved window bounds
-    const savedBounds = loadWindowBounds();
+    const savedBounds = restoreWindowBounds(
+      readSettingsWindowBounds(),
+      'settings window'
+    );
     const defaultOptions: BrowserWindowConstructorOptions = {
       title: `Tearoff - Settings`,
       frame: true,
@@ -1560,7 +1628,7 @@ export class OverlayManager {
 
       // Runs before the startHidden check: a window that starts in the tray is
       // shown later, and would otherwise be revealed somewhere unreachable.
-      ensureWindowOnScreen(browserWindow);
+      ensureWindowOnScreen(browserWindow, 'settings window');
 
       if (startHidden) return;
       browserWindow.show();
@@ -1606,63 +1674,4 @@ export class OverlayManager {
 
     return browserWindow;
   }
-}
-
-/**
- * Correct a window that has ended up where no display covers it.
- *
- * Validating the saved bounds on the way in only guards the restore path. This
- * checks where the window actually landed, so it also catches a window placed
- * off-screen by something other than a stale saved position — Electron's own
- * default placement, or a display set that was not fully enumerated when the
- * window was created. #539 was reported on a freshly installed Windows with no
- * saved bounds at all, which the restore-path check cannot explain, so the
- * guard is deliberately cause-agnostic: it asks only whether the window can be
- * reached, never why it could not be.
- */
-function ensureWindowOnScreen(browserWindow: BrowserWindow): void {
-  const actual = browserWindow.getBounds();
-  const corrected = sanitizeWindowBounds(
-    actual,
-    screen.getAllDisplays().map((display) => display.workArea),
-    screen.getPrimaryDisplay().workArea
-  );
-
-  if (!corrected) return;
-  if (corrected.x === actual.x && corrected.y === actual.y) return;
-
-  logger.warn(
-    `[OverlayManager] Settings window opened off-screen at x=${actual.x}, ` +
-      `y=${actual.y}; moved to x=${corrected.x}, y=${corrected.y}`
-  );
-
-  // Flagged before the move so the saved position survives it. Rescuing a
-  // window must not overwrite where the user put it, or reconnecting the
-  // monitor would no longer bring it back.
-  markCorrectedBounds(browserWindow, corrected);
-  browserWindow.setBounds(corrected);
-}
-
-function loadWindowBounds(): Electron.Rectangle | undefined {
-  const saved = readSettingsWindowBounds();
-  if (!saved) return undefined;
-
-  // Saved bounds outlive the display arrangement that produced them, so they
-  // are validated against the displays connected right now — otherwise a
-  // window saved on a monitor that has since been unplugged or rearranged is
-  // restored somewhere unreachable.
-  const bounds = sanitizeWindowBounds(
-    saved,
-    screen.getAllDisplays().map((display) => display.workArea),
-    screen.getPrimaryDisplay().workArea
-  );
-
-  if (bounds && (bounds.x !== saved.x || bounds.y !== saved.y)) {
-    logger.info(
-      `[OverlayManager] Saved settings window bounds were off-screen ` +
-        `(x=${saved.x}, y=${saved.y}); moved to x=${bounds.x}, y=${bounds.y}`
-    );
-  }
-
-  return bounds;
 }

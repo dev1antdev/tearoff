@@ -23,6 +23,7 @@ import type {
   LapTraceSource,
   RaceControlBridge,
   LapHistoryBridge,
+  PitWallBridge,
   Incident,
   IncidentThresholds,
   SessionRetention,
@@ -509,5 +510,8 @@ export function exposeBridge() {
   defineBridge<LapHistoryBridge>('lapHistoryBridge', {
     getArchived: (sessionNum: number) =>
       ipcRenderer.invoke('lapHistory:getArchived', sessionNum),
+  });
+  defineBridge<PitWallBridge>('pitWallBridge', {
+    showWindow: () => ipcRenderer.invoke('pitWall:showWindow'),
   });
 }

@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BrowserWindow } from 'electron';
 import {
-  flushSettingsWindowMovementOnShutdown,
+  flushWindowMovementOnShutdown,
   markCorrectedBounds,
   trackSettingsWindowMovement,
 } from './trackWindowMovement';
@@ -51,7 +51,7 @@ describe('trackSettingsWindowMovement', () => {
   });
 
   afterEach(() => {
-    flushSettingsWindowMovementOnShutdown();
+    flushWindowMovementOnShutdown();
     vi.useRealTimers();
   });
 
@@ -101,7 +101,7 @@ describe('trackSettingsWindowMovement', () => {
     emit('resized');
     expect(saveSettingsWindowBounds).not.toHaveBeenCalled();
     if (event === 'close') emit('close');
-    else flushSettingsWindowMovementOnShutdown();
+    else flushWindowMovementOnShutdown();
     expect(saveSettingsWindowBounds).toHaveBeenCalledExactlyOnceWith(chosen);
     vi.advanceTimersByTime(DEBOUNCE_MS);
     expect(saveSettingsWindowBounds).toHaveBeenCalledOnce();
@@ -113,7 +113,7 @@ describe('trackSettingsWindowMovement', () => {
     emit('resized');
     emit('closed');
     vi.advanceTimersByTime(DEBOUNCE_MS);
-    flushSettingsWindowMovementOnShutdown();
+    flushWindowMovementOnShutdown();
     expect(saveSettingsWindowBounds).not.toHaveBeenCalled();
   });
 

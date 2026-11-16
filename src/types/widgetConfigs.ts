@@ -2229,6 +2229,22 @@ export const DEFAULT_INCIDENT_CAMERA_GROUP = 'Far Chase';
 
 export type GantryWidgetSettings = BaseWidgetSettings<GantryConfig>;
 
+/** The Pit Wall's fixed page layouts, in the order the header lists them. */
+export const PIT_WALL_LAYOUT_IDS = ['race', 'watching', 'compact'] as const;
+export type PitWallLayoutId = (typeof PIT_WALL_LAYOUT_IDS)[number];
+
+/**
+ * The Pit Wall window: one page about the race from our own car's side.
+ * Sanitise with sanitizePitWallConfig; where the window sits on the screen
+ * is kept by the main process, not here.
+ */
+export interface PitWallConfig {
+  /** Which of the fixed layouts the page shows. */
+  layout: PitWallLayoutId;
+}
+
+export type PitWallWidgetSettings = BaseWidgetSettings<PitWallConfig>;
+
 /** Series look for the broadcast tower. */
 export type BroadcastTheme = 'imsa' | 'wec' | 'f1';
 
@@ -2611,6 +2627,7 @@ export interface WidgetConfigMap {
   classfields: ClassFieldsConfig;
   laptrace: LapTraceConfig;
   gantry: GantryConfig;
+  pitwall: PitWallConfig;
   broadcast: BroadcastConfig;
   broadcastticker: BroadcastTickerConfig;
   broadcastevents: BroadcastEventsConfig;

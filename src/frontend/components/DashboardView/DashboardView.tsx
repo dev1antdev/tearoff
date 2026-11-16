@@ -14,6 +14,7 @@ import {
   useHiddenWidgetIds,
   SessionTimingUpdater,
   isGantryOnly,
+  isPitWallPage,
 } from '@irdashies/context';
 import { getWidget } from '../../WidgetIndex';
 import { getWidgetName } from '../../constants/widgetNames';
@@ -296,7 +297,9 @@ export const DashboardView = ({ soloWidgetId }: DashboardViewProps = {}) => {
     }
     const seen = new Set<string>();
     const filtered = currentDashboard.widgets.filter((w) => {
-      if (!w.enabled || isGantryOnly(w) || seen.has(w.id)) return false;
+      // The Pit Wall is a page of the app's own window, not a widget box.
+      if (!w.enabled || isGantryOnly(w) || isPitWallPage(w) || seen.has(w.id))
+        return false;
       if (isWidgetDisabledForSim(simWidgetSupport, w.type ?? w.id, simulator))
         return false;
       seen.add(w.id);

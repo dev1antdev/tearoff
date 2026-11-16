@@ -36,6 +36,8 @@ vi.mock('@irdashies/context', () => ({
   useSimWidgetSupport: () => DEFAULT_SIM_WIDGET_SUPPORT,
   isGantryOnly: (widget: { placement?: string }) =>
     widget.placement === 'gantry',
+  isPitWallPage: (widget: { id: string; type?: string }) =>
+    (widget.type || widget.id) === 'pitwall',
 }));
 
 vi.mock('../../WidgetIndex', () => ({

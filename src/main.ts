@@ -80,6 +80,10 @@ import {
   initializeSettingsWindowBounds,
   flushSettingsWindowBoundsOnShutdown,
 } from './app/storage/settingsWindowBounds';
+import {
+  initializePitWallWindowBounds,
+  flushPitWallWindowBoundsOnShutdown,
+} from './app/storage/pitWallWindowBounds';
 import { flushSimulatorUsageOnShutdown } from './app/storage/simulatorUsage';
 import { flushTrackCarStoreOnShutdown } from './app/storage/trackCarStore';
 import { brakeLimitStore, getWearTuning } from './app/storage/wearForecast';
@@ -93,6 +97,7 @@ import { setupTrackProfileBridge } from './app/bridge/trackProfileBridge';
 import { setupChromiumFlagsBridge } from './app/bridge/chromiumFlagsBridge';
 import { getHiddenWidgets } from './app/widgetVisibility';
 import { setupRaceControlBridge } from './app/bridge/raceControlBridge';
+import { setupPitWallBridge } from './app/bridge/pitWallBridge';
 import { setupRacePlanBridge } from './app/bridge/racePlanBridge';
 import { flushRacePlanHistoryOnShutdown } from './app/storage/racePlanHistory';
 import {
@@ -153,7 +158,7 @@ import { setupRendererDataSubscriptions } from './app/bridge/rendererDataSubscri
 import { PerfHeapProfiler } from './app/perfHeapProfiler';
 import { createBeforeQuitHandler } from './app/shutdownCoordinator';
 import { monitorDevParent } from './app/devParentMonitor';
-import { flushSettingsWindowMovementOnShutdown } from './app/trackWindowMovement';
+import { flushWindowMovementOnShutdown } from './app/trackWindowMovement';
 
 const safeErrorDetails = (error: unknown) => {
   const code =
@@ -673,6 +678,8 @@ void app.whenReady().then(async () => {
   }
 
   await initializeSettingsWindowBounds();
+  // Likewise read before a dashboard can open the Pit Wall window.
+  await initializePitWallWindowBounds();
 
   if (perfRun.enabled) {
     log.info('[PerfRun] Configuration', perfRun);
@@ -769,6 +776,10 @@ void app.whenReady().then(async () => {
   // why the button did nothing instead of appearing to be broken.
   ipcMain.handle('raceControl:showGantryWindow', () =>
     overlayManager.createGantryWindow(getOrCreateDefaultDashboard())
+  );
+  // Likewise false when the Pit Wall is switched off.
+  setupPitWallBridge(() =>
+    overlayManager.showPitWallWindow(getOrCreateDefaultDashboard())
   );
 
   // Local-only feature modules (git-excluded src/local/). Empty glob => no-op.
@@ -971,7 +982,7 @@ const SHUTDOWN_FLUSH_TIMEOUT_MS = 5_000;
 const handleBeforeQuit = createBeforeQuitHandler({
   prepareToQuit: () => overlayManager.markQuitting(),
   shutdown: async () => {
-    flushSettingsWindowMovementOnShutdown();
+    flushWindowMovementOnShutdown();
     keybindingManager?.stopGamepad();
     disconnectLifecycleChannel?.();
     sessionProfileSwitcher?.dispose();
@@ -1006,6 +1017,7 @@ const handleBeforeQuit = createBeforeQuitHandler({
       flushGarage61SearchSessionOnShutdown(),
       flushStorageWritesOnShutdown(),
       flushSettingsWindowBoundsOnShutdown(),
+      flushPitWallWindowBoundsOnShutdown(),
       flushSimulatorUsageOnShutdown(),
       flushTrackCarStoreOnShutdown(),
       flushTrackProfilesOnShutdown(),

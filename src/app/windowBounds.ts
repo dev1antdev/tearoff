@@ -65,6 +65,33 @@ export const defaultSettingsWindowBounds = (primaryWorkArea: Rect): Rect => {
   };
 };
 
+/** The Pit Wall window as it first opens, and the least it can be sized to. */
+export const PIT_WALL_WINDOW_DEFAULT_SIZE = { width: 1600, height: 900 };
+export const PIT_WALL_WINDOW_MIN_SIZE = { width: 900, height: 560 };
+
+/**
+ * Where the Pit Wall window opens when no place is remembered: its default
+ * size, or as much of it as the primary display's work area holds, centred.
+ * A scaled laptop screen is smaller than the default in logical pixels, and
+ * a window larger than its display opens with its title bar off the top.
+ */
+export const defaultPitWallWindowBounds = (primaryWorkArea: Rect): Rect => {
+  const width = Math.max(
+    1,
+    Math.min(PIT_WALL_WINDOW_DEFAULT_SIZE.width, primaryWorkArea.width)
+  );
+  const height = Math.max(
+    1,
+    Math.min(PIT_WALL_WINDOW_DEFAULT_SIZE.height, primaryWorkArea.height)
+  );
+  return {
+    width,
+    height,
+    x: Math.round(primaryWorkArea.x + (primaryWorkArea.width - width) / 2),
+    y: Math.round(primaryWorkArea.y + (primaryWorkArea.height - height) / 2),
+  };
+};
+
 /**
  * The overlapping rectangle between two rectangles, or null when they do not
  * intersect. Rectangles that merely share an edge do not intersect.
