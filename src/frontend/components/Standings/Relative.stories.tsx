@@ -394,7 +394,7 @@ export const AverageLapTime: Story = {
   ],
 };
 
-// Twelve laps a car as the real LapTimesProcessor keeps them. Every third
+// Fourteen laps a car as the real LapTimesProcessor keeps them. Every third
 // car stopped four laps ago, so its in-lap and out-lap are among its last
 // five; every fourth has been watched for seven laps only.
 const lapAverageSnapshot = buildStoryLapTimes(
@@ -407,19 +407,19 @@ const lapAverageSnapshot = buildStoryLapTimes(
     slot % 4 === 3
       ? { laps: 7 }
       : slot % 3 === 1
-        ? { laps: 12, inLaps: [8] }
-        : { laps: 12 }
+        ? { laps: 14, inLaps: [10] }
+        : { laps: 14 }
 );
 
 /**
- * Avg 5 and Avg 10 beside the Last column, at the Relative's default width
- * plus the room two more times need. A car that stopped reads the same as
- * its neighbours over clean laps and seconds slower over all laps; a car
- * with too few laps reads dashes.
+ * Avg 5 and Avg 10 beside the Last column, in a Relative widened by the room
+ * three times need: at its default 402 px the names would be squeezed out.
+ * A car that stopped reads like its neighbours over clean laps and seconds
+ * slower over all laps; a car watched for seven laps has no Avg 10.
  */
 export const LapAverages: Story = {
   loaders: [async () => ({ capture: await buildCaptureSnapshots() })],
-  args: { averagesOver: 'clean', width: 560 },
+  args: { averagesOver: 'clean', width: 640 },
   argTypes: {
     averagesOver: { control: 'inline-radio', options: ['clean', 'all'] },
     width: { control: { type: 'number', min: 402, max: 900, step: 10 } },
@@ -453,7 +453,7 @@ export const LapAverages: Story = {
 /** The same with every lap counted. */
 export const LapAveragesAllLaps: Story = {
   ...LapAverages,
-  args: { averagesOver: 'all', width: 560 },
+  args: { averagesOver: 'all', width: 640 },
 };
 
 export const Primary: Story = {
