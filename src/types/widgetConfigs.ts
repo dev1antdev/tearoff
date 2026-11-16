@@ -2599,6 +2599,87 @@ export interface FinishProjectionConfig {
   showOnlyWhenOnTrack: boolean;
 }
 
+/** The most class cars a side the class rivals list can be cut to. */
+export const CLASS_RIVALS_PER_SIDE_MAX = 10;
+/** The most rivals the stint timeline draws under the own entry. */
+export const STINT_TIMELINE_RIVALS_MAX = 4;
+
+/**
+ * Our Car: what the own entry has aboard and how long it lasts, its pit
+ * window, the stops it still owes and what the next costs, where it is
+ * forecast to finish and where its stop puts it, with its tyres and damage
+ * in a line each.
+ */
+export interface OurCarConfig {
+  background: { opacity: number };
+  /** Fuel unit; energy is always percent. */
+  fuelUnits: 'L' | 'gal';
+  /**
+   * The gaps to the class cars ahead and behind, the last lap and the mean
+   * of five: while a team-mate drives, always, or never.
+   */
+  showPace: 'watching' | 'always' | 'never';
+  /** The pit window and the stops to the flag. */
+  showStops: boolean;
+  /** The forecast finishing place. */
+  showForecast: boolean;
+  /** Where the car rejoins after its stop. */
+  showRejoin: boolean;
+  /** The tyres line. */
+  showTyres: boolean;
+  /** The damage line. */
+  showDamage: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
+ * Class Rivals: the running cars of the own entry's class with the stops
+ * each has made and still owes, the gap once they are made and the pace of
+ * each against the own car's.
+ */
+export interface ClassRivalsConfig {
+  background: { opacity: number };
+  /**
+   * Class cars listed ahead of and behind the own entry, 1 to
+   * CLASS_RIVALS_PER_SIDE_MAX; 0 lists the whole class.
+   */
+  carsAhead: number;
+  carsBehind: number;
+  /** The stops made and the last one. */
+  showStops: boolean;
+  /** The lap the next stop is due. */
+  showNextStop: boolean;
+  /** The gap once both cars have made the stops they owe. */
+  showNetGap: boolean;
+  /** The mean of five clean laps against the own car's. */
+  showPace: boolean;
+  /** The line under the table that says what the columns are. */
+  showLegend: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
+/**
+ * Stint Timeline: the own entry and a few class rivals as bars from the
+ * start of the race to the flag, the stints driven filled and the stints
+ * forecast dashed.
+ */
+export interface StintTimelineConfig {
+  background: { opacity: number };
+  /**
+   * Class rivals drawn under the own entry, 0 to STINT_TIMELINE_RIVALS_MAX:
+   * the nearest, taken from ahead and behind in turn.
+   */
+  rivals: number;
+  /** Driver names on the own entry's bars. */
+  showDrivers: boolean;
+  /** The line under the bars that says what they are. */
+  showLegend: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
 export interface WidgetConfigMap {
   standings: StandingsConfig;
   relative: RelativeConfig;
@@ -2624,6 +2705,9 @@ export interface WidgetConfigMap {
   pitstop: PitStopConfig;
   fuelsaver: FuelSaverConfig;
   finishorder: FinishProjectionConfig;
+  ourcar: OurCarConfig;
+  classrivals: ClassRivalsConfig;
+  stinttimeline: StintTimelineConfig;
   streamchat: StreamChatConfig;
   laptimelog: LapTimeLogConfig;
   stinthistory: StintHistoryConfig;
@@ -2775,6 +2859,10 @@ export type PitStopWidgetSettings = BaseWidgetSettings<PitStopConfig>;
 export type FuelSaverWidgetSettings = BaseWidgetSettings<FuelSaverConfig>;
 export type FinishProjectionWidgetSettings =
   BaseWidgetSettings<FinishProjectionConfig>;
+export type OurCarWidgetSettings = BaseWidgetSettings<OurCarConfig>;
+export type ClassRivalsWidgetSettings = BaseWidgetSettings<ClassRivalsConfig>;
+export type StintTimelineWidgetSettings =
+  BaseWidgetSettings<StintTimelineConfig>;
 export type StreamChatWidgetSettings = BaseWidgetSettings<StreamChatConfig>;
 export type LapTimeLogWidgetSettings = BaseWidgetSettings<LapTimeLogConfig>;
 export type StintHistoryWidgetSettings = BaseWidgetSettings<StintHistoryConfig>;

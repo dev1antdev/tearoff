@@ -10,6 +10,7 @@ export * from './wear';
 export * from './carPit';
 export * from './pitStop';
 export * from './finishProjection';
+export * from './raceForecast';
 export * from './raceHistory';
 export * from './trackProfile';
 export * from './cruise';

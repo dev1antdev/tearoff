@@ -13,3 +13,4 @@ export * from './trackNotes';
 export * from './trafficForecast';
 export * from './classNeighbours';
 export * from './finishProjection';
+export * from './raceForecast';

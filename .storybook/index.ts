@@ -19,5 +19,7 @@ export * from './lapHistorySnapshot';
 export * from './gantryDecorator';
 export * from './racePlanDecorator';
 export * from './pitWallStage';
+export * from './strategyStage';
+export * from './strategyStory';
 export * from './ScrollToText';
 export * from './browserAccessStory';

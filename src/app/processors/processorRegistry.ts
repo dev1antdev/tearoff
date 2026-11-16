@@ -31,6 +31,7 @@ import { DriverControlsProcessor } from './DriverControlsProcessor';
 import { FinishProjectionProcessor } from './FinishProjectionProcessor';
 import { FlagStateProcessor } from './FlagStateProcessor';
 import { FuelProjectionProcessor } from './FuelProjectionProcessor';
+import { RaceForecastProcessor } from './RaceForecastProcessor';
 import { HybridProcessor } from './HybridProcessor';
 import { LapDeltaProcessor } from './LapDeltaProcessor';
 import { LapLogProcessor } from './LapLogProcessor';
@@ -244,6 +245,30 @@ export const createProcessorDefinitions = ({
     metricsPrefix: 'finishProjection',
     create: ({ snapshot }) =>
       new FinishProjectionProcessor({
+        fuel: () => snapshot('fuel.projection'),
+        lapTimes: () => snapshot('lap-times.snapshot'),
+        pitStop: () => snapshot('pit-stop.snapshot'),
+        carPit: () => snapshot('car-pit.snapshot'),
+        standings: () => snapshot('standings.snapshot'),
+      }),
+  }),
+  defineProcessor({
+    channel: 'race-forecast.snapshot',
+    // What the finish projection reads: it runs one of its own over the
+    // whole class, so the two stand on the same five snapshots.
+    dependencies: [
+      'fuel.projection',
+      'lap-times.snapshot',
+      'pit-stop.snapshot',
+      'car-pit.snapshot',
+      'standings.snapshot',
+    ],
+    // As for the finish projection, and for one thing more: the place it
+    // forecast some laps ago is remembered lap by lap.
+    processWhileHidden: true,
+    metricsPrefix: 'raceForecast',
+    create: ({ snapshot }) =>
+      new RaceForecastProcessor({
         fuel: () => snapshot('fuel.projection'),
         lapTimes: () => snapshot('lap-times.snapshot'),
         pitStop: () => snapshot('pit-stop.snapshot'),
