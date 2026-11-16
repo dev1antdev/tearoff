@@ -12,7 +12,7 @@ import type {
   RelativeWidgetSettings,
   StandingsWidgetSettings,
 } from '@irdashies/types';
-import { AvgLapTimeCell } from './cells/AvgLapTimeCell';
+import { AvgLapTimeCell } from '../../../shared/AvgLapTimeCell/AvgLapTimeCell';
 import { LapCountCell } from './cells/LapCountCell';
 import { BadgeCell } from './cells/BadgeCell';
 import { LmuBadgeCell } from './cells/LmuBadgeCell';
@@ -22,10 +22,10 @@ import { CompoundCell } from './cells/CompoundCell';
 import { TrackLimitsCell } from '../../../shared/TrackLimitsCell/TrackLimitsCell';
 import { VirtualEnergyCell } from '../../../shared/VirtualEnergyCell/VirtualEnergyCell';
 import { CountryFlagsCell } from './cells/CountryFlagsCell';
-import { DeltaCell } from './cells/DeltaCell';
+import { DeltaCell } from '../../../shared/DeltaCell/DeltaCell';
 import { DriverNameCell } from './cells/DriverNameCell';
 import { DriverTagCell } from './cells/DriverTagCell';
-import { FastestTimeCell } from './cells/FastestTimeCell';
+import { FastestTimeCell } from '../../../shared/FastestTimeCell/FastestTimeCell';
 import { IratingChangeCell } from './cells/IratingChangeCell';
 import { LapTimeDeltasCell } from './cells/LapTimeDeltasCell';
 import { PositionChangeCell } from './cells/PositionChangeCell';

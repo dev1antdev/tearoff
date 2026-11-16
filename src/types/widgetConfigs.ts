@@ -227,6 +227,16 @@ export interface LapAverageColumnConfig {
   timeFormat: TimeFormat;
 }
 
+/**
+ * Which earlier stint the "vs stint" column holds a car's stint against.
+ *
+ * 'stint' is the stint before the one under way. 'driver' is the most recent
+ * stint driven by somebody other than the driver now at the wheel: after a
+ * double stint the stint before is the same driver's first half, and this
+ * is the one that says how the two drivers compare.
+ */
+export type StintPaceReference = 'stint' | 'driver';
+
 export interface StandingsConfig {
   customClassOrdering: boolean;
   iratingChange: { enabled: boolean; estimateInPractice?: boolean };

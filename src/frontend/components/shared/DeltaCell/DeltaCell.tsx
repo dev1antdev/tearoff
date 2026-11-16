@@ -9,8 +9,19 @@ interface DeltaCellProps {
   decimalPlaces?: number;
   compactMode?: string;
   showSign?: boolean;
+  /**
+   * The column this cell belongs to. One cell draws the delta, the gap and
+   * the interval of the standings, which all carry 'delta'; a table that
+   * has to tell its gap from its interval names them.
+   */
+  column?: string;
 }
 
+/**
+ * A gap between two cars, as the standings, the relative and the timing
+ * tower print it: seconds, or whole laps once more than a lap separates
+ * them, and a placeholder of the same width where there is none.
+ */
 export const DeltaCell = memo(
   ({
     delta,
@@ -18,6 +29,7 @@ export const DeltaCell = memo(
     decimalPlaces = 2,
     compactMode,
     showSign = false,
+    column = 'delta',
   }: DeltaCellProps) => {
     const pxClass =
       compactMode === 'ultra'
@@ -54,7 +66,7 @@ export const DeltaCell = memo(
 
     return (
       <td
-        data-column="delta"
+        data-column={column}
         className={`w-auto ${pxClass} whitespace-nowrap text-center tabular-nums`}
       >
         {displayValue}
