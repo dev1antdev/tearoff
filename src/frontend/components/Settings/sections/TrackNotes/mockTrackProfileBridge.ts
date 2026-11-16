@@ -5,6 +5,7 @@ import type {
   TrackProfileBridge,
   TrackProfileDetails,
   TrackProfileSummary,
+  TrackSunTimes,
 } from '@irdashies/types';
 import { TRACK_NOTE_LIMIT } from '@irdashies/types';
 
@@ -94,6 +95,8 @@ const summaryOf = (profile: TrackProfileDetails): TrackProfileSummary => ({
 export interface MockTrackProfileBridge extends TrackProfileBridge {
   /** The profile held for a track now, for a spec to look at. */
   peek: (trackKey: string) => TrackProfileDetails | undefined;
+  /** The sunrise and sunset held for a track now; undefined with none set. */
+  peekSunTimes: (trackKey: string) => TrackSunTimes | undefined;
 }
 
 export const createMockTrackProfileBridge = (
@@ -105,6 +108,7 @@ export const createMockTrackProfileBridge = (
       { ...profile, notes: [...profile.notes] },
     ])
   );
+  const sunTimes = new Map<string, TrackSunTimes>();
   const listeners = new Set<() => void>();
   let created = 0;
   let clock = 1_793_100_000_000;
@@ -141,6 +145,7 @@ export const createMockTrackProfileBridge = (
 
   return {
     peek: (trackKey) => profiles.get(trackKey),
+    peekSunTimes: (trackKey) => sunTimes.get(trackKey),
 
     listTracks: async () =>
       [...profiles.values()]
@@ -208,6 +213,20 @@ export const createMockTrackProfileBridge = (
       if (!profile?.elevationSource) return false;
       profile.elevationSource = null;
       profile.elevationLaps = 0;
+      changed();
+      return true;
+    },
+
+    saveSunTimes: async (trackKey, times) => {
+      if (!profiles.has(trackKey)) return false;
+      const held = sunTimes.get(trackKey);
+      if (
+        (held?.sunriseMinutes ?? null) === times.sunriseMinutes &&
+        (held?.sunsetMinutes ?? null) === times.sunsetMinutes
+      ) {
+        return false;
+      }
+      sunTimes.set(trackKey, { ...times });
       changed();
       return true;
     },

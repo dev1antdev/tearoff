@@ -20,6 +20,8 @@ export const exposeTrackProfileBridge = () => {
       ipcRenderer.invoke('trackProfile:exportNotes', trackKey, kind),
     clearElevation: (trackKey) =>
       ipcRenderer.invoke('trackProfile:clearElevation', trackKey),
+    saveSunTimes: (trackKey, times) =>
+      ipcRenderer.invoke('trackProfile:saveSunTimes', trackKey, times),
     onChanged(callback) {
       const listener = () => callback();
       ipcRenderer.on('trackProfile:changed', listener);

@@ -1,13 +1,10 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { createRequire } from 'node:module';
-import { describe, expect, it, vi } from 'vitest';
-import type { LmuRawSession, LmuRawTelemetry } from '../lmu/native';
-import { mapLmuSession } from '../lmu/mapSession';
-import { mapLmuTelemetry } from '../lmu/mapTelemetry';
-import { createLmuLapDistanceState } from '../lmu/lapDistance';
-import { createLmuOpponentLapDistanceState } from '../lmu/opponentLapDistance';
+import { describe, expect, it } from 'vitest';
 import type { LapInput, LapSessionInput, ReferenceLap } from '@irdashies/types';
+import {
+  LMU_CURATED_TAPE_PATH,
+  lmuTapeAvailable,
+  playLmuTape,
+} from '../../testing/lmuTape';
 import { isEligibleLap } from '../storage/lapLibrary/LapLibraryDatabase';
 import { ReferenceLapProcessor } from './ReferenceLapProcessor';
 import { LapDeltaProcessor } from './LapDeltaProcessor';
@@ -26,12 +23,7 @@ import { PlayerLapRecorder } from './PlayerLapRecorder';
  * Windows only, like the other tape specs: the replay addon is a gyp target
  * gated on OS=='win'.
  */
-const addonPath = path.resolve('build/Release/lmu_tape_node.node');
-const tapePath = path.resolve('test-data/telemetry/lmu-session.lmudt');
-const available =
-  fs.existsSync(addonPath) &&
-  fs.existsSync(tapePath) &&
-  fs.statSync(tapePath).size > 1024;
+const available = lmuTapeAvailable();
 
 interface Sample {
   sessionTime: number;
@@ -42,21 +34,13 @@ interface Sample {
   simDelta: number | null;
 }
 
+/**
+ * The recording through the shared tape player, which reads every frame of
+ * it however busy the machine is. This used to be a loop of its own on the
+ * addon, which lost frames to its session reads and gave up after a minute
+ * on the wall clock, whether or not the tape had ended.
+ */
 const playTape = async () => {
-  vi.stubEnv('IRDASHIES_LMU_REPLAY', tapePath);
-  // Fast enough to finish in seconds, slow enough that the loop below reads
-  // every recorded frame rather than a timing-dependent subset of them.
-  vi.stubEnv('IRDASHIES_LMU_REPLAY_SPEED', '40');
-  vi.stubEnv('IRDASHIES_LMU_REPLAY_LOOP', '0');
-  const { LmuSdkNode } = createRequire(import.meta.url)(addonPath) as {
-    LmuSdkNode: new () => {
-      start(): boolean;
-      stop(): boolean;
-      read(): LmuRawTelemetry & { running: boolean };
-      readSession(): LmuRawSession;
-    };
-  };
-  const sdk = new LmuSdkNode();
   // A lap library in miniature: every lap the recorder passes on, and the
   // quickest eligible one as the all-time reference, with a revision that
   // moves when that changes. The real one keeps them in a database.
@@ -96,41 +80,22 @@ const playTape = async () => {
   reference.onLifecycle({ type: 'enter', replay: false });
   delta.onLifecycle({ type: 'enter', replay: false });
 
-  const lapDistanceState = createLmuLapDistanceState();
-  const opponentState = createLmuOpponentLapDistanceState();
   const samples: Sample[] = [];
   /** When the player's session best first appeared, and each time it moved. */
   const bestLapEvents: { sessionTime: number; lapTime: number }[] = [];
   let simBestLap = -1;
   let playerCarIdx = -1;
-  let lastElapsed = -1;
-  let lastSessionAt = Number.NEGATIVE_INFINITY;
   let lastTick = Number.NEGATIVE_INFINITY;
-  let frames = 0;
-  let ended = false;
-  try {
-    sdk.start();
-    const deadline = performance.now() + 60_000;
-    while (performance.now() < deadline && !ended) {
-      const raw = sdk.read();
-      if (!raw?.running) {
-        if (frames > 0) ended = true;
-        else await new Promise((resolve) => setTimeout(resolve, 2));
-        continue;
-      }
-      const elapsed = raw.elapsedTime ?? 0;
-      if (elapsed === lastElapsed) continue;
-      lastElapsed = elapsed;
-      frames += 1;
-      // The bridge rebuilds the session twice a second; so does this.
-      if (elapsed - lastSessionAt >= 0.5) {
-        const session = mapLmuSession(sdk.readSession());
+  const { frames } = await playLmuTape({
+    tapePath: LMU_CURATED_TAPE_PATH,
+    onFrame: ({ raw, telemetry, session, sessionChanged, sessionTime }) => {
+      // The bridge rebuilds the session twice a second, and publishes it
+      // when it has moved.
+      if (sessionChanged) {
         recorder.onSession(session);
         reference.init(session);
         delta.init(session);
-        lastSessionAt = elapsed;
       }
-      const telemetry = mapLmuTelemetry(raw, lapDistanceState, opponentState);
       const playerIdx = telemetry.PlayerCarIdx?.value?.[0] as number;
       playerCarIdx = playerIdx;
       const versionBefore = reference.snapshot().version;
@@ -142,16 +107,15 @@ const playTape = async () => {
           .bestLaps.find(([carIdx]) => carIdx === playerIdx)?.[1];
         const lapTime = best ? best.finishTime - best.startTime : null;
         if (lapTime !== null && bestLapEvents.at(-1)?.lapTime !== lapTime) {
-          bestLapEvents.push({ sessionTime: elapsed, lapTime });
+          bestLapEvents.push({
+            sessionTime: raw.elapsedTime ?? sessionTime,
+            lapTime,
+          });
         }
       }
       simBestLap = raw.vehBestLapTime?.[raw.playerVehicleIdx ?? -1] ?? -1;
-      // SessionTime is one of the generated keys typed as undefined[]; the
-      // mapper writes a number there.
-      const sessionTime = telemetry.SessionTime
-        ?.value?.[0] as unknown as number;
       // The delta processor is declared at 25 Hz; the host would feed it so.
-      if (sessionTime - lastTick < 0.04) continue;
+      if (sessionTime - lastTick < 0.04) return;
       lastTick = sessionTime;
       delta.onFrame(telemetry);
       const snapshot = delta.snapshot();
@@ -165,11 +129,8 @@ const playTape = async () => {
           ? (telemetry.LapDeltaToSessionBestLap?.value?.[0] as number)
           : null,
       });
-    }
-  } finally {
-    sdk.stop();
-    vi.unstubAllEnvs();
-  }
+    },
+  });
   return {
     frames,
     samples,

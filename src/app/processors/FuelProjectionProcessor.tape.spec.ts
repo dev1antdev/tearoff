@@ -1,13 +1,4 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { createRequire } from 'node:module';
-import { describe, expect, it, vi } from 'vitest';
-import type { LmuRawSession, LmuRawTelemetry } from '../lmu/native';
-import { mapLmuSession } from '../lmu/mapSession';
-import { mapLmuTelemetry } from '../lmu/mapTelemetry';
-import { createLmuLapDistanceState } from '../lmu/lapDistance';
-import { createLmuOpponentLapDistanceState } from '../lmu/opponentLapDistance';
-import { createLmuEnergyState } from '../lmu/fuelEnergy';
+import { describe, expect, it } from 'vitest';
 import {
   LMU_CURATED_TAPE_PATH,
   lmuTapeAvailable,
@@ -24,78 +15,30 @@ import { FuelProjectionProcessor } from './FuelProjectionProcessor';
  * Windows only, like the other tape specs: the replay addon is a gyp target
  * gated on OS=='win'.
  */
-const addonPath = path.resolve('build/Release/lmu_tape_node.node');
-const tapePath = path.resolve('test-data/telemetry/lmu-session.lmudt');
-const available =
-  fs.existsSync(addonPath) &&
-  fs.existsSync(tapePath) &&
-  fs.statSync(tapePath).size > 1024;
+const available = lmuTapeAvailable();
 
+/**
+ * The recording through the shared tape player, which reads every frame of
+ * it however busy the machine is. This used to be a loop of its own on the
+ * addon, with a minute on the wall clock to finish in: on a loaded machine
+ * the minute ran out first, and the level at the end was the level somewhere
+ * in the second lap.
+ */
 const playTape = async () => {
-  vi.stubEnv('IRDASHIES_LMU_REPLAY', tapePath);
-  vi.stubEnv('IRDASHIES_LMU_REPLAY_SPEED', '40');
-  vi.stubEnv('IRDASHIES_LMU_REPLAY_LOOP', '0');
-  const { LmuSdkNode } = createRequire(import.meta.url)(addonPath) as {
-    LmuSdkNode: new () => {
-      start(): boolean;
-      stop(): boolean;
-      read(): LmuRawTelemetry & { running: boolean };
-      readSession(): LmuRawSession;
-    };
-  };
-  const sdk = new LmuSdkNode();
   const processor = new FuelProjectionProcessor();
   processor.onLifecycle({ type: 'enter', replay: false });
-
-  const lapDistanceState = createLmuLapDistanceState();
-  const opponentState = createLmuOpponentLapDistanceState();
-  // The bridge owns this, and without it a car is never known to run on
-  // energy once it reads zero. Passed here as the bridge passes it.
-  const energyState = createLmuEnergyState();
-  let lastElapsed = -1;
-  let lastSessionAt = Number.NEGATIVE_INFINITY;
   let lastTick = Number.NEGATIVE_INFINITY;
-  let frames = 0;
-  let ended = false;
   let firstBudget: string | undefined;
   let lastEnergy = -1;
   let lastLitres = -1;
-  try {
-    sdk.start();
-    const deadline = performance.now() + 60_000;
-    while (performance.now() < deadline && !ended) {
-      const raw = sdk.read();
-      if (!raw?.running) {
-        if (frames > 0) ended = true;
-        else await new Promise((resolve) => setTimeout(resolve, 2));
-        continue;
-      }
-      const elapsed = raw.elapsedTime ?? 0;
-      if (elapsed === lastElapsed) continue;
-      lastElapsed = elapsed;
-      frames += 1;
-      // The bridge rebuilds the session twice a second; so does this.
-      if (elapsed - lastSessionAt >= 0.5) {
-        processor.init(mapLmuSession(sdk.readSession()));
-        lastSessionAt = elapsed;
-      }
-      const telemetry = mapLmuTelemetry(
-        raw,
-        lapDistanceState,
-        opponentState,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        energyState
-      );
-      // SessionTime is one of the generated keys typed as undefined[]; the
-      // mapper writes a number there.
-      const sessionTime = telemetry.SessionTime
-        ?.value?.[0] as unknown as number;
+  const { frames } = await playLmuTape({
+    tapePath: LMU_CURATED_TAPE_PATH,
+    onFrame: ({ telemetry, session, sessionChanged, sessionTime }) => {
+      // The bridge rebuilds the session twice a second, and publishes it
+      // when it has moved.
+      if (sessionChanged) processor.init(session);
       // The processor is declared at 5 Hz; the host would feed it so.
-      if (sessionTime - lastTick < 0.2) continue;
+      if (sessionTime - lastTick < 0.2) return;
       lastTick = sessionTime;
       processor.onFrame(telemetry);
       firstBudget ??= processor.snapshot().budget ?? 'fuel';
@@ -104,11 +47,8 @@ const playTape = async () => {
         playerIdx
       ] as number;
       lastLitres = telemetry.FuelLevel?.value?.[0] as number;
-    }
-  } finally {
-    sdk.stop();
-    vi.unstubAllEnvs();
-  }
+    },
+  });
   return {
     frames,
     firstBudget,

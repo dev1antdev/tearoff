@@ -3,9 +3,12 @@ import type {
   LapInput,
   LapSessionInput,
   LedgerLap,
+  LedgerStint,
   PlayerLedgerSnapshot,
   PlayerStintSnapshot,
+  Session,
   StintInput,
+  Telemetry,
 } from '@irdashies/types';
 import {
   LEDGER_LAP_FROM_START,
@@ -55,18 +58,33 @@ interface Played {
   logs: string[];
   endFuel: number;
   endEnergy: number;
+  /**
+   * The stint the run left open, as it was closed once everything above had
+   * been read off: by the sim going away, or by the session starting again.
+   */
+  closed: LedgerStint | null;
+  closedLog: string | null;
 }
 
+/**
+ * How many of the recording's first frames are played again as the start of
+ * the next session: half a second of them, which is how long the session
+ * that names it another one may take to be published.
+ */
+const OPENING_FRAMES = 32;
+
 const play = async (
-  transformRaw?: <T extends LmuRawTelemetry>(raw: T) => T
+  transformRaw?: <T extends LmuRawTelemetry>(raw: T) => T,
+  { startAgain = false }: { startAgain?: boolean } = {}
 ): Promise<Played> => {
   const storedLaps: Played['storedLaps'] = [];
   const storedStints: StintInput[] = [];
   const logs: string[] = [];
   let clock = Date.UTC(2026, 9, 7, 20, 0, 0);
+  const lifecycle = createSessionLifecycle();
   const runtime = new PlayerLedgerRuntime(
     new ChannelBus(),
-    createSessionLifecycle(),
+    lifecycle,
     { markStart: () => undefined, markEnd: () => undefined },
     {
       recordLap: (session, lap) => {
@@ -94,6 +112,8 @@ const play = async (
   let discs: number[] | undefined;
   let endFuel = 0;
   let endEnergy = 0;
+  const opening: Telemetry[] = [];
+  let openingSession: Session | null = null;
   const { frames } = await playLmuTape({
     tapePath: LMU_CURATED_TAPE_PATH,
     // Fast enough to finish in seconds, slow enough that every recorded
@@ -117,6 +137,11 @@ const play = async (
       // As the bridge does: the frame first, then the session it came with.
       runtime.onFrame(telemetry);
       if (sessionChanged) runtime.onSession(session);
+      if (startAgain && opening.length < OPENING_FRAMES) {
+        // Kept apart from the mapper's own buffers, to be played again.
+        opening.push(structuredClone(telemetry));
+        openingSession = session;
+      }
       const fuel = telemetry.FuelLevel?.value?.[0];
       if (typeof fuel === 'number') endFuel = fuel;
       const energy =
@@ -128,16 +153,43 @@ const play = async (
   });
   await new Promise((resolve) => setTimeout(resolve, 0));
   const ledger = runtime.ledgerSnapshot();
-  return {
+  const played = {
     frames,
     ledger,
     stint: runtime.stintSnapshot(),
     rows: [...ledger.laps].reverse(),
-    storedLaps,
-    storedStints,
-    logs,
+    storedLaps: [...storedLaps],
+    storedStints: [...storedStints],
+    logs: [...logs],
     endFuel,
     endEnergy,
+  };
+
+  // Then the end of the run, which the figures above are read before.
+  const session = openingSession as Session | null;
+  if (startAgain && session) {
+    // The recording comes round again, as it does in the app: the same
+    // session number with the clock back at the start, and the session that
+    // says it is another one only after half a second of its frames.
+    for (const frame of opening) runtime.onFrame(frame);
+    runtime.onSession({
+      ...session,
+      WeekendInfo: {
+        ...session.WeekendInfo,
+        SubSessionID: session.WeekendInfo.SubSessionID + 1,
+      },
+    });
+  } else {
+    lifecycle._onDisconnect();
+  }
+  const closed = storedStints
+    .map((input) => input.stint)
+    .filter((stint) => stint.closedBy !== null && stint.laps > 0)
+    .at(-1);
+  return {
+    ...played,
+    closed: closed ?? null,
+    closedLog: logs.filter((line) => line.includes(' closed (')).at(-1) ?? null,
   };
 };
 
@@ -205,9 +257,11 @@ describe.skipIf(!lmuTapeAvailable())(
   () => {
     let race: Played;
     let staged: Played;
+    let again: Played;
     beforeAll(async () => {
       race = await play();
       staged = await play(stageStop());
+      again = await play(undefined, { startAgain: true });
       // Twelve seconds on a quiet machine. The replay runs against the wall
       // clock, so a machine busy with every other spec takes far longer.
     }, 300_000);
@@ -390,6 +444,59 @@ describe.skipIf(!lmuTapeAvailable())(
         laps: 2,
       });
       expect(race.rows.map((row) => row.id)).toEqual([1, 2]);
+    });
+
+    describe('when the session starts again with the stint still open', () => {
+      // Staged from the recording itself: its first half second of frames
+      // played again after its last, as when a tape loops in the app, or a
+      // server rolls a session and the car is already on track.
+      it('closes the stint as the sim going away would, with the levels it had', () => {
+        const gone = race.closed;
+        const rolled = again.closed;
+
+        expect(gone).toMatchObject({
+          ordinal: 1,
+          closedBy: 'disconnect',
+          startLap: 0,
+          endLap: 2,
+          laps: 2,
+          cleanLaps: 1,
+        });
+        // The recording from its second frame to its last, and what that
+        // took out of the car.
+        const seconds = (gone?.endTime ?? 0) - (gone?.startTime ?? 0);
+        expect(seconds).toBeCloseTo(239.97, 1);
+        expect((gone?.startFuel ?? 0) - (gone?.endFuel ?? 0)).toBeCloseTo(
+          6.3,
+          1
+        );
+        expect((gone?.startEnergy ?? 0) - (gone?.endEnergy ?? 0)).toBeCloseTo(
+          0.0626,
+          3
+        );
+        expect(gone?.endFuel).toBeCloseTo(race.endFuel, 2);
+        expect(gone?.endEnergy).toBeCloseTo(race.endEnergy, 4);
+        gone?.endTread.forEach((tread, wheel) => {
+          expect(tread).not.toBeNull();
+          expect(tread as number).toBeLessThan(
+            (gone.startTread[wheel] ?? 0) - 0.01
+          );
+        });
+        gone?.endBrake.forEach((disc, wheel) => {
+          expect(disc).not.toBeNull();
+          expect(disc as number).toBeLessThan(gone.startBrake[wheel] ?? 0);
+        });
+
+        // The same stint, to the last figure, when it is the next session
+        // that ends it.
+        expect(rolled).toEqual({ ...gone, closedBy: 'session' });
+        expect(again.closedLog).toMatch(
+          /^\[Ledger\] Stint 1 closed \(session\): 2 laps in 240 s; used fuel 6\.[23]\d L, energy 6\.[23] %; best 86\.67\d s$/
+        );
+        expect(race.closedLog).toBe(
+          again.closedLog?.replace('(session)', '(disconnect)')
+        );
+      });
     });
 
     describe('with a pit stop staged over the same driving', () => {

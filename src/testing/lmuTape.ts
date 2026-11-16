@@ -71,7 +71,12 @@ export interface LmuTapeFrame {
 export interface PlayLmuTapeOptions {
   tapePath: string;
   addonPath?: string;
-  /** Tape seconds per wall-clock second. Slower reads more of the frames. */
+  /**
+   * No longer changes anything, and is kept for the specs that pass it. It
+   * was the pace the addon was asked to play at, lowered so that fewer
+   * frames were lost; none is lost now at any pace, so the tape is always
+   * asked for as fast as the addon will play it.
+   */
   speed?: number;
   /**
    * Changes each snapshot before it is mapped, for the questions a recording
@@ -200,10 +205,96 @@ export const lmuRawWithoutPlayerVehicle = <T extends LmuRawTelemetry>(
 /** Seconds of session time between session snapshots, as in the bridge. */
 const SESSION_POLL_SECONDS = 0.5;
 
+/** The pace range the replay addon accepts, in tape seconds per second. */
+const ADDON_SLOWEST_SPEED = 0.25;
+const ADDON_FASTEST_SPEED = 100;
+/** Milliseconds past the moment a snapshot falls due before it is asked for. */
+const DUE_MARGIN_MS = 10;
+/** A replay still reading after this long is one that will never end. */
+const GIVE_UP_AFTER_MS = 10 * 60_000;
+
+/** The sizes and offsets of a tape's headers; see `replay/lmu_tape.h`. */
+const TAPE_FILE_HEADER_BYTES = 80;
+const TAPE_RECORD_HEADER_BYTES = 32;
+const TAPE_RECORD_PAYLOAD_SIZE_AT = 8;
+const TAPE_RECORD_ELAPSED_MICROS_AT = 16;
+const TAPE_KEYFRAME = 1;
+const TAPE_DELTA = 2;
+/** REST answers come first on a tape; the second snapshot is not far in. */
+const TAPE_RECORDS_SEARCHED = 1000;
+
+/**
+ * How long after its start a tape stamps its second snapshot, in
+ * microseconds, read from the tape's own record headers. 0 for a file that
+ * is not a tape or holds fewer than two.
+ */
+const secondSnapshotMicros = (tapePath: string): number => {
+  const header = Buffer.alloc(TAPE_RECORD_HEADER_BYTES);
+  let file: number;
+  try {
+    file = fs.openSync(tapePath, 'r');
+  } catch {
+    return 0;
+  }
+  try {
+    let position = TAPE_FILE_HEADER_BYTES;
+    let snapshots = 0;
+    for (let record = 0; record < TAPE_RECORDS_SEARCHED; record += 1) {
+      const read = fs.readSync(file, header, 0, header.length, position);
+      if (read < header.length) return 0;
+      const kind = header.readUInt32LE(0);
+      if (kind === TAPE_KEYFRAME || kind === TAPE_DELTA) {
+        snapshots += 1;
+        if (snapshots === 2) {
+          return Number(header.readBigUInt64LE(TAPE_RECORD_ELAPSED_MICROS_AT));
+        }
+      }
+      position +=
+        header.length + header.readUInt32LE(TAPE_RECORD_PAYLOAD_SIZE_AT);
+    }
+    return 0;
+  } finally {
+    fs.closeSync(file);
+  }
+};
+
+/**
+ * A session snapshot as the frame it also is: what `read` would have given
+ * for the same snapshot, without the drivers and the classes.
+ */
+const frameOf = (snapshot: LmuRawSession): LmuRawTelemetry => {
+  const frame: Partial<LmuRawSession> = { ...snapshot };
+  delete frame.classes;
+  delete frame.drivers;
+  return frame as LmuRawTelemetry;
+};
+
 /**
  * Plays a tape through the LMU session and telemetry mapping, the way the
  * bridge does: one session identity, lap-distance and energy state for the
  * whole run, and a session rebuilt whenever its signature moves.
+ *
+ * Every snapshot of the recording reaches `onFrame`, in order, however busy
+ * the machine is, so a run is the same run every time. The addon plays a
+ * tape against the wall clock: a read hands over the next snapshot once its
+ * recorded moment has come round, and the last one again until then. Each
+ * read is therefore taken as a frame, the session's included: the snapshot a
+ * session is rebuilt from is read as `readSession`, which is `read` with the
+ * drivers added, and is the frame the session is published with. Read
+ * beside the frame, as it was, a session took a snapshot of its own whenever
+ * one had fallen due, and a reader slower than the tape lost a frame at
+ * every session poll: of the curated tape's 15,430 frames an idle machine
+ * read 15,395 on one run and 15,398 on the next, and a busy one 14,952.
+ *
+ * The one snapshot not delivered is the first, stamped at the tape's start:
+ * the addon's own `start()` takes it. The first read is held back until the
+ * second has fallen due, so that it is the first frame of every run rather
+ * than of the runs that were quick off the mark. That leaves 15,429 frames
+ * of the curated tape, the same ones every time.
+ *
+ * A snapshot whose session clock is the one before's is not a frame, as
+ * before: that is how a snapshot handed over twice is told from a new one,
+ * and five recorded ones on the curated tape share their clock too.
  *
  * Without the REST poller and the UI websocket, which need the bridge's
  * timers; the channels they feed are absent, as in a session where LMU's
@@ -213,14 +304,14 @@ const SESSION_POLL_SECONDS = 0.5;
 export const playLmuTape = async ({
   tapePath,
   addonPath = LMU_TAPE_ADDON_PATH,
-  speed = 20,
   transformRaw = (raw) => raw,
   gameState,
   restCells,
   onFrame,
 }: PlayLmuTapeOptions): Promise<{ frames: number }> => {
   process.env.IRDASHIES_LMU_REPLAY = path.resolve(tapePath);
-  process.env.IRDASHIES_LMU_REPLAY_SPEED = String(speed);
+  // Nothing is lost at any pace, so there is no reason to wait for the tape.
+  process.env.IRDASHIES_LMU_REPLAY_SPEED = String(ADDON_FASTEST_SPEED);
   process.env.IRDASHIES_LMU_REPLAY_LOOP = '0';
   const { LmuSdkNode } = createRequire(import.meta.url)(addonPath) as {
     LmuSdkNode: new () => LmuTapeSdk;
@@ -241,26 +332,44 @@ export const playLmuTape = async ({
   let lastSignature: string | null = null;
   let lastOwnEntrySlot = -1;
   let session: Session | null = null;
+  // The next snapshot is to be read with its drivers, and the session
+  // rebuilt from it. True of the first, which nothing can be mapped without.
+  let sessionDue = true;
   // Whether the last snapshot, as staged, named a player vehicle: what the
   // bridge decides which telemetry block to ask for by.
   let playerHadVehicle = true;
   try {
     sdk.start();
-    const deadline = performance.now() + 10 * 60_000;
+    // The second snapshot is due by now at the slowest pace the addon has,
+    // whichever pace this process's first replay left it with.
+    const firstReadAt =
+      performance.now() +
+      secondSnapshotMicros(tapePath) / 1000 / ADDON_SLOWEST_SPEED +
+      DUE_MARGIN_MS;
+    while (performance.now() < firstReadAt) {
+      await new Promise((resolve) => setTimeout(resolve, 2));
+    }
+    const deadline = performance.now() + GIVE_UP_AFTER_MS;
     let ended = false;
-    while (performance.now() < deadline && !ended) {
+    while (!ended) {
+      if (performance.now() >= deadline) {
+        throw new Error(
+          `The tape was still playing after ${GIVE_UP_AFTER_MS / 60_000} minutes: ${tapePath}`
+        );
+      }
       const blockSlot = lmuBlockSlotToRead(
         playerHadVehicle,
         lmuOwnEntrySlot(ownEntryState)
       );
-      const read = sdk.read(blockSlot);
+      // One read for one snapshot, whichever kind: nothing else may ask the
+      // addon for one, or the snapshot it is handed is a frame never seen.
+      const sessionRead = sessionDue ? sdk.readSession(blockSlot) : null;
+      const read = sessionRead ? frameOf(sessionRead) : sdk.read(blockSlot);
       if (!read?.running) {
         if (frames > 0) ended = true;
         else await new Promise((resolve) => setTimeout(resolve, 2));
         continue;
       }
-      const raw = transformRaw(read, blockSlot ?? -1);
-      playerHadVehicle = raw.playerHasVehicle;
       // The player's 100 Hz clock where there is one, scoring's otherwise:
       // the same choice the mapper makes for SessionTime. Read from the
       // recording itself, before anything a spec has staged over it: this
@@ -279,9 +388,12 @@ export const playLmuTape = async ({
         typeof recordedClock === 'number' && recordedClock >= 0
           ? recordedClock
           : read.currentET;
+      // The snapshot before, handed over again while the next is not due.
       if (clock === lastClock) continue;
       lastClock = clock;
       frames += 1;
+      const raw = transformRaw(read, blockSlot ?? -1);
+      playerHadVehicle = raw.playerHasVehicle;
 
       sessionIdentity.observe({
         trackName: raw.trackName,
@@ -302,16 +414,12 @@ export const playLmuTape = async ({
       if (sessionIdentity.lastChange()) lastSignature = null;
 
       let sessionChanged = false;
-      if (
-        session === null ||
-        clock - lastSessionAt >= SESSION_POLL_SECONDS ||
-        clock < lastSessionAt
-      ) {
-        lastSessionAt = clock;
-        const rawSession = transformRaw(
-          sdk.readSession(blockSlot),
-          blockSlot ?? -1
-        );
+      if (sessionRead) {
+        sessionDue = false;
+        if (session === null) lastSessionAt = clock;
+        // The same snapshot as the frame, with its drivers: staged on its
+        // own, after the frame, as when the two were read apart.
+        const rawSession = transformRaw(sessionRead, blockSlot ?? -1);
         // On every session read, as in the bridge, and before the frame.
         const ownEntry = observeLmuOwnEntry(ownEntryState, rawSession);
         // The session names the own entry, which its signature does not see.
@@ -332,6 +440,14 @@ export const playLmuTape = async ({
           );
           sessionChanged = true;
         }
+      } else if (
+        clock - lastSessionAt >= SESSION_POLL_SECONDS ||
+        clock < lastSessionAt
+      ) {
+        // Half a second since the session was last asked for: the snapshot
+        // after this one is read with its drivers.
+        lastSessionAt = clock;
+        sessionDue = true;
       }
       if (session === null) continue;
 

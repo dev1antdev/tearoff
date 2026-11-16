@@ -11,6 +11,7 @@ import type {
   TrackProfileLap,
   TrackProfileSummary,
   TrackSectorSource,
+  TrackSunTimes,
 } from '@irdashies/types';
 import {
   TRACK_NOTE_COMMENT_LENGTH,
@@ -19,6 +20,7 @@ import {
   TRACK_PROFILE_MAX_POINTS,
   TRACK_PROFILE_SPACING_M,
   TRACK_PROFILE_VERSION,
+  trackSunMinutesOf,
 } from '@irdashies/types';
 import logger from '../logger';
 import { createDebouncedAtomicWriter } from './debouncedAtomicWriter';
@@ -35,8 +37,9 @@ import { parseTrackNotesFile, serializeTrackNotesFile } from './trackNotesFile';
  * and the file follows through a debounced, atomic write.
  *
  * Caps: 500 notes a track, 5,000 buckets a profile (50 km), and 1,000
- * files, past which the ones changed longest ago go, a file with a note in
- * it never. A file a newer build wrote is neither read nor written over.
+ * files, past which the ones changed longest ago go, a file with a note or
+ * a sunrise or sunset in it never: those are the driver's own. A file a
+ * newer build wrote is neither read nor written over.
  */
 
 const DIRECTORY = 'track-profiles';
@@ -225,6 +228,8 @@ export const parseTrackProfile = (
       : 'nominal';
   const sectorStartPct =
     sectorSource === 'nominal' ? null : sectorStartsOf(value.sectorStartPct);
+  const sunriseMinutes = trackSunMinutesOf(value.sunriseMinutes);
+  const sunsetMinutes = trackSunMinutesOf(value.sunsetMinutes);
 
   return {
     version: TRACK_PROFILE_VERSION,
@@ -252,9 +257,24 @@ export const parseTrackProfile = (
       0,
       TRACK_NOTE_LIMIT
     ),
+    // Absent rather than null where none is set, as they are written.
+    ...(sunriseMinutes === null ? {} : { sunriseMinutes }),
+    ...(sunsetMinutes === null ? {} : { sunsetMinutes }),
     updatedAt: isFiniteNumber(value.updatedAt) ? value.updatedAt : 0,
   };
 };
+
+/** The driver's own figures for a track, which a new layout does not void. */
+const sunTimesOf = (
+  profile: TrackProfile | null | undefined
+): Pick<TrackProfile, 'sunriseMinutes' | 'sunsetMinutes'> => ({
+  ...(profile?.sunriseMinutes === undefined
+    ? {}
+    : { sunriseMinutes: profile.sunriseMinutes }),
+  ...(profile?.sunsetMinutes === undefined
+    ? {}
+    : { sunsetMinutes: profile.sunsetMinutes }),
+});
 
 /** The stored profile when it is of the layout the key names, else null. */
 const sameLayout = (
@@ -321,6 +341,7 @@ export const mergeProfileLap = (
     : {
         ...emptyProfile(key, now),
         notes: cleanTrackNotes(existing?.notes, key.trackLengthM),
+        ...sunTimesOf(existing),
       };
   let changed = false;
 
@@ -467,6 +488,12 @@ export interface TrackProfileStore {
     trackId: number,
     kind: TrackNoteKind
   ): Promise<string>;
+  /**
+   * Sets a track's sunrise and sunset, each a whole minute of the day or
+   * null to clear it. Resolves true when that changed what is kept; false
+   * when it did not, or when either is neither of those.
+   */
+  saveSunTimes(key: TrackProfileKey, times: TrackSunTimes): Promise<boolean>;
   /** Every track with a file, newest change first. */
   list(): Promise<TrackProfileSummary[]>;
   /** Fires after any change to a profile. */
@@ -653,6 +680,12 @@ export function createTrackProfileStore(
           ).catch(() => 'newer' as const);
           if (typeof profile === 'string') continue;
           if (profile.notes.length > 0) continue;
+          if (
+            profile.sunriseMinutes !== undefined ||
+            profile.sunsetMinutes !== undefined
+          ) {
+            continue;
+          }
           candidates.push({ name, updatedAt: profile.updatedAt });
         }
         candidates.sort((a, b) => a.updatedAt - b.updatedAt);
@@ -774,6 +807,7 @@ export function createTrackProfileStore(
           ...(base ?? {
             ...emptyProfile(key, now()),
             notes: cleanTrackNotes(current?.notes, key.trackLengthM),
+            ...sunTimesOf(current),
           }),
           elevationM,
           elevationSource: 'tinypedal',
@@ -851,6 +885,37 @@ export function createTrackProfileStore(
         kind,
         (entry?.profile?.notes ?? []).filter((note) => note.kind === kind)
       );
+    },
+
+    async saveSunTimes(key, times) {
+      // Each a minute of the day, or null to clear it: nothing else.
+      const sunrise = times.sunriseMinutes;
+      const sunset = times.sunsetMinutes;
+      if (
+        !isKey(key) ||
+        (sunrise !== null && trackSunMinutesOf(sunrise) === null) ||
+        (sunset !== null && trackSunMinutesOf(sunset) === null)
+      ) {
+        return false;
+      }
+      return apply(key.simulator, key.trackId, (current) => {
+        if (
+          (current?.sunriseMinutes ?? null) === sunrise &&
+          (current?.sunsetMinutes ?? null) === sunset
+        ) {
+          return undefined;
+        }
+        // Rebuilt without either, so that one cleared leaves no key behind.
+        const base: TrackProfile = { ...(current ?? emptyProfile(key, now())) };
+        delete base.sunriseMinutes;
+        delete base.sunsetMinutes;
+        return {
+          ...base,
+          ...(sunrise === null ? {} : { sunriseMinutes: sunrise }),
+          ...(sunset === null ? {} : { sunsetMinutes: sunset }),
+          updatedAt: now(),
+        };
+      });
     },
 
     async list() {

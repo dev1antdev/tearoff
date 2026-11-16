@@ -9,6 +9,7 @@ import {
 } from '@irdashies/domain/trackClock/trackClock';
 import { sessionBarItemWrapperClass } from '../../sessionBarItemWrapperClass';
 import type { SessionBarItemProps } from '../../sessionBarItemTypes';
+import { SunPhaseCountdown } from './SunPhaseCountdown';
 
 /**
  * The clock to the minute, not to the second: the snapshot moves five times
@@ -27,6 +28,8 @@ const NO_CLOCK = [undefined, undefined] as const;
 /**
  * The in-game clock, and beside it how fast the in-game day runs when that
  * is not real time: "x2" in amber, "x0" for a time of day that stands still.
+ * Then, where it is switched on, the countdown to the next of sunrise,
+ * midday, sunset and midnight.
  */
 export const SessionClockTimeItem = memo(
   ({ settings, standalone }: SessionBarItemProps) => {
@@ -51,6 +54,11 @@ export const SessionClockTimeItem = memo(
             >
               {scale.text}
             </span>
+          )}
+          {options?.sunPhase && (
+            <SunPhaseCountdown
+              inGameTime={options.sunPhaseInGameTime ?? false}
+            />
           )}
         </div>
       </div>

@@ -653,6 +653,111 @@ describe('PlayerLedgerRuntime', () => {
       expect(runtime.stintSnapshot().stint).toBeNull();
     });
 
+    describe('a session that starts again under the car', () => {
+      /** Two laps and most of a third, from joining half-way round one. */
+      const driveStint = () => {
+        const harness = createLedgerHarness();
+        harness.sim.emit();
+        harness.sim.driveLaps(2.7);
+        return harness;
+      };
+
+      /** The stints that were closed with a lap in them, as stored. */
+      const closedStints = ({ stored }: Harness) =>
+        stored.stints
+          .map(({ input }) => input.stint)
+          .filter((stint) => stint.closedBy !== null && stint.laps > 0);
+
+      /** The next session's first frames: its clock, a full tank, new tyres. */
+      const startAgain = (sim: LedgerSim, seconds: number) => {
+        sim.time = 20;
+        sim.progress = 0.2;
+        sim.fuel = 50;
+        sim.energy = 0.9;
+        sim.tread = [1, 1, 1, 1];
+        sim.brake = [36, 36, 32, 32];
+        sim.lastLapTime = -1;
+        sim.drive(seconds);
+      };
+
+      /** What the same stint leaves behind when the sim simply goes away. */
+      const closedByDisconnect = () => {
+        const harness = driveStint();
+        harness.lifecycle._onDisconnect();
+        const [stint] = closedStints(harness);
+        return stint;
+      };
+
+      it('closes the stint with the last readings of the session it was driven in', () => {
+        const expected = closedByDisconnect();
+        // 162 s of driving from the 100 s the car was joined at.
+        expect(expected.closedBy).toBe('disconnect');
+        expect(expected.endTime).toBeCloseTo(262, 6);
+        expect(expected.endFuel).toBeCloseTo(50 - 2.4 * 2.7, 6);
+
+        // Le Mans Ultimate rolling a session, or a recording coming round
+        // again: the same session number, the clock back near its start. The
+        // session that says it is another one is published a moment after
+        // the frames of it have begun.
+        const harness = driveStint();
+        startAgain(harness.sim, 1);
+        harness.runtime.onSession(ledgerSession({ subSessionId: 48214 }));
+
+        const stints = closedStints(harness);
+        expect(stints).toHaveLength(1);
+        expect(stints[0]).toEqual({ ...expected, closedBy: 'session' });
+        expect(stints[0]).toMatchObject({ laps: 3, startLap: 0, endLap: 3 });
+        expect(harness.logs.filter((line) => line.includes('closed'))).toEqual([
+          expect.stringContaining('Stint 1 closed (session): 3 laps in 162 s'),
+        ]);
+      });
+
+      it('does so when the session number follows the clock a moment later', () => {
+        const expected = closedByDisconnect();
+        const harness = driveStint();
+        const { sim, runtime } = harness;
+        startAgain(sim, 1);
+        sim.sessionNum = 1;
+        sim.drive(1);
+
+        const stints = closedStints(harness);
+        expect(stints).toHaveLength(1);
+        expect(stints[0]).toEqual({ ...expected, closedBy: 'session' });
+        expect(runtime.ledgerSnapshot().stints).toHaveLength(1);
+        // The session under way has a stint of its own, from its own start.
+        expect(runtime.stintSnapshot().stint).toMatchObject({
+          sessionNum: 1,
+          ordinal: 1,
+          laps: 0,
+        });
+        expect(runtime.stintSnapshot().stint?.startFuel).toBeCloseTo(
+          50 - 2.4 * (1.5 / 60),
+          6
+        );
+      });
+
+      it('makes no lap of the one under way when the session started again', () => {
+        const harness = driveStint();
+        const { sim, runtime, stored } = harness;
+        const lapsBefore = stored.laps.length;
+        expect(lapsBefore).toBe(2);
+        startAgain(sim, 1);
+        runtime.onSession(ledgerSession({ subSessionId: 48214 }));
+        // Round to the line, a whole lap, and a little of the next.
+        sim.driveLaps(2);
+
+        // One lap more, driven from line to line in the session under way:
+        // what was left of the lap the old session ended in is not one.
+        expect(stored.laps).toHaveLength(lapsBefore + 1);
+        expect(stored.laps[lapsBefore].lap.lapTime).toBeCloseTo(60, 3);
+        expect(rowsOf(harness)).toHaveLength(1);
+        expect(runtime.stintSnapshot().stint).toMatchObject({
+          ordinal: 1,
+          laps: 2,
+        });
+      });
+    });
+
     it('ends a stint when the sim goes away, and empties itself', () => {
       const harness = createLedgerHarness();
       const { sim, runtime, lifecycle, logs } = harness;

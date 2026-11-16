@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
   ChannelSnapshotDecorator,
   TelemetryDecorator,
+  emptyTrackProfileStorySnapshot,
 } from '@irdashies/storybook';
 import { getWidgetDefaultConfig } from '@irdashies/types';
 import type { SessionBarSnapshot } from '@irdashies/types';
@@ -111,4 +112,81 @@ export const NotYetMeasured: Story = {
 export const Standalone: Story = {
   decorators: withClock({ timeScale: 2 }),
   args: { settings: bar({ format: '24h' }), standalone: true },
+};
+
+/** Sunrise 06:12 and sunset 20:31, as a driver might enter them. */
+const SUN_TIMES = { sunriseMinutes: 372, sunsetMinutes: 1231 };
+
+/** The clock with the track's profile beside it, which holds the times. */
+const withSun = (
+  clock: Partial<SessionBarSnapshot>,
+  sun: Partial<typeof SUN_TIMES> = SUN_TIMES
+) => [
+  TelemetryDecorator(),
+  ChannelSnapshotDecorator({
+    'session-bar.snapshot': snapshot(clock),
+    'track-profile.snapshot': { ...emptyTrackProfileStorySnapshot, ...sun },
+  }),
+];
+
+const countdown = bar({ format: '24h', sunPhase: true });
+
+/** The afternoon of the recorded race: sunset is next, 5:18:41 away. */
+export const TowardsSunset: Story = {
+  decorators: withSun({}),
+  args: { settings: countdown, position: 'footer' },
+};
+
+/** Half past four in the morning: sunrise is next, in blue. */
+export const TowardsSunrise: Story = {
+  decorators: withSun({ sessionTimeOfDay: 16_200 }),
+  args: { settings: countdown, position: 'footer' },
+};
+
+/** Nine in the morning: midday, half-way from sunrise to sunset, is next. */
+export const TowardsMidday: Story = {
+  decorators: withSun({ sessionTimeOfDay: 32_400 }),
+  args: { settings: countdown, position: 'footer' },
+};
+
+/** Ten at night: midnight, half-way from sunset to sunrise, is next. */
+export const TowardsMidnight: Story = {
+  decorators: withSun({ sessionTimeOfDay: 79_200 }),
+  args: { settings: countdown, position: 'footer' },
+};
+
+/**
+ * A day running twice as fast, counted in real time: 2:39:20, half of the
+ * in-game time left to sunset.
+ */
+export const ScaledCountdown: Story = {
+  decorators: withSun({ timeScale: 2 }),
+  args: { settings: countdown, position: 'footer' },
+};
+
+/** The same day counted in in-game time: the whole 5:18:41. */
+export const InGameTime: Story = {
+  decorators: withSun({ timeScale: 2 }),
+  args: {
+    settings: bar({ format: '24h', sunPhase: true, sunPhaseInGameTime: true }),
+    position: 'footer',
+  },
+};
+
+/** No times entered for the track: the countdown is on and nothing is drawn. */
+export const NoTimesStored: Story = {
+  decorators: withSun({}, {}),
+  args: { settings: countdown, position: 'footer' },
+};
+
+/** Only a sunrise entered: still nothing to count down to. */
+export const OnlySunriseStored: Story = {
+  decorators: withSun({}, { sunriseMinutes: 372 }),
+  args: { settings: countdown, position: 'footer' },
+};
+
+/** The countdown in the Information Bar. */
+export const StandaloneCountdown: Story = {
+  decorators: withSun({ timeScale: 2 }),
+  args: { settings: countdown, standalone: true },
 };

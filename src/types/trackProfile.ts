@@ -25,6 +25,29 @@ export const TRACK_NOTE_COMMENT_LENGTH = 500;
 /** The longest note file accepted for import, in characters. */
 export const TRACK_NOTE_FILE_LENGTH = 1_024_000;
 
+/** The last minute of a day: the most a sunrise or a sunset may be. */
+export const TRACK_SUN_MINUTES_MAX = 1439;
+
+/**
+ * When the sun rises and sets at a track, on the in-game clock, as the
+ * driver entered them: whole minutes since midnight, 0 to 1439, or null for
+ * one that is not set. Neither sim states them, and they move with the date
+ * a session is run on, so nothing is assumed where none was entered.
+ */
+export interface TrackSunTimes {
+  sunriseMinutes: number | null;
+  sunsetMinutes: number | null;
+}
+
+/** A sunrise or a sunset as it is kept, or null for anything else. */
+export const trackSunMinutesOf = (value: unknown): number | null =>
+  typeof value === 'number' &&
+  Number.isInteger(value) &&
+  value >= 0 &&
+  value <= TRACK_SUN_MINUTES_MAX
+    ? value
+    : null;
+
 export type TrackNoteKind = 'track' | 'pace';
 
 export interface TrackNote {
@@ -83,6 +106,12 @@ export interface TrackProfile {
   sectorSource: TrackSectorSource;
   /** Kept sorted by distanceM. */
   notes: TrackNote[];
+  /**
+   * Sunrise and sunset as the driver entered them, minutes since midnight;
+   * each absent until it is set. See `TrackSunTimes`.
+   */
+  sunriseMinutes?: number;
+  sunsetMinutes?: number;
   /** Unix milliseconds. */
   updatedAt: number;
 }

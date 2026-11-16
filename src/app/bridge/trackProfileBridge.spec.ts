@@ -110,6 +110,7 @@ const setup = ({
     importNotes: vi.fn(async () => [note(), note({ id: 'imported' })]),
     exportNotes: vi.fn(async () => 'distance,track note,comment,tags\n'),
     clearElevation: vi.fn(async () => true),
+    saveSunTimes: vi.fn(async () => true),
     onChanged: vi.fn((callback: () => void) => {
       listener = callback;
       return () => {
@@ -479,6 +480,7 @@ describe('track profile bridge', () => {
       'trackProfile:importNotes',
       'trackProfile:exportNotes',
       'trackProfile:clearElevation',
+      'trackProfile:saveSunTimes',
     ])('%s takes a track key and nothing else', async (channel) => {
       const { store } = setup();
 
@@ -505,6 +507,96 @@ describe('track profile bridge', () => {
 
     expect(await invoke('trackProfile:clearElevation', TRACK_KEY)).toBe(true);
     expect(store.clearElevation).toHaveBeenCalledWith('lmu', TRACK_ID);
+  });
+
+  describe('saving the sunrise and sunset', () => {
+    const SUN = { sunriseMinutes: 372, sunsetMinutes: 1231 };
+
+    it('files them under what the store holds for the track, and nothing else that was sent', async () => {
+      const { store } = setup();
+
+      expect(
+        await invoke('trackProfile:saveSunTimes', TRACK_KEY, {
+          ...SUN,
+          trackName: '../elsewhere',
+          notes: [],
+        })
+      ).toBe(true);
+      expect(store.saveSunTimes).toHaveBeenCalledExactlyOnceWith(
+        STORED_KEY,
+        SUN
+      );
+    });
+
+    it('starts a track with nothing stored from the running session', async () => {
+      const { store } = setup({ sessionKey: SESSION_KEY });
+
+      await invoke('trackProfile:saveSunTimes', 'iracing:163', SUN);
+
+      expect(store.saveSunTimes).toHaveBeenCalledWith(SESSION_KEY, SUN);
+    });
+
+    it('refuses a track that is neither stored nor being driven', async () => {
+      const { store } = setup({ sessionKey: SESSION_KEY });
+
+      expect(
+        await invoke('trackProfile:saveSunTimes', 'iracing:999', SUN)
+      ).toBe(false);
+      expect(store.saveSunTimes).not.toHaveBeenCalled();
+    });
+
+    it('clears either with null, and takes the first and the last minute of the day', async () => {
+      const { store } = setup();
+
+      await invoke('trackProfile:saveSunTimes', TRACK_KEY, {
+        sunriseMinutes: null,
+        sunsetMinutes: null,
+      });
+      await invoke('trackProfile:saveSunTimes', TRACK_KEY, {
+        sunriseMinutes: 0,
+        sunsetMinutes: 1439,
+      });
+
+      expect(store.saveSunTimes).toHaveBeenNthCalledWith(1, STORED_KEY, {
+        sunriseMinutes: null,
+        sunsetMinutes: null,
+      });
+      expect(store.saveSunTimes).toHaveBeenNthCalledWith(2, STORED_KEY, {
+        sunriseMinutes: 0,
+        sunsetMinutes: 1439,
+      });
+    });
+
+    it.each([
+      [undefined],
+      [null],
+      ['06:12-20:31'],
+      [[372, 1231]],
+      [{}],
+      [{ sunriseMinutes: 372 }],
+      [{ sunriseMinutes: 372, sunsetMinutes: undefined }],
+      [{ sunriseMinutes: -1, sunsetMinutes: 1231 }],
+      [{ sunriseMinutes: 372, sunsetMinutes: 1440 }],
+      [{ sunriseMinutes: 372.5, sunsetMinutes: 1231 }],
+      [{ sunriseMinutes: Number.NaN, sunsetMinutes: 1231 }],
+      [{ sunriseMinutes: Infinity, sunsetMinutes: 1231 }],
+      [{ sunriseMinutes: '372', sunsetMinutes: 1231 }],
+      [{ sunriseMinutes: '06:12', sunsetMinutes: '20:31' }],
+      [{ sunriseMinutes: true, sunsetMinutes: 1231 }],
+      [{ sunriseMinutes: [372], sunsetMinutes: 1231 }],
+    ])('refuses %j whole, rounding and clamping nothing', async (times) => {
+      const { store } = setup();
+
+      const { error } = await outcome(
+        'trackProfile:saveSunTimes',
+        TRACK_KEY,
+        times
+      );
+
+      expect(error).toBeInstanceOf(TypeError);
+      expect(store.saveSunTimes).not.toHaveBeenCalled();
+      expect(store.whenLoaded).not.toHaveBeenCalled();
+    });
   });
 
   describe('changes', () => {

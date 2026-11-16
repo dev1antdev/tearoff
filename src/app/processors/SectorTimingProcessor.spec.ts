@@ -590,6 +590,123 @@ describe('SectorTimingProcessor', () => {
       expect(processor.snapshot().sectorEntryValid).toBe(true);
     });
 
+    describe('after a lap the sim did not time', () => {
+      /** A whole timed lap, then the first two sectors of the next. */
+      const lapAndTwoSectors = () => {
+        const processor = start();
+        crossLine(processor);
+        driveFirstSector(processor);
+        driveSecondSector(processor);
+        driveThirdSector(processor);
+        expect(processor.snapshot().inclusive.previousLapSectorTimes).toEqual(
+          LAP
+        );
+        driveQuickerFirstSector(processor);
+        processor.onFrame(
+          sim(259.5, 0.798, 1, 69.5, [39.612, null, null], LAP)
+        );
+        processor.onFrame(
+          sim(259.746, 0.801, 2, 69.746, [39.612, 29.934, null], LAP)
+        );
+        processor.onFrame(
+          sim(279.5, 0.999, 2, 89.5, [39.612, 29.934, null], LAP)
+        );
+        return processor;
+      };
+
+      it.each([
+        // An out-lap, or a lap not counted: the lap before still stands in
+        // the sim's last-lap times.
+        ['left as the lap before', LAP],
+        // A lap it voided: the lap time reads as not set.
+        ['cleared', [39.612, 29.934, null] as Times],
+        ['all cleared', NONE],
+      ])(
+        'has no third sector for it when the last-lap times are %s',
+        (_, lastLapTimes) => {
+          const processor = lapAndTwoSectors();
+          processor.onFrame(sim(279.7, 0.001, 0, 0.1, NONE, lastLapTimes));
+
+          const { inclusive, clean } = processor.snapshot();
+          // The lap that has just ended, as it was timed.
+          expect(inclusive.finishedLapSectorTimes).toEqual([
+            39.612,
+            29.934,
+            null,
+          ]);
+          // And nothing of the lap before left where its third sector
+          // would be read as this lap's.
+          expect(inclusive.previousLapSectorTimes).toEqual([
+            39.612,
+            29.934,
+            null,
+          ]);
+          expect(clean.previousLapSectorTimes).toEqual([39.612, 29.934, null]);
+          expect(inclusive.previousLapSectorUnclean).toEqual([
+            false,
+            false,
+            false,
+          ]);
+          // The best third sector is still the timed lap's.
+          expect(inclusive.sessionBestSectorTimes[2]).toBe(19.954);
+          expect(processor.snapshot().sectorEntryValid).toBe(true);
+        }
+      );
+
+      it('has none of the lap before left after an out-lap with no times at all', () => {
+        const processor = start();
+        crossLine(processor);
+        driveFirstSector(processor);
+        driveSecondSector(processor);
+        driveThirdSector(processor);
+        // Round again with the sim timing nothing: every index moves, no
+        // sector time appears, and the last-lap times stay the lap before's.
+        processor.onFrame(sim(229.9, 0.399, 0, 39.9, NONE, LAP));
+        processor.onFrame(sim(230.1, 0.4013, 1, 40.1, NONE, LAP));
+        processor.onFrame(sim(259.9, 0.798, 1, 69.9, NONE, LAP));
+        processor.onFrame(sim(260.1, 0.801, 2, 70.1, NONE, LAP));
+        // Until the line the lap before still stands in, sector by sector.
+        expect(processor.snapshot().inclusive.previousLapSectorTimes).toEqual(
+          LAP
+        );
+        processor.onFrame(sim(279.9, 0.999, 2, 89.9, NONE, LAP));
+        processor.onFrame(sim(280.1, 0.001, 0, 0.1, NONE, LAP));
+
+        const { inclusive, clean } = processor.snapshot();
+        expect(inclusive.finishedLapSectorTimes).toEqual(NONE);
+        expect(inclusive.previousLapSectorTimes).toEqual(NONE);
+        expect(clean.previousLapSectorTimes).toEqual(NONE);
+        // What was driven before it is still the session's best.
+        expect(inclusive.sessionBestSectorTimes).toEqual(LAP);
+        expect(inclusive.sessionBestLapSectorTimes).toEqual(LAP);
+      });
+
+      it('keeps a sector that was timed and left the track in the clean view as before', () => {
+        // Not the same thing: this sector has a time, which the clean view
+        // leaves out, and its last clean one goes on standing in there.
+        const processor = lapAndTwoSectors();
+        processor.onFrame(
+          sim(279.6, 0.9995, 2, 89.6, [39.612, 29.934, null], LAP, {
+            voided: true,
+          })
+        );
+        processor.onFrame(
+          sim(279.7, 0.001, 0, 0.1, NONE, [39.612, 29.934, 20.1])
+        );
+
+        const { inclusive, clean } = processor.snapshot();
+        expect(inclusive.previousLapSectorTimes).toEqual([
+          39.612, 29.934, 20.1,
+        ]);
+        expect(inclusive.previousLapSectorUnclean).toEqual([
+          false,
+          false,
+          true,
+        ]);
+        expect(clean.previousLapSectorTimes).toEqual([39.612, 29.934, 19.954]);
+      });
+    });
+
     it('takes a figure that is missing, zero, negative or not a number as no time', () => {
       for (const missing of [null, 0, -1, Number.NaN]) {
         const processor = start();
