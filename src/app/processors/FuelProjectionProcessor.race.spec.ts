@@ -5,8 +5,8 @@ import { FuelProjectionProcessor } from './FuelProjectionProcessor';
 /**
  * The `race` block of `fuel.projection`: what the race-distance projection
  * is worked out from, published for anything else that projects the end of
- * the race. Nothing reads it yet; these cases hold it to the figures the
- * projection itself uses.
+ * the race: the finish projection reads it. These cases hold it to the
+ * figures the projection itself uses.
  */
 
 const LEADER = 0;
@@ -71,6 +71,7 @@ describe('the race block of the fuel projection', () => {
 
     expect(snapshot.race).toEqual({
       leaderCarIdx: LEADER,
+      playerCarIdx: PLAYER,
       // No lap timed yet: each class's estimate.
       leaderPaceS: 80,
       playerPaceS: 90,
@@ -139,6 +140,21 @@ describe('the race block of the fuel projection', () => {
       leaderPaceS: 0,
       playerPaceS: 0,
       timeRemainingS: 1800,
+    });
+  });
+
+  it('names the car the camera is on as the car its figures are of', () => {
+    // The projection follows the camera, so with it on the leader the
+    // "player" of the block is the leader: a reader that is about the
+    // user's own entry has to be able to tell.
+    expect(run('unlimited', { CamCarIdx: [LEADER] }).race).toMatchObject({
+      playerCarIdx: LEADER,
+      playerPaceS: 80,
+      playerProgress: 5.5,
+    });
+    expect(run('unlimited', { CamCarIdx: [-1] }).race).toMatchObject({
+      playerCarIdx: PLAYER,
+      playerProgress: 4.25,
     });
   });
 

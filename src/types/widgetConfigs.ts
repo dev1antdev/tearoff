@@ -2506,6 +2506,56 @@ export interface FuelSaverConfig {
   showOnlyWhenOnTrack: boolean;
 }
 
+/** The most stop lengths the finish projection gives a column each. */
+export const FINISH_SCENARIOS_MAX = 6;
+/** The longest stop length it takes, seconds. */
+export const FINISH_SCENARIO_MAX_S = 300;
+
+/**
+ * The finish projection: where the race ends for a set of pit stop lengths,
+ * what that leaves to cover and to put in, and how the class neighbours
+ * come out once everyone has made the stops they still owe.
+ */
+export interface FinishProjectionConfig {
+  background: { opacity: number };
+  /**
+   * Seconds lost in the pits, one fixed column each: at most
+   * FINISH_SCENARIOS_MAX of them, each 0 to FINISH_SCENARIO_MAX_S.
+   */
+  scenarios: number[];
+  /** Whether the leader loses the same time in a fixed column. */
+  leaderStops: 'same' | 'none';
+  /** The column for the stop the pit menu is set to. */
+  showPlanned: boolean;
+  /** The column for the stop that adds exactly what the finish needs. */
+  showToFinish: boolean;
+  /** The column for the last stop the player and the leader made. */
+  showLast: boolean;
+  /** Seconds added to every stop that is worked out, as in the pit stop widget. */
+  extraTime: number;
+  /** A finish within this many seconds of a line is drawn as uncertain. */
+  nearRange: number;
+  /** Laps added in the second refuel row, 1 to 5. */
+  extraLaps: number;
+  /** The second refuel row. */
+  showExtraRefuel: boolean;
+  /** What is missing for the laps to go, or the whole amount they need. */
+  refuelDisplay: 'toAdd' | 'total';
+  /** Fuel unit; energy is always percent. */
+  fuelUnits: 'L' | 'gal';
+  /** The two lap fractions TinyPedal's table is made of, as two more rows. */
+  showLapFractions: boolean;
+  /** The class rivals under the table. */
+  showRivals: boolean;
+  /** Rows for the class cars ahead and behind, 0 to 3 each. */
+  rivalsAhead: number;
+  rivalsBehind: number;
+  /** Add what the difference in pace does over the laps left. */
+  includePace: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
 export interface WidgetConfigMap {
   standings: StandingsConfig;
   relative: RelativeConfig;
@@ -2530,6 +2580,7 @@ export interface WidgetConfigMap {
   pitlanehelper: PitlaneHelperConfig;
   pitstop: PitStopConfig;
   fuelsaver: FuelSaverConfig;
+  finishorder: FinishProjectionConfig;
   streamchat: StreamChatConfig;
   laptimelog: LapTimeLogConfig;
   stinthistory: StintHistoryConfig;
@@ -2678,6 +2729,8 @@ export type PitlaneHelperWidgetSettings =
   BaseWidgetSettings<PitlaneHelperConfig>;
 export type PitStopWidgetSettings = BaseWidgetSettings<PitStopConfig>;
 export type FuelSaverWidgetSettings = BaseWidgetSettings<FuelSaverConfig>;
+export type FinishProjectionWidgetSettings =
+  BaseWidgetSettings<FinishProjectionConfig>;
 export type StreamChatWidgetSettings = BaseWidgetSettings<StreamChatConfig>;
 export type LapTimeLogWidgetSettings = BaseWidgetSettings<LapTimeLogConfig>;
 export type StintHistoryWidgetSettings = BaseWidgetSettings<StintHistoryConfig>;

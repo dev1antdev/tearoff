@@ -13,6 +13,12 @@ import {
   type SessionResults,
   type StandingsSnapshot,
 } from '@irdashies/types';
+import {
+  classIdsByCar,
+  classNeighbours,
+  classPositionsByCar,
+  type ClassNeighbours,
+} from '@irdashies/shared';
 import { formatGap } from '@irdashies/utils/time';
 import type { LastTimeState } from './createStandings';
 import { lapsApart } from './lapRule';
@@ -26,83 +32,18 @@ import { lapsApart } from './lapRule';
  * main-process tape spec.
  */
 
-/** Car indices, or -1 where there is no such car. */
-export interface ClassNeighbours {
-  ahead: number;
-  behind: number;
-  leader: number;
-}
-
-const NO_NEIGHBOURS: ClassNeighbours = { ahead: -1, behind: -1, leader: -1 };
-
-/**
- * Each car's class, or undefined for a slot that is not racing: the pace
- * car, a spectator, an empty slot. Indexed by CarIdx.
- */
-export const classIdsByCar = (
-  drivers: readonly Driver[] | undefined
-): (number | undefined)[] => {
-  const classes: (number | undefined)[] = [];
-  for (const driver of drivers ?? []) {
-    if (!driver || driver.CarIsPaceCar || driver.IsSpectator) continue;
-    classes[driver.CarIdx] = driver.CarClassID;
-  }
-  return classes;
-};
-
-/**
- * Each car's place in its class: the live one, worked out from where the
- * cars are on the road, where the snapshot has it, and the sim's own
- * otherwise. Outside a race there is no live order and the sim's stands.
- */
-export const classPositionsByCar = (
-  snapshot: Pick<StandingsSnapshot, 'liveClassPosition' | 'carIdxClassPosition'>
-): (number | undefined)[] => {
-  const length = Math.max(
-    snapshot.liveClassPosition.length,
-    snapshot.carIdxClassPosition.length
-  );
-  const positions: (number | undefined)[] = new Array(length);
-  for (let carIdx = 0; carIdx < length; carIdx += 1) {
-    positions[carIdx] =
-      snapshot.liveClassPosition[carIdx] ??
-      snapshot.carIdxClassPosition[carIdx];
-  }
-  return positions;
+// Who the class neighbours are is one rule for both sides of the app: the
+// finish projection, in the main process, names the same cars. It lives in
+// `src/shared/classNeighbours.ts` and is handed on from here.
+export {
+  classIdsByCar,
+  classNeighbours,
+  classPositionsByCar,
+  type ClassNeighbours,
 };
 
 const isPlace = (value: number | undefined): value is number =>
   typeof value === 'number' && Number.isFinite(value) && value > 0;
-
-/**
- * The focus car's neighbours in its class: the car one place ahead, the car
- * one place behind, and the class leader.
- *
- * One pass, no sort. A car with no place (0 or undefined) and a car with no
- * class (the pace car, a spectator) is never a neighbour. There is no filter
- * for a car in the pits or in its garage: while it holds the place it is the
- * car to beat.
- */
-export const classNeighbours = (
-  focusCarIdx: number,
-  classIdByCar: readonly (number | undefined)[],
-  classPositionByCar: readonly (number | undefined)[]
-): ClassNeighbours => {
-  const classId = classIdByCar[focusCarIdx];
-  if (classId === undefined) return NO_NEIGHBOURS;
-  const focusPlace = classPositionByCar[focusCarIdx];
-  const found = { ...NO_NEIGHBOURS };
-  for (let carIdx = 0; carIdx < classPositionByCar.length; carIdx += 1) {
-    if (classIdByCar[carIdx] !== classId) continue;
-    const place = classPositionByCar[carIdx];
-    if (!isPlace(place)) continue;
-    if (place === 1) found.leader = carIdx;
-    if (!isPlace(focusPlace) || carIdx === focusCarIdx) continue;
-    if (place === focusPlace - 1) found.ahead = carIdx;
-    else if (place === focusPlace + 1) found.behind = carIdx;
-  }
-  return found;
-};
 
 /** What the gap rules read of `standings.snapshot`. */
 export type RaceIntervalSnapshot = Pick<

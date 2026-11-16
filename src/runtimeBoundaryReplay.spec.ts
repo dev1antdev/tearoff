@@ -73,6 +73,7 @@ const SNAPSHOT_CHANNELS = [
   'track-profile.snapshot',
   'cruise.snapshot',
   'traffic.snapshot',
+  'finish-projection.snapshot',
   'tyre-state.snapshot',
   'wheel-dynamics.snapshot',
   'damage.snapshot',

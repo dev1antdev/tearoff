@@ -20,6 +20,7 @@ import { RejoinIndicatorSettings } from './sections/RejoinIndicatorSettings';
 import { PitlaneHelperSettings } from './sections/PitlaneHelperSettings';
 import { PitStopSettings } from './sections/PitStopSettings';
 import { FuelSaverSettings } from './sections/FuelSaverSettings';
+import { FinishProjectionSettings } from './sections/FinishProjectionSettings';
 import { GeneralSettings } from './sections/GeneralSettings';
 import { BlindSpotMonitorSettings } from './sections/BlindSpotMonitorSettings';
 import { RadarSettings } from './sections/RadarSettings';
@@ -92,6 +93,7 @@ export const WIDGET_SETTINGS: Record<
   pitlanehelper: PitlaneHelperSettings,
   pitstop: PitStopSettings,
   fuelsaver: FuelSaverSettings,
+  finishorder: FinishProjectionSettings,
   rejoin: RejoinIndicatorSettings,
   fastercarsfrombehind: FasterCarsFromBehindSettings,
   blindspotmonitor: BlindSpotMonitorSettings,

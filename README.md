@@ -50,7 +50,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Hybrid (for cars that have the system), Lift and Coast Lights, Weather Forecast, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
-**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Tyre & Brake Wear, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Elevation, Cruise, Track Notes, Lap Delta, Corner Delta, Timing, Lap Timer, Car Systems, Fuel Calculator, Fuel Saver, Pit Stop, and Stint History. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Tyre & Brake Wear, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Elevation, Cruise, Track Notes, Lap Delta, Corner Delta, Timing, Lap Timer, Car Systems, Fuel Calculator, Fuel Saver, Pit Stop, Finish Projection, and Stint History. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Tachometer, and Shift Light.
 **Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Traffic, Faster Cars From Behind, Slow Car Ahead, Rejoin Indicator, Information Bar, System Performance (without its Sim row), Tyres, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including both full-size track maps, Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
@@ -724,6 +724,33 @@ A small table for the braking zone: what a lap may cost for the fuel or the ener
 - Adjustable background opacity, session visibility and an option to show only when on track
 
 The table has been checked against the one recorded race, where the car's 38.7 % lasts 17 laps. The "one stop fewer" line has been checked by arithmetic only: no recorded race is long enough to need two stops, and none is of a car on fuel.
+
+### Finish Projection
+
+Where the race ends, and what that asks of your car. A timed race ends when the leader next crosses the line after the clock runs out, so how many laps you still have to drive hangs on a few seconds at the end, and on how long everyone stands in the pits before then. The widget works that out for no stop and for a set of stop lengths, and under it shows how your class neighbours come out once everyone has made the stops they still owe. Both simulators, with less under iRacing.
+
+**Features:**
+
+- A table with a column for no stop ("Now") and one for each stop length you set: four by default, up to six, each 0 to 300 s. Each column gives how long after the clock the leader takes the flag, the laps you still have to cover, and what has to go in for them
+- A finish that comes within a set number of seconds of a line (20 by default, never more than a third of a lap) is amber, with an arrow up when a little quicker means one lap more and an arrow down when a little slower means one lap fewer. The leader's figure is amber when the leader crosses the line that close to the clock running out
+- What to add in percent of virtual energy for a Le Mans Ultimate car that runs on it, litres or gallons otherwise, with a second row for one to five laps more. A green 0 means what is aboard already covers the laps. It can show the whole amount the laps need instead
+- A "Plan" column for the stop the pit menu is set to: the pit lane, the standing time the sim estimates and a configurable extra, once the pit lane of the track is known (see [Pit Stop](#pit-stop))
+- A "Fin" column for the stop that adds exactly what its own laps to go need, costed with the refuelling rates Le Mans Ultimate states. It is red when the finish needs more than the car holds
+- A "Last" column for what your last stop and the leader's cost, once either has been through the pit lane
+- A choice of whether the leader loses the same time as you in a stop-length column, or none
+- A header with the race clock, or the laps left of a lap race, and the share of a lap you lose to the leader every lap
+- Class rivals: up to three class cars ahead and three behind, two each by default, with the gap now, the stops each of you still owes as "1 v 2" (theirs against yours), and the gap once they are made, green when you end ahead and red when behind. The difference in measured pace over the laps left can be added in
+- Optional rows with the two lap fractions TinyPedal's table shows
+- It describes your own entry: it stays up at the pit wall and while a team-mate drives the car, and hides with the camera on another car
+- Adjustable background opacity, session visibility (races only by default) and an option to show only when on track
+
+The laps to go in the first column are the Fuel Calculator's own, and the other columns are worked out from the same pace and progress, so the two never disagree about when the race ends.
+
+**How a rival's stops are reckoned.** From its fuel or virtual energy and what a lap costs it, where the sim gives them: Le Mans Ultimate offline, since online a rival's fuel is withheld. Failing that, from the longest stint it has been seen to drive. Failing that it is assumed from the longest stint seen in its class, or from your own car, and the row is drawn fainter with a `~`. A stop costs the pit lane plus the car's own last standing time, else the median of its class, else your own planned stop. What cannot be known is not guessed at: how much a rival takes on at a stop, its tyre and driver changes, penalties still to be served and neutralisations.
+
+**Under iRacing** there are no refuelling rates, so there is no "Fin" column; a rival's fuel is not published, so its stops come from the stints it has been seen to drive; and the planned stop is learned from your own earlier stops, as in Pit Stop.
+
+**Not yet verified.** The one recorded race is a fifteen-minute timed race in which nobody stops. It confirms the clock, the finishing lap (the Fuel Calculator's own at every second of it), the refuelling rates against the sim's own estimate of the stop (within a tenth of a second) and every class rival's energy use. Everything about a stop has been checked on hand-built data and on that race staged as a longer one: what a stop column costs, a rival's observed stints and standing times, and the last-stop column. A race run to laps, one run to laps and time, the last lap of a timed race, and what Le Mans Ultimate publishes about rivals online have not been recorded. While a team-mate drives the car the "Fin" column is left out, because the sim does not send the fuel in the tank of a car you are not in; and where it sends no energy for it either, the refuel rows show dashes.
 
 ### Stint History
 

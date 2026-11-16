@@ -10,3 +10,5 @@ export * from './wheelFigures';
 export * from './trackPosition';
 export * from './trackNotes';
 export * from './trafficForecast';
+export * from './classNeighbours';
+export * from './finishProjection';

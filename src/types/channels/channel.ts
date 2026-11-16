@@ -25,6 +25,7 @@ import type { TrackProfileSnapshot } from './trackProfile';
 import type { CruiseSnapshot } from './cruise';
 import type { PitLaneCalibration } from '../pitLane';
 import type { TrafficSnapshot } from './traffic';
+import type { FinishProjectionSnapshot } from './finishProjection';
 
 export type SessionLifecycleEvent =
   | { type: 'enter'; replay: boolean }
@@ -82,6 +83,7 @@ export interface ChannelPayloads {
   'track-profile.snapshot': TrackProfileSnapshot;
   'cruise.snapshot': CruiseSnapshot;
   'traffic.snapshot': TrafficSnapshot;
+  'finish-projection.snapshot': FinishProjectionSnapshot;
 }
 
 export interface TrackStateSnapshot {
@@ -1056,6 +1058,12 @@ export type FuelBudget = 'fuel' | 'virtualEnergy';
 export interface FuelRaceInputs {
   /** The car in first place overall; -1 when the sim names none. */
   leaderCarIdx: number;
+  /**
+   * The car the player's pace and progress below are those of: the one the
+   * camera is on, else the session's own. A reader that is about the user's
+   * own entry checks it is that car before using them.
+   */
+  playerCarIdx: number;
   /** Seconds a lap, the leader's class and the player's; 0 when unknown. */
   leaderPaceS: number;
   playerPaceS: number;
@@ -1410,6 +1418,13 @@ export const channelRegistry = {
     kind: 'snapshot',
     defaultRateHz: 5,
     maxRateHz: 10,
+  },
+  // Laps to a finish that is minutes or hours away: worked out once a
+  // second, and nothing in it is read faster than that.
+  'finish-projection.snapshot': {
+    kind: 'snapshot',
+    defaultRateHz: 1,
+    maxRateHz: 2,
   },
 } as const satisfies ChannelRegistry;
 
