@@ -20,6 +20,7 @@ export * from './lapHistorySnapshot';
 export * from './gantryDecorator';
 export * from './racePlanDecorator';
 export * from './pitWallStage';
+export * from './pitWallRaceStage';
 export * from './strategyStage';
 export * from './strategyStory';
 export * from './timingTowerStage';

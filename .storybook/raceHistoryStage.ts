@@ -83,8 +83,19 @@ const GREEN_AT = 200;
 /** A full-course yellow, on the session clock: six minutes of the third hour. */
 const CAUTION_FROM = 8040;
 const CAUTION_TO = 8400;
+/**
+ * The staged race's clock, for a stage that tells the same race on other
+ * channels: when it went green, and the full-course yellow.
+ */
+export const RACE_HISTORY_STAGE_CLOCK = {
+  greenAt: GREEN_AT,
+  cautionFrom: CAUTION_FROM,
+  cautionTo: CAUTION_TO,
+} as const;
 /** How much slower a lap is under it, seconds. */
 const CAUTION_LAP_LOSS = 38;
+/** The share of a full budget a stint uses: three quarters of it. */
+const STINT_BUDGET = 0.76;
 /** What the lap of a stop loses besides the standing, and the out-lap. */
 const STOP_LAP_LOSS = 9;
 const OUT_LAP_LOSS = 12.5;
@@ -371,6 +382,14 @@ export interface RaceHistoryStageOptions {
    * seconds on every lap of its own from `fromLap` on.
    */
   closing?: { car: string; fromLap: number; perLap: number };
+  /**
+   * The share of a full budget a car has used when it stops, 0..1. Three
+   * quarters as staged, which has every car stop with a quarter of its
+   * budget aboard. A stage that shows a forecast beside these records asks
+   * for nearly all of it, so that the stops the forecast counts from what a
+   * car has left are the stops the records show it making.
+   */
+  stintBudget?: number;
 }
 
 /**
@@ -434,11 +453,11 @@ const driveCar = (
   carIdx: number,
   until: { now: number } | { laps: number },
   iracing: boolean,
-  tweak: LapTweak = NO_TWEAK
+  tweak: LapTweak = NO_TWEAK,
+  stintBudget = STINT_BUDGET
 ): StagedCarRecord & { lastLineAt: number } => {
   const virtual = !iracing && staged.carClass !== 'LMP2';
-  // A stint uses three quarters of a full budget.
-  const usage = 0.76 / staged.stintLaps;
+  const usage = stintBudget / staged.stintLaps;
   const driverOf = (stint: number): string =>
     staged.drivers[Math.min(stint, staged.drivers.length - 1)];
   const atEnd = (lapsDone: number, endsAt: number): boolean =>
@@ -911,6 +930,7 @@ export const raceHistoryStage = ({
   outage,
   traffic,
   closing,
+  stintBudget,
 }: RaceHistoryStageOptions = {}): RaceHistoryStage => {
   const closingSlot = closing
     ? CARS.findIndex((entry) => entry.number === closing.car)
@@ -929,13 +949,14 @@ export const raceHistoryStage = ({
     OWN_SLOT,
     { laps: ownLaps },
     iracing,
-    tweakOf(OWN_SLOT)
+    tweakOf(OWN_SLOT),
+    stintBudget
   );
   const now = thousandth(
     ownRun.lastLineAt + CARS[OWN_SLOT].pace * OWN_LAP_FRACTION
   );
   let driven: StagedCarRecord[] = CARS.map((staged, carIdx) =>
-    driveCar(staged, carIdx, { now }, iracing, tweakOf(carIdx))
+    driveCar(staged, carIdx, { now }, iracing, tweakOf(carIdx), stintBudget)
   );
 
   // Places and gaps at the line, from who completed each lap when.

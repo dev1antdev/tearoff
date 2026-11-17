@@ -46,7 +46,7 @@ import { trackStateStorySnapshot } from './trackStateSnapshot';
 
 type CarClass = keyof typeof LMU_STORY_CLASSES;
 
-interface StrategyCar {
+export interface StrategyCar {
   number: string;
   driver: string;
   team: string;
@@ -69,6 +69,40 @@ interface StrategyCar {
   /** Seconds it stood on its last stop. */
   standingS: number;
   inPits?: boolean;
+  /**
+   * Laps completed plus the fraction of the lap, where a stage that tells
+   * the race holds it. Left out by the cars written out here, whose
+   * progress is reckoned from `place`.
+   */
+  progress?: number;
+}
+
+/**
+ * A race staged elsewhere, for the forecast to be run on in place of the
+ * one written out here: its cars, and what its own builders have made of
+ * them for the channels the forecast reads. The forecast, the tread and the
+ * damage are then that race's. The stints and the summary stay what this
+ * stage makes up from the cars it is given: a stage that holds the records
+ * publishes its own.
+ */
+export interface StrategyRace {
+  /**
+   * The cars in slot order, ours among them under STRATEGY_OWN_CAR, each
+   * with its `progress`. A car's `energy` and `usage` are read for ours
+   * alone: the rest are in the standings and the pit tracker's figures.
+   */
+  cars: readonly StrategyCar[];
+  /** The session clock now, and when the race went green, seconds. */
+  sessionTime: number;
+  greenAt: number;
+  session: Session;
+  standings: StandingsSnapshot;
+  lapTimes: LapTimesSnapshot;
+  carPit: CarPitSnapshot;
+  /** Tread left on our car's wheels, percent: LF, RF, LR, RR. */
+  treadPct: readonly number[];
+  /** The compound our car is on, as the session's tyre list numbers it. */
+  compound: number;
 }
 
 export const STRATEGY_OWN_CAR = '77';
@@ -87,6 +121,9 @@ const LANE_TRACK_S = 9.4;
 const OWN_STANDING_S = 36.2;
 /** Litres in our car's tank: eighteen laps of them, more than its energy. */
 const TANK_LITRES = 48.6;
+/** Litres a lap, and the laps the tank of a told race outlasts its energy by. */
+const TANK_PER_LAP = 2.62;
+const TANK_MARGIN_LAPS = 1.9;
 /** The distance of the staged race to a lap count: the leader's, in laps. */
 const LAP_RACE_LAPS = 306;
 /** A GT3's budget lasts 32 laps; ours has 52 % of it. */
@@ -197,10 +234,6 @@ const CARS: readonly StrategyCar[] = [
 
 const OWN_SLOT = CARS.findIndex((car) => car.number === STRATEGY_OWN_CAR);
 const LEADER_SLOT = 0;
-const isOwnClass = (car: StrategyCar) =>
-  car.carClass === CARS[OWN_SLOT].carClass;
-const progressOf = (car: StrategyCar): number =>
-  isOwnClass(car) ? OWN_PROGRESS - car.place / OWN_PACE : car.place;
 
 /** The slot of a car, by its number. */
 export const strategySlotOf = (carNumber: string): number =>
@@ -229,20 +262,27 @@ export interface StrategyStage {
   session?: 'race' | 'grid' | 'practice';
   /** The car carries damage, with a repair set for the next stop. */
   damaged?: boolean;
+  /**
+   * Another staged race to forecast, for a stage that shows these panels
+   * beside others and has to tell them all the same race: see
+   * `StrategyRace`. `rivals`, `lapRace` and `session` are about the race
+   * written out here and are not read with it.
+   */
+  race?: StrategyRace;
 }
 
 /** A lap of our car as the fuel projection counts it. */
-const usageLap = (fuelUsed: number): FuelLapData => ({
+const usageLap = (fuelUsed: number, lapTime: number): FuelLapData => ({
   lapNumber: 1,
   fuelUsed,
-  lapTime: OWN_PACE,
+  lapTime,
   isGreenFlag: true,
   isValidForCalc: true,
   isOutLap: false,
   timestamp: 0,
 });
 
-const wearWheel = (treadPct: number): WearWheelSnapshot => ({
+const wearWheel = (treadPct: number, compound = 1): WearWheelSnapshot => ({
   treadPct,
   treadLapPct: 0.4,
   treadProjectedPct: 0.9,
@@ -250,7 +290,7 @@ const wearWheel = (treadPct: number): WearWheelSnapshot => ({
   treadRateSource: 'tyre',
   treadLapsLeft: Math.round(treadPct / 1.38),
   treadEndOfStintPct: treadPct - 14,
-  compound: 1,
+  compound,
   flat: false,
   brakeMm: 34.6,
   brakeLifePct: 76.7,
@@ -298,11 +338,15 @@ const driversWith = (teamMate: string): string[] => [
 const stintsOf = (
   car: StrategyCar,
   carIdx: number,
-  driverOf: (stint: number) => string
+  driverOf: (stint: number) => string,
+  sessionTime = SESSION_TIME,
+  greenAt = GREEN_AT
 ): RaceStint[] => {
-  const openStart = SESSION_TIME - car.since * car.pace;
+  const openStart = sessionTime - car.since * car.pace;
   const stopS = LANE_DRIVE_S + car.standingS;
-  const length = (openStart - GREEN_AT - car.stops * stopS) / car.stops;
+  // A car that has not stopped has the one stint, and no length to share.
+  const length =
+    (openStart - greenAt - car.stops * stopS) / Math.max(1, car.stops);
   const lapsEach = Math.round(length / car.pace);
   const stints: RaceStint[] = [];
   for (let index = 0; index <= car.stops; index += 1) {
@@ -340,7 +384,39 @@ const build = (stage: StrategyStage) => {
   const fuelCar = stage.fuelCar ?? stage.iracing ?? false;
   const sessionType = stage.session === 'practice' ? 'Practice' : 'Race';
 
-  const gridCars: StoryGridCar[] = CARS.map((car) => ({
+  // The race written out above, unless the stage is told another.
+  const told = stage.race;
+  const cars = told?.cars ?? CARS;
+  const ownSlot = told
+    ? cars.findIndex((car) => car.number === STRATEGY_OWN_CAR)
+    : OWN_SLOT;
+  const own = cars[ownSlot];
+  const ownPace = own.pace;
+  const ownProgress = own.progress ?? OWN_PROGRESS;
+  const sessionTime = told?.sessionTime ?? SESSION_TIME;
+  const timeLeft = told
+    ? RACE_SECONDS - (told.sessionTime - told.greenAt)
+    : TIME_LEFT;
+  const isOwnClass = (car: StrategyCar) => car.carClass === own.carClass;
+  const progressOf = (car: StrategyCar): number =>
+    car.progress ??
+    (isOwnClass(car) ? ownProgress - car.place / ownPace : car.place);
+  // The car furthest round a told race leads it.
+  const leaderSlot = told
+    ? cars.reduce(
+        (furthest, car, slot) =>
+          progressOf(car) > progressOf(cars[furthest]) ? slot : furthest,
+        0
+      )
+    : LEADER_SLOT;
+  // A told race's tank outlasts its energy as the one written out does.
+  const tankLitres = told
+    ? Math.round(
+        (own.energy / own.usage + TANK_MARGIN_LAPS) * TANK_PER_LAP * 10
+      ) / 10
+    : TANK_LITRES;
+
+  const gridCars: StoryGridCar[] = cars.map((car) => ({
     number: car.number,
     driver:
       car.number === STRATEGY_OWN_CAR && stage.teamMate
@@ -353,37 +429,44 @@ const build = (stage: StrategyStage) => {
     bestLap: car.pace - 0.53,
     inPits: car.inPits,
   }));
-  const grid = buildStoryGrid(LMU_STORY_CLASSES, gridCars, {
-    player: STRATEGY_OWN_CAR,
-    sessionType,
-  });
-  const session = {
-    ...grid.session,
-    DriverInfo: { ...grid.session.DriverInfo, DriverTires: TYRES },
-  } as Session;
-
-  // The race gaps of our class as staged; the other classes are far ahead
-  // on the road and are nobody's rival here.
-  const ownGap = 2400;
   const all = <T>(value: (car: StrategyCar, slot: number) => T): T[] =>
-    CARS.map(value);
+    cars.map(value);
   /** A rival whose stops the stage leaves to be assumed. */
   const isUnread = (car: StrategyCar): boolean =>
     rivals === 'assumed' && ['91', '54', '23'].includes(car.number);
   const hasEnergy = (car: StrategyCar): boolean =>
     rivals === 'energy' && !isUnread(car);
 
-  const standings: StandingsSnapshot = {
-    ...grid.standings,
-    carIdxF2Time: all((car) =>
-      isOwnClass(car) ? ownGap + car.place : (172.9 - car.place) * 93.4
-    ),
-    carIdxEnergyRemaining: all((car) => (hasEnergy(car) ? car.energy : -1)),
-    carIdxEnergyIsVirtual: all((car) => hasEnergy(car)),
+  /** The session and the standings of the race written out above. */
+  const stagedGrid = (): { session: Session; standings: StandingsSnapshot } => {
+    const grid = buildStoryGrid(LMU_STORY_CLASSES, gridCars, {
+      player: STRATEGY_OWN_CAR,
+      sessionType,
+    });
+    // The race gaps of our class as staged; the other classes are far
+    // ahead on the road and are nobody's rival here.
+    const ownGap = 2400;
+    return {
+      session: {
+        ...grid.session,
+        DriverInfo: { ...grid.session.DriverInfo, DriverTires: TYRES },
+      } as Session,
+      standings: {
+        ...grid.standings,
+        carIdxF2Time: all((car) =>
+          isOwnClass(car) ? ownGap + car.place : (172.9 - car.place) * 93.4
+        ),
+        carIdxEnergyRemaining: all((car) => (hasEnergy(car) ? car.energy : -1)),
+        carIdxEnergyIsVirtual: all((car) => hasEnergy(car)),
+      },
+    };
   };
+  const { session, standings } = told ?? stagedGrid();
 
   const laps = (car: StrategyCar) => Math.floor(progressOf(car));
-  const carPit = (usageOf: (car: StrategyCar) => number): CarPitSnapshot => ({
+  const stagedCarPit = (
+    usageOf: (car: StrategyCar) => number
+  ): CarPitSnapshot => ({
     where: all((car) => (car.inPits ? CAR_PIT_IN_LANE : CAR_PIT_ON_TRACK)),
     laneTimeS: all((car) =>
       car.inPits ? 18.4 : Math.round((LANE_DRIVE_S + car.standingS) * 10) / 10
@@ -412,8 +495,12 @@ const build = (stage: StrategyStage) => {
     sessionNum: 0,
     version: 1,
   });
+  // A told race's pit tracker has its own figures, and what a lap costs a
+  // car is among them.
+  const carPit = (usageOf: (car: StrategyCar) => number): CarPitSnapshot =>
+    told?.carPit ?? stagedCarPit(usageOf);
 
-  const lapTimes: LapTimesSnapshot = {
+  const lapTimes: LapTimesSnapshot = told?.lapTimes ?? {
     lapTimes: all((car) => car.pace),
     lapTimeHistory: all((car) => [
       ...cleanLaps(car.pace),
@@ -425,26 +512,42 @@ const build = (stage: StrategyStage) => {
   };
 
   // The class cars around us and the cars of other classes on the same
-  // piece of road, as the pit stop's ladder lists them: by gap.
+  // piece of road, as the pit stop's ladder lists them: by gap. Of the
+  // cars ahead it lists the nearest, which in the race written out above
+  // is the one inside thirteen seconds.
+  const classRivals = cars
+    .map((car, carIdx) => ({ car, carIdx }))
+    .filter(({ car, carIdx }) => isOwnClass(car) && carIdx !== ownSlot);
+  const nearestAhead = Math.max(
+    Number.NEGATIVE_INFINITY,
+    ...classRivals.map(({ car }) => car.place).filter((place) => place < 0)
+  );
+  const inLadder = (place: number): boolean =>
+    told
+      ? place === nearestAhead || (place >= 0 && place < 240)
+      : place > -13 && place < 240;
   const ladder = [
-    ...CARS.map((car, carIdx) => ({ car, carIdx }))
-      .filter(({ car, carIdx }) => isOwnClass(car) && carIdx !== OWN_SLOT)
-      .filter(({ car }) => car.place > -13 && car.place < 240)
+    ...classRivals
+      .filter(({ car }) => inLadder(car.place))
       .map(({ car, carIdx }) => ({
         carIdx,
         gapS: car.place,
         sameClass: true,
         inPit: !!car.inPits,
       })),
-    {
-      carIdx: strategySlotOf('65'),
-      gapS: 18.2,
-      sameClass: false,
-      inPit: false,
-    },
+    // No car of another class is placed on the road of a told race.
+    ...(told
+      ? []
+      : [
+          {
+            carIdx: strategySlotOf('65'),
+            gapS: 18.2,
+            sameClass: false,
+            inPit: false,
+          },
+        ]),
   ].sort((a, b) => a.gapS - b.gapS);
 
-  const own = CARS[OWN_SLOT];
   const pitStop: PitStopSnapshot = {
     phase: 'planning',
     requested: false,
@@ -471,8 +574,10 @@ const build = (stage: StrategyStage) => {
     last: null,
     refuel: null,
     rejoin: {
-      position: 12,
-      classPosition: 4,
+      position: told ? (told.standings.carIdxPosition[ownSlot] ?? 0) : 12,
+      classPosition: told
+        ? (told.standings.carIdxClassPosition[ownSlot] ?? 0)
+        : 4,
       ladder,
       driveToExitS: null,
       passes: [],
@@ -483,20 +588,21 @@ const build = (stage: StrategyStage) => {
 
   // The flag as the finish projection will reckon it, for the laps the
   // fuel projection would publish for our car.
-  const leader = CARS[LEADER_SLOT];
+  const leader = cars[leaderSlot];
+  const leaderProgress = progressOf(leader);
   const end = stage.lapRace
     ? { timeLeftS: null, lapLimit: LAP_RACE_LAPS }
-    : { timeLeftS: TIME_LEFT, lapLimit: null };
-  const flag = flagTime({ paceS: leader.pace, progress: leader.place }, end);
+    : { timeLeftS: timeLeft, lapLimit: null };
+  const flag = flagTime({ paceS: leader.pace, progress: leaderProgress }, end);
   const lapsToGo = (progress: number): number =>
     (flag &&
-      carFinish({ paceS: OWN_PACE, progress }, flag.tFlagS, 0, end.lapLimit)
+      carFinish({ paceS: ownPace, progress }, flag.tFlagS, 0, end.lapLimit)
         ?.lapsToGo) ||
     0;
 
   // A hundred percent of virtual energy, or a hundred litres of fuel.
   const capacity = 100;
-  const perLap = capacity * GT_USAGE;
+  const perLap = capacity * own.usage;
   const fuel = (progress: number): FuelProjectionSnapshot => ({
     isReplay: false,
     fuelLevel: capacity * own.energy,
@@ -507,7 +613,7 @@ const build = (stage: StrategyStage) => {
     projectedLapUsage: perLap,
     lastLapUsage: perLap,
     sessionLapsRemain: Math.floor(lapsToGo(progress)),
-    sessionTimeRemain: TIME_LEFT,
+    sessionTimeRemain: timeLeft,
     sessionTimeTotal: RACE_SECONDS,
     sessionFlags: 0,
     sessionState:
@@ -521,8 +627,8 @@ const build = (stage: StrategyStage) => {
     sessionType,
     fuelTankCapacity: capacity,
     budget: fuelCar ? 'fuel' : 'virtualEnergy',
-    ...(fuelCar ? {} : { tank: { level: TANK_LITRES, perLap: 2.62 } }),
-    completedLaps: [usageLap(perLap), usageLap(perLap)],
+    ...(fuelCar ? {} : { tank: { level: tankLitres, perLap: TANK_PER_LAP } }),
+    completedLaps: [usageLap(perLap, ownPace), usageLap(perLap, ownPace)],
     isOnTrack: !stage.teamMate,
     // The sim goes on writing a car's virtual energy while somebody else
     // drives it, and nothing of a tank.
@@ -531,20 +637,20 @@ const build = (stage: StrategyStage) => {
       ? {}
       : {
           race: {
-            leaderCarIdx: LEADER_SLOT,
-            playerCarIdx: OWN_SLOT,
+            leaderCarIdx: leaderSlot,
+            playerCarIdx: ownSlot,
             leaderPaceS: leader.pace,
-            playerPaceS: OWN_PACE,
-            leaderProgress: leader.place,
+            playerPaceS: ownPace,
+            leaderProgress,
             playerProgress: progress,
-            timeRemainingS: stage.lapRace ? 0 : TIME_LEFT,
+            timeRemainingS: stage.lapRace ? 0 : timeLeft,
             lapLimit: stage.lapRace ? LAP_RACE_LAPS : 0,
           },
         }),
     engine: {
       accumulatedRefuel: 0,
       isLapDistPctReset: false,
-      lapCrossingTime: SESSION_TIME - 48,
+      lapCrossingTime: sessionTime - 48,
       lapStartFuel: capacity * own.energy + perLap * 0.42,
       lastLap: Math.floor(progress) + 1,
       lastLapDistPct: progress - Math.floor(progress),
@@ -553,13 +659,13 @@ const build = (stage: StrategyStage) => {
     },
   });
 
-  const frame = (sessionTime: number): Telemetry =>
+  const frame = (clock: number): Telemetry =>
     ({
-      SessionTime: { value: [sessionTime] },
+      SessionTime: { value: [clock] },
       SessionNum: { value: [0] },
-      PlayerCarIdx: { value: [OWN_SLOT] },
+      PlayerCarIdx: { value: [ownSlot] },
       // The tank is read for a car the user is in, and for no other.
-      FuelLevel: { value: stage.teamMate ? [] : [TANK_LITRES] },
+      FuelLevel: { value: stage.teamMate ? [] : [tankLitres] },
       ...(stage.teamMate
         ? { LmuWatching: { value: [true] }, IsOnTrack: { value: [false] } }
         : {}),
@@ -574,7 +680,7 @@ const build = (stage: StrategyStage) => {
   // it remembers where it stood: until three laps ago car 91 used no more
   // than the rest, owed the stops we do, and was forecast to stay ahead.
   const state = {
-    fuel: fuel(OWN_PROGRESS),
+    fuel: fuel(ownProgress),
     carPit: carPit((car) => car.usage),
   };
   const processor = new RaceForecastProcessor({
@@ -586,12 +692,14 @@ const build = (stage: StrategyStage) => {
   });
   processor.init(session);
   processor.onLifecycle({ type: 'enter', replay: false });
-  for (let lapsAgo = 10; lapsAgo >= 0; lapsAgo -= 1) {
-    state.fuel = fuel(OWN_PROGRESS - lapsAgo);
+  // No further back than the first lap of a told race that is still young.
+  const lapsBack = Math.min(10, Math.floor(ownProgress));
+  for (let lapsAgo = lapsBack; lapsAgo >= 0; lapsAgo -= 1) {
+    state.fuel = fuel(ownProgress - lapsAgo);
     state.carPit = carPit((car) =>
       lapsAgo > 3 && car.number === '91' ? GT_USAGE : car.usage
     );
-    processor.onFrame(frame(SESSION_TIME - lapsAgo * OWN_PACE));
+    processor.onFrame(frame(sessionTime - lapsAgo * ownPace));
   }
   const forecast: RaceForecastSnapshot = processor.snapshot();
 
@@ -601,9 +709,13 @@ const build = (stage: StrategyStage) => {
       : {
           ...EMPTY_WEAR,
           available: true,
-          wheels: [84.2, 85.1, 88.4, 89].map(wearWheel),
-          paceLapTime: OWN_PACE,
-          budgetLapsLeft: 16.6,
+          wheels: told
+            ? told.treadPct.map((tread) => wearWheel(tread, told.compound))
+            : [84.2, 85.1, 88.4, 89].map((tread) => wearWheel(tread)),
+          paceLapTime: ownPace,
+          budgetLapsLeft: told
+            ? Math.round((own.energy / own.usage) * 10) / 10
+            : 16.6,
           version: 1,
         };
 
@@ -630,21 +742,26 @@ const build = (stage: StrategyStage) => {
   // Our car's stints, the last of them a team-mate's while one drives.
   const ownDrivers = stage.teamMate ? driversWith(stage.teamMate) : OWN_DRIVERS;
   const stints = new Map<number, RaceStint[]>(
-    CARS.map((car, carIdx) => [
+    cars.map((car, carIdx) => [
       carIdx,
-      stintsOf(car, carIdx, (stint) =>
-        carIdx === OWN_SLOT
-          ? (ownDrivers[stint] ?? ownDrivers[ownDrivers.length - 1])
-          : // Car 46 changed driver after its second stint; the rest have
-            // one name throughout.
-            car.number === '46' && stint >= 2
-            ? 'Kwame Mensah'
-            : car.driver
+      stintsOf(
+        car,
+        carIdx,
+        (stint) =>
+          carIdx === ownSlot
+            ? (ownDrivers[stint] ?? ownDrivers[ownDrivers.length - 1])
+            : // Car 46 changed driver after its second stint; the rest have
+              // one name throughout.
+              car.number === '46' && stint >= 2
+              ? 'Kwame Mensah'
+              : car.driver,
+        sessionTime,
+        told?.greenAt
       ),
     ])
   );
 
-  const previous = stints.get(OWN_SLOT)?.[own.stops - 1];
+  const previous = stints.get(ownSlot)?.[own.stops - 1];
   const summary: RaceHistorySummarySnapshot = {
     raceToken: 'strategy-stage',
     raceId: null,
@@ -660,10 +777,10 @@ const build = (stage: StrategyStage) => {
     stintAvgLap: all(() => -1),
     stintCleanLaps: all(() => 0),
     previousStintAvgLap: all((_, slot) =>
-      slot === OWN_SLOT ? OWN_PACE - 0.29 : -1
+      slot === ownSlot ? ownPace - 0.29 : -1
     ),
     previousStintDriver: all((_, slot) =>
-      slot === OWN_SLOT ? (previous?.driver ?? '') : ''
+      slot === ownSlot ? (previous?.driver ?? '') : ''
     ),
     previousDriverStintAvgLap: all(() => -1),
     previousDriverStintDriver: all(() => ''),
@@ -683,7 +800,7 @@ const build = (stage: StrategyStage) => {
     'race-forecast.snapshot': forecast,
     'race-history.summary': summary,
     'class-tyres.snapshot': classTyresStorySnapshot(
-      CARS.map((car) => ({ number: car.number, sinceStop: car.since })),
+      cars.map((car) => ({ number: car.number, sinceStop: car.since })),
       {
         own: STRATEGY_OWN_CAR,
         ownTreadPct: ownTread,
@@ -695,8 +812,8 @@ const build = (stage: StrategyStage) => {
     'damage.snapshot': damage,
     'track-state.snapshot': {
       ...trackStateStorySnapshot,
-      focusCarIdx: OWN_SLOT,
-      sessionTime: SESSION_TIME,
+      focusCarIdx: ownSlot,
+      sessionTime,
       ...(stage.teamMate
         ? {
             isOnTrack: false,
