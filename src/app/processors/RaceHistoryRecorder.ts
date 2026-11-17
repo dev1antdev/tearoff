@@ -1374,6 +1374,10 @@ export class RaceHistoryRecorder {
       if (
         car.visitOpen &&
         !car.visitIsStop &&
+        // A car found standing in the lane before it has driven a lap of
+        // the race has not stopped: it has not gone out yet. Under iRacing
+        // that is every car, waiting in its stall for the grid.
+        (car.visitEntrySeen || car.lastLap > 0 || car.lapNow > 1) &&
         isStopVisit(numberAt(pit.standingS, car.carIdx, 0))
       ) {
         this.visitBecameStop(car, pit, now);

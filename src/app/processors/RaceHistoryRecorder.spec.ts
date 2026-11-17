@@ -709,6 +709,48 @@ describe('a visit to the pit lane', () => {
     expect(run.recorder.summary().stops[0]).toBe(0);
   });
 
+  it('counts no stop for a car found standing in its box before it has driven a lap', () => {
+    // Staged as iRacing has it before a race: every car waits in its stall
+    // until it is sent to the grid. Each was counted as having stopped, so
+    // the summary read one stop for all of them before any was made.
+    const field = new Field();
+    const car = field.cars[0];
+    enterPits(car);
+    standInBox(car);
+    const run = start(field);
+    drive(field, run.recorder, 30);
+    expect(run.recorder.summary().stops).toEqual([0, 0, 0]);
+
+    leaveBox(car);
+    drive(field, run.recorder, 5);
+    leavePits(car);
+    driveLaps(field, run.recorder, 0, 2);
+    drive(field, run.recorder, 2);
+
+    expect(run.recorder.summary().stops).toEqual([0, 0, 0]);
+    // The stint is the one the race began with, not one a stop opened.
+    expect(run.recorder.carStints(0)).toMatchObject([
+      { ordinal: 1, openedBy: 'start', closedBy: null, firstLap: 1, laps: 2 },
+    ]);
+    // Its first lap began in the pits all the same.
+    expect(run.recorder.carLaps(0)[0].flags & PIT_FLAGS).toBe(
+      LEDGER_LAP_OUT_LAP
+    );
+  });
+
+  it('counts the stop of a car found standing in its box part-way through a race', () => {
+    // The app started with the race under way and the car at its stop.
+    const field = new Field();
+    const car = field.cars[0];
+    car.lap = 12;
+    enterPits(car);
+    standInBox(car);
+    const run = start(field);
+    drive(field, run.recorder, 30);
+
+    expect(run.recorder.summary().stops[0]).toBe(1);
+  });
+
   it('keeps no stint that ended without a lap', () => {
     const field = new Field();
     const run = start(field);
