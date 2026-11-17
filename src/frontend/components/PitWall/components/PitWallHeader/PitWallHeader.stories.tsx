@@ -79,6 +79,36 @@ export const InABrowser: Story = {
 };
 
 /**
+ * In a browser while the page's socket is down: a mark hangs from the
+ * strip's lower right corner and says the page is reconnecting. The strip
+ * itself is as it was, item for item: on a tablet it is full, and a mark
+ * set into it would push the controls onto a second line and the page down.
+ */
+export const Reconnecting: Story = {
+  args: { layout: 'compact', onOpenSettings: undefined, reconnecting: true },
+  decorators: [
+    (Story) => (
+      // Room under the strip for the mark, where the page's panels begin.
+      <div className="w-[1180px] pb-14">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+/** The same on the Race layout, at the width of a monitor. */
+export const ReconnectingOnAMonitor: Story = {
+  args: { onOpenSettings: undefined, reconnecting: true },
+  decorators: [
+    (Story) => (
+      <div className="pb-14">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+/**
  * Practice under iRacing: no in-game clock, and a car the sim has not ranked
  * yet, which shows a placeholder rather than a place.
  */

@@ -21,6 +21,7 @@ import { loadSimWidgetSupport } from '../storage/simWidgetSupport';
 import logger from '../logger';
 import { getHiddenWidgets, onWidgetHiddenChanged } from '../widgetVisibility';
 import type { ChannelBus } from '../bridge/channelBridge';
+import type { CheckedRaceHistoryBridge } from '../bridge/raceHistoryBridge';
 import { getRacePlanState, onRacePlanState } from '../services/racePlanSource';
 import {
   createRefusalLog,
@@ -38,6 +39,7 @@ import {
   readCookie,
   type KeyDecision,
 } from './deviceKey';
+import { createRaceHistoryReads } from './raceHistoryReads';
 
 /** A whole dashboard is a few hundred kilobytes; nothing a page sends is more. */
 const MAX_MESSAGE_BYTES = 4 * 1024 * 1024;
@@ -66,6 +68,12 @@ export let currentDashboard: DashboardLayout | null = null;
  * page this server served and from nobody else. Everything the settings
  * window changes goes over IPC and is refused here.
  *
+ * The race history is among the reads: the laps, stints, driver changes and
+ * log of a race, and the races kept. It is answered by the bridge the app's
+ * own windows ask over IPC, the same instance, which checks every argument
+ * itself (`raceHistoryBridge.ts`); how many of those reads one socket may
+ * have waiting is capped in `raceHistoryReads.ts`.
+ *
  * A visitor that is not this machine must also hold the key, which its
  * handshake carries in the cookie the server set when it opened the page by
  * its link (`deviceAccess`). The key never travels over the socket itself:
@@ -78,7 +86,8 @@ export function createBridgeProxy(
   channelBus?: ChannelBus,
   pitLaneBridge?: PitLaneBridge,
   accessPolicy?: AccessPolicy,
-  deviceAccess?: DeviceAccess
+  deviceAccess?: DeviceAccess,
+  raceHistoryBridge?: CheckedRaceHistoryBridge
 ) {
   const visitorOf = (req: IncomingMessage): AccessRequest => ({
     host: req.headers.host,
@@ -300,6 +309,20 @@ export function createBridgeProxy(
       },
     };
 
+    // This socket's reads of the race history: one at a time, in the order
+    // they came, and only so many in hand.
+    const raceHistoryReads = createRaceHistoryReads({
+      bridge: raceHistoryBridge,
+      isOpen: () => ws.readyState === WebSocket.OPEN,
+      send: (answer) =>
+        new Promise<void>((resolve) => {
+          // Called once the answer has left for the network, or could not.
+          ws.send(JSON.stringify(answer), () => resolve());
+        }),
+      onFailure: (type, error) =>
+        logger.warn(`Bridge proxy: ${type} failed`, error),
+    });
+
     if (unsubscribeFunctions.length === 0) {
       logger.info('No active subscriptions, subscribing to bridge...');
       subscribeToBridge(currentBridge || irsdkBridge);
@@ -430,6 +453,24 @@ export function createBridgeProxy(
             racePlanSubscriptions.delete(ws);
             break;
           }
+          // The race history, reading only. These five are every read its
+          // bridge has; it has no call that changes a record, and no other
+          // `raceHistory:` type is a message this server knows.
+          case 'raceHistory:getCarLaps':
+            raceHistoryReads.ask('getCarLaps', parsed);
+            break;
+          case 'raceHistory:getCarStints':
+            raceHistoryReads.ask('getCarStints', parsed);
+            break;
+          case 'raceHistory:getDriverChanges':
+            raceHistoryReads.ask('getDriverChanges', parsed);
+            break;
+          case 'raceHistory:listRaces':
+            raceHistoryReads.ask('listRaces', parsed);
+            break;
+          case 'raceHistory:getEvents':
+            raceHistoryReads.ask('getEvents', parsed);
+            break;
           case 'channelSubscribe': {
             const channel = parsed.data?.channel;
             const rate = parsed.data?.requestedRateHz;
@@ -647,6 +688,7 @@ export function createBridgeProxy(
       inspectorStreams.delete(ws);
       racePlanSubscriptions.get(ws)?.();
       racePlanSubscriptions.delete(ws);
+      raceHistoryReads.close();
       channelBus?.removeRenderer(channelTarget.id);
 
       if (clients.size === 0) {

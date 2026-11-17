@@ -79,7 +79,10 @@ import { ClassTyresRuntime } from './app/processors/classTyresRuntime';
 import { liveOwnTyres, setLiveOwnTyresSource } from './app/processors/ownTyres';
 import { getClassTyresTuning } from './app/storage/classTyresTuning';
 import { watchRaceHistoryDemand } from './app/raceHistoryDemand';
-import { setupRaceHistoryBridge } from './app/bridge/raceHistoryBridge';
+import {
+  setupRaceHistoryBridge,
+  type CheckedRaceHistoryBridge,
+} from './app/bridge/raceHistoryBridge';
 import { isRecordedSource } from './app/tapeReplaySource';
 import { flushLapTracesOnShutdown } from './app/storage/lapTraces';
 import { flushPitLaneDataOnShutdown } from './app/storage/pitLaneData';
@@ -580,13 +583,19 @@ function setupPitStopRuntime(
  * written. With a replay file loaded nothing is recorded at all.
  *
  * Its bridge answers the app's own windows over IPC. The one instance is
- * what `setupRaceHistoryBridge` returns, for whatever else comes to serve
- * the same answers.
+ * what `setupRaceHistoryBridge` returns and what this hands on as `bridge`:
+ * the web server answers a browser page's socket from it, so a request is
+ * checked the same whichever road it came by.
+ *
+ * `runtime` is for what reads the records inside the main process, as the
+ * tyre ages do. It answers the same questions unchecked, so it is never
+ * what a window or a socket is answered from: the web server takes the
+ * checked type only, and handing it the runtime does not compile.
  */
 function setupRaceHistory(
   initialDashboard: DashboardLayout,
   replayContext: ReplayContextRuntime
-): RaceHistoryRuntime {
+): { runtime: RaceHistoryRuntime; bridge: CheckedRaceHistoryBridge } {
   const lifecycle = getSessionLifecycle();
   const runtime = new RaceHistoryRuntime(
     channelBus,
@@ -604,7 +613,8 @@ function setupRaceHistory(
       logError: (message, error) => log.error(message, error),
     }
   );
-  const { dispose: disposeBridge } = setupRaceHistoryBridge(runtime);
+  const { bridge: raceHistoryBridge, dispose: disposeBridge } =
+    setupRaceHistoryBridge(runtime);
 
   let replaySource = false;
   const applyEnabled = () => {
@@ -664,7 +674,7 @@ function setupRaceHistory(
     disposeBridge();
     runtime.dispose();
   };
-  return runtime;
+  return { runtime, bridge: raceHistoryBridge };
 }
 
 /**
@@ -939,8 +949,9 @@ void app.whenReady().then(async () => {
   setupLapLibraryRecording(replayContextRuntime);
   setupTrackProfiles(replayContextRuntime);
   setupPitStopRuntime(dashboard, replayContextRuntime);
+  const raceHistory = setupRaceHistory(dashboard, replayContextRuntime);
   // After the race history, whose records it reads on the same frame.
-  setupClassTyres(setupRaceHistory(dashboard, replayContextRuntime));
+  setupClassTyres(raceHistory.runtime);
   disposeStreamChat = setupStreamChat(channelBus, listDashboards);
   // Returns false when the Gantry widget is disabled, so Settings can explain
   // why the button did nothing instead of appearing to be broken.
@@ -974,7 +985,9 @@ void app.whenReady().then(async () => {
     bridge,
     dashboardBridge,
     channelBus,
-    pitLaneBridge
+    pitLaneBridge,
+    // The checked bridge, never the runtime behind it.
+    raceHistory.bridge
   );
 
   ipcMain.handle('getComponentServerPort', () => getComponentServerPort());

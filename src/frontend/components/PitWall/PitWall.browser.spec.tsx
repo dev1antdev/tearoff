@@ -1,6 +1,10 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { DashboardLayout, DashboardWidget } from '@irdashies/types';
+import type {
+  BrowserConnection,
+  DashboardLayout,
+  DashboardWidget,
+} from '@irdashies/types';
 
 // The page in the app's window and the same page in a browser. The two
 // differ in what the dashboard bridge can do and in where a layout is kept.
@@ -52,6 +56,7 @@ vi.mock('@irdashies/utils/logger', () => ({
 }));
 
 import { PitWall } from './PitWall';
+import { PitWallConnection } from './PitWallConnection';
 import {
   PIT_WALL_DEVICE_LAYOUT_KEY,
   PitWallDeviceLayout,
@@ -233,5 +238,127 @@ describe('the Pit Wall in a browser', () => {
 
     expect(shownLayout()).toBe('watching');
     expect(mocks.onDashboardUpdated).not.toHaveBeenCalled();
+  });
+});
+
+/** A page's socket, taken down and put back by the spec. */
+const stagedConnection = (connected = true) => {
+  const listeners = new Set<(connected: boolean) => void>();
+  const state = { connected };
+  const connection: BrowserConnection = {
+    isConnected: () => state.connected,
+    onConnectionChanged: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+  return {
+    connection,
+    listeners,
+    set: (next: boolean) =>
+      act(() => {
+        state.connected = next;
+        listeners.forEach((listener) => listener(next));
+      }),
+  };
+};
+
+const mark = () => document.querySelector('[data-item="reconnecting"]');
+
+describe('the Pit Wall in a browser whose socket drops', () => {
+  const renderWith = (socket: ReturnType<typeof stagedConnection>) => {
+    mocks.inBrowser = true;
+    return render(
+      <PitWallConnection connection={socket.connection}>
+        <PitWallDeviceLayout>
+          <PitWall />
+        </PitWallDeviceLayout>
+      </PitWallConnection>
+    );
+  };
+
+  it('says nothing while the socket is up', () => {
+    renderWith(stagedConnection());
+
+    expect(mark()).toBeNull();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+  });
+
+  it('says it is reconnecting while the socket is down, and stops when it is back', () => {
+    const socket = stagedConnection();
+    renderWith(socket);
+
+    socket.set(false);
+
+    expect(mark()).toHaveTextContent('Reconnecting');
+    // Said to a reader as well, from the region that was there before.
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Reconnecting to Tearoff'
+    );
+    // The page keeps what it had: the panels are still drawn.
+    expect(screen.getByRole('main')).toBeVisible();
+
+    socket.set(true);
+
+    expect(mark()).toBeNull();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+  });
+
+  it('says so from the first frame of a page that opens with no socket', () => {
+    renderWith(stagedConnection(false));
+
+    expect(mark()).toHaveTextContent('Reconnecting');
+  });
+
+  it('changes nothing else in the header', () => {
+    const socket = stagedConnection();
+    renderWith(socket);
+    const header = screen.getByRole('banner');
+    const before = header.innerHTML;
+
+    socket.set(false);
+    mark()?.remove();
+    screen.getByRole('status').textContent = '';
+
+    expect(header.innerHTML).toBe(before);
+  });
+
+  it('hangs the mark from the header, out of the flow of its items', () => {
+    // Set into the strip beside the controls, the mark took room a tablet's
+    // strip does not have: the controls went onto a second line and every
+    // panel moved down, and back when the socket returned. That was seen
+    // and measured in a browser, which lays a page out; here it can only
+    // be said where the mark is, which is what keeps it from happening.
+    renderWith(stagedConnection(false));
+    const header = screen.getByRole('banner');
+    const controls = screen.getByRole('navigation', {
+      name: 'Layout',
+    }).parentElement;
+
+    expect(mark()?.parentElement).toBe(header);
+    expect(mark()).toHaveClass('absolute', 'top-full');
+    expect(header).toHaveClass('relative');
+    expect(controls?.contains(mark())).toBe(false);
+  });
+
+  it('stops listening to the socket when the page goes', () => {
+    const socket = stagedConnection();
+    const { unmount } = renderWith(socket);
+    expect(socket.listeners.size).toBe(1);
+
+    unmount();
+
+    expect(socket.listeners.size).toBe(0);
+  });
+});
+
+describe('the Pit Wall in the app’s window, which has no socket', () => {
+  it('never says it is reconnecting', () => {
+    renderInWindow();
+
+    expect(mark()).toBeNull();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
 });

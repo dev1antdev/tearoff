@@ -537,3 +537,355 @@ describe('browser page whose key was replaced', () => {
     bridge.stop();
   });
 });
+
+describe('WebSocketBridge race history', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  const connected = async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('WebSocket', FakeWebSocket);
+    const bridge = new WebSocketBridge({ onKeyReplaced: vi.fn() });
+    const connecting = bridge.connect('http://localhost:3000');
+    const socket = FakeWebSocket.latest as FakeWebSocket;
+    socket.onopen?.();
+    await connecting;
+    // The bridge's own timers, which are not a read's: counted from here.
+    return { bridge, socket, timers: vi.getTimerCount() };
+  };
+
+  /** What the page sent that asks for the race history, oldest first. */
+  const asked = (socket: FakeWebSocket) =>
+    socket.sent
+      .map(
+        (message) =>
+          JSON.parse(message) as {
+            type: string;
+            requestId: string;
+            data: unknown;
+          }
+      )
+      .filter((message) => message.type.startsWith('raceHistory:'));
+
+  /** Reads still waiting for an answer: what must not be left behind. */
+  const waiting = (bridge: WebSocketBridge) =>
+    (bridge as unknown as { raceHistoryReads: Map<string, unknown> })
+      .raceHistoryReads.size;
+
+  const laps = (revision: number) => ({ laps: [], missingLaps: [], revision });
+
+  it('asks for each read with its arguments in a list, as IPC carries them', async () => {
+    const { bridge, socket } = await connected();
+
+    void bridge.raceHistory.getCarLaps(7).catch(() => undefined);
+    void bridge.raceHistory.getCarLaps(7, 12).catch(() => undefined);
+    void bridge.raceHistory.getCarStints(3).catch(() => undefined);
+    void bridge.raceHistory.getDriverChanges().catch(() => undefined);
+    void bridge.raceHistory.getDriverChanges(12).catch(() => undefined);
+    void bridge.raceHistory.listRaces().catch(() => undefined);
+    void bridge.raceHistory.getEvents().catch(() => undefined);
+    void bridge.raceHistory.getEvents(undefined, 801).catch(() => undefined);
+
+    expect(asked(socket).map(({ type, data }) => [type, data])).toEqual([
+      ['raceHistory:getCarLaps', [7]],
+      ['raceHistory:getCarLaps', [7, 12]],
+      ['raceHistory:getCarStints', [3]],
+      ['raceHistory:getDriverChanges', []],
+      ['raceHistory:getDriverChanges', [12]],
+      ['raceHistory:listRaces', []],
+      ['raceHistory:getEvents', []],
+      // The race left out and the event given: the place is kept by a null,
+      // which the bridge reads as the race being recorded.
+      ['raceHistory:getEvents', [null, 801]],
+    ]);
+    const ids = asked(socket).map((message) => message.requestId);
+    expect(new Set(ids).size).toBe(ids.length);
+    bridge.stop();
+  });
+
+  it('gives each answer to the read that asked, whatever order they come in', async () => {
+    const { bridge, socket, timers } = await connected();
+    const first = bridge.raceHistory.getCarLaps(1);
+    const second = bridge.raceHistory.getCarLaps(2);
+    const stints = bridge.raceHistory.getCarStints(1);
+    const [a, b, c] = asked(socket);
+
+    socket.deliver({ type: b.type, requestId: b.requestId, data: laps(2) });
+    socket.deliver({ type: c.type, requestId: c.requestId, data: [] });
+    socket.deliver({ type: a.type, requestId: a.requestId, data: laps(1) });
+
+    await expect(first).resolves.toEqual(laps(1));
+    await expect(second).resolves.toEqual(laps(2));
+    await expect(stints).resolves.toEqual([]);
+    expect(waiting(bridge)).toBe(0);
+    expect(vi.getTimerCount()).toBe(timers);
+    bridge.stop();
+  });
+
+  it('takes no answer that is not its own', async () => {
+    const { bridge, socket } = await connected();
+    const settled = vi.fn();
+    const read = bridge.raceHistory.getCarLaps(1);
+    void read.then(settled, settled);
+    const [request] = asked(socket);
+
+    // Another id, no id, and the right id under another read's name.
+    socket.deliver({ type: request.type, requestId: 'rh999', data: laps(9) });
+    socket.deliver({ type: request.type, data: laps(9) });
+    socket.deliver({
+      type: 'raceHistory:getCarStints',
+      requestId: request.requestId,
+      data: [],
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).not.toHaveBeenCalled();
+
+    socket.deliver({
+      type: request.type,
+      requestId: request.requestId,
+      data: laps(1),
+    });
+    await expect(read).resolves.toEqual(laps(1));
+    bridge.stop();
+  });
+
+  it('rejects with the app’s words when the answer is an error', async () => {
+    const { bridge, socket, timers } = await connected();
+    const read = bridge.raceHistory.getCarLaps(128);
+    const refused = expect(read).rejects.toThrow(
+      'Invalid car for raceHistory:getCarLaps'
+    );
+    const [request] = asked(socket);
+
+    socket.deliver({
+      type: request.type,
+      requestId: request.requestId,
+      error: 'Invalid car for raceHistory:getCarLaps',
+    });
+
+    await refused;
+    expect(waiting(bridge)).toBe(0);
+    expect(vi.getTimerCount()).toBe(timers);
+    bridge.stop();
+  });
+
+  it('rejects every read that was waiting when the socket closes', async () => {
+    const { bridge, socket, timers } = await connected();
+    const reads = [
+      bridge.raceHistory.getCarLaps(1),
+      bridge.raceHistory.getCarStints(1),
+      bridge.raceHistory.getEvents(undefined, 801),
+    ];
+    const rejected = Promise.all(
+      reads.map((read) =>
+        expect(read).rejects.toThrow(
+          'The connection closed before the race history answered'
+        )
+      )
+    );
+
+    socket.onclose?.({ code: 1006 } as CloseEvent);
+
+    await rejected;
+    expect(waiting(bridge)).toBe(0);
+    bridge.stop();
+    expect(vi.getTimerCount()).toBe(timers);
+  });
+
+  it('rejects at once while the socket is down, and sends nothing later', async () => {
+    const { bridge, socket } = await connected();
+    socket.onclose?.({ code: 1006 } as CloseEvent);
+
+    await expect(bridge.raceHistory.getCarLaps(1)).rejects.toThrow(
+      'The race history cannot be read while disconnected'
+    );
+    await expect(bridge.raceHistory.listRaces()).rejects.toThrow(
+      'The race history cannot be read while disconnected'
+    );
+    expect(waiting(bridge)).toBe(0);
+
+    // Back again: nothing asked while it was down is asked now.
+    await vi.advanceTimersByTimeAsync(1000);
+    const reconnected = FakeWebSocket.latest as FakeWebSocket;
+    expect(reconnected).not.toBe(socket);
+    reconnected.onopen?.();
+    expect(asked(reconnected)).toEqual([]);
+    bridge.stop();
+  });
+
+  it('asks afresh after a reconnect, under an id no earlier read had', async () => {
+    const { bridge, socket } = await connected();
+    const lost = bridge.raceHistory.getCarLaps(1);
+    const lostRejected = expect(lost).rejects.toThrow('connection closed');
+    const [old] = asked(socket);
+    socket.onclose?.({ code: 1006 } as CloseEvent);
+    await lostRejected;
+    await vi.advanceTimersByTimeAsync(1000);
+    const reconnected = FakeWebSocket.latest as FakeWebSocket;
+    reconnected.onopen?.();
+
+    const again = bridge.raceHistory.getCarLaps(1);
+    const [fresh] = asked(reconnected);
+    expect(fresh.requestId).not.toBe(old.requestId);
+    // An answer to the read that was lost is nobody's any more.
+    reconnected.deliver({
+      type: old.type,
+      requestId: old.requestId,
+      data: laps(99),
+    });
+    reconnected.deliver({
+      type: fresh.type,
+      requestId: fresh.requestId,
+      data: laps(1),
+    });
+
+    await expect(again).resolves.toEqual(laps(1));
+    expect(waiting(bridge)).toBe(0);
+    bridge.stop();
+  });
+
+  it('gives up on a read that is never answered, and ignores the answer if it comes', async () => {
+    const { bridge, socket } = await connected();
+    const read = bridge.raceHistory.getCarLaps(1);
+    const gaveUp = expect(read).rejects.toThrow(
+      'The race history did not answer'
+    );
+    const [request] = asked(socket);
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    await gaveUp;
+    expect(waiting(bridge)).toBe(0);
+
+    expect(() =>
+      socket.deliver({
+        type: request.type,
+        requestId: request.requestId,
+        data: laps(1),
+      })
+    ).not.toThrow();
+    bridge.stop();
+  });
+
+  it('rejects what was waiting when the page lets go of the socket', async () => {
+    const { bridge, timers } = await connected();
+    const read = bridge.raceHistory.listRaces();
+    const rejected = expect(read).rejects.toThrow('connection closed');
+
+    bridge.stop();
+
+    await rejected;
+    expect(waiting(bridge)).toBe(0);
+    expect(vi.getTimerCount()).toBe(timers);
+  });
+
+  it('holds no more than is unanswered, however many reads go through', async () => {
+    const { bridge, socket, timers } = await connected();
+
+    for (let round = 0; round < 500; round++) {
+      const read = bridge.raceHistory.getCarLaps(round % 128);
+      const request = asked(socket).at(-1);
+      socket.deliver(
+        round % 2
+          ? { type: request?.type, requestId: request?.requestId, error: 'no' }
+          : {
+              type: request?.type,
+              requestId: request?.requestId,
+              data: laps(round),
+            }
+      );
+      await read.catch(() => undefined);
+    }
+
+    expect(waiting(bridge)).toBe(0);
+    expect(vi.getTimerCount()).toBe(timers);
+    // Each read listened on its own account for nothing.
+    expect(socket.listeners.size).toBe(0);
+    bridge.stop();
+  });
+
+  it('leaves the channels and the other answers as they were', async () => {
+    const { bridge, socket } = await connected();
+    const summary = vi.fn();
+    bridge.subscribe('race-history.summary', summary);
+    const version = bridge.getAppVersion();
+    void bridge.raceHistory.getCarLaps(1).catch(() => undefined);
+
+    socket.deliver({
+      type: 'channel',
+      data: { channel: 'race-history.summary', payload: { raceToken: 'a' } },
+    });
+    socket.reply('getAppVersion', '2.2.3');
+
+    expect(summary).toHaveBeenCalledWith({ raceToken: 'a' });
+    await expect(version).resolves.toBe('2.2.3');
+    bridge.stop();
+  });
+});
+
+describe('WebSocketBridge connection, for a page that says when it is down', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('is down until the socket opens, and says when that changes', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('WebSocket', FakeWebSocket);
+    const bridge = new WebSocketBridge({ onKeyReplaced: vi.fn() });
+    const seen: boolean[] = [];
+    const unsubscribe = bridge.connection.onConnectionChanged((connected) =>
+      seen.push(connected)
+    );
+    expect(bridge.connection.isConnected()).toBe(false);
+
+    const connecting = bridge.connect('http://localhost:3000');
+    const socket = FakeWebSocket.latest as FakeWebSocket;
+    socket.onopen?.();
+    await connecting;
+    expect(bridge.connection.isConnected()).toBe(true);
+
+    socket.onclose?.({ code: 1006 } as CloseEvent);
+    expect(bridge.connection.isConnected()).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    (FakeWebSocket.latest as FakeWebSocket).onopen?.();
+    expect(bridge.connection.isConnected()).toBe(true);
+    expect(seen).toEqual([true, false, true]);
+
+    unsubscribe();
+    (FakeWebSocket.latest as FakeWebSocket).onclose?.({
+      code: 1006,
+    } as CloseEvent);
+    expect(seen).toEqual([true, false, true]);
+    bridge.stop();
+  });
+
+  it('stays down while the app is away, through every attempt to come back', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('WebSocket', FakeWebSocket);
+    const bridge = new WebSocketBridge({ onKeyReplaced: vi.fn() });
+    const connecting = bridge.connect('http://localhost:3000');
+    (FakeWebSocket.latest as FakeWebSocket).onopen?.();
+    await connecting;
+    const seen: boolean[] = [];
+    bridge.connection.onConnectionChanged((connected) => seen.push(connected));
+
+    // The app is closed: every socket the page opens is closed again.
+    (FakeWebSocket.latest as FakeWebSocket).onclose?.({
+      code: 1006,
+    } as CloseEvent);
+    for (let attempt = 0; attempt < 4; attempt++) {
+      await vi.advanceTimersByTimeAsync(5000);
+      (FakeWebSocket.latest as FakeWebSocket).onclose?.({
+        code: 1006,
+      } as CloseEvent);
+    }
+
+    // Said once, not once an attempt.
+    expect(seen).toEqual([false]);
+    expect(bridge.connection.isConnected()).toBe(false);
+    bridge.stop();
+  });
+});

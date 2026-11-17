@@ -193,7 +193,11 @@ export const lapsAroundStop = (
 
 /** What a panel is told of where the record it shows stands. */
 export interface CarRecordStanding {
-  /** This window can read the race history: false in a browser. */
+  /**
+   * This page can read the race history. False only where it was given no
+   * bridge to it, which is no page of the app: a window has one over IPC,
+   * a page served to a browser one over its socket.
+   */
   readable: boolean;
   /** A race is being recorded. */
   recording: boolean;
@@ -210,7 +214,7 @@ export const carRecordNotice = ({
   recording,
   read,
 }: CarRecordStanding): string | null => {
-  if (!readable) return 'The race history is not available in a browser yet.';
+  if (!readable) return 'The race history is not available on this page.';
   if (!recording) return 'Waiting for a session to record.';
   if (!read) return 'Reading the race history.';
   return null;

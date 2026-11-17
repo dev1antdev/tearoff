@@ -13,6 +13,21 @@ import { RACE_HISTORY_MAX_CARS } from '@irdashies/types';
 /** What the bridge is answered from: the race history's runtime. */
 export type RaceHistorySource = RaceHistoryBridge;
 
+/**
+ * A request the bridge refused for what it was sent.
+ *
+ * It has a name of its own so that a road a request comes by can tell a
+ * refusal from a failure further in. A refusal's words are written here and
+ * repeat nothing of what was sent, so they may go back to whoever asked; a
+ * failure's words are the storage's, and may name a file.
+ */
+export class RaceHistoryRequestError extends TypeError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RaceHistoryRequestError';
+  }
+}
+
 /** A car slot: a whole number from 0 up to the most the record keeps. */
 const isCarIdx = (value: unknown): value is number =>
   typeof value === 'number' &&
@@ -25,7 +40,9 @@ const isRaceId = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 
 const carIdxOrThrow = (value: unknown, request: string): number => {
-  if (!isCarIdx(value)) throw new TypeError(`Invalid car for ${request}`);
+  if (!isCarIdx(value)) {
+    throw new RaceHistoryRequestError(`Invalid car for ${request}`);
+  }
   return value;
 };
 
@@ -35,7 +52,9 @@ const carIdxOrThrow = (value: unknown, request: string): number => {
  */
 const raceIdOrThrow = (value: unknown, request: string): number | undefined => {
   if (value === undefined || value === null) return undefined;
-  if (!isRaceId(value)) throw new TypeError(`Invalid race for ${request}`);
+  if (!isRaceId(value)) {
+    throw new RaceHistoryRequestError(`Invalid race for ${request}`);
+  }
   return value;
 };
 
@@ -47,20 +66,41 @@ const raceIdOrThrow = (value: unknown, request: string): number | undefined => {
 const beforeOrThrow = (value: unknown, request: string): number | undefined => {
   if (value === undefined || value === null) return undefined;
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
-    throw new TypeError(`Invalid event for ${request}`);
+    throw new RaceHistoryRequestError(`Invalid event for ${request}`);
   }
   return value;
 };
 
-/** A request with more than it takes is not one this app makes. */
+/**
+ * A request with more than it takes is not one this app makes. `rest` is
+ * what came after the `takes` arguments the request has a use for.
+ */
 const noMoreThan = (
-  args: readonly unknown[],
-  count: number,
+  rest: readonly unknown[],
+  takes: number,
   request: string
 ): void => {
-  if (args.length > count) {
-    throw new TypeError(`${request} takes at most ${count} argument(s)`);
+  if (rest.length > 0) {
+    throw new RaceHistoryRequestError(
+      `${request} takes at most ${takes} argument(s)`
+    );
   }
+};
+
+declare const checked: unique symbol;
+
+/**
+ * The bridge with its checks in front of the source.
+ *
+ * The source answers the same five questions and checks nothing: it is
+ * written for callers inside the main process. It has the bridge's shape,
+ * so wherever a plain `RaceHistoryBridge` is asked for, the source would be
+ * taken for one without a word from the compiler. What answers a window or
+ * a socket asks for this type instead, which only `createRaceHistoryBridge`
+ * makes. The mark is the compiler's alone: nothing is added to the object.
+ */
+export type CheckedRaceHistoryBridge = RaceHistoryBridge & {
+  readonly [checked]: true;
 };
 
 /**
@@ -71,39 +111,43 @@ const noMoreThan = (
  */
 export const createRaceHistoryBridge = (
   source: RaceHistorySource
-): RaceHistoryBridge => ({
-  async getCarLaps(carIdx: unknown, raceId?: unknown, ...rest: unknown[]) {
-    noMoreThan(rest, 0, 'raceHistory:getCarLaps');
-    return source.getCarLaps(
-      carIdxOrThrow(carIdx, 'raceHistory:getCarLaps'),
-      raceIdOrThrow(raceId, 'raceHistory:getCarLaps')
-    );
-  },
-  async getCarStints(carIdx: unknown, raceId?: unknown, ...rest: unknown[]) {
-    noMoreThan(rest, 0, 'raceHistory:getCarStints');
-    return source.getCarStints(
-      carIdxOrThrow(carIdx, 'raceHistory:getCarStints'),
-      raceIdOrThrow(raceId, 'raceHistory:getCarStints')
-    );
-  },
-  async getDriverChanges(raceId?: unknown, ...rest: unknown[]) {
-    noMoreThan(rest, 0, 'raceHistory:getDriverChanges');
-    return source.getDriverChanges(
-      raceIdOrThrow(raceId, 'raceHistory:getDriverChanges')
-    );
-  },
-  async listRaces(...rest: unknown[]) {
-    noMoreThan(rest, 0, 'raceHistory:listRaces');
-    return source.listRaces();
-  },
-  async getEvents(raceId?: unknown, before?: unknown, ...rest: unknown[]) {
-    noMoreThan(rest, 0, 'raceHistory:getEvents');
-    return source.getEvents(
-      raceIdOrThrow(raceId, 'raceHistory:getEvents'),
-      beforeOrThrow(before, 'raceHistory:getEvents')
-    );
-  },
-});
+): CheckedRaceHistoryBridge => {
+  const bridge: RaceHistoryBridge = {
+    async getCarLaps(carIdx: unknown, raceId?: unknown, ...rest: unknown[]) {
+      noMoreThan(rest, 2, 'raceHistory:getCarLaps');
+      return source.getCarLaps(
+        carIdxOrThrow(carIdx, 'raceHistory:getCarLaps'),
+        raceIdOrThrow(raceId, 'raceHistory:getCarLaps')
+      );
+    },
+    async getCarStints(carIdx: unknown, raceId?: unknown, ...rest: unknown[]) {
+      noMoreThan(rest, 2, 'raceHistory:getCarStints');
+      return source.getCarStints(
+        carIdxOrThrow(carIdx, 'raceHistory:getCarStints'),
+        raceIdOrThrow(raceId, 'raceHistory:getCarStints')
+      );
+    },
+    async getDriverChanges(raceId?: unknown, ...rest: unknown[]) {
+      noMoreThan(rest, 1, 'raceHistory:getDriverChanges');
+      return source.getDriverChanges(
+        raceIdOrThrow(raceId, 'raceHistory:getDriverChanges')
+      );
+    },
+    async listRaces(...rest: unknown[]) {
+      noMoreThan(rest, 0, 'raceHistory:listRaces');
+      return source.listRaces();
+    },
+    async getEvents(raceId?: unknown, before?: unknown, ...rest: unknown[]) {
+      noMoreThan(rest, 2, 'raceHistory:getEvents');
+      return source.getEvents(
+        raceIdOrThrow(raceId, 'raceHistory:getEvents'),
+        beforeOrThrow(before, 'raceHistory:getEvents')
+      );
+    },
+  };
+  // Marked here and nowhere else: this is what the checks are in front of.
+  return bridge as CheckedRaceHistoryBridge;
+};
 
 const CHANNELS = [
   'raceHistory:getCarLaps',
@@ -122,7 +166,7 @@ const CHANNELS = [
  * the way to take the handlers down.
  */
 export function setupRaceHistoryBridge(source: RaceHistorySource): {
-  bridge: RaceHistoryBridge;
+  bridge: CheckedRaceHistoryBridge;
   dispose: () => void;
 } {
   const bridge = createRaceHistoryBridge(source);

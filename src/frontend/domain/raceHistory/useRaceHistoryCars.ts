@@ -31,8 +31,13 @@ const carsOf = (key: string): number[] =>
  * only when its `revision` has moved, never on a timer. A race that is not
  * the one held (`raceToken`) drops everything first, and so does a car that
  * is no longer asked about: an answer that comes back for it afterwards, or
- * after a newer question for the same car, is not kept. Outside Electron
- * there is no bridge, and the map stays empty.
+ * after a newer question for the same car, is not kept. Where the page
+ * was given no bridge the map stays empty.
+ *
+ * The bridge is a window's over IPC and a browser page's over its socket,
+ * and the hook does not know which. A read that is refused or lost, as
+ * one is when a page's socket drops, is asked again the next time the
+ * car's records change.
  *
  * Subscribing to the summary is also what keeps the race recorded while a
  * reader is on screen.
@@ -157,8 +162,9 @@ export const useCarRaceRecords = (
   useRaceHistoryCars(carIdxs, readRecord);
 
 /**
- * Whether this window can read the race history at all. A page served to a
- * browser has no bridge to it.
+ * Whether this page can read the race history at all: a window of the app
+ * can, and so can a page served to a browser. False only where no bridge
+ * was set up, as in a story that stages a page without one.
  */
 export const raceHistoryReadable = (): boolean =>
   typeof window !== 'undefined' && window.raceHistoryBridge !== undefined;

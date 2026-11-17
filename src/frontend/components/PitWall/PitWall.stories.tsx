@@ -8,7 +8,11 @@ import {
   timedRaceTimingSnapshot,
   trackStateStorySnapshot,
 } from '@irdashies/storybook';
-import { EMPTY_FLAG_STATE, type IrSdkBridge } from '@irdashies/types';
+import {
+  EMPTY_FLAG_STATE,
+  type BrowserConnection,
+  type IrSdkBridge,
+} from '@irdashies/types';
 import { PitWallBrowserPage } from '../../windows/PitWallBrowserPage';
 import { PitWallContent } from '../../windows/PitWallWindow';
 import { PitWall } from './PitWall';
@@ -21,9 +25,17 @@ const silentSession = {
   onSessionData: () => () => undefined,
 } as unknown as IrSdkBridge;
 
+/** The page's socket, staged as up or as down and staying so. */
+const socketThatIs = (connected: boolean): BrowserConnection => ({
+  isConnected: () => connected,
+  onConnectionChanged: () => () => undefined,
+});
+const socketUp = socketThatIs(true);
+const socketDown = socketThatIs(false);
+
 const inABrowser = () => (
   <div className="h-screen w-screen">
-    <PitWallBrowserPage bridge={silentSession} />
+    <PitWallBrowserPage bridge={silentSession} connection={socketUp} />
   </div>
 );
 
@@ -135,6 +147,20 @@ export const InABrowser: Story = {
 export const InABrowserOnAPhone: Story = {
   ...pitWallStage({ layout: 'compact', browser: true }),
   render: inABrowser,
+};
+
+/**
+ * The page in a browser while its socket is down: it keeps what it last
+ * had, every panel as it was, and the header says it is reconnecting. The
+ * mark goes when the socket is back.
+ */
+export const InABrowserReconnecting: Story = {
+  ...pitWallStage({ layout: 'compact', browser: true }),
+  render: () => (
+    <div className="h-screen w-screen">
+      <PitWallBrowserPage bridge={silentSession} connection={socketDown} />
+    </div>
+  ),
 };
 
 /** In a browser, a profile that has lost a widget says so and offers nothing. */

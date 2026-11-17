@@ -40,6 +40,9 @@ async function initializeDashboardView() {
   window.channelBridge = bridge;
   window.pitLaneBridge = bridge;
   window.telemetryInspectorBridge = bridge;
+  // Reads only, answered by the bridge the app's windows ask: the panels
+  // that show a car's laps and stints find it as they do in a window.
+  window.raceHistoryBridge = bridge.raceHistory;
   // Only the per-widget toggles reach the browser view; the global hide
   // (Alt+H) is for the overlay on the streamer's own screen.
   window.globalKey = {
@@ -91,7 +94,7 @@ async function initializeDashboardView() {
         profileId={profileId}
       >
         <RunningStateProvider bridge={bridge}>
-          <PitWallBrowserPage bridge={bridge} />
+          <PitWallBrowserPage bridge={bridge} connection={bridge.connection} />
         </RunningStateProvider>
       </DashboardProvider>
     );

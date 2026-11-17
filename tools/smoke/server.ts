@@ -95,6 +95,136 @@ function knock(port: number, origin: string | undefined): Promise<Knock> {
   });
 }
 
+export interface Asked {
+  opened: boolean;
+  /** The handshake's status when it was refused. */
+  status?: number;
+  /** What came back under the request's id; absent when nothing did. */
+  answer?: { data?: unknown; error?: unknown };
+}
+
+const ANSWER_MS = 3000;
+
+/**
+ * Opens a connection as `origin`, sends one request, and waits for the
+ * answer that carries the request's id. Other messages may come first, as
+ * the greeting does.
+ *
+ * @param answerMs How long an open connection is given to answer.
+ */
+export function ask(
+  port: number,
+  origin: string | undefined,
+  type: string,
+  data: unknown,
+  answerMs = ANSWER_MS
+): Promise<Asked> {
+  return new Promise((resolve) => {
+    const requestId = `smoke-${type}`;
+    const socket = new WebSocket(`ws://localhost:${port}`, {
+      origin,
+      handshakeTimeout: TIMEOUT_MS,
+    });
+    let timer = setTimeout(() => done({ opened: false }), TIMEOUT_MS + 1000);
+    const done = (result: Asked) => {
+      clearTimeout(timer);
+      socket.terminate();
+      resolve(result);
+    };
+    socket.on('unexpected-response', (_request, response) =>
+      done({ opened: false, status: response.statusCode })
+    );
+    socket.on('error', () => done({ opened: false }));
+    socket.on('open', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => done({ opened: true }), answerMs);
+      socket.send(JSON.stringify({ type, requestId, data }));
+    });
+    socket.on('message', (raw) => {
+      try {
+        const reply = JSON.parse(raw.toString()) as {
+          type?: string;
+          requestId?: string;
+          data?: unknown;
+          error?: unknown;
+        };
+        if (reply.type !== type || reply.requestId !== requestId) return;
+        done({
+          opened: true,
+          answer: { data: reply.data, error: reply.error },
+        });
+      } catch {
+        // Not JSON, so not the answer.
+      }
+    });
+  });
+}
+
+const notOpened = (asked: Asked) =>
+  `The connection did not open (status ${asked.status ?? 'none'}).`;
+
+/**
+ * Whether a car's laps came back over the socket. On a recording the car
+ * may well have none: an empty list is an answer, and a pass.
+ */
+export function raceHistoryReadVerdict(asked: Asked): {
+  passed: boolean;
+  detail: string;
+} {
+  if (!asked.opened) return { passed: false, detail: notOpened(asked) };
+  if (!asked.answer) {
+    return {
+      passed: false,
+      detail: 'Opened, but the race history did not answer in three seconds.',
+    };
+  }
+  if (typeof asked.answer.error === 'string') {
+    return {
+      passed: false,
+      detail: `Answered with an error: ${asked.answer.error.slice(0, 120)}`,
+    };
+  }
+  const laps = (asked.answer.data as { laps?: unknown } | null)?.laps;
+  if (!Array.isArray(laps)) {
+    return {
+      passed: false,
+      detail: 'Answered with something that is not a car’s laps.',
+    };
+  }
+  return {
+    passed: true,
+    detail: `Answered with the laps of car 0: ${laps.length} of them.`,
+  };
+}
+
+/**
+ * Whether a request for a car slot there cannot be was refused in words.
+ * That it is refused at all is what says the checked bridge is behind the
+ * socket, and not the records themselves.
+ */
+export function raceHistoryRefusalVerdict(asked: Asked): {
+  passed: boolean;
+  detail: string;
+} {
+  if (!asked.opened) return { passed: false, detail: notOpened(asked) };
+  if (!asked.answer) {
+    return {
+      passed: false,
+      detail: 'Opened, but the request was not answered in three seconds.',
+    };
+  }
+  if (typeof asked.answer.error !== 'string') {
+    return {
+      passed: false,
+      detail: 'It was answered with data, where it had to be refused.',
+    };
+  }
+  return {
+    passed: true,
+    detail: `Refused: ${asked.answer.error.slice(0, 120)}`,
+  };
+}
+
 const message = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
@@ -222,6 +352,21 @@ export async function checkBrowserServer(options: {
         : `Refused with status ${result.status ?? 'none'}.`,
     };
   });
+
+  // What the Pit Wall page's panels read in a browser. From this machine,
+  // which needs no key; who else is let in is the handshake's, checked above.
+  const ownPage = `http://localhost:${port}`;
+  await check('the race history is read over the page’s connection', async () =>
+    raceHistoryReadVerdict(
+      await ask(port, ownPage, 'raceHistory:getCarLaps', [0])
+    )
+  );
+  await check('the race history refuses a car there cannot be', async () =>
+    raceHistoryRefusalVerdict(
+      // One past the last car slot there is.
+      await ask(port, ownPage, 'raceHistory:getCarLaps', [128])
+    )
+  );
 
   return checks;
 }

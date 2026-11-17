@@ -4,6 +4,7 @@ import {
   DEFAULT_SIM_WIDGET_SUPPORT,
   KEY_REPLACED_CLOSE_CODE,
   type ActiveSimulator,
+  type BrowserConnection,
   type ChannelBridge,
   type ChannelName,
   type ChannelPayloads,
@@ -12,6 +13,7 @@ import {
   type PitLaneCalibration,
   type PitLaneTrackData,
   type CurrentTrackPitLaneInfo,
+  type RaceHistoryBridge,
   type RacePlanState,
   type SimWidgetSupportConfig,
   type TelemetryInspectorBridge,
@@ -43,6 +45,22 @@ const reloadPage = () => {
     window.location.reload();
   }
 };
+
+/**
+ * How long a read of the race history waits for its answer. A full car is
+ * two thirds of a megabyte and a page asks for a dozen at once, which a slow
+ * wireless link takes a while over; a read given up on is asked again the
+ * next time the car's records change.
+ */
+const RACE_HISTORY_TIMEOUT_MS = 30_000;
+
+/** A read of the race history on its way to the app. */
+interface PendingRead {
+  type: string;
+  resolve: (value: unknown) => void;
+  reject: (reason: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
+}
 
 export interface WebSocketBridgeOptions {
   /**
@@ -102,6 +120,46 @@ export class WebSocketBridge
   /** Counts pushes so a reconnect seed older than a push is dropped. */
   private racePlanPushCount = 0;
   private onKeyReplaced: () => void;
+  /** Reads of the race history waiting for their answer, by request id. */
+  private raceHistoryReads = new Map<string, PendingRead>();
+  /** Numbers them. Never reused, so an old answer fits no new question. */
+  private raceHistoryReadCount = 0;
+  private connectionListeners = new Set<(connected: boolean) => void>();
+
+  /**
+   * The race history, read over the socket: the interface a window of the
+   * app has over IPC, so a widget that reads it does not know which it has.
+   *
+   * Each read is one request and one answer. It rejects when the app
+   * refuses it, when the socket is down or goes down before the answer, and
+   * when no answer comes; nothing is kept to be sent again later. A widget
+   * asks again when the car's records next change, as it does in a window.
+   */
+  readonly raceHistory: RaceHistoryBridge = {
+    getCarLaps: (carIdx, raceId) =>
+      this.readRaceHistory('raceHistory:getCarLaps', [carIdx, raceId]),
+    getCarStints: (carIdx, raceId) =>
+      this.readRaceHistory('raceHistory:getCarStints', [carIdx, raceId]),
+    getDriverChanges: (raceId) =>
+      this.readRaceHistory('raceHistory:getDriverChanges', [raceId]),
+    listRaces: () => this.readRaceHistory('raceHistory:listRaces', []),
+    getEvents: (raceId, before) =>
+      this.readRaceHistory('raceHistory:getEvents', [raceId, before]),
+  };
+
+  /**
+   * Whether the socket is up, for a page that says so while it is not: what
+   * it shows then is what it last had.
+   */
+  readonly connection: BrowserConnection = {
+    isConnected: () => this.isConnected,
+    onConnectionChanged: (listener) => {
+      this.connectionListeners.add(listener);
+      return () => {
+        this.connectionListeners.delete(listener);
+      };
+    },
+  };
 
   constructor(options: WebSocketBridgeOptions = {}) {
     this.onKeyReplaced = options.onKeyReplaced ?? reloadPage;
@@ -121,6 +179,86 @@ export class WebSocketBridge
     this.maxReconnectAttempts = Infinity;
     this.reconnectDelay = 1000;
     this.reconnectDelayMax = 5000;
+  }
+
+  private setConnected(connected: boolean): void {
+    if (this.isConnected === connected) return;
+    this.isConnected = connected;
+    for (const listener of [...this.connectionListeners]) {
+      try {
+        listener(connected);
+      } catch (e) {
+        logger.error('Error in connection callback:', e);
+      }
+    }
+  }
+
+  private readRaceHistory<Result>(
+    type: string,
+    args: unknown[]
+  ): Promise<Result> {
+    return new Promise<Result>((resolve, reject) => {
+      const socket = this.socket;
+      if (!socket || socket.readyState !== WebSocket.OPEN) {
+        reject(new Error('The race history cannot be read while disconnected'));
+        return;
+      }
+      // An argument left out is not sent as nothing in its place.
+      while (args.length > 0 && args[args.length - 1] === undefined) args.pop();
+      const requestId = `rh${++this.raceHistoryReadCount}`;
+      const timer = setTimeout(() => {
+        this.raceHistoryReads.delete(requestId);
+        reject(new Error('The race history did not answer'));
+      }, RACE_HISTORY_TIMEOUT_MS);
+      this.raceHistoryReads.set(requestId, {
+        type,
+        resolve: resolve as (value: unknown) => void,
+        reject,
+        timer,
+      });
+      try {
+        socket.send(JSON.stringify({ type, requestId, data: args }));
+      } catch (error) {
+        this.raceHistoryReads.delete(requestId);
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    });
+  }
+
+  /**
+   * Hands an answer to the read that is waiting for it. False for a message
+   * that is no such answer, which is then anybody else's.
+   */
+  private settleRaceHistoryRead(message: {
+    type?: unknown;
+    requestId?: unknown;
+    data?: unknown;
+    error?: unknown;
+  }): boolean {
+    if (typeof message.requestId !== 'string') return false;
+    const read = this.raceHistoryReads.get(message.requestId);
+    if (!read || read.type !== message.type) return false;
+    this.raceHistoryReads.delete(message.requestId);
+    clearTimeout(read.timer);
+    if (typeof message.error === 'string') {
+      read.reject(new Error(message.error));
+    } else {
+      read.resolve(message.data);
+    }
+    return true;
+  }
+
+  /** The socket is gone: no answer is coming for anything asked on it. */
+  private abandonRaceHistoryReads(): void {
+    const abandoned = [...this.raceHistoryReads.values()];
+    this.raceHistoryReads.clear();
+    for (const read of abandoned) {
+      clearTimeout(read.timer);
+      read.reject(
+        new Error('The connection closed before the race history answered')
+      );
+    }
   }
 
   private pitLaneRequest<Result>(
@@ -186,6 +324,7 @@ export class WebSocketBridge
     try {
       const message = JSON.parse(event.data);
       const { type, data } = message;
+      if (this.settleRaceHistoryRead(message)) return;
 
       switch (type) {
         case 'initialState': {
@@ -398,7 +537,7 @@ export class WebSocketBridge
         ws.onopen = () => {
           debugLog('Connected to bridge');
           this.isConnecting = false;
-          this.isConnected = true;
+          this.setConnected(true);
           this.reconnectAttempts = 0;
           for (const channel of this.channelCallbacks.keys()) {
             this.sendChannelSubscription(channel);
@@ -461,9 +600,10 @@ export class WebSocketBridge
 
         ws.onclose = (event?: CloseEvent) => {
           debugLog('Disconnected from bridge');
-          this.isConnected = false;
+          this.setConnected(false);
           this.socket = null;
           this.connectionPromise = null;
+          this.abandonRaceHistoryReads();
 
           if (event?.code === KEY_REPLACED_CLOSE_CODE) {
             // Knocking again with the old key would be refused every time.
@@ -636,8 +776,10 @@ export class WebSocketBridge
     if (this.socket) {
       this.socket.close();
       this.socket = null;
-      this.isConnected = false;
+      this.setConnected(false);
     }
+    this.abandonRaceHistoryReads();
+    this.connectionListeners.clear();
     this.telemetryCallbacks.clear();
     this.sessionCallbacks.clear();
     this.runningCallbacks.clear();
