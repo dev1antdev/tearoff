@@ -304,6 +304,64 @@ describe('ProfileSettings links for other devices', () => {
     expect(screen.queryByText(/It carries the key/)).toBeNull();
   });
 
+  it('shows one link and says who can open it while network access is off', async () => {
+    serverHas(null);
+    mocks.getComponentServerHost.mockResolvedValue('localhost');
+    render(<ProfileSettings />);
+
+    // The same localhost link was shown a second time as the "IP address".
+    expect(
+      await screen.findAllByDisplayValue(
+        expectedUrl('default', 4321, 'localhost')
+      )
+    ).toHaveLength(1);
+    expect(screen.queryByText(/OBS requires IP addresses/)).toBeNull();
+    expect(screen.queryByText(/network address/)).toBeNull();
+    expect(
+      screen.getByText(/Use the URL below for an OBS browser source on this PC/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Only this PC can open this URL.*turn on Enable Network Access/
+      )
+    ).toBeInTheDocument();
+  });
+
+  it('shows both links and says which is for another machine while network access is on', async () => {
+    serverHas(KEY);
+    render(<ProfileSettings />);
+    await screen.findByDisplayValue(masked);
+
+    expect(
+      screen.getAllByDisplayValue(expectedUrl('default', 4321, 'localhost'))
+    ).toHaveLength(1);
+    expect(screen.queryByText(/OBS requires IP addresses/)).toBeNull();
+    expect(
+      screen.getByText(
+        /OBS on this PC can use either URL below.*another machine needs the one by network address/
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Only this PC can open this URL/)).toBeNull();
+  });
+
+  it('says there is no address to hand out where network access is on and none was found', async () => {
+    serverHas(KEY);
+    mocks.getComponentServerHost.mockResolvedValue('localhost');
+    render(<ProfileSettings />);
+
+    expect(
+      await screen.findAllByDisplayValue(
+        expectedUrl('default', 4321, 'localhost')
+      )
+    ).toHaveLength(1);
+    expect(
+      await screen.findByText(
+        /Enable Network Access is on, but this PC has no network address/
+      )
+    ).toBeInTheDocument();
+    expect(document.body.innerHTML).not.toContain(KEY);
+  });
+
   it('never puts the key on a link that names this PC itself', async () => {
     // Network access is on, yet no address was found: the link says localhost.
     serverHas(KEY);

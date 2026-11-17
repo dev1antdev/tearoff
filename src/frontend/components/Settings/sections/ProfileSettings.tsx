@@ -227,7 +227,13 @@ export const ProfileSettings = () => {
   }, []);
 
   // The key a device that is not this PC opens the server's pages with.
-  const deviceKey = useBrowserAccess().access?.key ?? null;
+  const browserAccess = useBrowserAccess().access;
+  const deviceKey = browserAccess?.key ?? null;
+  // The host is this PC's own name while the server answers this PC only,
+  // and where network access is on but no address was found: then there is
+  // one link, not a second copy of it under another heading.
+  const hasNetworkAddress = !isLocalHostName(serverIP);
+  const networkAccessOn = browserAccess?.networkAccess === true;
   const keyForHost = (host: string) =>
     isLocalHostName(host) ? null : deviceKey;
 
@@ -733,39 +739,51 @@ export const ProfileSettings = () => {
                 OBS Browser Source
               </h3>
               <p className="text-sm text-slate-400 mb-3">
-                Use the URL below for OBS browser sources. OBS requires IP
-                addresses instead of localhost.
+                {hasNetworkAddress
+                  ? 'OBS on this PC can use either URL below. OBS or a browser on another machine needs the one by network address.'
+                  : 'Use the URL below for an OBS browser source on this PC.'}
               </p>
             </div>
 
             <div className="space-y-2">
               <div className="text-xs font-medium text-slate-300 mb-2">
-                Localhost (Development)
+                This PC
               </div>
               <BrowserLinkField
                 label="Browser source URL for this PC"
                 url={browserUrlFor(currentProfile.id, 'localhost')}
+                copyLabel={hasNetworkAddress ? undefined : 'Copy for OBS'}
+                primary={!hasNetworkAddress}
               />
+              {!hasNetworkAddress && (
+                <p className="text-xs text-slate-500">
+                  {networkAccessOn
+                    ? 'Enable Network Access is on, but this PC has no network address to hand out, so only this PC can open this URL.'
+                    : 'Only this PC can open this URL. To use OBS or a browser on another machine, turn on Enable Network Access under Settings → General (requires restart).'}
+                </p>
+              )}
             </div>
 
-            <div className="space-y-2">
-              <div className="text-xs font-medium text-slate-300 mb-2">
-                IP Address (OBS/Streaming)
+            {hasNetworkAddress && (
+              <div className="space-y-2">
+                <div className="text-xs font-medium text-slate-300 mb-2">
+                  Other machines on your network
+                </div>
+                <BrowserLinkField
+                  label="Browser source URL by this PC's network address"
+                  url={deviceUrlFor(currentProfile.id)}
+                  secret={keyForHost(serverIP)}
+                  copyLabel="Copy for OBS"
+                  primary
+                />
+                <p className="text-xs text-slate-500">
+                  This URL uses this PC&apos;s network address ({serverIP}) and
+                  also works on this PC.
+                  {keyForHost(serverIP) &&
+                    ' It carries the key a device that is not this PC needs; without it such a device is refused. A new key is made under Pit Wall.'}
+                </p>
               </div>
-              <BrowserLinkField
-                label="Browser source URL by this PC's network address"
-                url={deviceUrlFor(currentProfile.id)}
-                secret={keyForHost(serverIP)}
-                copyLabel="Copy for OBS"
-                primary
-              />
-              <p className="text-xs text-slate-500">
-                Note: This URL uses your server&apos;s IP address ({serverIP}).
-                Works in OBS browser sources and from other machines.
-                {keyForHost(serverIP) &&
-                  ' It carries the key a device that is not this PC needs; without it such a device is refused. A new key is made under Pit Wall.'}
-              </p>
-            </div>
+            )}
           </div>
         )}
 
