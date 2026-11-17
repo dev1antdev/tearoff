@@ -23,11 +23,13 @@ import {
 } from '../../../../.storybook/raceHistoryStage';
 import { RaceCharts } from './RaceCharts';
 
+/** The box a chart is drawn in: the test DOM lays nothing out. */
+const box = vi.hoisted(() => ({ width: 640, height: 200 }));
+
 vi.mock('@irdashies/context', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@irdashies/context')>()),
   useDashboard: vi.fn(),
-  // The box a chart is drawn in: the test DOM lays nothing out.
-  useElementSize: () => ({ width: 640, height: 200 }),
+  useElementSize: () => box,
 }));
 
 /**
@@ -157,6 +159,8 @@ describe('RaceCharts (staged)', () => {
   afterEach(() => {
     window.raceHistoryBridge = undefined;
     vi.restoreAllMocks();
+    box.width = 640;
+    box.height = 200;
   });
 
   describe('pace', () => {
@@ -730,6 +734,207 @@ describe('RaceCharts (staged)', () => {
         'The race history is not available on this page.'
       );
       expect(channels.readers('race-history.summary')).toBe(0);
+    });
+  });
+
+  describe('the room it leaves the plot', () => {
+    // The box is 640 by 200: the plot runs from 6 to 182 down it.
+    const TOP = 6;
+    const BOTTOM = 182;
+
+    /** The figures of a path or of an attribute, in the order written. */
+    const figures = (text: string | null): number[] =>
+      (text?.match(/-?\d+(\.\d+)?/g) ?? []).map(Number);
+
+    const bandOf = (lap: number) => {
+      const band = screen
+        .getAllByTestId('race-charts-band')
+        .find((entry) => entry.dataset.from === String(lap));
+      if (!band) throw new Error(`no band at lap ${lap}`);
+      const x = Number(band.getAttribute('x'));
+      const y = Number(band.getAttribute('y'));
+      return {
+        left: x,
+        right: x + Number(band.getAttribute('width')),
+        top: y,
+        bottom: y + Number(band.getAttribute('height')),
+      };
+    };
+
+    it('says what the scale counts in the bar, not on a row of its own', async () => {
+      show();
+      await settled();
+      const bar = screen.getByTestId('race-charts-controls');
+      const caption = within(bar).getByTestId('race-charts-caption');
+      expect(caption).toHaveTextContent('Lap time');
+      // Cut short in a narrow bar, it is whole for whoever points at it.
+      expect(caption).toHaveAttribute('title', 'Lap time');
+      // The buttons of the bar are still its first and its last.
+      expect(bar).toContainElement(screen.getByTestId('race-charts-tab-pace'));
+      expect(bar).toContainElement(screen.getByTestId('race-charts-laps-0'));
+    });
+
+    it('says in the bar how many laps are not recorded', async () => {
+      show(
+        { ownLaps: 60, outage: { afterOwnLap: 40, untilOwnLap: 47 } },
+        { tab: 'gap' }
+      );
+      await settled();
+      expect(
+        within(screen.getByTestId('race-charts-controls')).getByTestId(
+          'race-charts-missing'
+        )
+      ).toHaveTextContent('7 laps not recorded');
+    });
+
+    it('has a bar with no caption while there is no chart', async () => {
+      show({ ownLaps: 0 });
+      await noticed('No lap of #77 has been recorded yet.');
+      expect(screen.getByTestId('race-charts-controls')).toBeInTheDocument();
+      expect(screen.queryByTestId('race-charts-caption')).toBeNull();
+    });
+
+    it('sets no row aside over the plot: a band starts at its top, and the lines run where the marks are', async () => {
+      show();
+      await settled();
+      await drawn(4);
+      for (const lap of [125, 156]) {
+        expect(bandOf(lap)).toMatchObject({ top: TOP, bottom: BOTTOM });
+      }
+      const lineYs = screen
+        .getAllByTestId('race-charts-line')
+        .flatMap((line) =>
+          figures(line.getAttribute('d')).filter((_, at) => at % 2 === 1)
+        );
+      const markBases = screen
+        .getAllByTestId('race-charts-mark')
+        .map((mark) => figures(mark.getAttribute('d'))[1]);
+      // Three cars are off the scale on one lap: their marks reach further
+      // into the plot than its slowest lap on the scale is drawn.
+      expect(Math.min(...lineYs)).toBeLessThan(Math.max(...markBases));
+      expect(Math.min(...lineYs)).toBeGreaterThanOrEqual(TOP);
+      expect(Math.max(...lineYs)).toBeLessThanOrEqual(BOTTOM);
+    });
+
+    it('stands the marks inside the top edge of the plot, piled from it', async () => {
+      const { stage } = show();
+      await settled();
+      await drawn(4);
+      const tips = screen.getAllByTestId('race-charts-mark').map((mark) => {
+        const [, base, , , , tip] = figures(mark.getAttribute('d'));
+        return {
+          car: mark.closest('g')?.dataset.car,
+          lap: mark.dataset.lap,
+          base,
+          tip,
+        };
+      });
+      for (const { base, tip } of tips) {
+        // Pointing up, with all of it between the plot's edges.
+        expect(tip).toBeLessThan(base);
+        expect(tip).toBeGreaterThanOrEqual(TOP);
+        expect(base).toBeLessThanOrEqual(BOTTOM);
+      }
+      // Our own is nearest the edge, and each car under it a row further in.
+      const atOurStop = tips
+        .filter((mark) => mark.lap === '156')
+        .sort((a, b) => a.tip - b.tip);
+      expect(atOurStop[0]).toMatchObject({
+        car: String(stage.slotOf('77')),
+        tip: TOP + 1,
+      });
+      expect(new Set(atOurStop.map((mark) => mark.tip)).size).toBe(
+        atOurStop.length
+      );
+    });
+
+    it('writes what a stop was inside its band, under the marks at its lap', async () => {
+      show();
+      await settled();
+      await drawn(4);
+      const labels = screen.getAllByTestId('race-charts-band-label');
+      expect(labels.map((label) => label.textContent)).toEqual([
+        'stop, driver change',
+        'stop, driver change',
+      ]);
+      [125, 156].forEach((lap, at) => {
+        const band = bandOf(lap);
+        const label = labels[at];
+        const x = Number(label.getAttribute('x'));
+        const y = Number(label.getAttribute('y'));
+        // A band of one lap is too narrow for it across: it runs up it.
+        expect(label).toHaveAttribute('data-turned', 'true');
+        expect(label.getAttribute('transform')).toBe(`rotate(-90 ${x} ${y})`);
+        expect(x).toBeCloseTo((band.left + band.right) / 2, 5);
+        // It ends where it is anchored, and that is under every mark here.
+        const marks = screen
+          .getAllByTestId('race-charts-mark')
+          .filter((mark) => mark.dataset.lap === String(lap))
+          .map((mark) => figures(mark.getAttribute('d'))[1]);
+        expect(marks.length).toBeGreaterThan(0);
+        expect(y).toBeGreaterThan(Math.max(...marks));
+        expect(y).toBeLessThan(band.bottom);
+      });
+    });
+
+    it('writes just "stop" in a band too short for the rest, and nothing in one too short for that', async () => {
+      box.height = 100;
+      const { unmount } = show();
+      await settled();
+      await drawn(4);
+      expect(
+        screen
+          .getAllByTestId('race-charts-band-label')
+          .map((label) => label.textContent)
+      ).toEqual(['stop', 'stop']);
+      unmount();
+
+      box.height = 60;
+      show();
+      await settled();
+      await drawn(4);
+      expect(screen.queryAllByTestId('race-charts-band-label')).toHaveLength(0);
+      // The bands themselves are still drawn.
+      expect(screen.getAllByTestId('race-charts-band')).toHaveLength(2);
+    });
+
+    it('writes what a wide band is across it', async () => {
+      show({ ownLaps: 60, outage: { afterOwnLap: 40, untilOwnLap: 47 } });
+      await settled();
+      const label = screen
+        .getAllByTestId('race-charts-band-label')
+        .find((entry) => entry.textContent === 'not recorded');
+      if (!label) throw new Error('the laps not recorded are not labelled');
+      expect(label).not.toHaveAttribute('data-turned');
+      expect(label).not.toHaveAttribute('transform');
+      const band = bandOf(41);
+      const x = Number(label.getAttribute('x'));
+      expect(x).toBeCloseTo((band.left + band.right) / 2, 5);
+      expect(Number(label.getAttribute('y'))).toBeGreaterThan(band.top);
+    });
+
+    it('says which way is faster in the corners with no marks under them', async () => {
+      show();
+      await settled();
+      await drawn(4);
+      // The third lap drawn is a stop of ours, with marks over the words a
+      // left corner would hold; the last laps have none.
+      const sides = screen.getAllByTestId('race-charts-side');
+      expect(sides.map((side) => Number(side.getAttribute('y')))).toEqual([
+        TOP + 10,
+        BOTTOM - 4,
+      ]);
+      expect(sides[0].parentElement).toHaveAttribute('text-anchor', 'end');
+      expect(Number(sides[0].getAttribute('x'))).toBeGreaterThan(600);
+    });
+
+    it('keeps them on the left where that is as clear', async () => {
+      show({ ...RACE_HISTORY_STAGE_FOR_CHARTS }, { tab: 'gap' });
+      await settled();
+      await drawn(3);
+      const sides = screen.getAllByTestId('race-charts-side');
+      expect(sides[0].parentElement).toHaveAttribute('text-anchor', 'start');
+      expect(Number(sides[0].getAttribute('x'))).toBeLessThan(60);
     });
   });
 

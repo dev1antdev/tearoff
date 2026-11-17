@@ -45,14 +45,38 @@ export interface ChartSeries {
   readings: ReadonlyMap<number, LapReading>;
 }
 
-/** A line of the legend under a chart. */
+/**
+ * A line of the legend under a chart. A car's number and a driver's name
+ * are apart, so that a legend short of room can write less of them.
+ */
 export type LegendEntry =
   /** A driver of our car, in the colour of their laps. */
-  | { kind: 'driver'; key: string; colour: number; text: string }
-  /** Another car, with why it is drawn. */
-  | { kind: 'car'; key: string; line: number; text: string; role: string }
+  | {
+      kind: 'driver';
+      key: string;
+      colour: number;
+      /** Our car, as "#77". */
+      number: string;
+      /** Empty where the record does not name them. */
+      name: string;
+    }
+  /** Another car, with who drives it and why it is drawn. */
+  | {
+      kind: 'car';
+      key: string;
+      line: number;
+      number: string;
+      name: string;
+      role: string;
+    }
   /** What a band behind the lines stands for, or a mark at the edge. */
-  | { kind: 'stop' | 'missing' | 'mark'; key: string; text: string };
+  | {
+      kind: 'stop' | 'missing' | 'mark';
+      key: string;
+      /** A word before the text that it can be read without. */
+      lead?: string;
+      text: string;
+    };
 
 export interface ChartModel {
   tab: RaceChartsTab;
@@ -136,9 +160,8 @@ const driverEntries = (
       kind: 'driver' as const,
       key: `driver-${index}`,
       colour: driverColour(index, true),
-      text: [`#${own.number}`, shortDriver(drivers[index] ?? '')]
-        .filter(Boolean)
-        .join(' '),
+      number: `#${own.number}`,
+      name: shortDriver(drivers[index] ?? ''),
     }));
 };
 
@@ -146,12 +169,8 @@ const carEntry = (rival: ChartRivalInput, span: LapSpan): LegendEntry => ({
   kind: 'car',
   key: `car-${rival.carIdx}`,
   line: rival.line,
-  text: [
-    `#${rival.number}`,
-    rival.record ? shortDriver(latestDriver(rival.record, span)) : '',
-  ]
-    .filter(Boolean)
-    .join(' '),
+  number: `#${rival.number}`,
+  name: rival.record ? shortDriver(latestDriver(rival.record, span)) : '',
   role: ROLE_TEXT[rival.role],
 });
 
@@ -159,7 +178,12 @@ const carEntry = (rival: ChartRivalInput, span: LapSpan): LegendEntry => ({
 const bandEntries = (bands: readonly ChartBand[]): LegendEntry[] => {
   const entries: LegendEntry[] = [];
   if (bands.some((band) => band.kind === 'stop')) {
-    entries.push({ kind: 'stop', key: 'stop', text: 'our pit stop' });
+    entries.push({
+      kind: 'stop',
+      key: 'stop',
+      lead: 'our',
+      text: 'pit stop',
+    });
   }
   if (bands.some((band) => band.kind === 'missing')) {
     entries.push({ kind: 'missing', key: 'missing', text: 'not recorded' });
@@ -310,7 +334,14 @@ export const buildChart = ({
       ...read.map((rival) => carEntry(rival, span)),
       ...bandEntries(bands),
       ...(marked
-        ? [{ kind: 'mark' as const, key: 'mark', text: 'lap off the scale' }]
+        ? [
+            {
+              kind: 'mark' as const,
+              key: 'mark',
+              lead: 'lap',
+              text: 'off the scale',
+            },
+          ]
         : []),
     ],
     caption: 'Lap time',

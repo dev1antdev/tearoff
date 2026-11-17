@@ -18,7 +18,10 @@ import type {
   RaceChartsTab,
 } from '@irdashies/types';
 import { buildChart } from './chartModel';
-import { ChartControls } from './components/ChartControls';
+import {
+  ChartControls,
+  type ChartControlsProps,
+} from './components/ChartControls';
 import { ChartLegend } from './components/ChartLegend';
 import { ChartPlot } from './components/ChartPlot';
 import {
@@ -33,7 +36,14 @@ const FALLBACK_BOX = { width: 640, height: 200 };
 /** The height of plot one gridline of the scale is given, CSS pixels. */
 const GRIDLINE_ROOM_PX = 26;
 /** What of a chart's box is not plot: the lap numbers and the room above. */
-const BOX_MARGIN_PX = 30;
+const BOX_MARGIN_PX = 24;
+/** What a legend of two lines takes under the chart. */
+const LEGEND_TWO_LINES_PX = 40;
+/**
+ * A plot that is still this tall over a legend of two lines can spare the
+ * second line: the legend is then not shortened to stay on one.
+ */
+const ROOMY_PLOT_PX = 160;
 
 const NO_CARS: readonly number[] = [];
 const WITHOUT_USAGE: readonly RaceChartsTab[] = ['pace', 'gap'];
@@ -47,8 +57,8 @@ const NOTICE =
   'flex h-full items-center justify-center p-3 text-center text-[12px] text-slate-400';
 
 interface ChartAreaProps {
-  tab: RaceChartsTab;
-  laps: RaceChartsLaps;
+  /** The bar over the chart, less what the chart has to say in it. */
+  controls: Omit<ChartControlsProps, 'caption' | 'missing'>;
   own: ChartCar;
   ownRecord: CarRaceRecord;
   rivals: readonly ChartRivalCar[];
@@ -61,13 +71,13 @@ interface ChartAreaProps {
 }
 
 /**
- * The chart for the tab and the laps chosen, in the room under the bar: a
- * line saying what the scale counts, the plot at whatever size is left, and
- * the legend. Where there is nothing to draw the plot's box says why.
+ * The bar, and under it the chart for the tab and the laps chosen: the plot
+ * at whatever size is left over the legend. The bar says what the chart's
+ * scale counts, so it is drawn here, where the chart is made. Where there
+ * is nothing to draw the plot's box says why.
  */
 const ChartArea = ({
-  tab,
-  laps,
+  controls,
   own,
   ownRecord,
   rivals,
@@ -75,10 +85,17 @@ const ChartArea = ({
   chosen,
   missingLaps,
 }: ChartAreaProps) => {
+  const area = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
+  const { tab, laps } = controls;
+  // The chart with its legend, whose height does not change with how many
+  // lines the legend takes; and the chart's own box, whose height does.
+  const room = useElementSize(area);
   const measured = useElementSize(box);
   const isMeasured = measured.width > 0 && measured.height > 0;
   const { width, height } = isMeasured ? measured : FALLBACK_BOX;
+  const roomy =
+    room.height - LEGEND_TWO_LINES_PX - BOX_MARGIN_PX >= ROOMY_PLOT_PX;
   const maxLines = Math.min(
     6,
     Math.max(2, Math.floor((height - BOX_MARGIN_PX) / GRIDLINE_ROOM_PX))
@@ -104,34 +121,36 @@ const ChartArea = ({
 
   return (
     <>
-      {model && (
-        <div className="flex flex-none items-baseline justify-between gap-3 px-2 pt-1 text-[11px] leading-4 text-slate-400">
-          <span data-testid="race-charts-caption">{model.caption}</span>
-          {missingLaps > 0 && (
-            <span
-              data-testid="race-charts-missing"
-              className="whitespace-nowrap text-amber-200"
-            >
-              {count(missingLaps, 'lap')} not recorded
-            </span>
+      <ChartControls
+        {...controls}
+        caption={model?.caption}
+        missing={
+          model && missingLaps > 0
+            ? `${count(missingLaps, 'lap')} not recorded`
+            : undefined
+        }
+      />
+      <div
+        ref={area}
+        // Drawn once its box is known: a frame at another size, or a legend
+        // on another number of lines, would show as a jump.
+        className={`flex min-h-0 flex-1 flex-col ${
+          model && !isMeasured ? 'invisible' : ''
+        }`}
+      >
+        {/* Not clipped: the readout of a lap may reach down over the
+            legend. */}
+        <div ref={box} className="min-h-0 flex-1">
+          {model ? (
+            <ChartPlot model={model} width={width} height={height} />
+          ) : (
+            <p data-testid="race-charts-notice" className={NOTICE}>
+              {notice}
+            </p>
           )}
         </div>
-      )}
-      {/* Not clipped: the readout of a lap may reach down over the legend. */}
-      <div ref={box} className="min-h-0 flex-1">
-        {model ? (
-          // Drawn once its box is known: a frame at another size would
-          // show as a jump.
-          <div className={isMeasured ? 'h-full' : 'invisible h-full'}>
-            <ChartPlot model={model} width={width} height={height} />
-          </div>
-        ) : (
-          <p data-testid="race-charts-notice" className={NOTICE}>
-            {notice}
-          </p>
-        )}
+        {model && <ChartLegend entries={model.legend} roomy={roomy} />}
       </div>
-      {model && <ChartLegend entries={model.legend} />}
     </>
   );
 };
@@ -185,6 +204,14 @@ const RaceChartsPanel = ({ settings }: { settings: RaceChartsConfig }) => {
     failed: failed.has(own.carIdx),
   });
 
+  const controls = {
+    tabs: hasUsage ? WITH_USAGE : WITHOUT_USAGE,
+    tab,
+    laps: view.laps,
+    onTab,
+    onLaps,
+  };
+
   return (
     <div
       data-testid="race-charts"
@@ -195,24 +222,18 @@ const RaceChartsPanel = ({ settings }: { settings: RaceChartsConfig }) => {
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}
     >
-      <ChartControls
-        tabs={hasUsage ? WITH_USAGE : WITHOUT_USAGE}
-        tab={tab}
-        laps={view.laps}
-        onTab={onTab}
-        onLaps={onLaps}
-      />
-
       {notice || !ownRecord ? (
-        <div className="min-h-0 flex-1">
-          <p data-testid="race-charts-notice" className={NOTICE}>
-            {notice}
-          </p>
-        </div>
+        <>
+          <ChartControls {...controls} />
+          <div className="min-h-0 flex-1">
+            <p data-testid="race-charts-notice" className={NOTICE}>
+              {notice}
+            </p>
+          </div>
+        </>
       ) : (
         <ChartArea
-          tab={tab}
-          laps={view.laps}
+          controls={controls}
           own={own}
           ownRecord={ownRecord}
           rivals={cars.rivals}

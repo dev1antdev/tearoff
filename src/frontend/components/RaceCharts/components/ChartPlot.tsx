@@ -33,8 +33,6 @@ const AXIS_PX = 46;
 const RIGHT_PX = 10;
 const TOP_PX = 6;
 const BOTTOM_PX = 18;
-/** The line of words over the plot that names a band. */
-const BAND_LABEL_PX = 13;
 /** What one mark takes in the pile of marks at a lap. */
 const MARK_ROW_PX = 8;
 /** Half the width of such a mark. */
@@ -42,29 +40,36 @@ const MARK_HALF_PX = 3.5;
 /** Roughly what a lap number takes along the bottom, and a letter of a label. */
 const LAP_LABEL_PX = 38;
 const LETTER_PX = 5.4;
-/** Kept clear between two labels on one line. */
-const LABEL_GAP_PX = 8;
+/** The height of a line of such letters. */
+const LINE_PX = 12;
+/** Kept clear around words written in the plot. */
+const WORD_GAP_PX = 4;
 /** How far the readout stands off the lap pointed at, and off the top. */
 const READOUT_OFFSET_PX = 12;
 const READOUT_TOP_PX = 2;
 
 interface BandLabel {
   x: number;
+  y: number;
   text: string;
+  /** Written up the band, which is too narrow to hold it across. */
+  turned: boolean;
 }
 
 interface Geometry {
   x0: number;
   x1: number;
-  /** The plot's box, bands and all. */
+  /**
+   * The plot's box. The values are drawn over the whole of it: the marks
+   * and the words of a band are inside it and take no room from it.
+   */
   y0: number;
   y1: number;
-  /** Where the values are drawn, inside the rows of marks. */
-  top: number;
-  bottom: number;
   lapWidth: number;
   piles: MarkPiles;
   bandLabels: BandLabel[];
+  /** Where the words for the two ends of the scale stand. */
+  sides: { x: number; top: number; bottom: number; onRight: boolean };
 }
 
 /** Our own car first: in a readout, and nearest the edge in a pile of marks. */
@@ -74,9 +79,9 @@ const ownFirst = (series: readonly ChartSeries[]): ChartSeries[] =>
 interface MarkPiles {
   /** A mark's place in the pile at its lap and edge, by car and lap. */
   place: Map<string, number>;
-  /** The tallest pile at the top of the plot, and at the bottom. */
-  top: number;
-  bottom: number;
+  /** The marks piled at each lap: at the top of the plot, and at the bottom. */
+  top: Map<number, number>;
+  bottom: Map<number, number>;
 }
 
 const pileKey = (carIdx: number, lap: number): string => `${carIdx}:${lap}`;
@@ -92,48 +97,88 @@ const pilesOf = (
   series: readonly ChartSeries[],
   atTop: (edge: 'high' | 'low') => boolean
 ): MarkPiles => {
-  const piles: MarkPiles = { place: new Map(), top: 0, bottom: 0 };
-  const height = new Map<string, number>();
+  const piles: MarkPiles = {
+    place: new Map(),
+    top: new Map(),
+    bottom: new Map(),
+  };
   for (const entry of ownFirst(series)) {
     for (const mark of entry.drawn.marks) {
-      const side = atTop(mark.edge) ? 'top' : 'bottom';
-      const pile = `${side}:${mark.lap}`;
-      const place = height.get(pile) ?? 0;
-      height.set(pile, place + 1);
+      const pile = atTop(mark.edge) ? piles.top : piles.bottom;
+      const place = pile.get(mark.lap) ?? 0;
+      pile.set(mark.lap, place + 1);
       piles.place.set(pileKey(entry.carIdx, mark.lap), place);
-      piles[side] = Math.max(piles[side], place + 1);
     }
   }
   return piles;
 };
 
+/** What a pile of so many marks covers of the plot, from its edge inwards. */
+const pileDepth = (marks: number): number =>
+  marks > 0 ? marks * MARK_ROW_PX + 2 : 0;
+
+/** The tallest pile over a run of laps. */
+const tallestPile = (
+  pile: ReadonlyMap<number, number>,
+  from: number,
+  to: number
+): number => {
+  let tallest = 0;
+  for (const [lap, marks] of pile) {
+    if (lap >= from && lap <= to) tallest = Math.max(tallest, marks);
+  }
+  return tallest;
+};
+
+/** A band's box, and the words that must be kept clear of in the corners. */
+interface BandRoom {
+  left: number;
+  width: number;
+  /** The plot's box. */
+  y0: number;
+  y1: number;
+  /**
+   * For a band under the corners' words: how far down the upper ones
+   * reach, and how far up the lower ones. Left out for a band that is not.
+   */
+  corner?: { top: number; bottom: number };
+}
+
 /**
- * The words over each band that have room: a band's own, or just "stop"
- * for a stop whose longer label would run into its neighbour's.
+ * The words in a band, where it has room for them: its own, or just "stop"
+ * for a stop whose longer label does not fit. They are written across a
+ * band wide enough to hold them and up one that is not, as a stop of one
+ * lap is, under the marks piled at the band's laps.
  */
-const labelsOf = (
-  bands: readonly ChartBand[],
-  centreOf: (band: ChartBand) => number,
-  x0: number,
-  x1: number
-): BandLabel[] => {
-  const labels: BandLabel[] = [];
-  let taken = x0 - LABEL_GAP_PX;
-  for (const band of bands) {
-    const texts =
-      band.kind === 'stop' && band.label !== 'stop'
-        ? [band.label, 'stop']
-        : [band.label];
-    for (const text of texts) {
-      const half = (text.length * LETTER_PX) / 2;
-      const x = Math.min(Math.max(centreOf(band), x0 + half), x1 - half);
-      if (x - half < taken + LABEL_GAP_PX || x + half > x1) continue;
-      labels.push({ x, text });
-      taken = x + half;
-      break;
+const labelOf = (
+  band: ChartBand,
+  piles: MarkPiles,
+  { left, width, y0, y1, corner }: BandRoom
+): BandLabel | null => {
+  const from = Math.max(
+    y0 + pileDepth(tallestPile(piles.top, band.from, band.to)),
+    corner?.top ?? y0
+  );
+  const to = Math.min(
+    y1 - pileDepth(tallestPile(piles.bottom, band.from, band.to)),
+    corner?.bottom ?? y1
+  );
+  const room = to - from - 2 * WORD_GAP_PX;
+  const x = left + width / 2;
+  const texts =
+    band.kind === 'stop' && band.label !== 'stop'
+      ? [band.label, 'stop']
+      : [band.label];
+  for (const text of texts) {
+    const length = text.length * LETTER_PX;
+    if (width >= length + 2 * WORD_GAP_PX && room >= LINE_PX) {
+      return { x, y: from + WORD_GAP_PX + 9, text, turned: false };
+    }
+    if (room >= length) {
+      return { x, y: from + WORD_GAP_PX, text, turned: true };
     }
   }
-  return labels;
+  return null;
 };
 
 interface ReadoutProps {
@@ -217,6 +262,10 @@ export interface ChartPlotProps {
  * and each run of laps that were not recorded, the lines, and a mark at
  * the edge for each lap that does not fit the scale.
  *
+ * The lines have the whole height of the plot. What a band is is written
+ * inside it, and the marks stand inside the plot's edge, over the lines:
+ * neither has a row of its own, which a short panel cannot spare.
+ *
  * Pointing at it, with a mouse, a finger or the arrow keys, picks the
  * nearest lap and says what every car did on it.
  */
@@ -224,43 +273,82 @@ export const ChartPlot = memo(({ model, width, height }: ChartPlotProps) => {
   const box = useRef<HTMLDivElement>(null);
   const hatch = useId();
   const [hoverLap, setHoverLap] = useState<number | null>(null);
-  const { span, axis, inverted, series, bands } = model;
+  const { span, axis, inverted, series, bands, sides } = model;
   const laps = span.to - span.from + 1;
 
   const geometry = useMemo<Geometry>(() => {
     const x0 = AXIS_PX;
     const x1 = Math.max(x0 + 40, width - RIGHT_PX);
     const lapWidth = (x1 - x0) / laps;
-    const centreOf = (band: ChartBand) =>
-      x0 + ((band.from + band.to) / 2 - span.from + 0.5) * lapWidth;
-    const bandLabels = labelsOf(bands, centreOf, x0, x1);
-    const y0 = TOP_PX + (bandLabels.length > 0 ? BAND_LABEL_PX : 0);
+    const y0 = TOP_PX;
     const y1 = Math.max(y0 + 40, height - BOTTOM_PX);
     // The scale's largest values are at the top unless it is turned over.
     const piles = pilesOf(series, (edge) => (edge === 'high') !== inverted);
-    const room = (count: number) => (count > 0 ? count * MARK_ROW_PX + 2 : 0);
+
+    // The words that say which way the scale runs stand in the corners of
+    // one side: the left, unless fewer marks are piled at the laps under
+    // the right. Under what is piled there they stand clear of it.
+    const cornerWidth = sides
+      ? Math.max(sides.top.length, sides.bottom.length) * LETTER_PX +
+        2 * WORD_GAP_PX
+      : 0;
+    // The laps at an end whose marks reach under those words.
+    const cornerLaps = Math.min(
+      laps,
+      Math.max(1, Math.ceil((cornerWidth + MARK_HALF_PX) / lapWidth - 0.5))
+    );
+    const depths = (from: number, to: number) => ({
+      top: pileDepth(tallestPile(piles.top, from, to)),
+      bottom: pileDepth(tallestPile(piles.bottom, from, to)),
+    });
+    const atLeft = depths(span.from, span.from + cornerLaps - 1);
+    const atRight = depths(span.to - cornerLaps + 1, span.to);
+    const onRight = atRight.top + atRight.bottom < atLeft.top + atLeft.bottom;
+    const under = onRight ? atRight : atLeft;
+    const sideTop = y0 + under.top + 10;
+    const sideBottom = y1 - under.bottom - 4;
+    const cornerFrom = onRight ? x1 - cornerWidth : x0;
+
+    const bandLabels = bands.flatMap((band) => {
+      const left = x0 + (band.from - span.from) * lapWidth;
+      const bandWidth = (band.to - band.from + 1) * lapWidth;
+      const label = labelOf(band, piles, {
+        left,
+        width: bandWidth,
+        y0,
+        y1,
+        corner:
+          left < cornerFrom + cornerWidth && left + bandWidth > cornerFrom
+            ? { top: sideTop + 2, bottom: sideBottom - 8 }
+            : undefined,
+      });
+      return label ? [label] : [];
+    });
     return {
       x0,
       x1,
       y0,
       y1,
-      top: y0 + room(piles.top),
-      bottom: y1 - room(piles.bottom),
       lapWidth,
       piles,
       bandLabels,
+      sides: {
+        x: onRight ? x1 - WORD_GAP_PX : x0 + WORD_GAP_PX,
+        top: sideTop,
+        bottom: sideBottom,
+        onRight,
+      },
     };
-  }, [width, height, laps, span.from, bands, series, inverted]);
-  const { x0, x1, y0, y1, top, bottom, lapWidth } = geometry;
+  }, [width, height, laps, span.from, span.to, bands, series, inverted, sides]);
+  const { x0, x1, y0, y1, lapWidth } = geometry;
 
   const lapX = useCallback(
     (lap: number): number => x0 + (lap - span.from + 0.5) * lapWidth,
     [x0, span.from, lapWidth]
   );
   const valueY = useCallback(
-    (value: number): number =>
-      top + valueToY(value, axis, bottom - top, inverted),
-    [top, bottom, axis, inverted]
+    (value: number): number => y0 + valueToY(value, axis, y1 - y0, inverted),
+    [y0, y1, axis, inverted]
   );
 
   const lapTicks = useMemo(
@@ -362,17 +450,6 @@ export const ChartPlot = memo(({ model, width, height }: ChartPlotProps) => {
             className={band.kind === 'stop' ? 'fill-slate-500/25' : undefined}
           />
         ))}
-        {geometry.bandLabels.map((label) => (
-          <text
-            key={label.x}
-            x={label.x}
-            y={TOP_PX + 8}
-            textAnchor="middle"
-            className="fill-slate-400 text-[10px]"
-          >
-            {label.text}
-          </text>
-        ))}
 
         {axis.values.map((value) => {
           const y = valueY(value);
@@ -432,22 +509,50 @@ export const ChartPlot = memo(({ model, width, height }: ChartPlotProps) => {
             </text>
           </g>
         ))}
-        {model.sides && (
-          // Outlined in the panel's own colour, so that a gridline behind
-          // a word does not strike it through.
-          <g
-            strokeWidth={3}
-            strokeLinejoin="round"
-            className="fill-slate-400 stroke-slate-800 text-[10px] [paint-order:stroke]"
-          >
-            <text data-testid="race-charts-side" x={x0 + 4} y={top + 10}>
-              {model.sides.top}
+        {/* The words written in the plot, outlined in the panel's own
+            colour, so that a gridline behind a word does not strike it
+            through. */}
+        <g
+          strokeWidth={3}
+          strokeLinejoin="round"
+          className="fill-slate-400 stroke-slate-800 text-[10px] [paint-order:stroke]"
+        >
+          {geometry.bandLabels.map((label) => (
+            <text
+              key={label.x}
+              data-testid="race-charts-band-label"
+              data-turned={label.turned || undefined}
+              x={label.x}
+              y={label.y}
+              // Turned, it reads upwards and ends where it is anchored.
+              textAnchor={label.turned ? 'end' : 'middle'}
+              dominantBaseline={label.turned ? 'central' : undefined}
+              transform={
+                label.turned ? `rotate(-90 ${label.x} ${label.y})` : undefined
+              }
+            >
+              {label.text}
             </text>
-            <text data-testid="race-charts-side" x={x0 + 4} y={bottom - 4}>
-              {model.sides.bottom}
-            </text>
-          </g>
-        )}
+          ))}
+          {sides && (
+            <g textAnchor={geometry.sides.onRight ? 'end' : 'start'}>
+              <text
+                data-testid="race-charts-side"
+                x={geometry.sides.x}
+                y={geometry.sides.top}
+              >
+                {sides.top}
+              </text>
+              <text
+                data-testid="race-charts-side"
+                x={geometry.sides.x}
+                y={geometry.sides.bottom}
+              >
+                {sides.bottom}
+              </text>
+            </g>
+          )}
+        </g>
 
         {series.map((entry) => {
           const look = rivalLook(entry.line);

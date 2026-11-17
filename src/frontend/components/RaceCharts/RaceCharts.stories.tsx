@@ -198,3 +198,76 @@ export const UsageInANarrowPitWallPanel: Story = {
     panel: { width: 560, height: 320 },
   }),
 };
+
+/**
+ * In the panel the Race page has for it in a window of 1600 by 900: 887 by
+ * 264. A panel this short gives its legend one line, with the other cars
+ * named by number, and what the scale counts is in the bar.
+ */
+export const InTheRacePanelAt1600: Story = {
+  ...raceHistoryStory('racecharts', {
+    stage,
+    panel: { width: 887, height: 264 },
+  }),
+};
+
+/**
+ * In the Race page's panel at 1280 by 800: 588 by 214. The legend is at its
+ * barest to stay on one line, and a stop's band has room for "stop" alone.
+ */
+export const InTheRacePanelAt1280: Story = {
+  ...raceHistoryStory('racecharts', {
+    stage,
+    panel: { width: 588, height: 214 },
+  }),
+};
+
+/** The gap chart in that panel, with what its scale counts in the bar. */
+export const GapInTheRacePanelAt1280: Story = {
+  ...raceHistoryStory('racecharts', {
+    stage,
+    config: { tab: 'gap' },
+    panel: { width: 588, height: 214 },
+  }),
+};
+
+/** The whole race in that panel. */
+export const WholeRaceInTheRacePanelAt1280: Story = {
+  ...raceHistoryStory('racecharts', {
+    stage,
+    config: { laps: 0 },
+    panel: { width: 588, height: 214 },
+  }),
+};
+
+/**
+ * Under 400 wide, as the page's panel on a phone is: the buttons of the bar
+ * leave the caption no room, and it goes under them. The legend is held to
+ * two lines.
+ */
+export const Under400Wide: Story = {
+  ...raceHistoryStory('racecharts', {
+    stage,
+    config: { tab: 'gap' },
+    size: { width: 364, height: 420 },
+  }),
+};
+
+/** The pace chart at that width: the legend at its barest, on two lines. */
+export const PaceUnder400Wide: Story = {
+  ...raceHistoryStory('racecharts', {
+    stage,
+    size: { width: 364, height: 420 },
+  }),
+};
+
+/**
+ * Laps that were not recorded, in the Race page's short panel: the bar says
+ * how many beside what the scale counts.
+ */
+export const AfterARestartInTheRacePanelAt1280: Story = {
+  ...raceHistoryStory('racecharts', {
+    stage: { ownLaps: 60, outage: { afterOwnLap: 40, untilOwnLap: 47 } },
+    panel: { width: 588, height: 214 },
+  }),
+};
