@@ -296,6 +296,7 @@ export const PitWall = memo(({ renderPanel }: PitWallProps) => {
           onOpenSettings={canOpenSettings ? openOwnSettings : undefined}
           reconnecting={reconnecting}
           markHangsOutside
+          phone={stacked}
         />
         {editing && (
           <PitWallEditBar

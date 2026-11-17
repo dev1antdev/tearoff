@@ -3,9 +3,11 @@ import {
   ArrowsClockwiseIcon,
   CornersInIcon,
   CornersOutIcon,
+  EyeIcon,
   GearIcon,
   PencilSimpleIcon,
 } from '@phosphor-icons/react';
+import { useFitLevel } from '@irdashies/domain/widgetPresentation/useFitLevel';
 import {
   PIT_WALL_LAYOUT_CHOICE_LIST,
   type PitWallLayoutChoice,
@@ -43,7 +45,44 @@ export interface PitWallHeaderProps {
    * element, so that the mark is under the bar and on none of the tabs.
    */
   markHangsOutside?: boolean;
+  /**
+   * The page is as narrow as a phone: the strip is two short rows, the
+   * clock and the flag over our car, its place and who drives it, with
+   * none of the words around them.
+   */
+  phone?: boolean;
 }
+
+/**
+ * What the strip gives up, a step at a time and in this order, to keep to
+ * one line in a window too narrow for all of it. Before any of these the
+ * session's name is cut short, down to the width of the clock under it,
+ * which the page's own layout does. What is left out is kept for a screen
+ * reader.
+ */
+export const PIT_WALL_HEADER_SQUEEZE = {
+  /** Less room between its items. */
+  gaps: 1,
+  /** The dot alone for "Le Mans Ultimate connected". */
+  simulator: 2,
+  /** No "Pit Wall" beside the wordmark: the window's title carries it. */
+  title: 3,
+  /** An eye for "You are watching". */
+  watching: 4,
+  /** Still less room between its items, and in the layout switch. */
+  tightGaps: 5,
+  /** No "At the wheel" over the driver's name, which may be cut short. */
+  driver: 6,
+} as const;
+
+const SQUEEZE_STEPS = 7;
+
+/**
+ * The narrowest strip that is held to one line, by its own width in CSS
+ * pixels: on the layouts made for a monitor, and on the one for a tablet,
+ * which has less to hold. A narrower one wraps.
+ */
+export const ONE_LINE_FROM_PX = { wide: 1280, tall: 1100 } as const;
 
 const FLAG_TONE_CLASS: Record<FlagTone, string> = {
   green: 'border-green-400 bg-green-900 text-green-200',
@@ -66,6 +105,12 @@ const iconButtonClass =
  * left, the flag, where our car is and who is in it, and the page's own
  * controls. Every item is left out or shown as "--" while its source has
  * nothing, so the strip never states a figure nobody measured.
+ *
+ * From 1280 pixels wide (1100 on the layout made for a tablet) it is one
+ * line whatever it holds: see `PIT_WALL_HEADER_SQUEEZE`. In the last resort
+ * what is between the wordmark and the controls is cut at its end, and the
+ * controls stay. A narrower window wraps it, and a phone has it in two
+ * rows.
  */
 export const PitWallHeader = ({
   data,
@@ -78,6 +123,7 @@ export const PitWallHeader = ({
   onOpenSettings,
   reconnecting = false,
   markHangsOutside = false,
+  phone = false,
 }: PitWallHeaderProps) => {
   const { car } = data;
   // Touch-sized targets on the layout made for a tablet.
@@ -86,25 +132,85 @@ export const PitWallHeader = ({
     ? `${data.simulator}, as last heard`
     : `${data.simulator} connected`;
 
+  // How far the strip is squeezed to keep to its line: found on the page,
+  // from the strip's own width, for everything it has to write.
+  const fit = useFitLevel({
+    levels: phone ? 1 : SQUEEZE_STEPS,
+    content: [
+      layout,
+      data.simulator,
+      data.session,
+      // The clock's figures are all one width: only their number counts.
+      data.timeLeft.length,
+      data.timeOfDay?.length,
+      data.flag?.label,
+      car?.number,
+      car?.place.position,
+      car?.place.field,
+      car?.place.overall,
+      car?.driver,
+      data.watching,
+      Boolean(onLayoutChange),
+      Boolean(onEditLayout),
+      Boolean(onOpenSettings),
+    ].join('|'),
+  });
+  const squeezed = (step: number) => fit.level >= step;
+  // One line from the width a monitor has, and wrapped under it. Asked of
+  // the strip's own width and not of the window's: a page drawn at 125 %
+  // has a strip a fifth narrower than its window.
+  const oneLine =
+    !phone &&
+    fit.width >= (tall ? ONE_LINE_FROM_PX.tall : ONE_LINE_FROM_PX.wide);
+  // A phone has no room for a word that is not a figure.
+  const bare = {
+    simulator: tall || phone || squeezed(PIT_WALL_HEADER_SQUEEZE.simulator),
+    title: tall || phone || squeezed(PIT_WALL_HEADER_SQUEEZE.title),
+    watching: phone || squeezed(PIT_WALL_HEADER_SQUEEZE.watching),
+  };
+  const gap =
+    phone || squeezed(PIT_WALL_HEADER_SQUEEZE.tightGaps)
+      ? 'gap-x-3'
+      : squeezed(PIT_WALL_HEADER_SQUEEZE.gaps)
+        ? tall
+          ? 'gap-x-4'
+          : 'gap-x-5'
+        : tall
+          ? 'gap-x-5'
+          : 'gap-x-7';
+  const driverBare = phone || squeezed(PIT_WALL_HEADER_SQUEEZE.driver);
+
   return (
     <header
+      ref={fit.frame}
+      data-squeeze={fit.level}
       // Positioned, for the mark that hangs from it while reconnecting,
       // unless the mark is to hang from what is around it.
-      className={`settings-shell flex shrink-0 flex-wrap items-center gap-y-2 border-b border-slate-700 bg-slate-950 px-4 py-2 text-slate-200 tabular-nums ${
+      className={`settings-shell flex shrink-0 items-center border-b border-slate-700 bg-slate-950 text-slate-200 tabular-nums ${
         markHangsOutside ? '' : 'relative'
-      } ${tall ? 'gap-x-5' : 'gap-x-7'}`}
+      } ${gap} ${oneLine ? 'flex-nowrap' : 'flex-wrap'} ${
+        phone ? 'px-3 py-1.5' : 'gap-y-2 px-4 py-2'
+      }`}
     >
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         <img src={logo} alt="" className="size-7 shrink-0" />
-        <span className="text-lg font-semibold tracking-[-0.04em] text-white">
+        <span
+          className={
+            phone
+              ? 'sr-only'
+              : 'text-lg font-semibold tracking-[-0.04em] text-white'
+          }
+        >
           Tear<span className="text-red-600">off</span>
         </span>
         {/* The small layout has no room for the page's name beside the
             wordmark: the window's title bar carries it. */}
-        {!tall && <span aria-hidden="true" className="h-5 w-px bg-slate-700" />}
+        {!bare.title && (
+          <span aria-hidden="true" className="h-5 w-px bg-slate-700" />
+        )}
         <h1
           className={
-            tall
+            bare.title
               ? 'sr-only'
               : 'text-xs font-bold tracking-[0.1em] text-slate-400 uppercase'
           }
@@ -113,115 +219,196 @@ export const PitWallHeader = ({
         </h1>
       </div>
 
-      {data.simulator && (
-        <div
-          data-item="simulator"
-          // The simulator's connection is to the app, and the page's is to
-          // the app as well. While the page has lost the app it cannot say
-          // the simulator is connected: that is the last it heard, and
-          // "connected" beside "Reconnecting" read as two answers to one
-          // question. The item is dimmed and says what it is.
-          className={`flex items-center gap-2 text-sm ${
-            reconnecting ? 'text-slate-500' : 'text-slate-300'
-          }`}
-          title={simulatorText}
-        >
-          <span
-            className={`size-2 shrink-0 rounded-full ${
-              reconnecting ? 'bg-slate-600' : 'bg-emerald-400'
-            }`}
-            aria-hidden="true"
-          />
-          {/* The small layout keeps the dot and says the rest to a reader. */}
-          <span className={tall ? 'sr-only' : undefined}>{simulatorText}</span>
-        </div>
-      )}
-
-      {data.inSession && (
-        <div className="flex min-w-0 flex-col" data-item="session">
-          {data.session && (
-            // On the small layout a long track name is cut at the width
-            // of the clock under it, so the strip keeps to its line.
-            <span
-              className={`${labelClass} truncate ${tall ? 'w-0 min-w-full' : ''}`}
-              title={data.session}
-            >
-              {data.session}
-            </span>
-          )}
-          <span className="text-xl leading-tight font-bold text-white">
-            {data.timeLeft}{' '}
-            <span className="text-xs font-normal text-slate-400">
-              left
-              {data.timeOfDay && ` · ${data.timeOfDay} in game`}
-            </span>
-          </span>
-        </div>
-      )}
-
-      {data.flag && (
-        <div
-          data-item="flag"
-          className={`rounded-md border px-3.5 py-1.5 text-sm font-bold tracking-[0.08em] ${FLAG_TONE_CLASS[data.flag.tone]}`}
-        >
-          {data.flag.label}
-        </div>
-      )}
-
-      {car && (
-        <div className="flex items-center gap-2.5" data-item="car">
+      {/* What the strip is about, between the wordmark and the controls.
+          On one line it is a box of its own, which is what is cut at its
+          end when nothing else gives; wrapped, it is no box at all, and
+          its items wrap among the strip's as they always did. */}
+      <div
+        ref={fit.target}
+        className={
+          oneLine
+            ? `flex min-w-0 flex-1 items-center overflow-hidden ${gap}`
+            : 'contents'
+        }
+      >
+        {data.simulator && (
           <div
-            className="rounded border-l-4 border-slate-500 bg-slate-800 px-2.5 py-1 text-lg leading-tight font-black text-white"
-            style={
-              car.classColor
-                ? {
-                    borderLeftColor: car.classColor,
-                    backgroundColor: `color-mix(in srgb, ${car.classColor} 22%, transparent)`,
-                  }
-                : undefined
-            }
+            data-item="simulator"
+            // The simulator's connection is to the app, and the page's is to
+            // the app as well. While the page has lost the app it cannot say
+            // the simulator is connected: that is the last it heard, and
+            // "connected" beside "Reconnecting" read as two answers to one
+            // question. The item is dimmed and says what it is.
+            className={`flex shrink-0 items-center gap-2 text-sm whitespace-nowrap ${
+              reconnecting ? 'text-slate-500' : 'text-slate-300'
+            }`}
+            title={simulatorText}
           >
-            #{car.number}
-          </div>
-          <div className="flex flex-col">
-            <span className="text-base leading-tight font-bold text-white">
-              {car.place.position}
-              {car.place.field && (
-                <span className="font-normal text-slate-400">
-                  {' '}
-                  {car.place.field}
-                </span>
-              )}
+            <span
+              className={`size-2 shrink-0 rounded-full ${
+                reconnecting ? 'bg-slate-600' : 'bg-emerald-400'
+              }`}
+              aria-hidden="true"
+            />
+            {/* Short of room the strip keeps the dot and says the rest to
+                a reader. */}
+            <span className={bare.simulator ? 'sr-only' : undefined}>
+              {simulatorText}
             </span>
-            {car.place.overall && (
-              <span className="text-xs text-slate-400">
-                {car.place.overall}
+          </div>
+        )}
+
+        {data.inSession && (
+          <div
+            // The first to give way on one line, and no narrower than the
+            // clock: the name over it is all of it that can be cut. On the
+            // small layout it is as wide as the clock to begin with.
+            className={`flex flex-col ${
+              phone ? 'min-w-0 flex-1' : tall ? 'shrink-0' : 'shrink-[1000]'
+            }`}
+            data-item="session"
+          >
+            {data.session && (
+              // On the small layout a long track name is cut at the width
+              // of the clock under it, so the strip keeps to its line. On
+              // the others it is whole while there is room, and cut where
+              // the strip would otherwise wrap: a name that may break
+              // anywhere and is held to one line is as narrow as it has
+              // to be, and ends in an ellipsis.
+              <span
+                className={`${labelClass} ${
+                  phone
+                    ? 'sr-only'
+                    : tall
+                      ? 'w-0 min-w-full truncate'
+                      : 'line-clamp-1 break-all'
+                }`}
+                title={data.session}
+              >
+                {data.session}
               </span>
             )}
+            <span
+              className={`text-xl leading-tight font-bold text-white ${
+                phone
+                  ? 'flex min-w-0 items-baseline gap-x-1'
+                  : 'whitespace-nowrap'
+              }`}
+            >
+              {data.timeLeft}{' '}
+              <span
+                className={`text-xs font-normal text-slate-400 ${
+                  // On a phone the words after the figures are there whole
+                  // or not at all: a row of one line that may wrap, with
+                  // nothing before them on it, so that words too long for
+                  // what the flag leaves go onto a second line, out of
+                  // sight.
+                  phone
+                    ? 'flex h-4 min-w-0 flex-1 flex-wrap overflow-hidden leading-4 whitespace-nowrap'
+                    : ''
+                }`}
+              >
+                {phone && <span aria-hidden="true">&nbsp;</span>}
+                <span>
+                  left
+                  {data.timeOfDay && ` · ${data.timeOfDay} in game`}
+                </span>
+              </span>
+            </span>
           </div>
-        </div>
-      )}
+        )}
 
-      {car?.driver && (
-        <div className="flex min-w-0 flex-col" data-item="driver">
-          <span className={labelClass}>At the wheel</span>
-          <span className="truncate text-sm font-bold text-amber-300">
-            {car.driver}
-          </span>
-        </div>
-      )}
+        {data.flag && (
+          <div
+            data-item="flag"
+            className={`shrink-0 rounded-md border px-3.5 py-1.5 text-sm font-bold tracking-[0.08em] whitespace-nowrap ${FLAG_TONE_CLASS[data.flag.tone]}`}
+          >
+            {data.flag.label}
+          </div>
+        )}
 
-      {data.watching && (
-        <div
-          data-item="watching"
-          className="rounded-md border border-slate-700 bg-slate-800 px-2.5 py-1 text-sm text-slate-300"
-        >
-          You are watching
-        </div>
-      )}
+        {/* A phone's second row begins here. */}
+        {phone && <span aria-hidden="true" className="h-1.5 basis-full" />}
+
+        {car && (
+          <div
+            className="flex shrink-0 items-center gap-2.5 whitespace-nowrap"
+            data-item="car"
+          >
+            <div
+              className="rounded border-l-4 border-slate-500 bg-slate-800 px-2.5 py-1 text-lg leading-tight font-black text-white"
+              style={
+                car.classColor
+                  ? {
+                      borderLeftColor: car.classColor,
+                      backgroundColor: `color-mix(in srgb, ${car.classColor} 22%, transparent)`,
+                    }
+                  : undefined
+              }
+            >
+              #{car.number}
+            </div>
+            <div className="flex flex-col">
+              <span className="text-base leading-tight font-bold text-white">
+                {car.place.position}
+                {car.place.field && (
+                  <span className="font-normal text-slate-400">
+                    {' '}
+                    {car.place.field}
+                  </span>
+                )}
+              </span>
+              {car.place.overall && (
+                <span className="text-xs text-slate-400">
+                  {car.place.overall}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {car?.driver && (
+          <div
+            // Whole until everything before it has given way; on a phone it
+            // has what its row leaves.
+            className={`flex min-w-0 flex-col ${
+              phone ? 'flex-1' : driverBare ? '' : 'shrink-0'
+            }`}
+            data-item="driver"
+          >
+            <span
+              className={
+                driverBare ? 'sr-only' : `${labelClass} whitespace-nowrap`
+              }
+            >
+              At the wheel
+            </span>
+            <span
+              className="truncate text-sm font-bold text-amber-300"
+              // Whole for whoever points at a name that has been cut.
+              title={car.driver}
+            >
+              {car.driver}
+            </span>
+          </div>
+        )}
+
+        {data.watching && (
+          <div
+            data-item="watching"
+            title={bare.watching ? 'You are watching' : undefined}
+            className="flex shrink-0 items-center rounded-md border border-slate-700 bg-slate-800 px-2.5 py-1 text-sm whitespace-nowrap text-slate-300"
+          >
+            {bare.watching && <EyeIcon size={18} aria-hidden="true" />}
+            <span className={bare.watching ? 'sr-only' : undefined}>
+              You are watching
+            </span>
+          </div>
+        )}
+      </div>
 
       {/* Pushed to the right of whichever line the strip wraps them onto. */}
-      <div className="ml-auto flex items-center gap-x-5">
+      <div className="ml-auto flex shrink-0 items-center gap-x-5">
         {/* Said to a reader from a region that is always there, so that the
             words are heard when they appear. It takes no room in the strip. */}
         <span role="status" className="sr-only">
@@ -240,7 +427,10 @@ export const PitWallHeader = ({
               aria-pressed={option.id === layout}
               onClick={() => onLayoutChange?.(option.id)}
               className={[
-                'px-3.5 text-sm transition-colors',
+                'text-sm transition-colors',
+                squeezed(PIT_WALL_HEADER_SQUEEZE.tightGaps)
+                  ? 'px-2.5'
+                  : 'px-3.5',
                 tall ? 'min-h-11' : 'min-h-10',
                 option.id === layout
                   ? 'bg-accent-500 font-bold text-white'

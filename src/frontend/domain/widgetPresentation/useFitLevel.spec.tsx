@@ -68,7 +68,14 @@ const unstageLayout = () => {
 /** A strip drawn at the level it is told fits. */
 const Strip = (options: FitLevelOptions) => {
   const fit = useFitLevel(options);
-  return <div ref={fit.target} data-testid="strip" data-level={fit.level} />;
+  return (
+    <div
+      ref={fit.target}
+      data-testid="strip"
+      data-level={fit.level}
+      data-width={fit.width}
+    />
+  );
 };
 
 /** A list in a box: the box is the room, the list is what must fit. */
@@ -201,9 +208,19 @@ describe('useFitLevel', () => {
     expect(level()).toBe(0);
   });
 
+  it('says how wide its room is, and keeps up with it', () => {
+    render(<Strip levels={3} content="a" />);
+    const strip = screen.getByTestId('strip');
+    expect(strip.dataset.width).toBe('600');
+    resize({ width: 1280 });
+    expect(strip.dataset.width).toBe('1280');
+  });
+
   it('is the fullest level where nothing is laid out', () => {
     unstageLayout();
     render(<Strip levels={3} content="a" />);
     expect(level()).toBe(0);
+    // And no width has been measured.
+    expect(screen.getByTestId('strip').dataset.width).toBe('0');
   });
 });

@@ -31,7 +31,16 @@ export interface FitLevel {
    * the two would chase each other.
    */
   frame: (element: HTMLElement | null) => void;
+  /**
+   * How wide the frame is, in its own pixels whatever scale it is drawn
+   * at; 0 until it is measured, and where nothing is laid out. For a
+   * caller that draws differently above some width, which a media query
+   * cannot tell it on a page that is drawn larger or smaller than life.
+   */
+  width: number;
 }
+
+const NOT_MEASURED = { width: 0, height: 0 };
 
 /**
  * The fullest way of drawing something that fits where it is drawn.
@@ -58,16 +67,19 @@ export const useFitLevel = ({
   const [ownFrame, setFrame] = useState<HTMLElement | null>(null);
   const frame = ownFrame ?? target;
 
-  const [space, setSpace] = useState('');
+  const [space, setSpace] = useState(NOT_MEASURED);
   useLayoutEffect(() => {
     // Nothing to watch where there is no layout, as in a spec.
     if (!frame || typeof ResizeObserver === 'undefined') return;
-    const measure = () =>
-      setSpace(
-        room === 'size'
-          ? `${frame.clientWidth}x${frame.clientHeight}`
-          : `${frame.clientWidth}`
+    const measure = () => {
+      const width = frame.clientWidth;
+      // A height that is not the room is not kept: a change of it would
+      // start the search again for nothing.
+      const height = room === 'size' ? frame.clientHeight : 0;
+      setSpace((now) =>
+        now.width === width && now.height === height ? now : { width, height }
       );
+    };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(frame);
@@ -90,7 +102,7 @@ export const useFitLevel = ({
     };
   }, []);
 
-  const key = `${levels}|${space}|${fonts}|${content}`;
+  const key = `${levels}|${space.width}x${space.height}|${fonts}|${content}`;
   const [found, setFound] = useState({ key, level: 0 });
   // Other room or other content: from the fullest again.
   if (found.key !== key) setFound({ key, level: 0 });
@@ -103,5 +115,5 @@ export const useFitLevel = ({
     if (overflows(target)) setFound({ key, level: level + 1 });
   }, [target, level, levels, overflows, key]);
 
-  return { level, target: setTarget, frame: setFrame };
+  return { level, target: setTarget, frame: setFrame, width: space.width };
 };
