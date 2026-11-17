@@ -211,7 +211,7 @@ export const ClassRivals = () => {
       ) : (
         <p
           data-testid="class-rivals-reason"
-          className="flex min-h-0 flex-1 items-center justify-center p-3 text-center text-xs text-slate-400"
+          className="flex min-h-0 flex-1 items-center justify-center p-3 text-center text-[0.75rem] text-slate-400"
         >
           {forecast?.valid
             ? 'No other car of the class is running.'

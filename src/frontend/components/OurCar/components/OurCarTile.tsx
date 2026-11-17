@@ -58,7 +58,7 @@ export const OurCarTile = memo(
       </span>
       <span
         data-testid={`our-car-${id}-note`}
-        className={`min-h-[1em] truncate text-xs leading-none ${TONE_CLASS[noteTone]}`}
+        className={`min-h-[1em] truncate text-[0.6875rem] leading-none ${TONE_CLASS[noteTone]}`}
       >
         {note}
       </span>

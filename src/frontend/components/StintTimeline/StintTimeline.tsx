@@ -112,7 +112,7 @@ export const StintTimeline = () => {
       ) : (
         <p
           data-testid="stint-timeline-reason"
-          className="flex min-h-0 flex-1 items-center justify-center text-center text-xs text-slate-400"
+          className="flex min-h-0 flex-1 items-center justify-center text-center text-[0.75rem] text-slate-400"
         >
           {forecast?.valid
             ? 'Waiting for the end of the race to be known.'

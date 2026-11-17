@@ -144,3 +144,11 @@ export const NotARace: Story = {
 export const InAPitWallPanel: Story = {
   ...strategyStory('classrivals', { panel: { width: 820, height: 310 } }),
 };
+
+/** The panel on the grid: its notice at the size it reads at on the overlay. */
+export const NoticeInAPitWallPanel: Story = {
+  ...strategyStory('classrivals', {
+    stage: { session: 'grid' },
+    panel: { width: 820, height: 160 },
+  }),
+};

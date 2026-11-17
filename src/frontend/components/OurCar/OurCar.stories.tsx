@@ -119,6 +119,14 @@ export const InAPitWallPanel: Story = {
   ...strategyStory('ourcar', { panel: { width: 380, height: 560 } }),
 };
 
+/** The panel on the grid: its notice at the size it reads at on the overlay. */
+export const NoticeInAPitWallPanel: Story = {
+  ...strategyStory('ourcar', {
+    stage: { session: 'grid' },
+    panel: { width: 380, height: 200 },
+  }),
+};
+
 /** The same panel through a team-mate's stint, where it scrolls. */
 export const InAPitWallPanelWatching: Story = {
   ...strategyStory('ourcar', {
