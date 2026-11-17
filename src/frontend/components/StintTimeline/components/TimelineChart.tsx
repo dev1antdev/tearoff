@@ -5,6 +5,12 @@ import type {
   TimelineBar,
   TimelineRow,
 } from '@irdashies/domain/raceForecast';
+import {
+  driverColour,
+  driverMarkClass,
+  driverStrokeClass,
+  driverTextClass,
+} from '../../shared/DriverColour/driverColours';
 
 /** A bar's height and the space under it, CSS pixels. */
 export const TIMELINE_BAR_PX = 22;
@@ -19,36 +25,17 @@ const LABEL_PADDING_PX = 8;
 /** A tick this near an end of the scale would run into its caption. */
 const TICK_CLEARANCE = 0.06;
 
-/** The own car's drivers, in the order they first drove. */
-const DRIVER_FILL = [
-  'fill-amber-400',
-  'fill-teal-400',
-  'fill-purple-400',
-  'fill-sky-400',
-  'fill-rose-400',
-  'fill-lime-400',
-];
-const DRIVER_STROKE = [
-  'stroke-amber-400',
-  'stroke-teal-400',
-  'stroke-purple-400',
-  'stroke-sky-400',
-  'stroke-rose-400',
-  'stroke-lime-400',
-];
-const DRIVER_TEXT = [
-  'fill-amber-300',
-  'fill-teal-300',
-  'fill-purple-300',
-  'fill-sky-300',
-  'fill-rose-300',
-  'fill-lime-300',
-];
 /** A rival's bars: one shade, and the other after each driver change. */
 const RIVAL_FILL = ['fill-slate-500', 'fill-slate-400'];
 
-const at = (classes: readonly string[], index: number): string =>
-  classes[index % classes.length];
+/**
+ * The colour of one of our own car's drivers, by the one rule Crew and
+ * Stints and the Race Charts colour them by: a list of its own here went
+ * round after six drivers where theirs goes round after four, so a fifth
+ * driver was one colour on this panel and another on those.
+ */
+const ownDriver = (driverIndex: number): number =>
+  driverColour(driverIndex, true);
 
 /** The last word of a name: what fits on a bar. */
 const shortName = (driver: string): string => {
@@ -101,12 +88,12 @@ const Bar = memo(
                 !own
                   ? 'stroke-slate-500'
                   : driven
-                    ? at(DRIVER_STROKE, driverIndex)
+                    ? driverStrokeClass(ownDriver(driverIndex))
                     : 'stroke-slate-400'
               }`
             : own
-              ? at(DRIVER_FILL, driverIndex)
-              : at(RIVAL_FILL, driverChanges)
+              ? driverMarkClass(ownDriver(driverIndex))
+              : RIVAL_FILL[driverChanges % RIVAL_FILL.length]
         }
       />
       {label && (
@@ -116,7 +103,10 @@ const Bar = memo(
           textAnchor="middle"
           dominantBaseline="central"
           className={`pointer-events-none text-[11px] ${
-            forecast ? at(DRIVER_TEXT, driverIndex) : 'fill-slate-900 font-bold'
+            forecast
+              ? // The text colour of the driver, taken as the letters' fill.
+                `fill-current ${driverTextClass(ownDriver(driverIndex))}`
+              : 'fill-slate-900 font-bold'
           }`}
         >
           {label}
