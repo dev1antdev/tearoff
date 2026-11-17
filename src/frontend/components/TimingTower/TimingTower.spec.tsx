@@ -61,6 +61,7 @@ vi.mock('./towerScroll', () => ({
 }));
 
 import { TimingTower } from './TimingTower';
+import { TOWER_COLUMNS, towerColumnsWidth } from './towerColumns';
 
 const DEFAULTS = getWidgetDefaultConfig('timingtower');
 
@@ -905,11 +906,20 @@ describe('on a panel too narrow for every column', () => {
     const { container, rerender } = render(<TimingTower />);
     expect(headers(container)).toHaveLength(8);
 
-    // Every column with the driver's at its narrowest, the Tyres one
-    // with its laps and tread, is 912 wide.
-    scene.width = 912;
+    // What every column needs with the driver's at its narrowest and the
+    // Tyres one carrying its laps and tread: more than the 900 that was
+    // enough for the compound alone.
+    const needed = towerColumnsWidth(
+      TOWER_COLUMNS.map((column) => column.id),
+      'tread'
+    );
+    expect(needed).toBeGreaterThan(900);
+    scene.width = needed - 1;
     rerender(<TimingTower />);
+    expect(headers(container)).toHaveLength(14);
 
+    scene.width = needed;
+    rerender(<TimingTower />);
     expect(headers(container)).toHaveLength(15);
   });
 });

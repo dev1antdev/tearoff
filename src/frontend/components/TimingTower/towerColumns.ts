@@ -169,7 +169,7 @@ export type TowerTyresDetail = 'compound' | 'laps' | 'tread';
 export const TYRES_COLUMN_WIDTH: Readonly<Record<TowerTyresDetail, number>> = {
   compound: 44,
   laps: 64,
-  tread: 106,
+  tread: 108,
 };
 
 const COLUMN_BY_ID = new Map(

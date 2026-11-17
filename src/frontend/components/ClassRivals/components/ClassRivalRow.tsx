@@ -1,4 +1,5 @@
 import { memo, useMemo, type CSSProperties, type Ref } from 'react';
+import { splitTyreLaps } from '@irdashies/domain/classTyres';
 import type { ForecastTone } from '@irdashies/domain/raceForecast';
 import { ClassLabel } from '../../shared/ClassLabel/ClassLabel';
 import { Compound } from '../../shared/Compound/Compound';
@@ -26,8 +27,8 @@ export interface ClassRivalColumns {
  * The Tyres column in rem: the compound and room for "136+", and with the
  * tread room for "<100%" as well.
  */
-const TYRES_REM = 3.25;
-const TYRES_WITH_TREAD_REM = 5.75;
+const TYRES_REM = 3.5;
+const TYRES_WITH_TREAD_REM = 6.25;
 
 /** The least the driver's name is given, rem; it takes what is left over. */
 const DRIVER_MIN_REM = 5.5;
@@ -194,6 +195,7 @@ export const ClassRivalRow = memo(
       () => (tyreCompounds ? tyreCompounds.split(',').map(Number) : undefined),
       [tyreCompounds]
     );
+    const [tyreLapCount, tyreLapMark] = splitTyreLaps(tyreLaps);
     return (
       <div
         ref={rowRef}
@@ -258,11 +260,16 @@ export const ClassRivalRow = memo(
                 <Compound tireCompound={wheels[0]} wheelCompounds={wheels} />
               )}
             </span>
+            {/* The count and its mark each in a place of its own: the
+                counts line up whether or not a mark follows. */}
             <span
               data-testid="class-rival-tyre-laps"
-              className="w-7 shrink-0 text-right"
+              className="flex w-[1.9rem] shrink-0 justify-end"
             >
-              {tyreLaps}
+              <span>{tyreLapCount}</span>
+              <span className="w-[0.5rem] shrink-0 text-left">
+                {tyreLapMark}
+              </span>
             </span>
             {showTread && (
               <span

@@ -1,5 +1,6 @@
 import { memo, useMemo } from 'react';
 import type { LastTimeState } from '@irdashies/domain';
+import { splitTyreLaps } from '@irdashies/domain/classTyres';
 import type { SectorMarkTone } from '@irdashies/domain/sectors/sectorMarks';
 import type { NameFormat } from '@irdashies/types';
 import { getTailwindStyle } from '@irdashies/utils/colors';
@@ -172,6 +173,7 @@ export const TowerRow = memo((props: TowerRowProps) => {
     () => DriverName(extractDriverName(name), nameFormat),
     [name, nameFormat]
   );
+  const [tyreLapCount, tyreLapMark] = splitTyreLaps(tyreLaps ?? '');
   // The shared gap cell takes the pair as one object.
   const gap = useMemo(
     () => ({ value: gapValue, laps: gapLaps }),
@@ -356,11 +358,16 @@ export const TowerRow = memo((props: TowerRowProps) => {
                 )}
               </span>
               {tyreLaps && (
+                // The count and its mark each in a place of its own: the
+                // counts line up whether or not a mark follows.
                 <span
                   data-testid="tower-tyre-laps"
-                  className="w-[26px] shrink-0 text-right"
+                  className="flex w-[30px] shrink-0 justify-end"
                 >
-                  {tyreLaps}
+                  <span>{tyreLapCount}</span>
+                  <span className="w-[8px] shrink-0 text-left">
+                    {tyreLapMark}
+                  </span>
                 </span>
               )}
               {tyreLaps && tyreTread && (

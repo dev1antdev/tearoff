@@ -12,6 +12,7 @@ import {
 } from '@irdashies/types';
 import {
   hasTreadFigures,
+  splitTyreLaps,
   tyreSetDisplay,
   wheelCompoundsByCar,
 } from './tyreSetDisplay';
@@ -98,6 +99,15 @@ describe('tyreSetDisplay', () => {
     ).toEqual(nothing);
     expect(tyreSetDisplay(undefined, 0)).toEqual(nothing);
     expect(tyreSetDisplay(EMPTY_CLASS_TYRES, 0)).toEqual(nothing);
+  });
+});
+
+describe('splitTyreLaps', () => {
+  it('parts the count from the mark after it', () => {
+    expect(splitTyreLaps('17')).toEqual(['17', '']);
+    expect(splitTyreLaps('17?')).toEqual(['17', '?']);
+    expect(splitTyreLaps('0+')).toEqual(['0', '+']);
+    expect(splitTyreLaps('')).toEqual(['', '']);
   });
 });
 

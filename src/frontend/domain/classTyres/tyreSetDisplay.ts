@@ -108,6 +108,18 @@ export const tyreSetDisplay = (
 };
 
 /**
+ * The laps as written, in their two parts: the count and the mark after
+ * it, '' where there is none. A table gives each a place of its own, so
+ * that the counts line up down a column whatever marks they carry.
+ */
+export const splitTyreLaps = (laps: string): [count: string, mark: string] => {
+  const last = laps.slice(-1);
+  return last === TYRE_SET_LIKELY_MARK || last === TYRE_SET_AT_LEAST_MARK
+    ? [laps.slice(0, -1), last]
+    : [laps, ''];
+};
+
+/**
  * Whether any car has a tread figure. Where none has, the sim reads no
  * tread a figure could be made from, which under iRacing is always, and a
  * table leaves the figure out rather than fill a column with `--`.

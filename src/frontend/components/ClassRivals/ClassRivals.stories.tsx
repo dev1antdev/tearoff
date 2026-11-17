@@ -136,7 +136,11 @@ export const NotARace: Story = {
   }),
 };
 
-/** In a panel of the Pit Wall, at the size the page's design gives it. */
+/**
+ * In a panel of the Pit Wall, at a width that holds every column: with the
+ * Tyres column that is 800, forty more than the page's design drew for the
+ * table without it. A narrower panel scrolls the table sideways.
+ */
 export const InAPitWallPanel: Story = {
-  ...strategyStory('classrivals', { panel: { width: 760, height: 300 } }),
+  ...strategyStory('classrivals', { panel: { width: 820, height: 310 } }),
 };

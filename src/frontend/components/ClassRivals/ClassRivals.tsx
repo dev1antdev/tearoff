@@ -198,10 +198,8 @@ export const ClassRivals = () => {
                 settings.showPace &&
                   'Pace 5: their mean of five clean laps against ours; green means we are faster.',
                 settings.showTyres &&
-                  `Tyres: laps on the set, with ${TYRE_SET_LIKELY_MARK} when told from the length of a stop and ${TYRE_SET_AT_LEAST_MARK} when it is at least that many${
-                    showTread
-                      ? '; the tread is our own wear applied to their laps.'
-                      : '.'
+                  `Tyres: laps on the set (${TYRE_SET_LIKELY_MARK} told from the length of a stop, ${TYRE_SET_AT_LEAST_MARK} at least that many)${
+                    showTread ? ' and the tread left, from our own wear.' : '.'
                   }`,
                 `${ESTIMATE} marks an estimate.`,
               ]
