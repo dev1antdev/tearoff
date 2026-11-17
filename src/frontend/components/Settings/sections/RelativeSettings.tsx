@@ -400,6 +400,23 @@ export const RelativeSettings = () => {
     columnOrder(SORTABLE_IDS, settings.config.displayOrder)
   );
 
+  // Re-seed when the saved widget changes under the page: a profile switch,
+  // or a change made in another window. Read once, the page went on showing
+  // what it opened with, and the next edit wrote that over the change.
+  const [prevSaved, setPrevSaved] = useState(savedSettings);
+  if (JSON.stringify(savedSettings) !== JSON.stringify(prevSaved)) {
+    setPrevSaved(savedSettings);
+    if (savedSettings) {
+      setSettings({
+        enabled: savedSettings.enabled ?? true,
+        config: savedSettings.config,
+      });
+      setItemsOrder(
+        columnOrder(SORTABLE_IDS, savedSettings.config?.displayOrder)
+      );
+    }
+  }
+
   // Tab state with persistence
   const [activeTab, setActiveTab] = useState<SettingsTabType>(
     () => (localStorage.getItem('relativeTab') as SettingsTabType) || 'display'
