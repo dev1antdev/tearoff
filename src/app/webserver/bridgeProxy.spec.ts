@@ -327,14 +327,17 @@ describe('browser Inspector serialization demand', () => {
     source.session(session('latest'));
     expect(serializations('telemetry')).toBe(0);
     expect(serializations('sessionData')).toBe(0);
-    expect(logger.error).toHaveBeenCalledTimes(6);
+    // Each of the six was refused. One connection writes only so many
+    // refusals to the log a minute, so the log holds the first few.
+    expect(logger.error).toHaveBeenCalledTimes(SOCKET_LOG_LINES);
 
     inspector.request('telemetryInspectorSubscribe', 'telemetryInspector');
     inspector.request('telemetryInspectorUnsubscribe', 'telemetry');
     clock.mockReturnValue(100);
     source.telemetry(telemetry(20));
+    // The unsubscription was refused too: the stream is still served.
     expect(serializations('telemetry')).toBe(2);
-    expect(logger.error).toHaveBeenCalledTimes(7);
+    expect(logger.error).toHaveBeenCalledTimes(SOCKET_LOG_LINES);
   });
 
   it('preserves subscriptions across source changes and requires new sockets to subscribe after reconnect', () => {
@@ -474,6 +477,25 @@ describe('what a browser connection may write to the log', () => {
     for (const args of vi.mocked(logger.info).mock.calls) {
       expect(args.join(' ').length).toBeLessThan(200);
     }
+  });
+
+  it('is a few lines a minute about messages that cannot be read', () => {
+    const { connect } = setup();
+    const client = connect();
+    const time = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+
+    for (let i = 0; i < 500; i += 1) client.emit('message', Buffer.from('{'));
+    expect(logger.error).toHaveBeenCalledTimes(SOCKET_LOG_LINES);
+    // Its own few, apart from those for a message that is not known.
+    send(client, { type: 'mistyped' });
+    expect(unknownLines()).toHaveLength(1);
+
+    time.mockReturnValue(1_000_000 + 60_000);
+    client.emit('message', Buffer.from('{'));
+    expect(logger.error).toHaveBeenLastCalledWith(
+      `Error parsing client message (${500 - SOCKET_LOG_LINES} more not logged):`,
+      expect.any(SyntaxError)
+    );
   });
 
   it('is a few such lines a minute for one connection, however many it sends', () => {

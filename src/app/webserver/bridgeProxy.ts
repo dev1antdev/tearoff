@@ -336,6 +336,7 @@ export function createBridgeProxy(
 
     // What this socket may write to the log about its own messages.
     const logUnknown = createSocketLogLimit();
+    const logFailure = createSocketLogLimit();
 
     if (unsubscribeFunctions.length === 0) {
       logger.info('No active subscriptions, subscribing to bridge...');
@@ -698,7 +699,11 @@ export function createBridgeProxy(
             break;
         }
       } catch (error) {
-        logger.error('Error parsing client message:', error);
+        // What cannot be read can be sent as fast as what is not known, and
+        // each line here carries a stack: the same few a minute.
+        logFailure((leftOut) =>
+          logger.error(`Error parsing client message${leftOut}:`, error)
+        );
       }
     });
 
