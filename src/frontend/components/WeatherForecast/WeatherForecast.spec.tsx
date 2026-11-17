@@ -275,6 +275,28 @@ describe('WeatherForecast', () => {
     expect(screen.queryByLabelText('Rain')).toBeNull();
   });
 
+  it('is centred by its own margins, so that a box too short for it shows it from the top', () => {
+    const { container, rerender } = render(<WeatherForecast />);
+    // jsdom lays nothing out: what is checked is that nothing centres the
+    // columns but margins, which give way where there is no room to share
+    // out. The pictures of the page show the rest.
+    const box = container.firstElementChild;
+    expect(box).toHaveClass('flex', 'flex-col', 'h-full');
+    expect(box?.className).not.toMatch(/justify-|items-center|place-/);
+    // Nor has the box any padding above or below: that room is the
+    // margins', so that columns as tall as the box are not pushed out of it.
+    expect(box).toHaveClass('px-2');
+    expect(box?.className).not.toMatch(/(^| )p[ytb]?-/);
+    expect(screen.getByTestId('weather-forecast-columns')).toHaveClass(
+      'my-auto'
+    );
+
+    configure({ showNow: false });
+    mocks.snapshot = recorded({ available: false, nodes: [] });
+    rerender(<WeatherForecast />);
+    expect(screen.getByText('No forecast')).toHaveClass('my-auto');
+  });
+
   describe('visibility', () => {
     it('is shown out of the car by default: a forecast is read in the garage', () => {
       mocks.isDriving = false;

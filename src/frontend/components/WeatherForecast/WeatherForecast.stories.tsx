@@ -55,7 +55,9 @@ const snapshot = (
 const story = (
   forecast: WeatherForecastSnapshot,
   config: Record<string, unknown> = {},
-  size: { width: number; height: number } = { width: 300, height: 100 }
+  size: { width: number; height: number } = { width: 300, height: 100 },
+  // As a panel of the Pit Wall holds it: what does not fit scrolls.
+  scrolls = false
 ) => ({
   decorators: [
     TelemetryDecoratorWithConfig('/test-data/1747384033336', {
@@ -65,7 +67,7 @@ const story = (
     // The widget fills its overlay window, so the story supplies one of the
     // default size rather than letting it span the page.
     (Story: React.ComponentType) => (
-      <div style={size}>
+      <div style={size} className={scrolls ? 'overflow-auto' : undefined}>
         <Story />
       </div>
     ),
@@ -193,6 +195,25 @@ export const AllRows: Story = {
       wind: { enabled: true },
     },
     { width: 320, height: 140 }
+  ),
+};
+
+/**
+ * In a box shorter than its columns, as a panel of the Pit Wall can be: it
+ * starts at the top and the box scrolls down it. Centred there, it would be
+ * cut at both ends, with its top out of reach.
+ */
+export const InABoxTooShortForIt: Story = {
+  ...story(
+    snapshot({ airTempTrend: -1 }, [
+      node(1, 1, 17, 0, 0, 54_780),
+      node(2, 1, 16, 0, 3, 54_960),
+      node(3, 1, 16, 0, 6, 55_140),
+      node(4, 2, 16, 0, 9, 55_320),
+    ]),
+    {},
+    { width: 420, height: 62 },
+    true
   ),
 };
 
