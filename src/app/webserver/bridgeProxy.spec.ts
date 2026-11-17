@@ -441,6 +441,60 @@ describe('browser Inspector serialization demand', () => {
   });
 });
 
+describe('the dashboard a browser connection is answered with', () => {
+  const layout = (id: string) =>
+    ({ widgets: [{ id, enabled: true }] }) as unknown as DashboardLayout;
+  const initialDashboard = (client: Client) =>
+    (client.messages('initialState')[0].data as { dashboard: unknown })
+      .dashboard;
+  const ask = (client: Client, type: string, data?: unknown) =>
+    client.emit(
+      'message',
+      Buffer.from(JSON.stringify({ type, requestId: 'request-one', data }))
+    );
+
+  it("stays the active profile's when another profile's save is announced", async () => {
+    let active = layout('active-profile-widget');
+    const other = layout('other-profile-widget');
+    const dashboardUpdated = vi.fn<DashboardBridge['dashboardUpdated']>();
+    const { connect } = setup({
+      getCurrentDashboard: () => active,
+      getDashboardForProfile: async () => null,
+      dashboardUpdated,
+    } as unknown as DashboardBridge);
+    const announce = dashboardUpdated.mock.calls[0][0];
+    const open = connect();
+
+    // A page of the other profile saved where its widgets sit, or the driver
+    // tags were saved and every profile announced in turn.
+    announce(other, 'other');
+
+    // Pages are told, and each keeps what names its own profile.
+    expect(open.messages('dashboardUpdated')).toEqual([
+      {
+        type: 'dashboardUpdated',
+        data: { dashboard: other, profileId: 'other' },
+      },
+    ]);
+    // What "the dashboard" is has not moved to the profile that spoke last.
+    const late = connect();
+    expect(initialDashboard(late)).toEqual(active);
+    ask(late, 'getDashboard');
+    expect(late.messages('dashboard')[0].data).toEqual(active);
+    // A page whose link names a profile that no longer exists falls back to
+    // the active one, not to another profile's.
+    ask(late, 'getDashboardForProfile', { profileId: 'deleted' });
+    await vi.waitFor(() =>
+      expect(late.messages('getDashboardForProfile')[0]?.data).toEqual(active)
+    );
+
+    // The active profile's own save, or a switch of profile, does move it.
+    active = layout('active-profile-widget-moved');
+    announce(active, 'active');
+    expect(initialDashboard(connect())).toEqual(active);
+  });
+});
+
 describe('browser pit lane calibration requests', () => {
   it('uses the shared bridge for source-aware updates and forwards reset errors', async () => {
     const calibration = {

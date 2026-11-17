@@ -266,7 +266,17 @@ export function createBridgeProxy(
   if (dashboardBridge) {
     dashboardBridge.dashboardUpdated(
       (dashboard: DashboardLayout, profileId?: string) => {
-        currentDashboard = dashboard;
+        // Every profile's saves are announced here: a browser page of a
+        // profile that is not the active one saving where its widgets sit,
+        // and the driver tags, which are announced for each profile in turn.
+        // `currentDashboard` is the active profile's (it answers a new
+        // connection, `getDashboard`, an unknown profile and the index
+        // page's widget list), so it is read again rather than taken from
+        // whichever profile spoke last.
+        const active = dashboardBridge.getCurrentDashboard?.();
+        if (active) currentDashboard = active;
+        else if (profileId === undefined) currentDashboard = dashboard;
+        // Each page keeps only what names its own profile.
         broadcast('dashboardUpdated', { dashboard, profileId });
       }
     );
