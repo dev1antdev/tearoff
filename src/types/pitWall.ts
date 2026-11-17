@@ -1,11 +1,22 @@
 import type { DashboardLayout, DashboardWidget } from './dashboardLayout';
 import {
+  PIT_WALL_CUSTOM_LAYOUT_ID,
+  PIT_WALL_LAYOUT_CHOICES,
   PIT_WALL_LAYOUT_IDS,
   PIT_WALL_TAB_IDS,
   type PitWallConfig,
+  type PitWallLayoutChoice,
   type PitWallLayoutId,
   type PitWallTabId,
 } from './widgetConfigs';
+import {
+  PIT_WALL_CUSTOM_COLUMNS,
+  PIT_WALL_CUSTOM_ROWS,
+  pitWallHostable,
+  sanitizePitWallCustom,
+  type PitWallCellSize,
+  type PitWallCustomPanel,
+} from './pitWallCustom';
 import {
   isWidgetDisabledForSim,
   type SimWidgetSupportConfig,
@@ -24,24 +35,33 @@ export const DEFAULT_PIT_WALL_TAB: PitWallTabId = 'overview';
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
-export const isPitWallLayoutId = (value: unknown): value is PitWallLayoutId =>
-  (PIT_WALL_LAYOUT_IDS as readonly unknown[]).includes(value);
+/** A layout the page can be set to: a fixed one, or the user's own. */
+export const isPitWallLayoutChoice = (
+  value: unknown
+): value is PitWallLayoutChoice =>
+  (PIT_WALL_LAYOUT_CHOICES as readonly unknown[]).includes(value);
 
 export const isPitWallTabId = (value: unknown): value is PitWallTabId =>
   (PIT_WALL_TAB_IDS as readonly unknown[]).includes(value);
 
 /**
  * Reads the saved Pit Wall config, which is untrusted. Anything that is not
- * one of the known layouts or tabs falls back to the default, and nothing
- * else is kept.
+ * one of the known layouts or tabs falls back to the default, the panels
+ * of the Custom layout are kept as far as they are panels (see
+ * `sanitizePitWallCustom`), and nothing else is kept.
+ *
+ * A config with no list of panels is returned with none: the Custom layout
+ * is then shown as it starts.
  */
 export const sanitizePitWallConfig = (value: unknown): PitWallConfig => {
   const source = isRecord(value) ? value : {};
+  const custom = sanitizePitWallCustom(source.custom);
   return {
-    layout: isPitWallLayoutId(source.layout)
+    layout: isPitWallLayoutChoice(source.layout)
       ? source.layout
       : DEFAULT_PIT_WALL_LAYOUT,
     tab: isPitWallTabId(source.tab) ? source.tab : DEFAULT_PIT_WALL_TAB,
+    ...(custom ? { custom } : {}),
   };
 };
 
@@ -117,10 +137,16 @@ export interface PitWallTab {
   label: string;
   /** Left to right. */
   columns: readonly PitWallColumn[];
+  /**
+   * In place of columns, for the page the user arranges: its panels, each
+   * on the cells it takes (see `pitWallCustom.ts`). A tab has these or
+   * columns, never both.
+   */
+  cells?: readonly PitWallCustomPanel[];
 }
 
 export interface PitWallLayout {
-  id: PitWallLayoutId;
+  id: PitWallLayoutChoice;
   /** The header button's text. */
   label: string;
   /** What the layout is for, for the button's tooltip. */
@@ -132,15 +158,41 @@ export interface PitWallLayout {
   tabs: readonly PitWallTab[];
 }
 
+/** One of the three layouts whose panels are arranged here, for good. */
+export interface PitWallFixedLayout extends PitWallLayout {
+  id: PitWallLayoutId;
+}
+
 /** The panels of a band, left to right. */
 export const pitWallBandSlots = (band: PitWallBand): readonly PitWallSlot[] =>
   Array.isArray(band)
     ? (band as readonly PitWallSlot[])
     : [band as PitWallSlot];
 
-/** Every panel of a tab, column by column, top to bottom, left to right. */
+/**
+ * A panel the user placed, as the slot the page draws: as many rows as it
+ * is cells tall, and its widget drawn smaller in a panel narrower than the
+ * widget needs.
+ */
+const customSlot = (panel: PitWallCustomPanel): PitWallSlot => {
+  // A list that has been read holds none but widgets a panel can host.
+  const { width = 0, aspect } = pitWallHostable(panel.widget) ?? {};
+  return {
+    widget: panel.widget,
+    rows: panel.h,
+    minWidth: width,
+    ...(aspect === undefined ? {} : { aspect }),
+  };
+};
+
+/**
+ * Every panel of a tab: column by column, top to bottom, left to right, or
+ * for a tab the user arranged, in the order of its list.
+ */
 export const pitWallTabSlots = (tab: PitWallTab): PitWallSlot[] =>
-  tab.columns.flatMap((column) => column.bands.flatMap(pitWallBandSlots));
+  tab.cells
+    ? tab.cells.map(customSlot)
+    : tab.columns.flatMap((column) => column.bands.flatMap(pitWallBandSlots));
 
 /*
  * The panels, each with the width it is still itself at. Every one of these
@@ -191,7 +243,7 @@ const rigid = (slot: PitWallSlot): PitWallSlot => ({ ...slot, rigid: true });
  * neighbours take its room (see `pitWallGrid`).
  */
 export const PIT_WALL_LAYOUTS: Readonly<
-  Record<PitWallLayoutId, PitWallLayout>
+  Record<PitWallLayoutId, PitWallFixedLayout>
 > = {
   race: {
     id: 'race',
@@ -287,11 +339,18 @@ export const PIT_WALL_LAYOUTS: Readonly<
   },
 };
 
-/** The layouts in the order the header and the settings page list them. */
-export const PIT_WALL_LAYOUT_LIST: readonly PitWallLayout[] =
+/**
+ * The fixed layouts in the order the header and the settings page list
+ * them. The layout the user arranges is listed after them: see
+ * PIT_WALL_LAYOUT_CHOICE_LIST.
+ */
+export const PIT_WALL_LAYOUT_LIST: readonly PitWallFixedLayout[] =
   PIT_WALL_LAYOUT_IDS.map((id) => PIT_WALL_LAYOUTS[id]);
 
-/** Every widget some tab of some layout hosts, each once. */
+/**
+ * Every widget some tab of some fixed layout hosts, each once. The Custom
+ * layout can host more: see PIT_WALL_HOSTABLE.
+ */
 export const PIT_WALL_HOSTED_WIDGETS: readonly WidgetId[] = [
   ...new Set(
     PIT_WALL_LAYOUT_LIST.flatMap((layout) =>
@@ -318,15 +377,35 @@ export interface PitWallGrid {
  * Shares so many rows between the weights in proportion, in whole rows.
  * The rows a division leaves over go to the largest remainders, earlier
  * bands first, so the result always adds up.
+ *
+ * `first` marks the bands that are served before the others, whatever
+ * their remainders, where the division cut their share short: for a band
+ * that must not come out smaller than its share.
  */
-const inProportion = (weights: readonly number[], count: number): number[] => {
+const inProportion = (
+  weights: readonly number[],
+  count: number,
+  first: readonly boolean[] = []
+): number[] => {
   const total = weights.reduce((sum, weight) => sum + weight, 0);
   const exact = weights.map((weight) => (weight / total) * count);
   const rows = exact.map((value) => Math.floor(value));
   let spare = count - rows.reduce((sum, value) => sum + value, 0);
   const byRemainder = exact
-    .map((value, index) => ({ index, remainder: value - Math.floor(value) }))
-    .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+    .map((value, index) => {
+      const remainder = value - Math.floor(value);
+      return {
+        index,
+        remainder,
+        served: first[index] === true && remainder > 0,
+      };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.served) - Number(a.served) ||
+        b.remainder - a.remainder ||
+        a.index - b.index
+    );
   for (let turn = 0; spare > 0; turn++, spare--) {
     rows[byRemainder[turn % byRemainder.length].index] += 1;
   }
@@ -504,6 +583,206 @@ export const pitWallStack = (slots: readonly PitWallSlot[]): string[] =>
         (slot) => `min(${slot.rows * STACK_ROW_PX}px, ${STACK_MAX_PERCENT}%)`
       );
 
+/*
+ * The layout the user arranges. Its list of panels, and the rules a list
+ * keeps, are in `pitWallCustom.ts`, in cells; what follows is what the
+ * page makes of a list.
+ */
+
+/** What the header and the settings page say of that layout. */
+export const PIT_WALL_CUSTOM_LAYOUT = {
+  id: PIT_WALL_CUSTOM_LAYOUT_ID,
+  label: 'Custom',
+  description: 'A page you arrange yourself',
+} as const;
+
+/** Every layout the page can be set to, in the order the header lists them. */
+export const PIT_WALL_LAYOUT_CHOICE_LIST: readonly Pick<
+  PitWallLayout,
+  'id' | 'label' | 'description'
+>[] = [...PIT_WALL_LAYOUT_LIST, PIT_WALL_CUSTOM_LAYOUT];
+
+/** Where each of some lengths begins, laid end to end. */
+const startsOf = (lengths: readonly number[]): number[] => {
+  let next = 0;
+  return lengths.map((length) => {
+    const start = next;
+    next += length;
+    return start;
+  });
+};
+
+/**
+ * A tab of columns and bands as panels on the cells of the Custom layout,
+ * with every panel of it shown, in the tab's own order.
+ *
+ * The columns share the grid's width in proportion to their own, a
+ * column's bands its height in proportion to their rows, and the panels of
+ * a band the column's width equally, all in whole cells: so the panels fill
+ * the grid, and none lies on another.
+ *
+ * Sixteen rows do not divide as twelve do. Where a band's share is not
+ * whole rows, a band that keeps its rows (`rigid`) is rounded up before
+ * any other: it is whole at the height the tab gives it and would be cut
+ * at less, where its neighbours only show more or less.
+ */
+export const pitWallTabAsCustom = (
+  tab: Pick<PitWallTab, 'columns'>
+): PitWallCustomPanel[] => {
+  // Sharing nothing out has no answer: a column with no band takes no part.
+  const columns = tab.columns.filter((column) => column.bands.length > 0);
+  if (columns.length === 0) return [];
+  const widths = inProportion(
+    columns.map((column) => column.width),
+    PIT_WALL_CUSTOM_COLUMNS
+  );
+  const lefts = startsOf(widths);
+  return columns.flatMap((column, index) => {
+    const heights = inProportion(
+      column.bands.map((band) => pitWallBandSlots(band)[0].rows),
+      PIT_WALL_CUSTOM_ROWS,
+      column.bands.map((band) =>
+        pitWallBandSlots(band).some((slot) => slot.rigid === true)
+      )
+    );
+    const tops = startsOf(heights);
+    return column.bands.flatMap((band, bandIndex) => {
+      const slots = pitWallBandSlots(band);
+      const shares = inProportion(
+        slots.map(() => 1),
+        widths[index]
+      );
+      const offsets = startsOf(shares);
+      return slots.map((slot, slotIndex) => ({
+        widget: slot.widget,
+        x: lefts[index] + offsets[slotIndex],
+        y: tops[bandIndex],
+        w: shares[slotIndex],
+        h: heights[bandIndex],
+      }));
+    });
+  });
+};
+
+/**
+ * The Custom layout as it starts, and as it is shown until the user has
+ * arranged it: the Race layout, put on the cells. Worked out from Race's
+ * own columns, bands and rows, so that it is Race as this version has it;
+ * and read the way a saved list is, so that it is a list the page can show
+ * whatever Race comes to hold.
+ */
+export const PIT_WALL_CUSTOM_START: readonly PitWallCustomPanel[] =
+  sanitizePitWallCustom(pitWallTabAsCustom(PIT_WALL_LAYOUTS.race.tabs[0])) ??
+  [];
+
+/** The panels the Custom layout shows: the user's, or the ones it starts with. */
+export const pitWallCustomPanels = (
+  config: Pick<PitWallConfig, 'custom'>
+): readonly PitWallCustomPanel[] => config.custom ?? PIT_WALL_CUSTOM_START;
+
+/**
+ * The page the least size of a panel is reckoned on, CSS pixels: the
+ * panels' part of a window of 2560 by 1440, which is that less the 57
+ * pixels of the header.
+ *
+ * It is the largest page the window is likely to fill. There a panel of
+ * its least cells is as large as its widget needs, so the minimum holds no
+ * panel larger than it need be on any page; on a smaller page a panel at
+ * its minimum is drawn smaller or scrolls, as a narrow panel always has.
+ * The minimum stops a panel being made absurdly small, and no more.
+ *
+ * Reckoned on a smaller page, the 1600 by 900 the window opens at or the
+ * 1920 by 1080 Race was drawn for, the Custom layout would start with
+ * panels below their own minimum: Race gives Crew and Stints, whose table
+ * scrolls, less height than the table would like.
+ */
+const MINIMUM_REFERENCE_PX = { width: 2560, height: 1383 };
+
+/**
+ * The fewest cells, of so many along a page of this length, whose panel is
+ * at least so many pixels. The page's margin is a gap each side, and a
+ * panel of some cells has the gaps between them as well.
+ */
+const leastCells = (pixels: number, length: number, count: number): number => {
+  const pitch = (length - PIT_WALL_GAP_PX) / count;
+  return Math.min(
+    count,
+    Math.max(1, Math.ceil((pixels + PIT_WALL_GAP_PX) / pitch))
+  );
+};
+
+/**
+ * The least a panel of this widget may be sized to, in cells: what the
+ * widget needs (`PIT_WALL_HOSTABLE`) on the page above. A cell each way
+ * for a widget no panel can host.
+ */
+export const pitWallPanelMinCells = (widget: WidgetId): PitWallCellSize => {
+  const hostable = pitWallHostable(widget);
+  return hostable
+    ? {
+        w: leastCells(
+          hostable.width,
+          MINIMUM_REFERENCE_PX.width,
+          PIT_WALL_CUSTOM_COLUMNS
+        ),
+        h: leastCells(
+          hostable.height,
+          MINIMUM_REFERENCE_PX.height,
+          PIT_WALL_CUSTOM_ROWS
+        ),
+      }
+    : { w: 1, h: 1 };
+};
+
+/**
+ * The grid for a list of panels the user placed, for the ones shown.
+ *
+ * Every cell is a track, and a cell no panel has is left empty: a panel
+ * left out, because the running sim cannot show its widget, leaves the hole
+ * the user would have to fill by hand. Nothing moves that they did not
+ * move.
+ */
+export const pitWallCustomGrid = (
+  cells: readonly PitWallCustomPanel[],
+  isShown: (slot: PitWallSlot) => boolean = () => true
+): PitWallGrid => {
+  const shown = cells.filter((panel) => isShown(customSlot(panel)));
+  const areas = Array.from({ length: PIT_WALL_CUSTOM_ROWS }, () =>
+    Array.from({ length: PIT_WALL_CUSTOM_COLUMNS }, () => '.')
+  );
+  for (const panel of shown) {
+    for (let row = panel.y; row < panel.y + panel.h; row++) {
+      for (let column = panel.x; column < panel.x + panel.w; column++) {
+        areas[row][column] = panel.widget;
+      }
+    }
+  }
+  return {
+    columns: `repeat(${PIT_WALL_CUSTOM_COLUMNS}, minmax(0, 1fr))`,
+    rows: `repeat(${PIT_WALL_CUSTOM_ROWS}, minmax(0, 1fr))`,
+    areas:
+      shown.length > 0
+        ? areas.map((row) => `"${row.join(' ')}"`).join(' ')
+        : '',
+    slots: shown.map(customSlot),
+  };
+};
+
+/** The Custom layout made of a list of panels: one tab, which is the page. */
+export const pitWallCustomLayout = (
+  cells: readonly PitWallCustomPanel[]
+): PitWallLayout => ({
+  ...PIT_WALL_CUSTOM_LAYOUT,
+  tabs: [
+    {
+      id: DEFAULT_PIT_WALL_TAB,
+      label: PIT_WALL_CUSTOM_LAYOUT.label,
+      columns: [],
+      cells,
+    },
+  ],
+});
+
 /**
  * - `ready`: the profile has a widget of the slot's type to host.
  * - `missing`: it has none, so the panel says so.
@@ -513,7 +792,10 @@ export type ResolvedPitWallPanel =
   | { slot: PitWallSlot; status: 'missing' };
 
 export interface ResolvedPitWall {
-  /** The layout whose tabs are shown: on a phone, the one made of tabs. */
+  /**
+   * The layout whose tabs are shown: on a phone, the one made of tabs. For
+   * the layout the user arranges, one made of the panels they saved.
+   */
   layout: PitWallLayout;
   /** The tabs to choose from. One tab is the whole page, and has no bar. */
   tabs: readonly PitWallTab[];
@@ -550,9 +832,10 @@ export interface PitWallSimFilter {
 export interface PitWallView {
   /**
    * A layout chosen on this device instead of in the profile, as a browser
-   * on another device does. Anything that is not a layout is ignored.
+   * on another device does. Anything that is not a layout is ignored. The
+   * panels of the Custom layout are the profile's wherever it is chosen.
    */
-  layout?: PitWallLayoutId;
+  layout?: PitWallLayoutChoice;
   /**
    * The tab in front, chosen on this device. Anything that is not a tab of
    * the layout shown is ignored.
@@ -588,6 +871,10 @@ const findPanelWidget = (
  * `view` is what was chosen where the page is shown. On a phone the tabs
  * are those of the layout made of tabs, whichever layout is chosen, and the
  * panels of the tab in front are stacked.
+ *
+ * The Custom layout is the list of panels the profile saved, or the one it
+ * starts with; its grid is the cells, with a hole where a panel is left
+ * out.
  */
 export const resolvePitWall = (
   dashboard: DashboardLayout | null | undefined,
@@ -598,20 +885,23 @@ export const resolvePitWall = (
   const config = sanitizePitWallConfig(
     widgets.find((widget) => widget.id === PIT_WALL_WIDGET_ID)?.config
   );
-  const layout =
-    PIT_WALL_LAYOUTS[
-      view.phone
-        ? PIT_WALL_PHONE_LAYOUT
-        : isPitWallLayoutId(view.layout)
-          ? view.layout
-          : config.layout
-    ];
+  const choice = view.phone
+    ? PIT_WALL_PHONE_LAYOUT
+    : isPitWallLayoutChoice(view.layout)
+      ? view.layout
+      : config.layout;
+  const layout: PitWallLayout =
+    choice === PIT_WALL_CUSTOM_LAYOUT_ID
+      ? pitWallCustomLayout(pitWallCustomPanels(config))
+      : PIT_WALL_LAYOUTS[choice];
   const wanted = isPitWallTabId(view.tab) ? view.tab : config.tab;
   const tab =
     layout.tabs.find((entry) => entry.id === wanted) ?? layout.tabs[0];
   const isShown = (slot: PitWallSlot) =>
     !sim || !isWidgetDisabledForSim(sim.support, slot.widget, sim.simulator);
-  const grid = pitWallGrid(tab, isShown);
+  const grid = tab.cells
+    ? pitWallCustomGrid(tab.cells, isShown)
+    : pitWallGrid(tab, isShown);
 
   // Each type once, in the order the tabs first show it.
   const hosted = new Map<string, DashboardWidget>();

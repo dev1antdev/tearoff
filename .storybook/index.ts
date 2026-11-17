@@ -31,3 +31,4 @@ export * from './ScrollToText';
 export * from './browserAccessStory';
 export * from './PressButtons';
 export * from './PointAt';
+export * from './PitWallEditSteps';

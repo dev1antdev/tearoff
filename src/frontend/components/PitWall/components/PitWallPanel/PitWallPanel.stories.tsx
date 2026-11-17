@@ -80,3 +80,58 @@ export const MissingWidget: Story = {
     ),
   },
 };
+
+const noop = () => undefined;
+const arranging = {
+  held: false,
+  describedBy: undefined,
+  onMoveStart: noop,
+  onSizeStart: noop,
+  onKeyDown: noop,
+  onRemove: noop,
+};
+
+/**
+ * While the page is arranged: the title bar is the handle the panel is
+ * moved by, with its size beside the name and a cross that takes it off the
+ * page; the corner is the handle it is sized by; and the body shows the
+ * name and the size in place of the widget, which is still there, unseen.
+ */
+export const Arranging: Story = {
+  args: {
+    ...Titled.args,
+    onOpenSettings: undefined,
+    cells: { x: 0, y: 0, w: 6, h: 5 },
+    edit: arranging,
+  },
+};
+
+/** Held by the pointer: dimmed, where it was, until it is let go of. */
+export const ArrangingHeld: Story = {
+  args: { ...Arranging.args, edit: { ...arranging, held: true } },
+};
+
+/** A panel the running sim cannot show is there to be moved, and says why it is not seen. */
+export const ArrangingUnsupported: Story = {
+  args: {
+    ...Arranging.args,
+    title: 'Weather Forecast',
+    edit: { ...arranging, note: 'Not shown under iRacing' },
+  },
+};
+
+/** At its least size the title is cut short and the handles keep their place. */
+export const ArrangingSmall: Story = {
+  args: {
+    ...Arranging.args,
+    title: 'Crew and Stints',
+    cells: { x: 0, y: 0, w: 4, h: 4 },
+  },
+  decorators: [
+    (Story) => (
+      <div className="grid h-[150px] w-[190px]">
+        <Story />
+      </div>
+    ),
+  ],
+};

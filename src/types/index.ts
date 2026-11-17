@@ -15,6 +15,7 @@ export * from './gantryDock';
 export * from './gantryStandings';
 export * from './gantryPitStops';
 export * from './pitWall';
+export * from './pitWallCustom';
 export * from './browserAccess';
 export * from './browserConnection';
 export * from './defaultDashboard';

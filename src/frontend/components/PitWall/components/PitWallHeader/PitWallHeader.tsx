@@ -1,19 +1,32 @@
+import type { Ref } from 'react';
 import {
   ArrowsClockwiseIcon,
   CornersInIcon,
   CornersOutIcon,
   GearIcon,
+  PencilSimpleIcon,
 } from '@phosphor-icons/react';
-import { PIT_WALL_LAYOUT_LIST, type PitWallLayoutId } from '@irdashies/types';
+import {
+  PIT_WALL_LAYOUT_CHOICE_LIST,
+  type PitWallLayoutChoice,
+} from '@irdashies/types';
 import logo from '../../../../assets/icons/logo.svg';
 import type { PitWallHeaderData } from '../../hooks/usePitWallHeader';
 import type { FlagTone } from '../../pitWallHeaderFormat';
 
 export interface PitWallHeaderProps {
   data: PitWallHeaderData;
-  layout: PitWallLayoutId;
+  layout: PitWallLayoutChoice;
   /** Chooses a layout. Left out, the strip offers no choice of one. */
-  onLayoutChange?: (layout: PitWallLayoutId) => void;
+  onLayoutChange?: (layout: PitWallLayoutChoice) => void;
+  /**
+   * Begins arranging the layout shown. Left out, the strip has no such
+   * button: it is there only for the layout the user arranges, and only
+   * where the page may be arranged.
+   */
+  onEditLayout?: () => void;
+  /** The Edit layout button, for the page to hand the keyboard back to. */
+  editLayoutRef?: Ref<HTMLButtonElement>;
   fullscreen: boolean;
   onToggleFullscreen: () => void;
   /** Opens the Pit Wall's settings. Left out, the strip has no gear. */
@@ -58,6 +71,8 @@ export const PitWallHeader = ({
   data,
   layout,
   onLayoutChange,
+  onEditLayout,
+  editLayoutRef,
   fullscreen,
   onToggleFullscreen,
   onOpenSettings,
@@ -206,7 +221,7 @@ export const PitWallHeader = ({
           hidden={!onLayoutChange}
           className="flex overflow-hidden rounded-md border border-slate-700"
         >
-          {PIT_WALL_LAYOUT_LIST.map((option) => (
+          {PIT_WALL_LAYOUT_CHOICE_LIST.map((option) => (
             <button
               key={option.id}
               type="button"
@@ -227,6 +242,31 @@ export const PitWallHeader = ({
         </nav>
 
         <div className="flex gap-1.5">
+          {onEditLayout && (
+            // First of the page's own buttons, next to the switch whose
+            // layout it arranges.
+            <button
+              ref={editLayoutRef}
+              type="button"
+              className={`flex items-center gap-2 rounded-md border border-slate-700 bg-slate-800 px-[10px] text-sm text-slate-300 transition-colors hover:bg-slate-700 hover:text-white ${
+                tall ? 'min-h-11' : 'min-h-10'
+              }`}
+              title="Edit layout: move, size, add and remove the panels"
+              onClick={onEditLayout}
+            >
+              <PencilSimpleIcon size={18} />
+              {/* In a window narrower than a monitor the words would take
+                  the controls onto a second line, and the page down by one:
+                  there the pencil stands alone, as square as the buttons
+                  beside it, with the words left for a reader and for the
+                  tooltip. Asked of the window and not of the strip: a strip
+                  made a container to be asked would, in the browsers that
+                  hold a container to its layout, become what the
+                  Reconnecting mark hangs from, and the mark belongs under
+                  the tab bar. */}
+              <span className="max-[1800px]:sr-only">Edit layout</span>
+            </button>
+          )}
           <button
             type="button"
             className={`${iconButtonClass} ${tall ? 'size-11' : ''}`}

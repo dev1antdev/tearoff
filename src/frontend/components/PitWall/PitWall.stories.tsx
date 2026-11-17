@@ -1,6 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { pitWallStage } from '@irdashies/storybook';
-import type { BrowserConnection, IrSdkBridge } from '@irdashies/types';
+import {
+  PitWallEditSteps,
+  pitWallStage,
+  type PitWallEditStep,
+} from '@irdashies/storybook';
+import type {
+  BrowserConnection,
+  IrSdkBridge,
+  PitWallCustomPanel,
+} from '@irdashies/types';
 import { PitWallBrowserPage } from '../../windows/PitWallBrowserPage';
 import { PitWallContent } from '../../windows/PitWallWindow';
 import { PitWall } from './PitWall';
@@ -32,6 +40,33 @@ const inABrowserReconnecting = () => (
     <PitWallBrowserPage bridge={silentSession} connection={socketDown} />
   </div>
 );
+
+/**
+ * The window's page with things done to it once it is drawn: the buttons
+ * of an edit pressed, a panel taken hold of. Nothing is staged; the page is
+ * driven as a hand drives it.
+ */
+const arranging = (steps: readonly PitWallEditStep[]) => () => (
+  <div className="h-screen w-screen">
+    <PitWallEditSteps steps={steps}>
+      <PitWallContent />
+    </PitWallEditSteps>
+  </div>
+);
+
+/**
+ * A page somebody arranged: the Standings of the overlay down the left in
+ * place of the tower, Our Car and the tyre wear, Class Rivals, the Race Log
+ * and the damage, and a strip four cells wide left free on the right.
+ */
+const ARRANGED: readonly PitWallCustomPanel[] = [
+  { widget: 'standings', x: 0, y: 0, w: 11, h: 16 },
+  { widget: 'ourcar', x: 11, y: 0, w: 5, h: 6 },
+  { widget: 'wear', x: 16, y: 0, w: 4, h: 6 },
+  { widget: 'classrivals', x: 11, y: 6, w: 9, h: 4 },
+  { widget: 'racelog', x: 11, y: 10, w: 5, h: 6 },
+  { widget: 'damage', x: 16, y: 10, w: 4, h: 6 },
+];
 
 /**
  * The Pit Wall as its window shows it: the page with its panels filled by
@@ -268,5 +303,197 @@ export const OnAPhoneCharts: Story = {
 /** A phone on the Log tab. */
 export const OnAPhoneLog: Story = {
   ...pitWallStage({ layout: 'race', tab: 'log', browser: true }),
+  render: inABrowser,
+};
+
+/**
+ * The Custom layout as it starts, in a profile that has arranged nothing:
+ * the Race layout put on the grid of 24 cells by 16. The header has a
+ * fourth layout and, in the window, an Edit layout button.
+ */
+export const Custom: Story = { ...pitWallStage({ layout: 'custom' }) };
+
+/**
+ * A page the user arranged, with widgets of the overlay the fixed layouts
+ * do not use and room left free on the right.
+ */
+export const CustomArranged: Story = {
+  ...pitWallStage({ layout: 'custom', custom: ARRANGED }),
+};
+
+/**
+ * The edit begun and nothing touched yet: the bar under the header, the
+ * cells of the page behind the panels, and each panel with its name and
+ * size in place of its widget, a title bar to move it by, a cross to take
+ * it off the page and a corner to size it by.
+ */
+export const CustomEditing: Story = {
+  ...pitWallStage({ layout: 'custom', custom: ARRANGED }),
+  render: arranging([{ press: 'Edit layout' }]),
+};
+
+/** The same on the copy of Race, which fills the page: there is no free cell. */
+export const CustomEditingTheStart: Story = {
+  ...pitWallStage({ layout: 'custom' }),
+  render: arranging([{ press: 'Edit layout' }]),
+};
+
+/**
+ * A panel held over a place it fits: the tyre wear taken four cells to the
+ * right, into the free strip. Its cells there are marked green; the panel
+ * itself, dimmed, is still where it was until it is let go of.
+ */
+export const CustomDragFits: Story = {
+  ...pitWallStage({ layout: 'custom', custom: ARRANGED }),
+  render: arranging([
+    { press: 'Edit layout' },
+    { hold: 'Move Tyre & Brake Wear', across: 4, down: 0 },
+  ]),
+};
+
+/**
+ * A panel held over others: the tyre wear taken left and down, onto Our
+ * Car and Class Rivals. The cells are marked red; let go of there, the
+ * panel stays where it was.
+ */
+export const CustomDragOverlaps: Story = {
+  ...pitWallStage({ layout: 'custom', custom: ARRANGED }),
+  render: arranging([
+    { press: 'Edit layout' },
+    { hold: 'Move Tyre & Brake Wear', across: -2, down: 3 },
+  ]),
+};
+
+/**
+ * A panel held half off the page: only the part of its cells that is on
+ * the page can be marked, in red.
+ */
+export const CustomDragOffThePage: Story = {
+  ...pitWallStage({ layout: 'custom', custom: ARRANGED }),
+  render: arranging([
+    { press: 'Edit layout' },
+    { hold: 'Move Damage', across: 6, down: 0 },
+  ]),
+};
+
+/** A panel sized by its corner into free room: Class Rivals, four cells wider. */
+export const CustomSizeFits: Story = {
+  ...pitWallStage({ layout: 'custom', custom: ARRANGED }),
+  render: arranging([
+    { press: 'Edit layout' },
+    { hold: 'Size Class Rivals', across: 4, down: 0 },
+  ]),
+};
+
+/**
+ * A panel sized under the least its widget may have: Our Car at three
+ * cells by three, where four by four is the least.
+ */
+export const CustomSizeTooSmall: Story = {
+  ...pitWallStage({ layout: 'custom', custom: ARRANGED }),
+  render: arranging([
+    { press: 'Edit layout' },
+    { hold: 'Size Our Car', across: -2, down: -3 },
+  ]),
+};
+
+/**
+ * The Add panel list: what the page can host and does not, the panels of
+ * the fixed layouts first and the widgets of the overlay after them, each
+ * with the size it is added at.
+ */
+export const CustomAddPanel: Story = {
+  ...pitWallStage({ layout: 'custom', custom: ARRANGED }),
+  render: arranging([{ press: 'Edit layout' }, { press: 'Add panel' }]),
+};
+
+/**
+ * No room: on the copy of Race, which fills the page, nothing can be added.
+ * The list says so for every widget, and the bar says what the one chosen
+ * would need.
+ */
+export const CustomNoRoom: Story = {
+  ...pitWallStage({ layout: 'custom' }),
+  render: arranging([
+    { press: 'Edit layout' },
+    { press: 'Add panel' },
+    { press: 'Add Standings: no room' },
+  ]),
+};
+
+/** Reset asks before it brings back the copy of Race. */
+export const CustomResetAsking: Story = {
+  ...pitWallStage({ layout: 'custom', custom: ARRANGED }),
+  render: arranging([{ press: 'Edit layout' }, { press: 'Reset' }]),
+};
+
+/**
+ * A page with a widget the profile lacks and widgets the running sim cannot
+ * show: under iRacing the tyre wear and the damage are left out and their
+ * cells stay empty, since nothing on this page moves that the user did not
+ * move; Our Car says the profile has no such widget.
+ */
+export const CustomMissingAndUnsupported: Story = {
+  ...pitWallStage({
+    layout: 'custom',
+    custom: ARRANGED,
+    simulator: 'iracing',
+    without: ['ourcar'],
+  }),
+};
+
+/**
+ * The same page being arranged: the panels iRacing cannot show are there to
+ * be moved, with a word of why they are not seen, and the list marks the
+ * widgets that are not shown under iRacing.
+ */
+export const CustomEditingUnsupported: Story = {
+  ...pitWallStage({
+    layout: 'custom',
+    custom: ARRANGED,
+    simulator: 'iracing',
+    without: ['ourcar'],
+  }),
+  render: arranging([{ press: 'Edit layout' }, { press: 'Add panel' }]),
+};
+
+/**
+ * Arranged with no sim running: the page is placed before a race as well
+ * as during one.
+ */
+export const CustomEditingNoSimulator: Story = {
+  ...pitWallStage({ layout: 'custom', custom: ARRANGED, running: false }),
+  render: arranging([{ press: 'Edit layout' }]),
+};
+
+/** The arranged page at 125 %: the header and every panel grow together. */
+export const CustomScaled: Story = {
+  ...pitWallStage({ layout: 'custom', custom: ARRANGED, scale: 125 }),
+};
+
+/**
+ * Arranged with the page at 125 %: the cells are a quarter larger on the
+ * screen, and a panel dragged still snaps to them.
+ */
+export const CustomEditingScaled: Story = {
+  ...pitWallStage({ layout: 'custom', custom: ARRANGED, scale: 125 }),
+  render: arranging([
+    { press: 'Edit layout' },
+    { hold: 'Move Tyre & Brake Wear', across: 4, down: 0 },
+  ]),
+};
+
+/** A page the user emptied: it says so, and where to put panels on it. */
+export const CustomEmpty: Story = {
+  ...pitWallStage({ layout: 'custom', custom: [] }),
+};
+
+/**
+ * The Custom layout in a browser: the arrangement as the window saved it,
+ * with no Edit layout button. A page in a browser changes nothing of a
+ * profile.
+ */
+export const CustomInABrowser: Story = {
+  ...pitWallStage({ layout: 'custom', custom: ARRANGED, browser: true }),
   render: inABrowser,
 };

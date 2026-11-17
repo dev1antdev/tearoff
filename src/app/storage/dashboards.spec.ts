@@ -10,7 +10,13 @@ import {
   withDashboardDefaults,
   resetDashboard,
 } from './dashboards';
-import { defaultDashboard, getWidgetDefaultConfig } from '@irdashies/types';
+import {
+  PIT_WALL_CUSTOM_START,
+  defaultDashboard,
+  getWidgetDefaultConfig,
+  resolvePitWall,
+  sanitizePitWallConfig,
+} from '@irdashies/types';
 import { DashboardLayout } from '@irdashies/types';
 
 const mockReadData = vi.hoisted(() => vi.fn());
@@ -1363,6 +1369,132 @@ describe('dashboards', () => {
         changeSeconds: 18,
       });
       expect(configOf(again, 'classrivals').showTyres).toBe(false);
+    });
+  });
+
+  describe('Pit Wall saved before the Custom layout', () => {
+    const layout = { x: 0, y: 0, width: 1600, height: 900 };
+    const stored = (config: Record<string, unknown>): DashboardLayout => ({
+      widgets: [{ id: 'pitwall', enabled: true, layout, config }],
+    });
+    const configOf = (dashboard: DashboardLayout) =>
+      dashboard.widgets.find((w) => w.id === 'pitwall')?.config as Record<
+        string,
+        unknown
+      >;
+    // What the user arranged: three panels, saved in the order they are
+    // read on the page.
+    const arranged = [
+      { widget: 'standings', x: 0, y: 0, w: 12, h: 16 },
+      { widget: 'fuel', x: 12, y: 0, w: 6, h: 8 },
+      { widget: 'racelog', x: 12, y: 8, w: 12, h: 8 },
+    ];
+
+    it('is given no list of panels, so the Custom layout shows as it starts', () => {
+      // As the build before stored it: a layout and a tab.
+      const loaded = withDashboardDefaults(
+        stored({ layout: 'watching', tab: 'overview' })
+      );
+
+      expect(configOf(loaded)).toEqual({ layout: 'watching', tab: 'overview' });
+      expect(configOf(loaded)).not.toHaveProperty('custom');
+      // Where and whether it is on are the user's.
+      expect(loaded.widgets[0]).toMatchObject({ enabled: true, layout });
+      // Read by the page: the layout chosen is kept, and Custom, when it is
+      // chosen, is the copy of Race.
+      expect(sanitizePitWallConfig(configOf(loaded))).toEqual({
+        layout: 'watching',
+        tab: 'overview',
+      });
+      expect(
+        resolvePitWall(loaded, undefined, { layout: 'custom' }).tab.cells
+      ).toBe(PIT_WALL_CUSTOM_START);
+    });
+
+    it('fills in the tab for a profile saved before the tabs, and still no list', () => {
+      const loaded = withDashboardDefaults(stored({ layout: 'compact' }));
+
+      expect(configOf(loaded)).toEqual({ layout: 'compact', tab: 'overview' });
+    });
+
+    it('gives a new profile no list either', () => {
+      expect(getWidgetDefaultConfig('pitwall')).not.toHaveProperty('custom');
+      expect(
+        configOf(withDashboardDefaults({ widgets: [] } as DashboardLayout))
+      ).toEqual({ layout: 'race', tab: 'overview' });
+    });
+
+    it('keeps the list the user arranged whole, in its order', () => {
+      const loaded = withDashboardDefaults(
+        stored({ layout: 'custom', tab: 'overview', custom: arranged })
+      );
+
+      expect(configOf(loaded)).toEqual({
+        layout: 'custom',
+        tab: 'overview',
+        custom: arranged,
+      });
+      expect(
+        resolvePitWall(loaded).panels.map((panel) => panel.slot.widget)
+      ).toEqual(['standings', 'fuel', 'racelog']);
+    });
+
+    it('keeps a list beside another layout, for when Custom is chosen again', () => {
+      const loaded = withDashboardDefaults(
+        stored({ layout: 'race', tab: 'overview', custom: arranged })
+      );
+
+      expect(configOf(loaded).custom).toEqual(arranged);
+      expect(resolvePitWall(loaded).layout.id).toBe('race');
+    });
+
+    it('keeps a page the user emptied empty', () => {
+      const loaded = withDashboardDefaults(
+        stored({ layout: 'custom', tab: 'overview', custom: [] })
+      );
+
+      expect(configOf(loaded).custom).toEqual([]);
+      expect(resolvePitWall(loaded).panels).toEqual([]);
+    });
+
+    it('stores a broken list as it came and leaves the reading of it to the page', () => {
+      // The merge fills in what is missing and mends nothing: the page
+      // reads the list as untrusted every time it is handed one.
+      const broken = [
+        { widget: 'timingtower', x: 0, y: 0, w: 30, h: 4 },
+        'rubbish',
+        arranged[1],
+        { widget: 'fuel', x: 0, y: 8, w: 4, h: 4 },
+        { widget: 'spaceship', x: 0, y: 12, w: 4, h: 4 },
+      ];
+      const loaded = withDashboardDefaults(
+        stored({ layout: 'custom', tab: 'overview', custom: broken })
+      );
+
+      expect(configOf(loaded).custom).toEqual(broken);
+      expect(sanitizePitWallConfig(configOf(loaded)).custom).toEqual([
+        arranged[1],
+      ]);
+      expect(() => resolvePitWall(loaded)).not.toThrow();
+    });
+
+    it('reads a list that is no list as none, and shows the copy of Race', () => {
+      const loaded = withDashboardDefaults(
+        stored({ layout: 'custom', tab: 'overview', custom: 'everything' })
+      );
+
+      expect(resolvePitWall(loaded).tab.cells).toBe(PIT_WALL_CUSTOM_START);
+    });
+
+    it('changes nothing more when the profile is loaded again', () => {
+      for (const config of [
+        { layout: 'watching', tab: 'overview' },
+        { layout: 'custom', tab: 'overview', custom: arranged },
+      ]) {
+        const loaded = withDashboardDefaults(stored(config));
+
+        expect(withDashboardDefaults(loaded)).toEqual(loaded);
+      }
     });
   });
 

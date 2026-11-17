@@ -7,9 +7,9 @@ import {
   type ReactNode,
 } from 'react';
 import {
-  isPitWallLayoutId,
+  isPitWallLayoutChoice,
   isPitWallTabId,
-  type PitWallLayoutId,
+  type PitWallLayoutChoice,
   type PitWallTabId,
 } from '@irdashies/types';
 import logger from '@irdashies/utils/logger';
@@ -22,8 +22,8 @@ export const PIT_WALL_DEVICE_TAB_KEY = 'irdashies:pitwall:tab';
 
 interface DeviceLayout {
   /** Undefined until one is chosen here: the profile's layout is shown. */
-  layout: PitWallLayoutId | undefined;
-  setLayout: (layout: PitWallLayoutId) => void;
+  layout: PitWallLayoutChoice | undefined;
+  setLayout: (layout: PitWallLayoutChoice) => void;
   /** Undefined until one is chosen here: the profile's tab is in front. */
   tab: PitWallTabId | undefined;
   setTab: (tab: PitWallTabId) => void;
@@ -66,12 +66,12 @@ const writeStored = (key: string, value: string) => {
  */
 export const PitWallDeviceLayout = ({ children }: { children: ReactNode }) => {
   const [layout, setChosenLayout] = useState(() =>
-    readStored(PIT_WALL_DEVICE_LAYOUT_KEY, isPitWallLayoutId)
+    readStored(PIT_WALL_DEVICE_LAYOUT_KEY, isPitWallLayoutChoice)
   );
   const [tab, setChosenTab] = useState(() =>
     readStored(PIT_WALL_DEVICE_TAB_KEY, isPitWallTabId)
   );
-  const setLayout = useCallback((next: PitWallLayoutId) => {
+  const setLayout = useCallback((next: PitWallLayoutChoice) => {
     setChosenLayout(next);
     writeStored(PIT_WALL_DEVICE_LAYOUT_KEY, next);
   }, []);

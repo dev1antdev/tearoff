@@ -5,6 +5,7 @@ import type { FlagPanelConfig } from './flagPanel';
 import type { TrafficConfig } from './traffic';
 import type { LapTraceColors, LapTraceSound, LapTraceSource } from './lapTrace';
 import type { LmuBadgeFormat } from './lmu';
+import type { PitWallCustomPanel } from './pitWallCustom';
 
 // ===========================
 // Shared primitive types
@@ -2355,6 +2356,16 @@ export type GantryWidgetSettings = BaseWidgetSettings<GantryConfig>;
 export const PIT_WALL_LAYOUT_IDS = ['race', 'watching', 'compact'] as const;
 export type PitWallLayoutId = (typeof PIT_WALL_LAYOUT_IDS)[number];
 
+/** The layout the user arranges: no fixed one, and listed after them. */
+export const PIT_WALL_CUSTOM_LAYOUT_ID = 'custom';
+
+/** What the page can be set to show: a fixed layout, or the user's own. */
+export const PIT_WALL_LAYOUT_CHOICES = [
+  ...PIT_WALL_LAYOUT_IDS,
+  PIT_WALL_CUSTOM_LAYOUT_ID,
+] as const;
+export type PitWallLayoutChoice = (typeof PIT_WALL_LAYOUT_CHOICES)[number];
+
 /**
  * The tabs a layout can be divided into, in the order its tab bar lists
  * them. A layout that is one page has the first of them and no bar.
@@ -2376,13 +2387,20 @@ export type PitWallTabId = (typeof PIT_WALL_TAB_IDS)[number];
  * is kept by the main process, not here.
  */
 export interface PitWallConfig {
-  /** Which of the fixed layouts the page shows. */
-  layout: PitWallLayoutId;
+  /** Which layout the page shows: one of the fixed ones, or the user's. */
+  layout: PitWallLayoutChoice;
   /**
    * The tab last shown, for a layout that has tabs. View state of the
    * window: a browser keeps its own, as it keeps its own layout.
    */
   tab: PitWallTabId;
+  /**
+   * The panels of the Custom layout as the user arranged them. Left out
+   * until they have arranged it: the layout is then shown as it starts,
+   * which is the Race layout as it is in the version running. Sanitise
+   * with sanitizePitWallCustom.
+   */
+  custom?: readonly PitWallCustomPanel[];
 }
 
 export type PitWallWidgetSettings = BaseWidgetSettings<PitWallConfig>;

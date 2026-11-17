@@ -188,3 +188,24 @@ export const NoSimulator: Story = {
     data: { ...NoSession.args?.data, simulator: null } as PitWallHeaderData,
   },
 };
+
+/**
+ * The layout the user arranges, in the app's own window: the fourth button
+ * of the switch, and beside it the button that begins an edit.
+ */
+export const CustomLayout: Story = {
+  args: { layout: 'custom', onEditLayout: () => undefined },
+};
+
+/**
+ * While the page is arranged the strip offers no choice of layout and no
+ * second way into the edit: the bar under it has Done and Cancel.
+ */
+export const CustomLayoutArranging: Story = {
+  args: { layout: 'custom', onLayoutChange: undefined },
+};
+
+/** Custom in a browser: the switch, and nothing to arrange the page with. */
+export const CustomLayoutInABrowser: Story = {
+  args: { layout: 'custom', onOpenSettings: undefined },
+};

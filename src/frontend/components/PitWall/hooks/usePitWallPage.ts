@@ -5,12 +5,15 @@ import {
   useSimWidgetSupport,
 } from '@irdashies/context';
 import {
+  PIT_WALL_CUSTOM_START,
   PIT_WALL_PHONE_MAX_WIDTH,
   PIT_WALL_WIDGET_ID,
   resolvePitWall,
+  samePitWallCustom,
   sanitizePitWallConfig,
   type PitWallConfig,
-  type PitWallLayoutId,
+  type PitWallCustomPanel,
+  type PitWallLayoutChoice,
   type PitWallTabId,
   type ResolvedPitWall,
 } from '@irdashies/types';
@@ -66,10 +69,15 @@ export const usePitWallPage = (): ResolvedPitWall => {
   );
 };
 
+/** What is saved for a key is what the change would save. */
+const isSaved = (saved: unknown, change: unknown): boolean =>
+  saved === change || JSON.stringify(saved) === JSON.stringify(change);
+
 /**
  * Saves one choice of the page into the Pit Wall's own config. Does nothing
  * while the profile has no Pit Wall widget to save it in, or while the
- * choice is the one already saved.
+ * choice is the one already saved. A key given as undefined is taken out
+ * of the config.
  */
 const useSaveToProfile = () => {
   const { currentDashboard, onDashboardUpdated } = useDashboard();
@@ -82,12 +90,19 @@ const useSaveToProfile = () => {
       if (!saved) return;
       const config = sanitizePitWallConfig(saved.config);
       const keys = Object.keys(change) as (keyof PitWallConfig)[];
-      if (keys.every((key) => config[key] === change[key])) return;
+      if (keys.every((key) => isSaved(config[key], change[key]))) return;
+      // Without the keys that have no value: one given as undefined is
+      // how a key is taken out.
+      const next = Object.fromEntries(
+        Object.entries({ ...saved.config, ...change }).filter(
+          ([, value]) => value !== undefined
+        )
+      );
       onDashboardUpdated({
         ...currentDashboard,
         widgets: currentDashboard.widgets.map((widget) =>
           widget.id === PIT_WALL_WIDGET_ID
-            ? { ...widget, config: { ...widget.config, ...change } }
+            ? { ...widget, config: next }
             : widget
         ),
       });
@@ -106,7 +121,7 @@ export const useSetPitWallLayout = () => {
   const save = useSaveToProfile();
   const device = usePitWallDeviceLayout();
   return useCallback(
-    (layout: PitWallLayoutId) => {
+    (layout: PitWallLayoutChoice) => {
       if (device) device.setLayout(layout);
       else save({ layout });
     },
@@ -125,6 +140,34 @@ export const useSetPitWallTab = () => {
     (tab: PitWallTabId) => {
       if (device) device.setTab(tab);
       else save({ tab });
+    },
+    [save, device]
+  );
+};
+
+/**
+ * Saves the panels of the Custom layout as the user arranged them, into the
+ * Pit Wall's own config, by the road the layout and the tab are saved.
+ *
+ * An arrangement that is the one the layout starts with is saved as no
+ * list at all: the layout then goes on being Race as each version has it,
+ * as it was before the user touched it.
+ *
+ * In a browser nothing is saved and nothing is kept. The arrangement is
+ * the profile's, and a page in a browser changes nothing of a profile but
+ * where its own widgets sit (rule R12.6).
+ */
+export const useSetPitWallCustom = () => {
+  const save = useSaveToProfile();
+  const device = usePitWallDeviceLayout();
+  return useCallback(
+    (panels: readonly PitWallCustomPanel[]) => {
+      if (device) return;
+      save({
+        custom: samePitWallCustom(panels, PIT_WALL_CUSTOM_START)
+          ? undefined
+          : panels.map(({ widget, x, y, w, h }) => ({ widget, x, y, w, h })),
+      });
     },
     [save, device]
   );

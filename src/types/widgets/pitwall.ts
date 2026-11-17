@@ -22,17 +22,21 @@ export default defineWidgetManifest({
     // Which tab of a layout with tabs is in front. The page changes it; the
     // settings page has no row for it.
     tab: 'overview',
+    // The panels of the Custom layout are saved here as `custom` once the
+    // user has arranged it, and are left out until then: the layout is
+    // then shown as it starts (PIT_WALL_CUSTOM_START).
   },
   properties: {
     layout: {
       type: 'enum',
       label: 'Layout',
       description:
-        'Race is the full page for a second monitor. Watching is for the hours a team-mate drives. Compact is a page of tabs for a small or touch screen. The header of the window switches between them too.',
+        'Race is the full page for a second monitor. Watching is for the hours a team-mate drives. Compact is a page of tabs for a small or touch screen. Custom is a page you arrange yourself: choose it, then press Edit layout, the pencil beside the layout switch in the header of the window. The header switches between the four too.',
       options: [
         { value: 'race', label: 'Race' },
         { value: 'watching', label: 'Watching' },
         { value: 'compact', label: 'Compact' },
+        { value: 'custom', label: 'Custom' },
       ],
     },
   },
