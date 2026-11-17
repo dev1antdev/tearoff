@@ -13,6 +13,7 @@ import { lapOf, stintOf } from './recordFixture';
 import {
   raceHistoryReadable,
   useCarRaceRecord,
+  useCarRaceRecords,
   useRaceStints,
 } from './useRaceHistoryCars';
 
@@ -304,5 +305,97 @@ describe('useRaceStints', () => {
     await summary.publish({ ...summaryOf([1, 1, 2]), version: 2 });
     await waitFor(() => expect(bridge.getCarStints).toHaveBeenCalledTimes(3));
     expect(bridge.getCarStints).toHaveBeenLastCalledWith(2);
+  });
+});
+
+describe('useCarRaceRecords', () => {
+  /** Answers every question so far that has not been, with laps by car. */
+  const answerAll = async (asked: Asked[]) => {
+    for (const question of asked) await question.answer(question.carIdx + 1);
+  };
+
+  it('asks for each car once, and holds each from when its answer is in', async () => {
+    channel(summaryOf([1, 1, 1, 1]));
+    const { bridge, asked } = history();
+    const cars = [3, 0, 2];
+    const { result } = renderHook(() => useCarRaceRecords(cars));
+
+    expect(result.current.size).toBe(0);
+    expect(asked.map((question) => question.carIdx)).toEqual([3, 0, 2]);
+
+    await asked[1].answer(5);
+    expect([...result.current.keys()]).toEqual([0]);
+    expect(result.current.get(0)?.laps).toHaveLength(5);
+    expect(result.current.get(0)?.stints).toHaveLength(1);
+
+    await asked[0].answer(4);
+    await asked[2].answer(6);
+    expect(result.current.size).toBe(3);
+    expect(bridge.getCarLaps).toHaveBeenCalledTimes(3);
+    expect(bridge.getCarStints).toHaveBeenCalledTimes(3);
+  });
+
+  it('asks again for the one car whose revision moved', async () => {
+    const summary = channel(summaryOf([1, 1, 1, 1]));
+    const { bridge, asked } = history();
+    const cars = [3, 0, 2];
+    const { result } = renderHook(() => useCarRaceRecords(cars));
+    await answerAll(asked);
+
+    // A car that is not drawn completes a lap: nothing is asked.
+    await summary.publish({ ...summaryOf([1, 7, 1, 1]), version: 2 });
+    expect(bridge.getCarLaps).toHaveBeenCalledTimes(3);
+
+    await summary.publish({ ...summaryOf([1, 7, 2, 1]), version: 3 });
+    expect(bridge.getCarLaps).toHaveBeenCalledTimes(4);
+    expect(bridge.getCarLaps).toHaveBeenLastCalledWith(2);
+    // The other cars' records are the ones held before, not read again.
+    const before = result.current.get(3);
+    await asked[3].answer(9);
+    expect(result.current.get(2)?.laps).toHaveLength(9);
+    expect(result.current.get(3)).toBe(before);
+  });
+
+  it('lets go of a car that is no longer drawn, and keeps the others', async () => {
+    channel(summaryOf([1, 1, 1, 1]));
+    const { bridge, asked } = history();
+    const { result, rerender } = renderHook(
+      ({ cars }: { cars: number[] }) => useCarRaceRecords(cars),
+      { initialProps: { cars: [0, 1, 2] } }
+    );
+    await answerAll(asked);
+    expect(result.current.size).toBe(3);
+
+    // The car behind is another car now.
+    rerender({ cars: [0, 1, 3] });
+    expect([...result.current.keys()].sort()).toEqual([0, 1]);
+    // Only the car that came in is asked for.
+    expect(asked.map((question) => question.carIdx)).toEqual([0, 1, 2, 3]);
+    await asked[3].answer(2);
+    expect([...result.current.keys()].sort()).toEqual([0, 1, 3]);
+    expect(bridge.getCarLaps).toHaveBeenCalledTimes(4);
+  });
+
+  it('drops an answer for a car that was let go of before it came', async () => {
+    channel(summaryOf([1, 1, 1]));
+    const { asked } = history();
+    const { result, rerender } = renderHook(
+      ({ cars }: { cars: number[] }) => useCarRaceRecords(cars),
+      { initialProps: { cars: [0, 1] } }
+    );
+    rerender({ cars: [0, 2] });
+    // Asked for car 1, which is no longer drawn.
+    await asked[1].answer(8);
+    expect(result.current.has(1)).toBe(false);
+  });
+
+  it('asks nothing and reads no summary for no cars', () => {
+    const summary = channel(summaryOf([1]));
+    const { bridge } = history();
+    const none: number[] = [];
+    const { result } = renderHook(() => useCarRaceRecords(none));
+    expect(result.current.size).toBe(0);
+    expect(bridge.getCarLaps).not.toHaveBeenCalled();
+    expect(summary.subscribers()).toBe(0);
   });
 });

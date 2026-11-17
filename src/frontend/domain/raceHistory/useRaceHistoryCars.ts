@@ -146,6 +146,17 @@ export const useCarRaceRecord = (
 };
 
 /**
+ * The laps and stints of a few cars, each from the moment its answer is in:
+ * a car asked about has no entry until then. A chart of several cars reads
+ * them here, so that each is asked for once and again only when its own
+ * records have changed, and a car no longer drawn is let go of.
+ */
+export const useCarRaceRecords = (
+  carIdxs: readonly number[]
+): ReadonlyMap<number, CarRaceRecord> =>
+  useRaceHistoryCars(carIdxs, readRecord);
+
+/**
  * Whether this window can read the race history at all. A page served to a
  * browser has no bridge to it.
  */

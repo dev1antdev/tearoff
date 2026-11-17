@@ -10,6 +10,7 @@ import {
 import { isCleanLap } from '@irdashies/shared';
 import {
   isDrivenStint,
+  lapEnergyUse,
   lapsAroundStop,
   lapsByStint,
   stopSeen,
@@ -116,24 +117,6 @@ const bestsOf = (ownLaps: readonly RaceLap[]): StintBests => {
     });
   }
   return bests;
-};
-
-/** What a lap used, from what the car had left at this line and the last. */
-const energyOf = (
-  lap: RaceLap,
-  before: RaceLap | undefined
-): { used: number | null; refilled: boolean } => {
-  if (
-    !before ||
-    before.lap !== lap.lap - 1 ||
-    before.energy === null ||
-    lap.energy === null ||
-    before.energyIsVirtual !== lap.energyIsVirtual
-  ) {
-    return { used: null, refilled: false };
-  }
-  const used = before.energy - lap.energy;
-  return used < 0 ? { used: null, refilled: true } : { used, refilled: false };
 };
 
 /** A missing lap as a held one would be listed, for the merge below. */
@@ -244,7 +227,7 @@ export const carLapsView = (
 
     const bests = sectorBests.get(lap.lap);
     const clean = lap.lapTime !== null && isCleanLap(lap.flags);
-    const energy = energyOf(lap, before);
+    const energy = lapEnergyUse(lap, before);
     rows.push({
       kind: 'lap',
       lap: lap.lap,
