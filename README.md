@@ -563,7 +563,7 @@ The height of the track along the lap as a filled profile, with your car's place
 
 - The whole lap from the start/finish line to the start/finish line, the part already driven tinted, with a mark and a dot where the car is
 - The height where the car is, read off the profile, measured from the lowest point of the lap or from the start/finish line (then signed), in metres or feet
-- The lap's height range, and a dashed line where each sector starts
+- The lap's height range, and a dashed line where each sector starts. Le Mans Ultimate does not say where its sectors start, so there they are learned from your first clean lap at the track and no line is drawn before that
 - The profile is recorded once for each track, from the first lap you drive from the line to the line without visiting the pits, and kept. Until there is one the widget says so, and shows how far round the recording lap you are
 - In Le Mans Ultimate the profile is the height of the road as the sim states it, and a TinyPedal track map of the same name on your computer is used until your own lap replaces it
 - iRacing states no height while the car is driven, so the profile there is worked out from the car's motion over the first three clean laps: the shape of the lap rather than a survey of it

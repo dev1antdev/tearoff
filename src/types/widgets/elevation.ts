@@ -46,7 +46,8 @@ export default defineWidgetManifest({
     showSectors: {
       type: 'boolean',
       label: 'Sector Lines',
-      description: 'A dashed line where each sector starts.',
+      description:
+        'A dashed line where each sector starts. Le Mans Ultimate does not say where its sectors start: they are learned from your first clean lap at the track, and no line is drawn before that.',
     },
     showReading: {
       type: 'boolean',

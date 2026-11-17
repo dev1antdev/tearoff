@@ -211,6 +211,29 @@ describe('Elevation', () => {
       ).toEqual([0.39 * WIDTH, 0.792 * WIDTH]);
     });
 
+    it('marks the starts a session gives, as iRacing does', () => {
+      show(profile({ sectorSource: 'session', sectorStartPct: [0, 0.5] }));
+
+      expect(
+        screen
+          .getAllByTestId('elevation-sector')
+          .map((line) => Number(line.getAttribute('x1')))
+      ).toEqual([0.5 * WIDTH]);
+    });
+
+    it('marks no sector start that is only a placeholder', () => {
+      // Le Mans Ultimate before the car has crossed into each sector: the
+      // even thirds its session carries are not places on the track.
+      show(
+        profile({ sectorSource: 'nominal', sectorStartPct: [0, 1 / 3, 2 / 3] })
+      );
+
+      expect(screen.queryByTestId('elevation-sector')).toBeNull();
+      // The profile, its tint and the car are drawn as ever.
+      expect(profilePaths()).toHaveLength(4);
+      expect(screen.getByTestId('elevation-mark')).toBeInTheDocument();
+    });
+
     it('leaves the sector lines and the tint out when switched off', () => {
       show(profile(), {
         config: { showSectors: false, showProgress: false },

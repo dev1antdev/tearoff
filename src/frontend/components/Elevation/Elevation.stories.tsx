@@ -140,6 +140,21 @@ export const FromTinyPedalWhileRecording: Story = {
 };
 
 /**
+ * Le Mans Ultimate before the car has been seen crossing into each sector:
+ * the session carries even thirds as a placeholder, which are not places on
+ * the track, so no sector start is drawn. The profile is.
+ */
+export const SectorStartsNotLearnedYet: Story = {
+  ...scene({
+    profile: {
+      ...trackProfileStorySnapshot,
+      sectorStartPct: [0, 1 / 3, 2 / 3],
+      sectorSource: 'nominal',
+    },
+  }),
+};
+
+/**
  * Watching another car: the mark is that car's, three quarters round, and
  * not the user's own, which is at the hairpin.
  */
