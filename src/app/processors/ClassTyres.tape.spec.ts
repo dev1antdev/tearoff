@@ -172,6 +172,13 @@ describe.skipIf(!lmuTapeAvailable())(
     });
 
     it("finds every car's tread published, and falling", () => {
+      // The addon exports it as `vehWheelWear`. One built before that
+      // exported the player's alone, and every case below would fail for a
+      // reason that says nothing of it.
+      expect(
+        played.firstWear.length,
+        'The native addon is stale: it exports no tread for the field. Run `npm run irsdk:build`.'
+      ).toBe(CARS);
       // Offline the sim writes each car's own tread into its telemetry
       // block: all 38 of them, AI and player alike.
       for (let carIdx = 0; carIdx < CARS; carIdx += 1) {
