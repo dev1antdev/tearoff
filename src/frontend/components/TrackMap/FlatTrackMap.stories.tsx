@@ -55,3 +55,33 @@ export const PCCRaceWithMicUse: Story = {
 export const PCCPacing: Story = {
   decorators: [TelemetryDecorator('/test-data/1735296198162')],
 };
+
+/**
+ * Every fourth car in the pit lane: grey and lettered P, as on the Track
+ * Map.
+ */
+export const CarsInThePits: Story = {
+  decorators: [
+    // The map fills its overlay window, so the story supplies one.
+    (Story) => (
+      <div style={{ width: 860, height: 90 }}>
+        <Story />
+      </div>
+    ),
+    TelemetryDecorator(),
+    ChannelSnapshotDecorator({
+      'track-state.snapshot': {
+        ...trackStateStorySnapshot,
+        // The field spread round the lap, a sixteenth apart.
+        carIdxLapDistPct: Array.from(
+          { length: 64 },
+          (_, carIdx) => ((carIdx * 7) % 16) / 16 + 0.03
+        ),
+        carIdxOnPitRoad: Array.from(
+          { length: 64 },
+          (_, carIdx) => carIdx % 4 === 1
+        ),
+      },
+    }),
+  ],
+};

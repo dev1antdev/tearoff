@@ -42,9 +42,18 @@ interface RaceEventBase {
   /**
    * Its number in the race: counted up from 1 and never used twice. Numbers
    * are missing where events went at the cap.
+   *
+   * The order the events were said in, which is the order a list shows them
+   * in and pages by. It is not quite the order of `sessionTime`: an event
+   * is said once it is sure and timed when it happened. A class's fastest
+   * lap is said when it has stood for fifteen seconds and timed at the
+   * line; a pit entry is said a moment after the car crossed into the
+   * lane. So an event can carry a time a few seconds earlier than the one
+   * said before it. A reader keeps the order of `seq`: the newest line is
+   * then always the last, and a line never appears among ones already read.
    */
   seq: number;
-  /** Session clock, seconds. */
+  /** Session clock, seconds: when it happened, not when it was said. */
   sessionTime: number;
   /**
    * The clock in the sim, seconds since midnight; null where the sim gave

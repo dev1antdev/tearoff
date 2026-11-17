@@ -197,7 +197,9 @@ export const BeforeTheFirstLap: Story = {
 /**
  * The shape it has under iRacing, on the recorded iRacing session the
  * other stories use: no sector marks and no energy, since iRacing publishes
- * neither for other cars, and no team line where every team is its driver.
+ * neither for other cars. The team is under each name, since the teams of
+ * this session have names of their own; the line is left out only where
+ * every team is named after its driver, as iRacing names a solo driver's.
  */
 export const IRacing: Story = {
   decorators: [

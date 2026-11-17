@@ -33,6 +33,7 @@ import {
   energyRefuelLines,
   flagTime,
   fuelRefuelLine,
+  lastStopLaneTimeS,
   leaderFinish,
   pitDriveTimeS,
   plannedStandingS,
@@ -171,7 +172,7 @@ const nothing = (reason: FinishInvalidReason): Projection => ({
   refuelLines: null,
   separateS: 0,
   overlapS: 0,
-  playerStopsOwed: 0,
+  playerStopsOwed: null,
   rivals: [],
 });
 
@@ -418,17 +419,22 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
         : null;
     const playerLapsLeft = published ?? ownFinish?.lapsToGo ?? 0;
     const playerStintLaps = energy && capacity ? capacity / energy.perLap : 0;
+    // With nothing read aboard, the stops owed are not known. Counted as
+    // none, every rival was set that many stops behind the player.
     const playerStopsOwed = energy
       ? stopsOwedFor(
           playerLapsLeft,
           energy.aboard / energy.perLap,
           playerStintLaps
         )
-      : 0;
+      : null;
 
     const lastStopLossS = (carIdx: number, paceS: number): number => {
-      const laneS = carPit?.laneTimeS[carIdx] ?? 0;
-      if (!(laneS > 0) || pit.trackTimeS === null) return 0;
+      // The lane time of the car's last pass is its last stop's only while
+      // nothing has replaced it: a drive-through costed as "the last stop"
+      // would be a stop that never was.
+      const laneS = lastStopLaneTimeS(carPit, carIdx);
+      if (laneS === null || pit.trackTimeS === null) return 0;
       // The stretch on the racing line is the player's; a quicker car
       // covers it in its own share of that.
       return round(
@@ -607,7 +613,7 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
       lapLimit: number | null;
       pit: PitFigures;
       playerLapsLeft: number;
-      playerStopsOwed: number;
+      playerStopsOwed: number | null;
       playerStintLaps: number;
     }
   ): FinishRivalReckoning[] {
@@ -657,11 +663,13 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
         ? pit.laneLossS + pit.standingS
         : null;
     const playerPartS =
-      playerStopsOwed === 0
-        ? 0
-        : playerStopLossS === null
-          ? null
-          : playerStopsOwed * playerStopLossS;
+      playerStopsOwed === null
+        ? null
+        : playerStopsOwed === 0
+          ? 0
+          : playerStopLossS === null
+            ? null
+            : playerStopsOwed * playerStopLossS;
 
     const rivals: FinishRivalReckoning[] = [];
     const add = (carIdx: number, ahead: boolean): void => {

@@ -477,9 +477,11 @@ export class WebSocketBridge
       return;
     }
 
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-    }
+    // One retry waits at a time. A failed attempt is reported twice, by the
+    // promise that rejects and by the socket's close after it; the second
+    // finds the retry already waiting and leaves it, so the wait grows once
+    // for each failure, as the delays below are written.
+    if (this.reconnectTimer) return;
 
     const delay = Math.min(
       this.reconnectDelay * Math.pow(2, this.reconnectAttempts),
@@ -492,6 +494,7 @@ export class WebSocketBridge
     );
 
     this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
       this.connect(this.wsUrl).catch((err) => {
         logger.error('Reconnection failed:', err);
         this.attemptReconnect();

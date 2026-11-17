@@ -335,8 +335,8 @@ ElevationProfile.displayName = 'ElevationProfile';
 
 /**
  * The height of the track along the lap as a filled profile, with the car's
- * place on it, the part of the lap already driven, the sector starts and the
- * height where the car is.
+ * place on it, the part of the lap already driven, the sector starts where
+ * they are known and the height where the car is.
  *
  * The profile comes from one clean lap driven on the track and is kept for
  * it; until there is one the widget says so, and shows how far round the lap
@@ -366,11 +366,19 @@ export const Elevation = () => {
   // The demo is of the widget, and has no track to have driven a lap of.
   const elevationM =
     recorded.length === 0 && isDemoMode ? DEMO_ELEVATION_M : recorded;
+  // Nominal starts are a placeholder, not places on the track: Le Mans
+  // Ultimate's session carries even thirds until the car has been seen
+  // crossing into each sector. A line drawn for one would be a guess shown
+  // as a fact, so none is drawn until the starts are real.
+  const sectorStartPct =
+    profile && profile.sectorSource !== 'nominal'
+      ? profile.sectorStartPct
+      : NO_SECTORS;
 
   return (
     <ElevationProfile
       elevationM={elevationM}
-      sectorStartPct={profile?.sectorStartPct ?? NO_SECTORS}
+      sectorStartPct={sectorStartPct}
       recordingProgress={profile?.recordingProgress ?? null}
       showProgress={settings.showProgress}
       showSectors={settings.showSectors}

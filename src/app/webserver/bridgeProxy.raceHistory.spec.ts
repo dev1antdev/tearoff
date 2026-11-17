@@ -69,6 +69,7 @@ import {
 } from '../processors/raceHistoryStoreFixture';
 import { createBridgeProxy } from './bridgeProxy';
 import { WebSocketBridge } from './componentRenderer';
+import { SOCKET_LOG_LINES } from './socketLog';
 // For its type alone: the module itself wants Electron's app.
 import type { startComponentServer } from './componentServer';
 import {
@@ -834,12 +835,17 @@ describe('what a socket may not ask of the race history', () => {
       expect.objectContaining({ type: 'getAppVersion' }),
     ]);
     untouched(source);
-    for (const type of unknown) {
-      expect(logger.info).toHaveBeenCalledWith(
-        'Bridge proxy: Unknown message type:',
-        type
-      );
-    }
+    // Each was taken for a message the server does not know. A socket puts
+    // only so many of those in the log, and says how many more there were.
+    const logged = vi
+      .mocked(logger.info)
+      .mock.calls.map(([line]) => String(line))
+      .filter((line) => line.startsWith('Bridge proxy: Unknown message type'));
+    expect(logged).toEqual(
+      unknown
+        .slice(0, SOCKET_LOG_LINES)
+        .map((type) => `Bridge proxy: Unknown message type "${type}"`)
+    );
     // And the socket is as good as before.
     expect((await page.ask('raceHistory:getCarLaps', [7])).data).toMatchObject({
       revision: 7,

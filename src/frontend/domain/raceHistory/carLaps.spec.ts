@@ -383,9 +383,11 @@ describe('the lap of a stop', () => {
         missingLaps: [],
         stints: [
           stoppedStint(1, 1, 3, {
+            endTime: 500,
             stop: { laneTime: null, standingTime: 4, driverChanged: false },
           }),
-          stintOf(2, { firstLap: 4, lastLap: 4, laps: 1 }),
+          // Still where the stop began: the car has not left the lane.
+          stintOf(2, { startTime: 500, firstLap: 4, lastLap: 4, laps: 1 }),
         ],
       },
       null

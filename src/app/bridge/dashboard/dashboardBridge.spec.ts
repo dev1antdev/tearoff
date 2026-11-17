@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   publish: vi.fn(),
   closeOrCreate: vi.fn(),
   sendState: vi.fn(),
+  focusSettings: vi.fn(),
   dashboards: {} as Record<string, DashboardLayout>,
 }));
 
@@ -73,6 +74,7 @@ beforeEach(() => {
   mocks.publish.mockClear();
   mocks.closeOrCreate.mockReset();
   mocks.sendState.mockClear();
+  mocks.focusSettings.mockClear();
   mocks.dashboards = { race: { widgets: [] } };
   mocks.readFile.mockResolvedValue(JSON.stringify(exportedDashboard));
 });
@@ -84,6 +86,7 @@ beforeAll(async () => {
       publishMessage: mocks.publish,
       sendOverlayState: mocks.sendState,
       forceRefreshOverlays: mocks.refresh,
+      focusSettingsWindow: mocks.focusSettings,
     } as unknown as OverlayManager,
     {} as Analytics
   );
@@ -151,6 +154,36 @@ describe('dashboard renderer initialization', () => {
     const dashboard: DashboardLayout = { widgets: [] };
     emitDashboardUpdated(dashboard);
     expect(mocks.publish).toHaveBeenCalledWith('dashboardUpdated', dashboard);
+  });
+});
+
+describe('opening a widget settings page from another window', () => {
+  const open = (target: unknown) =>
+    mocks.handlers.get('openWidgetSettings')?.(null, target);
+
+  it('opens the page of a widget type and of a layout copy in the dashboard', () => {
+    mocks.dashboards = {
+      race: {
+        widgets: [{ id: 'fuel-2', type: 'fuel' }],
+      } as unknown as DashboardLayout,
+    };
+    open('pitwall');
+    open('fuel-2');
+    expect(mocks.focusSettings.mock.calls).toEqual([['pitwall'], ['fuel-2']]);
+  });
+
+  it.each([
+    '../pitwall',
+    'fuel?x=1',
+    'advanced',
+    'fuel-2',
+    '',
+    { toString: () => 'fuel' },
+    undefined,
+  ])('opens nothing for %j', (target) => {
+    // The dashboard here has no layout copy, so 'fuel-2' names nothing.
+    open(target);
+    expect(mocks.focusSettings).not.toHaveBeenCalled();
   });
 });
 

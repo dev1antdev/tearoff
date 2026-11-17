@@ -240,12 +240,13 @@ export const finishRivalRows = (
   { rivalsAhead, rivalsBehind, extraTimeS, includePace }: FinishRivalOptions
 ): FinishRivalRows => {
   const row = (rival: FinishRival): FinishRivalRow => {
-    const projectedS = rivalProjectedGapS(
-      rival,
-      snapshot?.playerStopsOwed ?? 0,
-      extraTimeS,
-      includePace
-    );
+    const playerStopsOwed = snapshot?.playerStopsOwed ?? null;
+    // A rival's gap is published as unknown while the player's stops are;
+    // held here too, for a snapshot that says otherwise.
+    const projectedS =
+      playerStopsOwed === null
+        ? null
+        : rivalProjectedGapS(rival, playerStopsOwed, extraTimeS, includePace);
     return {
       rival,
       projectedS,

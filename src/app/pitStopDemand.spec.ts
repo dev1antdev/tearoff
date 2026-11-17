@@ -56,49 +56,20 @@ describe('needsPitStops', () => {
     }
   });
 
-  it('follows the Pit Wall switch under both simulators', () => {
-    // The Pit Wall is shown under Le Mans Ultimate, where the Gantry is not.
+  it('is not switched on by the Pit Wall, whose panels read the history of races', () => {
     for (const simulator of ['iracing', 'lmu', undefined, null] as const) {
       expect(
         needsPitStops(layout(widget('pitwall', true)), simulator, support)
-      ).toBe(true);
-      expect(
-        needsPitStops(layout(widget('pitwall', false)), simulator, support)
       ).toBe(false);
     }
-  });
-
-  it('is true under LMU with the Pit Wall on beside a Gantry that is hidden', () => {
+    // Nor beside a Gantry the running simulator hides.
     expect(
       needsPitStops(
         layout(widget('gantry', true), widget('pitwall', true)),
         'lmu',
         support
       )
-    ).toBe(true);
-    expect(
-      needsPitStops(
-        layout(widget('gantry', true), widget('pitwall', false)),
-        'lmu',
-        support
-      )
     ).toBe(false);
-  });
-
-  it('is false for a Pit Wall the support file hides under the running sim', () => {
-    const edited: SimWidgetSupportConfig = {
-      ...support,
-      disabledWidgets: {
-        ...support.disabledWidgets,
-        iracing: [...support.disabledWidgets.iracing, 'pitwall'],
-      },
-    };
-    expect(
-      needsPitStops(layout(widget('pitwall', true)), 'iracing', edited)
-    ).toBe(false);
-    expect(needsPitStops(layout(widget('pitwall', true)), 'lmu', edited)).toBe(
-      true
-    );
   });
 
   it('follows a support file that lets the Gantry run under LMU', () => {
@@ -172,11 +143,11 @@ describe('watchPitStopDemand', () => {
     expect(app.onChange.mock.calls).toEqual([[false], [true]]);
   });
 
-  it('starts under LMU when the Pit Wall is switched on', () => {
+  it('stays off under LMU when the Pit Wall is switched on', () => {
     const app = fakeApp(layout(widget('gantry', true)), 'lmu');
     app.setLayout(layout(widget('gantry', true), widget('pitwall', true)));
     app.setLayout(layout(widget('gantry', true), widget('pitwall', false)));
-    expect(app.onChange.mock.calls).toEqual([[false], [true], [false]]);
+    expect(app.onChange.mock.calls).toEqual([[false]]);
   });
 
   it('stays off under LMU whatever the Gantry switch does', () => {
@@ -280,14 +251,13 @@ describe('pit stop recording under each simulator', () => {
     expect(persistence.save).not.toHaveBeenCalled();
   });
 
-  it('records a stop under Le Mans Ultimate with the Pit Wall switched on', async () => {
+  it('reads no frame under Le Mans Ultimate with the Pit Wall switched on either', async () => {
+    // The Pit Wall's panels read the history of races, not these stops:
+    // recording them for the page was work for no reader.
     const { persistence, metrics } = await record('lmu', true);
 
-    expect(metrics.markStart).toHaveBeenCalledWith('pitStopProcessing');
-    // Handed on to be kept. Whether it is written is the archive's to say:
-    // under a session id the next race shares, it is not.
-    const [, stops] = persistence.save.mock.calls.at(-1) ?? [];
-    expect(stops).toHaveLength(1);
-    expect(stops?.[0]).toMatchObject({ entryTime: 110, exitTime: 150 });
+    expect(metrics.markStart).not.toHaveBeenCalledWith('pitStopProcessing');
+    expect(persistence.load).not.toHaveBeenCalled();
+    expect(persistence.save).not.toHaveBeenCalled();
   });
 });

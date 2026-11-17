@@ -8,8 +8,15 @@
 export const MAX_GRIDLINES = 8;
 
 /**
- * Lap numbers to label, at most `maxLabels` of them, always including the
- * first and never overlapping.
+ * Lap numbers to label, at most `maxLabels` of them (and never fewer than
+ * two for a span of more than one lap), always including the first and the
+ * last and never overlapping: no two are nearer than the step the others
+ * are apart.
+ *
+ * The laps are stepped from the first. Where the last lap is not one of
+ * them it takes the place of the stepped lap before it, which it would
+ * otherwise stand less than a step from: added after it, the two could be
+ * one lap apart at a step of seven, and the list one longer than asked.
  */
 export const lapAxisLabels = (
   minLap: number,
@@ -22,7 +29,10 @@ export const lapAxisLabels = (
   const step = Math.max(1, Math.ceil(total / limit));
   const labels: number[] = [];
   for (let lap = minLap; lap <= maxLap; lap += step) labels.push(lap);
-  if (labels[labels.length - 1] !== maxLap) labels.push(maxLap);
+  if (labels[labels.length - 1] !== maxLap) {
+    if (labels.length > 1) labels.pop();
+    labels.push(maxLap);
+  }
   return labels;
 };
 

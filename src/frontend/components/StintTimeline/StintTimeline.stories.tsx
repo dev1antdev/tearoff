@@ -89,3 +89,11 @@ export const NotARace: Story = {
 export const InAPitWallPanel: Story = {
   ...strategyStory('stinttimeline', { panel: { width: 900, height: 220 } }),
 };
+
+/** The panel on the grid: its notice at the size it reads at on the overlay. */
+export const NoticeInAPitWallPanel: Story = {
+  ...strategyStory('stinttimeline', {
+    stage: { session: 'grid' },
+    panel: { width: 900, height: 160 },
+  }),
+};

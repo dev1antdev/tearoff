@@ -18,7 +18,7 @@ describe('lapAxisLabels', () => {
   it('thins labels so a long race does not smear', () => {
     const labels = lapAxisLabels(1, 500, 20);
 
-    expect(labels.length).toBeLessThanOrEqual(21);
+    expect(labels.length).toBeLessThanOrEqual(20);
     expect(labels[0]).toBe(1);
     expect(labels[labels.length - 1]).toBe(500);
   });
@@ -27,6 +27,40 @@ describe('lapAxisLabels', () => {
     const labels = lapAxisLabels(1, 47, 8);
 
     expect(labels[labels.length - 1]).toBe(47);
+  });
+
+  it('puts the last lap in place of a stepped lap it would crowd', () => {
+    // At a step of seven the stepped laps end at 495. With 500 added after
+    // it the two stood five laps apart where the others are seven, and at
+    // other spans a single lap: 1, 4 and 5 for five laps and two labels.
+    expect(lapAxisLabels(425, 500, 11)).toEqual([
+      425, 432, 439, 446, 453, 460, 467, 474, 481, 488, 500,
+    ]);
+    expect(lapAxisLabels(1, 5, 2)).toEqual([1, 5]);
+    expect(lapAxisLabels(1, 4, 3)).toEqual([1, 4]);
+    expect(lapAxisLabels(1, 47, 8)).toEqual([1, 7, 13, 19, 25, 31, 37, 47]);
+  });
+
+  it('never names two laps nearer than its step, nor more laps than asked', () => {
+    for (let maxLap = 2; maxLap <= 300; maxLap += 1) {
+      for (let maxLabels = 1; maxLabels <= 24; maxLabels += 1) {
+        const labels = lapAxisLabels(1, maxLap, maxLabels);
+        const where = `laps 1-${maxLap}, ${maxLabels} labels`;
+        const step = Math.max(1, Math.ceil(maxLap / Math.max(2, maxLabels)));
+
+        expect(labels[0], where).toBe(1);
+        expect(labels[labels.length - 1], where).toBe(maxLap);
+        expect(labels.length, where).toBeLessThanOrEqual(
+          Math.max(2, maxLabels)
+        );
+        for (let index = 1; index < labels.length; index += 1) {
+          expect(
+            labels[index] - labels[index - 1],
+            where
+          ).toBeGreaterThanOrEqual(step);
+        }
+      }
+    }
   });
 
   it('handles a single recorded lap', () => {

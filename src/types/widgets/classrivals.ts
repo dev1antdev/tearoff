@@ -83,7 +83,7 @@ export default defineWidgetManifest({
       type: 'boolean',
       label: 'Net Gap',
       description:
-        'The gap once both cars have made the stops they still owe, each at the cost reckoned for it: green when you end ahead. It reads -- where a stop cannot be costed.',
+        'The gap once both cars have made the stops they still owe, each at the cost reckoned for it: green when you end ahead. No extra time is added to a stop, so it is Finish Projection’s After column with Extra Time at 0. It reads -- where a stop cannot be costed.',
     },
     showPace: {
       type: 'boolean',

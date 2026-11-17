@@ -22,6 +22,11 @@ declare global {
     lapLibraryBridge?: import('./types/lapLibrary').LapLibraryBridge;
     /** Absent outside the Electron preload, e.g. the browser server. */
     raceHistoryBridge?: import('./types/raceHistory').RaceHistoryBridge;
+    /**
+     * The socket a page served to a browser is fed over. Absent in the
+     * app's own windows, which have none.
+     */
+    browserConnection?: import('./types/browserConnection').BrowserConnection;
     /** Absent outside the Electron preload, e.g. the browser server. */
     trackProfileBridge?: import('./types/trackProfileBridge').TrackProfileBridge;
     /** Absent outside the Electron preload, e.g. the browser server. */

@@ -15,6 +15,8 @@ export default {
     // The driving state the widget hides by.
     'track-state.snapshot',
   ],
+  // Read only while the Tyres column is on.
+  conditionalChannels: ['class-tyres.snapshot'],
   // Gaps and laps to a stop that is minutes away: once a second.
   ratePreset: 'informational',
   // Hiding when the car goes to its garage should not wait a second.

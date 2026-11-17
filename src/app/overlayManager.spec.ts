@@ -194,6 +194,59 @@ describe('OverlayManager display windows', () => {
     }
   );
 
+  // The Gantry and the Pit Wall are pages in windows of their own. Their
+  // stored layout is the size of a preview, not a place on a display.
+  it.each(['gantry', 'pitwall'])(
+    'opens no overlay window for a display that holds only the %s widget',
+    (id) => {
+      screenState.displays = [PRIMARY_DISPLAY, SECOND_DISPLAY];
+      const manager = new OverlayManager();
+
+      manager.ensureDisplayWindows({
+        widgets: [
+          {
+            id,
+            enabled: true,
+            layout: { x: 2000, y: 100, width: 300, height: 200 },
+          },
+        ],
+      } as DashboardLayout);
+
+      // The primary display's, which is always there, and no second one.
+      expect(createdWindows).toHaveLength(1);
+    }
+  );
+
+  it.each(['gantry', 'pitwall'])(
+    'fits the overlay window to its widgets, not to the %s widget',
+    (id) => {
+      const manager = new OverlayManager();
+
+      manager.ensureDisplayWindows({
+        widgets: [
+          {
+            id: 'fuel',
+            enabled: true,
+            layout: { x: 300, y: 200, width: 400, height: 250 },
+          },
+          {
+            id,
+            enabled: true,
+            layout: { x: 0, y: 0, width: 1920, height: 1080 },
+          },
+        ],
+      } as DashboardLayout);
+
+      // The fuel widget and the margin around it, as with no such page.
+      expect(createdWindows[0].setBounds).toHaveBeenLastCalledWith({
+        x: 280,
+        y: 180,
+        width: 440,
+        height: 290,
+      });
+    }
+  );
+
   it.each([true, false])(
     'creates overlays with alwaysOnTop=%s when configured',
     (overlayAlwaysOnTop) => {

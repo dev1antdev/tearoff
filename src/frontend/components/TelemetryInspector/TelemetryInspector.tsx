@@ -97,6 +97,14 @@ const TELEMETRY_UNITS: Readonly<Record<string, string>> = {
   LmuLastImpactPos: 'm',
   LmuBatteryCharge: 'fraction',
   LmuLiftAndCoast: 'fraction',
+  // Sector times, the player's own and then every car's three to a slot
+  // (`carIdx * 3 + sector`). A sector with no time reads N/A.
+  LmuCurrentSectorTimes: 's',
+  LmuLastSectorTimes: 's',
+  LmuBestSectorTimes: 's',
+  LmuCarIdxCurrentSectorTimes: 's',
+  LmuCarIdxLastSectorTimes: 's',
+  LmuCarIdxBestSectorTimes: 's',
   // No unit for LmuMotorTorque, LmuMotorRPM, LmuMotorTemp or
   // LmuMotorCoolantTemp: theirs are unconfirmed until a hybrid is recorded,
   // and a unit printed beside the number would read as settled.

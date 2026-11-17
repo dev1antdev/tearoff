@@ -1374,6 +1374,10 @@ export class RaceHistoryRecorder {
       if (
         car.visitOpen &&
         !car.visitIsStop &&
+        // A car found standing in the lane before it has driven a lap of
+        // the race has not stopped: it has not gone out yet. Under iRacing
+        // that is every car, waiting in its stall for the grid.
+        (car.visitEntrySeen || car.lastLap > 0 || car.lapNow > 1) &&
         isStopVisit(numberAt(pit.standingS, car.carIdx, 0))
       ) {
         this.visitBecameStop(car, pit, now);
@@ -1387,8 +1391,23 @@ export class RaceHistoryRecorder {
     } else if (car.place === CAR_PIT_IN_GARAGE) {
       // Straight out of the garage.
       car.lapBits |= LEDGER_LAP_OUT_LAP;
+      this.backFromGarage(car, now);
     }
     car.place = CAR_PIT_ON_TRACK;
+  }
+
+  /**
+   * The stint a spell in the garage opened is driven from where the car
+   * came back to the track, as the stint after a stop is driven from the
+   * pit exit. Until then its start is the moment the car went away, which
+   * is all that is known of it; a stint that already has a lap keeps the
+   * start it has.
+   */
+  private backFromGarage(car: Car, now: number): void {
+    const stint = car.stint;
+    if (stint?.openedBy === 'garage' && stint.laps === 0) {
+      stint.startTime = now;
+    }
   }
 
   /** The car has stood in the lane for more than a second: its stint ends. */
@@ -1443,6 +1462,8 @@ export class RaceHistoryRecorder {
       this.bump(car);
       return;
     }
+    // Out of the garage by way of the lane, without standing in it.
+    this.backFromGarage(car, now);
     const change = car.visitChange;
     car.visitChange = null;
     if (change) {

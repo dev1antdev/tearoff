@@ -510,9 +510,11 @@ describe('chartBands', () => {
   it('says a car that has not left the pit lane is in the pits', () => {
     const stopped = recordOf(run(1, 8), [
       stoppedStint(1, 1, 8, {
+        endTime: 900,
         stop: { laneTime: null, standingTime: 12, driverChanged: false },
       }),
-      stintOf(2),
+      // Still where the stop began: the car has not left the lane.
+      stintOf(2, { startTime: 900 }),
     ]);
     expect(chartBands(stopped, WHOLE)).toEqual([
       { kind: 'stop', from: 9, to: 9, label: 'in the pits' },

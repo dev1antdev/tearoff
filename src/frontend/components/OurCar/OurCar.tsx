@@ -152,7 +152,7 @@ export const OurCar = () => {
     return shell(
       <p
         data-testid="our-car-reason"
-        className="flex min-h-0 flex-1 items-center justify-center text-center text-xs text-slate-400"
+        className="flex min-h-0 flex-1 items-center justify-center text-center text-[0.75rem] text-slate-400"
       >
         {forecastReasonText(forecast?.reason)}
       </p>
@@ -254,7 +254,7 @@ export const OurCar = () => {
             />
           )}
         </div>
-        <div className="mt-1.5 flex flex-wrap justify-between gap-x-3 gap-y-1 text-xs leading-none">
+        <div className="mt-1.5 flex flex-wrap justify-between gap-x-3 gap-y-1 text-[0.75rem] leading-none">
           <span data-testid="our-car-stint">
             {end ? (
               <>
@@ -307,7 +307,9 @@ export const OurCar = () => {
                     ? 'enough aboard to finish'
                     : own?.stopLossS === null || own?.stopLossS === undefined
                       ? 'the stop is not costed yet'
-                      : `next costs ${formatSeconds(own.stopLossS)}`
+                      : // The Pit Stop widget's loss for the same stop is
+                        // higher by its Extra Time setting.
+                        `next ${formatSeconds(own.stopLossS)}, no extra time`
               }
             />
           </>
@@ -346,7 +348,7 @@ export const OurCar = () => {
               <span className="font-bold leading-tight text-white">
                 {tyres?.tread ?? NO_FIGURE}
               </span>
-              <span className="min-h-[1em] text-xs leading-none text-slate-400">
+              <span className="min-h-[1em] text-[0.75rem] leading-none text-slate-400">
                 {tyres?.note ?? ''}
               </span>
             </div>
@@ -367,7 +369,7 @@ export const OurCar = () => {
               >
                 {harm?.text ?? NO_FIGURE}
               </span>
-              <span className="min-h-[1em] text-xs leading-none text-slate-400">
+              <span className="min-h-[1em] text-[0.75rem] leading-none text-slate-400">
                 {harm?.note ?? ''}
               </span>
             </div>
@@ -378,7 +380,7 @@ export const OurCar = () => {
       {teamMateDriving && (
         <p
           data-testid="our-car-not-sent"
-          className="flex-none rounded-md border border-dashed border-slate-500 px-2.5 py-2 text-xs leading-snug text-slate-300"
+          className="flex-none rounded-md border border-dashed border-slate-500 px-2.5 py-2 text-[0.75rem] leading-snug text-slate-300"
         >
           The game does not send the car’s fuel in litres, its tyre wear or its
           damage while a team-mate drives. They return when you take the wheel.

@@ -117,6 +117,51 @@ describe('StandingsSettings', () => {
     ).toMatchObject({ nameFormat: 'name-surname' });
   });
 
+  it('puts the columns back in the order a new profile has, each once', () => {
+    // Saved long ago and reordered since: no Avg 5, Avg 10 or stint pace,
+    // one column twice and one that was retired.
+    mocks.dashboard = {
+      widgets: [
+        {
+          ...overlay,
+          config: {
+            ...config(80),
+            displayOrder: [
+              'gap',
+              'position',
+              'gap',
+              'lmuBadge',
+              'driverName',
+              'carNumber',
+            ],
+          } as unknown as Record<string, unknown>,
+        },
+      ],
+    };
+    render(<StandingsSettings />);
+
+    fireEvent.click(
+      screen.getAllByRole('button', { name: 'Reset to Default Order' })[0]
+    );
+
+    const next = mocks.onDashboardUpdated.mock.calls.at(
+      -1
+    )?.[0] as DashboardLayout;
+    const saved = next.widgets[0].config?.displayOrder as string[];
+    // The default order as the widget ships it, less the one column no
+    // simulator has any more. The page used to write the order its own
+    // rows are listed in, which put three columns somewhere else.
+    expect(saved).toEqual(
+      getWidgetDefaultConfig('standings').displayOrder.filter(
+        (id) => id !== 'lmuBadge'
+      )
+    );
+    expect(new Set(saved).size).toBe(saved.length);
+    for (const added of ['avgLast5', 'avgLast10', 'stintPace']) {
+      expect(saved).toContain(added);
+    }
+  });
+
   it('edits the Gantry-only layout it is given and marks it', () => {
     render(<StandingsSettings widgetId="standings-g1" />);
 

@@ -1221,11 +1221,21 @@ async function main(): Promise<number> {
     }
 
     phase = 'server';
+    // The Pit Wall page is opened in a browser of its own as well, and
+    // photographed: the one page of the server that is a page to work at.
+    const pitWallPicture = path.join(shotsDir, 'browser', 'pitwall.png');
+    // A run into a folder that has been used before: the picture listed
+    // below is this run's, or there is none.
+    fs.rmSync(pitWallPicture, { force: true });
     result.server = await checkBrowserServer({
       port: serverPort,
       packaged: options.target === 'packaged',
       expectListening: options.profileMode === 'fresh',
+      pitWallPicture,
     });
+    if (fs.existsSync(pitWallPicture)) {
+      addWindowShot('Pit Wall page in a browser (/pitwall)', pitWallPicture);
+    }
     say(
       `browser source server: ${result.server.filter((check) => check.passed).length} of ${result.server.length} checks passed`
     );

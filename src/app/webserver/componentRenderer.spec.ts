@@ -938,3 +938,66 @@ describe('WebSocketBridge connection, for a page that says when it is down', () 
     bridge.stop();
   });
 });
+
+describe('WebSocketBridge coming back after the app went away', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('waits once longer for each attempt that fails: 1 s, 2 s, 4 s, then 5 s', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('WebSocket', FakeWebSocket);
+    const bridge = new WebSocketBridge({ onKeyReplaced: vi.fn() });
+    const connecting = bridge.connect('http://localhost:3000');
+    let socket = FakeWebSocket.latest as FakeWebSocket;
+    socket.onopen?.();
+    await connecting;
+
+    // The app is closed, and stays closed.
+    socket.onclose?.({ code: 1006 } as CloseEvent);
+
+    for (const wait of [1000, 2000, 4000, 5000, 5000]) {
+      await vi.advanceTimersByTimeAsync(wait - 1);
+      expect(FakeWebSocket.latest, `1 ms short of ${wait}`).toBe(socket);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(FakeWebSocket.latest, `after ${wait} ms`).not.toBe(socket);
+      socket = FakeWebSocket.latest as FakeWebSocket;
+
+      // A browser reports an attempt that failed twice over: an error, which
+      // rejects the attempt, and then the close of the socket it made. Each
+      // used to count as a failure of its own, so the wait doubled twice.
+      socket.onerror?.({} as Event);
+      await Promise.resolve();
+      socket.onclose?.({ code: 1006 } as CloseEvent);
+    }
+    bridge.stop();
+  });
+
+  it('starts from one second again once it has come back', async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal('WebSocket', FakeWebSocket);
+    const bridge = new WebSocketBridge({ onKeyReplaced: vi.fn() });
+    const connecting = bridge.connect('http://localhost:3000');
+    let socket = FakeWebSocket.latest as FakeWebSocket;
+    socket.onopen?.();
+    await connecting;
+
+    socket.onclose?.({ code: 1006 } as CloseEvent);
+    await vi.advanceTimersByTimeAsync(1000);
+    socket = FakeWebSocket.latest as FakeWebSocket;
+    socket.onerror?.({} as Event);
+    await Promise.resolve();
+    socket.onclose?.({ code: 1006 } as CloseEvent);
+    await vi.advanceTimersByTimeAsync(2000);
+    socket = FakeWebSocket.latest as FakeWebSocket;
+    socket.onopen?.();
+    expect(bridge.connection.isConnected()).toBe(true);
+
+    // Dropped again: the first wait is the short one.
+    socket.onclose?.({ code: 1006 } as CloseEvent);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(FakeWebSocket.latest).not.toBe(socket);
+    bridge.stop();
+  });
+});

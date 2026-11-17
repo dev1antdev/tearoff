@@ -457,7 +457,8 @@ describe('FinishProjectionProcessor', () => {
       const snapshot = run({ fuel: fuel({ completedLaps: [] }) });
       expect(snapshot.valid).toBe(true);
       expect(snapshot.energy).toBeNull();
-      expect(snapshot.playerStopsOwed).toBe(0);
+      // Not known, which is not none.
+      expect(snapshot.playerStopsOwed).toBeNull();
     });
 
     describe('while somebody else drives the car', () => {
@@ -483,7 +484,7 @@ describe('FinishProjectionProcessor', () => {
         expect(snapshot.valid).toBe(true);
         expect(snapshot.lapsToGo).toBe(6.2);
         expect(snapshot.energy).toBeNull();
-        expect(snapshot.playerStopsOwed).toBe(0);
+        expect(snapshot.playerStopsOwed).toBeNull();
       });
 
       it('costs no fuel hose without the tank read on the frame', () => {
@@ -651,11 +652,24 @@ describe('FinishProjectionProcessor', () => {
   });
 
   describe('the last stop', () => {
-    it('is the pit lane time less the same stretch on the racing line', () => {
+    /** Both cars stopped on their twentieth lap and are out again. */
+    const stopped = (values: Partial<CarPitSnapshot> = {}) => {
       const laneTimeS = all(0);
       laneTimeS[PLAYER] = 45.1;
       laneTimeS[LEADER] = 37.7;
-      const snapshot = run({ carPit: carPit({ laneTimeS }) });
+      const lap = all(-1);
+      lap[PLAYER] = 20;
+      lap[LEADER] = 20;
+      return carPit({
+        laneTimeS,
+        lastPitLap: [...lap],
+        lastStopLap: [...lap],
+        ...values,
+      });
+    };
+
+    it('is the pit lane time less the same stretch on the racing line', () => {
+      const snapshot = run({ carPit: stopped() });
       // 6.9 s of track at the player's pace; the leader covers it in nine
       // tenths of that.
       expect(snapshot.player?.lastStopLossS).toBe(38.2);
@@ -666,10 +680,38 @@ describe('FinishProjectionProcessor', () => {
       expect(run().player?.lastStopLossS).toBe(0);
       const laneTimeS = all(0);
       laneTimeS[PLAYER] = 1.4;
-      expect(run({ carPit: carPit({ laneTimeS }) }).player?.lastStopLossS).toBe(
-        0
-      );
+      expect(
+        run({ carPit: stopped({ laneTimeS }) }).player?.lastStopLossS
+      ).toBe(0);
       expect(run({ carPit: undefined }).player?.lastStopLossS).toBe(0);
+    });
+
+    it('is nothing for a pass down the lane that was not a stop', () => {
+      // The lane time is the car's last pass, whatever it was. A penalty
+      // served on lap 31 was costed as the car's last stop: 24.6 s in the
+      // lane, 17.7 s lost.
+      const laneTimeS = all(0);
+      laneTimeS[PLAYER] = 24.6;
+      const lastPitLap = all(-1);
+      lastPitLap[PLAYER] = 31;
+      expect(
+        run({ carPit: stopped({ laneTimeS, lastPitLap }) }).player
+          ?.lastStopLossS
+      ).toBe(0);
+
+      // Nor is a car that has only ever driven through one that has stopped.
+      expect(
+        run({ carPit: carPit({ laneTimeS, lastPitLap }) }).player?.lastStopLossS
+      ).toBe(0);
+    });
+
+    it('is nothing while the car is in the lane, where the time is still growing', () => {
+      const where = all(CAR_PIT_ON_TRACK);
+      where[PLAYER] = CAR_PIT_IN_LANE;
+      const snapshot = run({ carPit: stopped({ where }) });
+      expect(snapshot.player?.lastStopLossS).toBe(0);
+      // The leader's stop is over and stands.
+      expect(snapshot.leader?.lastStopLossS).toBe(31.5);
     });
   });
 
@@ -1026,6 +1068,31 @@ describe('FinishProjectionProcessor', () => {
           }),
         };
         expect(rivalOf(run(unplanned), 1).projectedGapS).toBeNull();
+      });
+
+      it('is not known while the stops the player owes are not', () => {
+        // Before the first measured lap, or with a team-mate driving where
+        // the sim stops writing the budget: nothing is read aboard. Counted
+        // as owing no stop, the player was set one stop ahead of this rival:
+        // 8 + 62 = +70 s.
+        const read = scene();
+        const snapshot = run({
+          ...read,
+          fuel: {
+            ...(read.fuel as FuelProjectionSnapshot),
+            completedLaps: [],
+          },
+        });
+
+        expect(snapshot.energy).toBeNull();
+        expect(snapshot.playerStopsOwed).toBeNull();
+        expect(rivalOf(snapshot, 1)).toMatchObject({
+          gapS: 8,
+          // What is known of the rival still is.
+          stopsOwed: 1,
+          stopLossS: 62,
+          projectedGapS: null,
+        });
       });
 
       it('is the gap as it stands when nobody owes a stop', () => {

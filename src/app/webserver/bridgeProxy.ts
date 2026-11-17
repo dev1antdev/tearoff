@@ -40,6 +40,7 @@ import {
   type KeyDecision,
 } from './deviceKey';
 import { createRaceHistoryReads } from './raceHistoryReads';
+import { briefMessageType, createSocketLogLimit } from './socketLog';
 
 /** A whole dashboard is a few hundred kilobytes; nothing a page sends is more. */
 const MAX_MESSAGE_BYTES = 4 * 1024 * 1024;
@@ -266,7 +267,17 @@ export function createBridgeProxy(
   if (dashboardBridge) {
     dashboardBridge.dashboardUpdated(
       (dashboard: DashboardLayout, profileId?: string) => {
-        currentDashboard = dashboard;
+        // Every profile's saves are announced here: a browser page of a
+        // profile that is not the active one saving where its widgets sit,
+        // and the driver tags, which are announced for each profile in turn.
+        // `currentDashboard` is the active profile's (it answers a new
+        // connection, `getDashboard`, an unknown profile and the index
+        // page's widget list), so it is read again rather than taken from
+        // whichever profile spoke last.
+        const active = dashboardBridge.getCurrentDashboard?.();
+        if (active) currentDashboard = active;
+        else if (profileId === undefined) currentDashboard = dashboard;
+        // Each page keeps only what names its own profile.
         broadcast('dashboardUpdated', { dashboard, profileId });
       }
     );
@@ -322,6 +333,10 @@ export function createBridgeProxy(
       onFailure: (type, error) =>
         logger.warn(`Bridge proxy: ${type} failed`, error),
     });
+
+    // What this socket may write to the log about its own messages.
+    const logUnknown = createSocketLogLimit();
+    const logFailure = createSocketLogLimit();
 
     if (unsubscribeFunctions.length === 0) {
       logger.info('No active subscriptions, subscribing to bridge...');
@@ -674,11 +689,21 @@ export function createBridgeProxy(
             break;
           }
           default:
-            logger.info('Bridge proxy: Unknown message type:', parsed.type);
+            // The type is the visitor's own text, megabytes of it if it
+            // likes: a short cleaned piece is written, a few times a minute.
+            logUnknown((leftOut) =>
+              logger.info(
+                `Bridge proxy: Unknown message type ${briefMessageType(parsed.type)}${leftOut}`
+              )
+            );
             break;
         }
       } catch (error) {
-        logger.error('Error parsing client message:', error);
+        // What cannot be read can be sent as fast as what is not known, and
+        // each line here carries a stack: the same few a minute.
+        logFailure((leftOut) =>
+          logger.error(`Error parsing client message${leftOut}:`, error)
+        );
       }
     });
 

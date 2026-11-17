@@ -1,5 +1,6 @@
 import type { RaceLap, RaceStint } from '@irdashies/types';
 import { LEDGER_LAP_IN_LAP } from '../../types/ledger';
+import { stopUnderWay } from '../raceStop';
 
 /**
  * How long a car has run on its tyres, read from what the race history
@@ -357,10 +358,7 @@ export const tyreSetOf = (
         {
           compoundsChanged: false,
           // As the car panels tell a stop that is not over.
-          underWay:
-            older.stop.laneTime === null &&
-            newer.closedBy === null &&
-            newer.laps <= 1,
+          underWay: stopUnderWay(older, newer),
           standingS: older.stop.standingTime,
           explainedS: explainedSeconds(
             older,

@@ -29,6 +29,7 @@ import {
   forecastDeciders,
   forecastOrder,
   isPitDriveMeasured,
+  lastStopLaneTimeS,
   pitLossS,
   pitWindow,
   PlaceMemory,
@@ -247,32 +248,23 @@ export class RaceForecastProcessor implements TelemetryProcessor<
       finish.laneLossS !== null && finish.plannedStandingS !== null
         ? round(finish.laneLossS + finish.plannedStandingS, 1)
         : null;
-    // With nothing read aboard the own entry the projection counts it as
-    // owing no stop, which is its way of saying it cannot tell. A gap or a
-    // place made from that would be an invention, so none is published.
-    const ownStopsOwed = finish.energy ? finish.playerStopsOwed : null;
+    // With nothing read aboard the own entry the projection does not know
+    // the stops it owes. A gap or a place made from a count of none would
+    // be an invention, so none is published.
+    const ownStopsOwed = finish.playerStopsOwed;
     const placeable = ownStopsOwed !== null;
 
     const pitFigures = (carIdx: number) => {
       const lastStopLap = carPit?.lastStopLap[carIdx] ?? -1;
-      const laneS = carPit?.laneTimeS[carIdx] ?? 0;
       const inLane = carPit?.where[carIdx] === CAR_PIT_IN_LANE;
       const since = carPit?.stintLaps[carIdx] ?? -1;
       return {
         inPit: inLane || standings?.carIdxOnPitRoad[carIdx] === true,
         stops: Math.max(0, carPit?.stops[carIdx] ?? 0),
         lastStopLap: lastStopLap >= 0 ? lastStopLap : null,
-        // The lane time is that of the last visit, which is the stop's
-        // until a later pass down the lane replaces it. A visit is noted
-        // as it enters the lane and a stop as the car comes to rest, which
-        // where the boxes are past the line is a lap later.
-        lastStopLaneS:
-          lastStopLap >= 0 &&
-          !inLane &&
-          laneS > 0 &&
-          (carPit?.lastPitLap[carIdx] ?? -1) <= lastStopLap
-            ? round(laneS, 1)
-            : null,
+        // The lane time is that of the last pass, which is the stop's
+        // until a later pass down the lane replaces it.
+        lastStopLaneS: rounded(lastStopLaneTimeS(carPit, carIdx), 1),
         sinceStopLaps: since >= 0 ? since : null,
         avg5S: rounded(
           averageOfLastLaps(lapTimes?.cleanLapTimeHistory?.[carIdx], PACE_LAPS),
@@ -481,7 +473,8 @@ export class RaceForecastProcessor implements TelemetryProcessor<
         lapsLeft: reckoning.playerLapsLeft,
         lapsInHand: lapsLeft,
         stintLaps: reckoning.playerStintLaps,
-        stopsOwed: finish.playerStopsOwed,
+        // Known here: the budget this is made from is what it is counted on.
+        stopsOwed: finish.playerStopsOwed ?? 0,
       }),
     };
   }

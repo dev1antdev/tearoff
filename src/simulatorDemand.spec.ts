@@ -27,16 +27,14 @@ describe('main-process work done for sim-gated widgets', () => {
     for (const reader of readers) expect(PIT_STOP_WIDGETS).toContain(reader);
   });
 
-  it('records them for the Pit Wall as well, which reads none itself', () => {
-    // On the list so that a race's stops are on record while the page is
-    // switched on, under either simulator. The day the page declares the
-    // channel it is a reader like the Gantry, and this case goes.
+  it('records them for nothing that does not read them', () => {
+    // The Pit Wall was on the list while it had no panels. Those that show
+    // a stop read the history of races, so the page is no reader and the
+    // stops are not recorded for it.
     expect([...PIT_STOP_WIDGETS].sort()).toEqual(
-      [...readersOf('pit-stops.snapshot'), PIT_WALL_WIDGET_ID].sort()
+      readersOf('pit-stops.snapshot')
     );
-    expect(
-      getWidgetRuntimeDefinition(PIT_WALL_WIDGET_ID).channels ?? []
-    ).not.toContain('pit-stops.snapshot');
+    expect(PIT_STOP_WIDGETS).not.toContain(PIT_WALL_WIDGET_ID);
   });
 
   it('fetches the race plan for every widget that follows one', () => {

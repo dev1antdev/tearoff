@@ -23,11 +23,11 @@ import { useDriverLivePositions } from '@irdashies/domain';
  * iRacing; the marked car is the one the overlays are about, which is the
  * user's own entry also while a team-mate drives it.
  *
- * Beyond that it shows what Le Mans Ultimate publishes and the iRacing
- * widget does not draw: cars in the pit lane greyed and lettered P, as on
- * the Track Map, and the sector under a yellow flag once the track profile
- * has learned where the sectors start. "Show only when on track" keeps it up
- * while a car is being watched.
+ * Cars in the pit lane are greyed and lettered P, as on the Track Map and
+ * as under iRacing. Beyond that it shows what Le Mans Ultimate publishes and
+ * the iRacing widget does not draw: the sector under a yellow flag once the
+ * track profile has learned where the sectors start. "Show only when on
+ * track" keeps it up while a car is being watched.
  */
 export const FlatTrackMapLmu = ({
   embedded = false,

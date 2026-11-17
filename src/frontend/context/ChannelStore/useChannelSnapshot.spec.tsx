@@ -205,4 +205,37 @@ describe('channel snapshot hooks', () => {
     unmount();
     expect(source.unsubscribe).toHaveBeenCalledOnce();
   });
+
+  it('asks for nothing while switched off, a bridge included', () => {
+    // A widget drawn with no bridge to hand, as in a spec that stages none.
+    // The store was looked up by the bridge all the same, and with none
+    // that threw.
+    const windowBridge = window.channelBridge;
+    Reflect.deleteProperty(window, 'channelBridge');
+    try {
+      const { result, unmount } = renderHook(() =>
+        useChannelSelector('radio.snapshot', (snapshot) => snapshot.version, {
+          enabled: false,
+        })
+      );
+      expect(result.current).toBeUndefined();
+      unmount();
+    } finally {
+      if (windowBridge) window.channelBridge = windowBridge;
+    }
+  });
+
+  it('holds nothing of the channel while switched off, and what is published once on', () => {
+    const source = createBridge();
+    const { result, rerender } = renderHook(
+      ({ enabled }) =>
+        useChannelSnapshot('radio.snapshot', undefined, source.bridge, enabled),
+      { initialProps: { enabled: false } }
+    );
+    expect(result.current).toBeUndefined();
+    expect(source.subscribe).not.toHaveBeenCalled();
+
+    rerender({ enabled: true });
+    expect(source.subscribe).toHaveBeenCalledOnce();
+  });
 });

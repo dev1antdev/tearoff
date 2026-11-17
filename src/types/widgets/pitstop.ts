@@ -48,7 +48,7 @@ export default defineWidgetManifest({
       type: 'number',
       label: 'Extra Time',
       description:
-        'Added to every stop that stands, for your reaction and the crew. A drive-through gets none.',
+        'Added to every stop that stands, for your reaction and the crew. A drive-through gets none. Our Car and Class Rivals cost a stop without it, so their figure for the same stop is lower by this much.',
       min: 0,
       max: 10,
       step: 0.5,

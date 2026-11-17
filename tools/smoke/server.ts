@@ -1,6 +1,12 @@
+import { execFile } from 'node:child_process';
+import fs from 'node:fs';
 import http from 'node:http';
+import { createRequire } from 'node:module';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
-import { SMOKE_STRANGERS } from './errors.ts';
+import { badTokens, isNoise, SMOKE_STRANGERS } from './errors.ts';
 import type { ToggleCheck } from './report.ts';
 
 /**
@@ -228,12 +234,224 @@ export function raceHistoryRefusalVerdict(asked: Asked): {
 const message = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 
+/** What `browserPage.cjs` saw of a page it opened as a browser does. */
+export interface BrowserPageSeen {
+  /** The status the server answered the page with; null where none came. */
+  status: number | null;
+  /** The page's own element was there, in whichever frame of the page. */
+  found: boolean;
+  /** That element's `data-` attributes: for the Pit Wall, its layout. */
+  attributes: Record<string, string>;
+  /** How many characters of text the element drew. */
+  drawn: number;
+  /** The text of the frame the element was found in. */
+  text: string;
+  /** The error lines of the page's console. */
+  errors: string[];
+  /** A picture of the page was written. */
+  pictured: boolean;
+  /** Why the page could not be opened at all. */
+  failure: string | null;
+}
+
+const unseen = (failure: string): BrowserPageSeen => ({
+  status: null,
+  found: false,
+  attributes: {},
+  drawn: 0,
+  text: '',
+  errors: [],
+  pictured: false,
+  failure,
+});
+
+const ANSWER_MARK = 'SMOKE_PAGE ';
+
+/**
+ * The one line `browserPage.cjs` answers with, out of everything it and the
+ * browser under it wrote. Nothing is taken on trust from another process:
+ * a field that is not what it should be reads as not seen.
+ */
+export function readBrowserPageAnswer(
+  output: string
+): BrowserPageSeen | undefined {
+  const line = output
+    .split(/\r?\n/)
+    .reverse()
+    .find((entry) => entry.startsWith(ANSWER_MARK));
+  if (!line) return undefined;
+  let answer: unknown;
+  try {
+    answer = JSON.parse(line.slice(ANSWER_MARK.length));
+  } catch {
+    return undefined;
+  }
+  if (typeof answer !== 'object' || answer === null) return undefined;
+  const seen = answer as Record<string, unknown>;
+  const attributes =
+    typeof seen.attributes === 'object' && seen.attributes !== null
+      ? Object.fromEntries(
+          Object.entries(seen.attributes).filter(
+            (entry): entry is [string, string] => typeof entry[1] === 'string'
+          )
+        )
+      : {};
+  return {
+    status: typeof seen.status === 'number' ? seen.status : null,
+    found: seen.found === true,
+    attributes,
+    drawn: typeof seen.drawn === 'number' ? seen.drawn : 0,
+    text: typeof seen.text === 'string' ? seen.text : '',
+    errors: Array.isArray(seen.errors)
+      ? seen.errors.filter(
+          (entry): entry is string => typeof entry === 'string'
+        )
+      : [],
+    pictured: seen.pictured === true,
+    failure: typeof seen.failure === 'string' ? seen.failure : null,
+  };
+}
+
+/**
+ * Whether a browser drew the Pit Wall page. That the server hands the page
+ * out is checked by asking for it; this is the page itself, opened as a
+ * tablet's browser opens it: it has to appear, with text in it, without
+ * anything a page should never show and without an error in its console.
+ */
+export function browserPageVerdict(seen: BrowserPageSeen): {
+  passed: boolean;
+  detail: string;
+} {
+  const picture = seen.pictured ? ' Its picture shows what was there.' : '';
+  const fail = (detail: string) => ({ passed: false, detail });
+  if (seen.failure) {
+    return fail(`A browser could not open the page: ${seen.failure}`);
+  }
+  if (seen.status !== null && seen.status !== 200) {
+    return fail(`A browser was answered ${seen.status}.${picture}`);
+  }
+  const errors = seen.errors.filter((line) => !isNoise(line));
+  const firstError =
+    errors.length > 0 ? ` Its console: ${errors[0].slice(0, 200)}` : '';
+  if (!seen.found) {
+    return fail(
+      `A browser loaded the page, but the Pit Wall never appeared in it.${firstError}${picture}`
+    );
+  }
+  if (seen.drawn === 0) {
+    return fail(
+      `The Pit Wall appeared in a browser and drew nothing.${firstError}${picture}`
+    );
+  }
+  const tokens = badTokens(seen.text);
+  if (tokens.length > 0) {
+    return fail(`In a browser the page shows ${tokens.join(', ')}.${picture}`);
+  }
+  if (errors.length > 0) {
+    return fail(
+      `Drawn in a browser, with ${errors.length === 1 ? 'an error' : `${errors.length} errors`} in its console: ${errors[0].slice(0, 200)}`
+    );
+  }
+  if (!seen.pictured) {
+    return fail('Drawn in a browser, but no picture of it could be taken.');
+  }
+  const layout = seen.attributes['data-layout'];
+  return {
+    passed: true,
+    detail: `Drawn by a browser on this machine${layout ? `, in the ${layout} layout` : ''}: ${seen.drawn} characters of text, no error in its console, and photographed.`,
+  };
+}
+
+const BROWSER_PAGE_SCRIPT = fileURLToPath(
+  new URL('./browserPage.cjs', import.meta.url)
+);
+/** The helper waits up to 30 s for the page and 4 s more; then it is cut off. */
+const BROWSER_PAGE_TIMEOUT_MS = 90_000;
+
+/** The Electron this repository installs: a browser, without the app. */
+function repositoryElectron(): string {
+  // In Node the package is the path of its executable.
+  const found: unknown = createRequire(import.meta.url)('electron');
+  if (typeof found !== 'string') throw new Error('no Electron is installed');
+  return found;
+}
+
+/**
+ * Opens a page of the built-in web server in a browser of its own and
+ * photographs it. The browser is the repository's Electron running
+ * `browserPage.cjs`, not the app: a window that is never shown, with nothing
+ * of the app in it and a user-data folder that is removed afterwards.
+ */
+export function photographBrowserPage(options: {
+  url: string;
+  /** Where the picture goes. */
+  file: string;
+}): Promise<BrowserPageSeen> {
+  return new Promise((resolve) => {
+    let electron: string;
+    let userData: string;
+    try {
+      electron = repositoryElectron();
+      userData = fs.mkdtempSync(path.join(os.tmpdir(), 'tearoff-smoke-page-'));
+    } catch (error) {
+      resolve(unseen(message(error)));
+      return;
+    }
+    const env: NodeJS.ProcessEnv = Object.fromEntries(
+      Object.entries(process.env).filter(
+        ([name]) => name !== 'ELECTRON_RUN_AS_NODE'
+      )
+    );
+    env.NODE_OPTIONS = '';
+    env.SMOKE_PAGE_USER_DATA = userData;
+    execFile(
+      electron,
+      // The address last: Electron does not start with anything after one.
+      [BROWSER_PAGE_SCRIPT, options.file, options.url],
+      {
+        env,
+        timeout: BROWSER_PAGE_TIMEOUT_MS,
+        windowsHide: true,
+        maxBuffer: 8 * 1024 * 1024,
+      },
+      (error, stdout) => {
+        try {
+          fs.rmSync(userData, {
+            recursive: true,
+            force: true,
+            maxRetries: 5,
+            retryDelay: 200,
+          });
+        } catch {
+          // A folder left in the temporary folder harms nothing.
+        }
+        resolve(
+          readBrowserPageAnswer(stdout) ??
+            unseen(
+              error
+                ? `the browser gave no answer (${message(error).split('\n')[0]})`
+                : 'the browser gave no answer'
+            )
+        );
+      }
+    );
+  });
+}
+
+/** The check that says the server hands the Pit Wall page out. */
+const PIT_WALL_SERVED = 'browser page /pitwall';
+
 export async function checkBrowserServer(options: {
   port: number;
   /** A packaged build serves the page bundle itself; in dev Vite does. */
   packaged: boolean;
   /** A fresh profile has the server on; a copied one may have it off. */
   expectListening: boolean;
+  /**
+   * Where to put a picture of the Pit Wall page as a browser draws it.
+   * Left out, the page is asked for and not opened.
+   */
+  pitWallPicture?: string;
 }): Promise<ToggleCheck[]> {
   const { port } = options;
   const checks: ToggleCheck[] = [];
@@ -278,7 +496,7 @@ export async function checkBrowserServer(options: {
   // The smoke knocks from this machine, which needs no key. What a device
   // that is not this machine is refused is covered by the specs: a run has
   // no second machine to knock from.
-  await check('browser page /pitwall', async () => {
+  await check(PIT_WALL_SERVED, async () => {
     const answer = await get(port, '/pitwall');
     const passed =
       answer.status === 200 &&
@@ -367,6 +585,24 @@ export async function checkBrowserServer(options: {
       await ask(port, ownPage, 'raceHistory:getCarLaps', [128])
     )
   );
+
+  // Last, so the page's own connection and reads are not in the answers
+  // above. A page the server did not hand out is not opened: the check
+  // above has said so already.
+  const { pitWallPicture } = options;
+  const served = checks.some(
+    (entry) => entry.name === PIT_WALL_SERVED && entry.passed
+  );
+  if (pitWallPicture && served) {
+    await check('browser page /pitwall drawn in a browser', async () =>
+      browserPageVerdict(
+        await photographBrowserPage({
+          url: `${ownPage}/pitwall`,
+          file: pitWallPicture,
+        })
+      )
+    );
+  }
 
   return checks;
 }

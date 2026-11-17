@@ -16,11 +16,25 @@ export const isTapeReplaySource = (
  * capture played through the isolated SDK addon, which looks like iRacing
  * to the bridge and is no more a race being driven than a tape is.
  *
- * Wider than the tape test above, which the stores of the player's own
- * laps go by. This is for a record of a whole race that outlives the app:
- * one made from any recording would sit in the file as a race the player
- * was in.
+ * Wider than the tape test above, which the smaller stores go by (fuel
+ * use, personal bests, lap traces). This is for the records that outlive
+ * the app with the player's name on them, the lap library and the history
+ * of races: a lap or a race taken from any recording would sit there as
+ * one the player drove.
  */
 export const isRecordedSource = (
   env: NodeJS.ProcessEnv = process.env
 ): boolean => isTapeReplaySource(env) || env.IRDASHIES_IRSDK_REPLAY === '1';
+
+/**
+ * Whether what is being measured is the player's own, to be written to the
+ * lap library and the history of races: not a recording of any kind, not a
+ * replay source the bridge announced on entering the session, and not demo
+ * mode. Both go by this one rule, so a session one of them leaves out is
+ * left out by the other.
+ */
+export const keepsPlayerRecords = (
+  source: { replaySource: boolean; demoMode: boolean },
+  env: NodeJS.ProcessEnv = process.env
+): boolean =>
+  !isRecordedSource(env) && !source.replaySource && !source.demoMode;

@@ -13,6 +13,7 @@ import { BadgeFormatPreview } from '../components/BadgeFormatPreview';
 import { FormatSelect } from '../components/FormatSelect';
 import { type RelativeBadgeFormat } from '@irdashies/types';
 import { DEFAULT_SESSION_BAR_DISPLAY_ORDER } from '../sessionBarConstants';
+import { columnOrder } from '../columnOrder';
 import { lapAverageHint } from '../lapAverageHint';
 import { STINT_PACE_HINT } from '../stintPaceHint';
 import { SessionVisibility } from '../components/SessionVisibility';
@@ -133,6 +134,7 @@ const sortableSettings: SortableSetting[] = [
 ];
 
 const defaultConfig = getWidgetDefaultConfig('relative');
+const SORTABLE_IDS = sortableSettings.map((s) => s.id);
 
 interface DisplaySettingsListProps {
   itemsOrder: string[];
@@ -394,16 +396,26 @@ export const RelativeSettings = () => {
       (savedSettings?.config as RelativeWidgetSettings['config']) ??
       defaultConfig,
   });
-  const [itemsOrder, setItemsOrder] = useState(() => {
-    const validIds = new Set(sortableSettings.map((s) => s.id));
-    const saved = settings.config.displayOrder ?? [];
-    const filtered = saved.filter((id) => validIds.has(id));
-    const present = new Set(filtered);
-    const missing = sortableSettings
-      .filter((s) => !present.has(s.id))
-      .map((s) => s.id);
-    return [...filtered, ...missing];
-  });
+  const [itemsOrder, setItemsOrder] = useState(() =>
+    columnOrder(SORTABLE_IDS, settings.config.displayOrder)
+  );
+
+  // Re-seed when the saved widget changes under the page: a profile switch,
+  // or a change made in another window. Read once, the page went on showing
+  // what it opened with, and the next edit wrote that over the change.
+  const [prevSaved, setPrevSaved] = useState(savedSettings);
+  if (JSON.stringify(savedSettings) !== JSON.stringify(prevSaved)) {
+    setPrevSaved(savedSettings);
+    if (savedSettings) {
+      setSettings({
+        enabled: savedSettings.enabled ?? true,
+        config: savedSettings.config,
+      });
+      setItemsOrder(
+        columnOrder(SORTABLE_IDS, savedSettings.config?.displayOrder)
+      );
+    }
+  }
 
   // Tab state with persistence
   const [activeTab, setActiveTab] = useState<SettingsTabType>(
@@ -503,8 +515,11 @@ export const RelativeSettings = () => {
                       <SettingActionButton
                         label="Reset to Default Order"
                         onClick={() => {
-                          const defaultOrder = sortableSettings.map(
-                            (s) => s.id
+                          // The order a new profile has, not the order the
+                          // rows happen to be written in above.
+                          const defaultOrder = columnOrder(
+                            SORTABLE_IDS,
+                            defaultConfig.displayOrder
                           );
                           setItemsOrder(defaultOrder);
                           handleConfigChange({ displayOrder: defaultOrder });

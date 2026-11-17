@@ -82,6 +82,9 @@ export const PitWallHeader = ({
   const { car } = data;
   // Touch-sized targets on the layout made for a tablet.
   const tall = layout === 'compact';
+  const simulatorText = reconnecting
+    ? `${data.simulator}, as last heard`
+    : `${data.simulator} connected`;
 
   return (
     <header
@@ -112,17 +115,25 @@ export const PitWallHeader = ({
 
       {data.simulator && (
         <div
-          className="flex items-center gap-2 text-sm text-slate-300"
-          title={`${data.simulator} connected`}
+          data-item="simulator"
+          // The simulator's connection is to the app, and the page's is to
+          // the app as well. While the page has lost the app it cannot say
+          // the simulator is connected: that is the last it heard, and
+          // "connected" beside "Reconnecting" read as two answers to one
+          // question. The item is dimmed and says what it is.
+          className={`flex items-center gap-2 text-sm ${
+            reconnecting ? 'text-slate-500' : 'text-slate-300'
+          }`}
+          title={simulatorText}
         >
           <span
-            className="size-2 shrink-0 rounded-full bg-emerald-400"
+            className={`size-2 shrink-0 rounded-full ${
+              reconnecting ? 'bg-slate-600' : 'bg-emerald-400'
+            }`}
             aria-hidden="true"
           />
           {/* The small layout keeps the dot and says the rest to a reader. */}
-          <span className={tall ? 'sr-only' : undefined}>
-            {data.simulator} connected
-          </span>
+          <span className={tall ? 'sr-only' : undefined}>{simulatorText}</span>
         </div>
       )}
 

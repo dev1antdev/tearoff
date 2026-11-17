@@ -26,8 +26,10 @@ export interface FinishCar {
   /** Laps completed plus the fraction of the lap under way. */
   progress: number;
   /**
-   * The pit lane time of the visit under way or the last one made, less
-   * what the same stretch takes on the racing line, s; 0 before the first.
+   * The pit lane time of the car's last stop, less what the same stretch
+   * takes on the racing line, s. 0 before the first, while the car is in
+   * the lane, and once a later pass down the lane that was not a stop (a
+   * drive-through) has replaced the time.
    */
   lastStopLossS: number;
 }
@@ -60,7 +62,8 @@ export interface FinishRival {
   basis: FinishRivalBasis;
   /**
    * `gapS` after both cars have made the stops they owe, s. Null where a
-   * stop is owed whose cost is not known.
+   * stop is owed whose cost is not known, and where the stops the player
+   * owes are not (`playerStopsOwed`).
    */
   projectedGapS: number | null;
   /**
@@ -134,8 +137,13 @@ export interface FinishProjectionSnapshot {
   separateS: number;
   /** Standing time that can: a driver change; s. */
   overlapS: number;
-  /** Whole stops the player still has to make on what a lap costs. */
-  playerStopsOwed: number;
+  /**
+   * Whole stops the player still has to make on what a lap costs. Null while
+   * what the car has aboard is not read (`energy` is null): before its first
+   * measured lap, and with a team-mate driving where the sim stops writing
+   * the budget. Not known is not none: nothing is to be made of it.
+   */
+  playerStopsOwed: number | null;
   /**
    * The class cars nearest the player that are still running, at most
    * three ahead and three behind, nearest first on each side: those ahead,

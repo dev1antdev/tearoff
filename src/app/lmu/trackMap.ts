@@ -273,8 +273,14 @@ export class LmuTrackMapRecorder {
     if (!finite(progress)) return null;
 
     if (this.lapStartET === null) {
+      // Nothing is taken until the car first crosses the line on a lap the
+      // game times. A lap that is already under way has no beginning to
+      // record, and the one a race starts with is timed from the green flag
+      // with the car behind the line: the game reads its distance as zero
+      // until it gets there, so where it stood would be recorded as the
+      // start of the lap, 139 m short of the line on the recorded race.
       this.lapStartET = frame.lapStartET;
-      this.recording = progress <= 0.02;
+      this.recording = false;
     } else if (frame.lapStartET > this.lapStartET) {
       const completed = this.finishLap(
         frame.lapDist,
@@ -301,6 +307,12 @@ export class LmuTrackMapRecorder {
 
   private sample(frame: LmuMapFrame, progress: number): void {
     if (!frame.pos) return;
+    // A lap is recorded from the line, so its first sample is early in it.
+    // The lap fraction is a few frames behind the lap's clock and still
+    // reads the end of the lap just finished: taken as this lap's first
+    // sample that would lie beyond every one that follows, and each of
+    // those would be dropped for not being further round.
+    if (this.points.length === 0 && progress > 0.5) return;
     const position = lmuGroundPosition(frame.pos);
     const distance = progress * frame.lapDist;
     const previous = this.points[this.points.length - 1];

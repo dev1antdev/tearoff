@@ -8,7 +8,11 @@ import { WIDGET_MAP, getWidget } from './WidgetIndex';
 import { WIDGET_SETTINGS } from './components/Settings/SettingsLoader';
 
 const runtimeModules = import.meta.glob<{
-  default: { id: string; channels?: readonly string[] };
+  default: {
+    id: string;
+    channels?: readonly string[];
+    conditionalChannels?: readonly string[];
+  };
 }>('./components/*/widgetRuntimeDefinition.ts', { eager: true });
 const widgetModules = import.meta.glob<{
   default: { id: string } | readonly { id: string }[];
@@ -20,13 +24,6 @@ const widgetSources = import.meta.glob<string>('./components/*/widget.ts', {
 });
 
 const sorted = (ids: string[]) => [...ids].sort();
-
-/**
- * Widgets lap history is recorded for though they read none themselves. The
- * Pit Wall is a page for whole races: with it switched on, the crossings of
- * a race are on record from its start.
- */
-const LAP_HISTORY_KEPT_FOR = ['pitwall'];
 
 describe('widget registry', () => {
   const manifestIds = sorted(WIDGET_MANIFESTS.map((m) => m.id));
@@ -54,13 +51,19 @@ describe('widget registry', () => {
     const flagged = WIDGET_MANIFESTS.filter((m) => m.usesLapHistory).map(
       (m) => m.id
     );
-    // Every reader is flagged, and nothing else but the widgets named above.
-    expect(sorted(flagged)).toEqual(
-      sorted([...readers, ...LAP_HISTORY_KEPT_FOR])
-    );
-    // A widget on that list that has begun to read the channel is a reader
-    // like any other, and comes off it.
-    for (const id of LAP_HISTORY_KEPT_FOR) expect(readers).not.toContain(id);
+    // Every reader is flagged, and nothing that does not read it: the Pit
+    // Wall was, before it had panels, and those read the history of races.
+    expect(sorted(flagged)).toEqual(sorted(readers));
+  });
+
+  it('calls conditional only channels the widget is fed', () => {
+    // A performance run does not ask to see a conditional channel publish.
+    // One that is not in `channels` would be a channel nobody feeds.
+    for (const { default: definition } of Object.values(runtimeModules)) {
+      for (const channel of definition.conditionalChannels ?? []) {
+        expect(definition.channels ?? [], definition.id).toContain(channel);
+      }
+    }
   });
 
   it('declares each widget id exactly once across widget.ts files', () => {

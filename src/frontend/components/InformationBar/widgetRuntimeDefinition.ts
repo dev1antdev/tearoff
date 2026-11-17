@@ -13,5 +13,7 @@ export default {
     // subscribed to only while that is switched on.
     'track-profile.snapshot',
   ],
+  // Each read only while the item it is for is on the bar.
+  conditionalChannels: ['standings.snapshot', 'track-profile.snapshot'],
   ratePreset: 'gapTiming',
 } satisfies WidgetRuntimeDefinition;

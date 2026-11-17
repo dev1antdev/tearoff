@@ -3,6 +3,7 @@ import type {
   RaceForecastSnapshot,
   RaceStint,
 } from '@irdashies/types';
+import { isDrivenStint } from '../raceHistory/carRecord';
 
 /**
  * The stint timeline's drawing, worked out from what it is given: which
@@ -196,7 +197,8 @@ const driverIndexer = () => {
 /**
  * The bars of the stints a car has driven, oldest first. On the clock a
  * stint runs from when it began to its pit entry, so a stop is the gap
- * before the next; in laps it runs over the laps it completed.
+ * before the next, and so is the time a car spent in its garage; in laps
+ * it runs over the laps it completed.
  */
 export const drivenBars = (
   stints: readonly RaceStint[],
@@ -211,6 +213,12 @@ export const drivenBars = (
   let driverChanges = 0;
   for (const stint of stints) {
     const current = stint.closedBy === null;
+    // A stint that a spell in the garage opened is not drawn before it has
+    // a lap, by the rule the car panels go by: the car may be standing
+    // there still, and for one that never comes back the bar would go on
+    // growing with the clock. Once it has a lap its start is where the car
+    // came back to the track.
+    if (!isDrivenStint(stint)) continue;
     const driverIndex = indexOf(stint.driver);
     // A stint with no name is not taken for another driver's.
     if (stint.driver && lastDriver && stint.driver !== lastDriver) {

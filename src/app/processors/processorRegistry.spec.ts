@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { channelRegistry, SessionState } from '@irdashies/types';
 import type { Session, Telemetry } from '@irdashies/types';
+import { PROCESSOR_CHANNELS } from '../perfProcessorChannels';
 import { createProcessorDefinitions } from './processorRegistry';
 
 /**
@@ -54,6 +55,26 @@ describe('processor registry', () => {
     );
     expect(new Set(definitions.map(({ channel }) => channel)).size).toBe(
       definitions.length
+    );
+  });
+
+  it('has every processor in the table the perf report names channels from', () => {
+    // The table listed sixteen of the thirty-seven: a processor that was
+    // not on it ran unseen by the report's check that nothing runs while
+    // every window is hidden.
+    const definitions = createProcessorDefinitions({
+      referenceLapPersistence: {
+        load: () => null,
+        save: () => undefined,
+      },
+    });
+    expect(PROCESSOR_CHANNELS).toEqual(
+      Object.fromEntries(
+        definitions.map(({ metricsPrefix, channel }) => [
+          `${metricsPrefix}Processing`,
+          channel,
+        ])
+      )
     );
   });
 

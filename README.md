@@ -48,10 +48,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 1. In LMU, enable **Settings > Gameplay > Enable Plugins**, then restart the simulator.
 2. Start Tearoff and load into an LMU session to receive telemetry.
 
-**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Track Map, Flat Track Map, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
-**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Hybrid (for cars that have the system), Lift and Coast Lights, Weather Forecast, Minimap, Track Map, Flat Track Map, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
-**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Information Bar, System Performance (without its Sim row), Tyres, Tyre & Brake Wear, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Track Map, Flat Track Map, Elevation, Cruise, Track Notes, Lap Delta, Corner Delta, Timing, Timing Tower, Lap Timer, Car Systems, Fuel Calculator, Fuel Saver, Pit Stop, Finish Projection, Our Car, Class Rivals, Stint Timeline, Crew and Stints, Car Laps, Race Charts, Race Log, and Stint History. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Radar, Gantry, Tachometer, and Shift Light.
-**Supported overlays:** Standings, Relative, Class Fields, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Traffic, Faster Cars From Behind, Slow Car Ahead, Rejoin Indicator, Information Bar, System Performance (without its Sim row), Tyres, Chassis, Damage, Friction Circle, Brake Performance, Minimap, Track Map, Flat Track Map, Lap Delta, Corner Delta, Timing, Car Systems, and Fuel Calculator. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU, including Radar, Gantry, Lap Timer, Tachometer, and Shift Light.
+**Supported overlays:** Standings, Relative, Class Fields, Timing Tower, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Traffic, Faster Cars From Behind, Slow Car Ahead, Rejoin Indicator, Information Bar, System Performance (without its Sim row), Tyres, Tyre & Brake Wear, Chassis, Damage, Hybrid (for cars that have the system), Lift and Coast Lights, Shift Light, Friction Circle, Brake Performance, Minimap, Track Map, Flat Track Map, Elevation, Cruise, Track Notes, Weather (without its wind cell), Weather Forecast, Lap Delta, Sector Delta, Corner Delta, Delta Speed, Timing, Lap Timer, Car Systems, Fuel Calculator, Fuel Saver, Pit Stop, Finish Projection, Stint History, Garage Cover, and the Pit Wall with its panels: Our Car, Class Rivals, Stint Timeline, Crew and Stints, Car Laps, Race Charts and Race Log. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU: Radar, Blind Spot Monitor, the Gantry, Tachometer, Heart Rate, Wind, Stint Plan, Strategy Timeline, Stream Chat and the Broadcast overlays.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
@@ -563,7 +560,7 @@ The height of the track along the lap as a filled profile, with your car's place
 
 - The whole lap from the start/finish line to the start/finish line, the part already driven tinted, with a mark and a dot where the car is
 - The height where the car is, read off the profile, measured from the lowest point of the lap or from the start/finish line (then signed), in metres or feet
-- The lap's height range, and a dashed line where each sector starts
+- The lap's height range, and a dashed line where each sector starts. Le Mans Ultimate does not say where its sectors start, so there they are learned from your first clean lap at the track and no line is drawn before that
 - The profile is recorded once for each track, from the first lap you drive from the line to the line without visiting the pits, and kept. Until there is one the widget says so, and shows how far round the recording lap you are
 - In Le Mans Ultimate the profile is the height of the road as the sim states it, and a TinyPedal track map of the same name on your computer is used until your own lap replaces it
 - iRacing states no height while the car is driven, so the profile there is worked out from the car's motion over the first three clean laps: the shape of the lap rather than a survey of it
@@ -625,11 +622,11 @@ Displays a simplified horizontal track map showing driver positions along a flat
 - Option to use highlight color for player circle
 - Auto-scales to container width
 - Multi-class support
+- Cars in the pit lane are grey and lettered P
 
 **In Le Mans Ultimate:**
 
 - It needs no map of the circuit, so it is drawn for every track from the first moment
-- Cars in the pit lane are grey and lettered P
 - A sector under a local yellow flag is painted yellow on the line, once one clean lap of the circuit has shown where the game's sectors start
 - With "show only when on track" it stays up while you watch a car on track, such as a team-mate's stint
 
@@ -805,10 +802,10 @@ Where the race ends, and what that asks of your car. A timed race ends when the 
 - What to add in percent of virtual energy for a Le Mans Ultimate car that runs on it, litres or gallons otherwise, with a second row for one to five laps more. A green 0 means what is aboard already covers the laps. It can show the whole amount the laps need instead
 - A "Plan" column for the stop the pit menu is set to: the pit lane, the standing time the sim estimates and a configurable extra, once the pit lane of the track is known (see [Pit Stop](#pit-stop))
 - A "Fin" column for the stop that adds exactly what its own laps to go need, costed with the refuelling rates Le Mans Ultimate states. It is red when the finish needs more than the car holds
-- A "Last" column for what your last stop and the leader's cost, once either has been through the pit lane
+- A "Last" column for what your last stop and the leader's cost, once either has made one and is out of the pit lane again. A drive-through is not a stop: after one the car's last stop is no longer known, and it is left out
 - A choice of whether the leader loses the same time as you in a stop-length column, or none
 - A header with the race clock, or the laps left of a lap race, and the share of a lap you lose to the leader every lap
-- Class rivals: up to three class cars ahead and three behind, two each by default, with the gap now, the stops each of you still owes as "1 v 2" (theirs against yours), and the gap once they are made, green when you end ahead and red when behind. The difference in measured pace over the laps left can be added in
+- Class rivals: up to three class cars ahead and three behind, two each by default, with the gap now, the stops each of you still owes as "1 v 2" (theirs against yours), and the gap once they are made, green when you end ahead and red when behind. Until your own first lap has been measured, and while a team-mate drives where the game stops reporting what the car has aboard, your stops are not known: they read `--` and so does the gap, rather than counting you as owing none. The difference in measured pace over the laps left can be added in
 - Optional rows with the two lap fractions TinyPedal's table shows
 - It describes your own entry: it stays up at the pit wall and while a team-mate drives the car, and hides with the camera on another car
 - Adjustable background opacity, session visibility (races only by default) and an option to show only when on track
@@ -829,7 +826,7 @@ Your own entry in a race as the pit wall wants it, on one panel: what is aboard 
 
 - What ends your stints, large, with a bar: percent of virtual energy for a Le Mans Ultimate car that runs on it, litres or gallons of fuel otherwise. Under it the laps and minutes left in the stint, what a lap costs, and what runs out first: the energy, the fuel in the tank, or the tyres, where Tyre & Brake Wear has a forecast for them
 - The pit window as a range of laps: from the first lap after which the stops you still owe cover the distance, to the last lap you complete on what is aboard. Stop earlier and the race takes a stop more
-- The stops to the flag, and what the next costs: the pit lane and the standing time of the stop the pit menu is set to
+- The stops to the flag, and what the next costs: the pit lane and the standing time of the stop the pit menu is set to, with no extra time added, which the note says. The Pit Stop widget's loss for the same stop is higher by its Extra Time setting
 - The finish forecast: your place among the running cars of your class if everything goes on as it has, green for a place gained on where you are now and red for one lost. Under it the forecast as it stood ten laps ago ("was P4 10 laps ago"), or as far back as is remembered once that is five laps; before then, how far the next place is at the flag
 - After the stop: where you rejoin in class if you stop now, the car you come out behind, and how far clear you are of the car behind you
 - Tyres in a line: tread on each wheel and the laps the set lasts. Damage in a line: what is damaged, and the repair time set for the next stop. Le Mans Ultimate only; under iRacing both read `--`
@@ -837,7 +834,7 @@ Your own entry in a race as the pit wall wants it, on one panel: what is aboard 
 - It describes your own entry: it stays up at the pit wall and while a team-mate drives the car. With the camera on another car, on the grid and outside a race it says in a line why it has nothing to show
 - Adjustable background opacity, session visibility (races only by default) and an option to show only when on track
 
-**How the forecast is made.** It is Finish Projection's reckoning, run over every running car of the class instead of three each side, so the two cannot disagree about when the race ends, what a car still owes or what a stop costs. Each car keeps its measured pace and makes the stops it still owes: reckoned from its fuel or virtual energy where the sim gives it (Le Mans Ultimate offline), else from the longest stint it has been seen to drive, else assumed from its class or from your own car. A stop costs the pit lane plus the car's own last standing time, else the median of its class, else your own planned stop. Unlike Finish Projection it adds no extra time to your own stops: a net gap here is that widget's After column with Extra Time at 0, and the finishing order adds what the difference in measured pace does over the laps left, as its Include Pace does. The closing rate of a neighbour is the difference of the two cars' means of five clean laps, not a measured change of the gap.
+**How the forecast is made.** It is Finish Projection's reckoning, run over every running car of the class instead of three each side, so the two cannot disagree about when the race ends, what a car still owes or what the pit lane and the standing time of a stop come to. Each car keeps its measured pace and makes the stops it still owes: reckoned from its fuel or virtual energy where the sim gives it (Le Mans Ultimate offline), else from the longest stint it has been seen to drive, else assumed from its class or from your own car. A stop costs the pit lane plus the car's own last standing time, else the median of its class, else your own planned stop. Unlike Finish Projection it adds no extra time to your own stops: a net gap here is that widget's After column with Extra Time at 0, and the finishing order adds what the difference in measured pace does over the laps left, as its Include Pace does. The closing rate of a neighbour is the difference of the two cars' means of five clean laps, not a measured change of the gap.
 
 **How sure it is.** The forecast place is drawn quieter, with a `~`, while it rests on less than a reading for a car that decides it: one of the two cars you finish between, or one you change places with on the way, whose stops are assumed, whose stop cannot be costed yet, or which is in the pit lane now. The rejoin place carries a `~` while a car rejoins within two seconds of you (four while the pit lane or the stop is only reckoned). What cannot be known is not guessed at: a full-course yellow, a penalty still to be served, a tyre or driver change, how much a rival takes on. A figure with no source reads `--`.
 
@@ -854,7 +851,7 @@ Every running car of your class in a race, in the order of their places with you
 - Place, number on the class colour, driver and the gap to you now
 - Stops made, the lap of the last one with its time in the pit lane, and the laps since. A car in the pit lane says so
 - Next: the lap each car's next stop is due, marked `~` as the estimate it is. Your own row shows your pit window
-- Net gap: the gap once both of you have made the stops you still owe, green when you end ahead and red when behind
+- Net gap: the gap once both of you have made the stops you still owe, green when you end ahead and red when behind. No extra time is added to a stop, which the legend says: it is Finish Projection's After column with Extra Time at 0
 - Pace 5: each car's mean of its last five clean laps against yours, green when you are the faster. Your own row shows your mean
 - Tyres: the compound each car is on, the laps it has run on the set and the tread left, as in `17 ~86%`: the [Timing Tower](#the-tyres-of-your-class)'s figures, with the same marks. `?` for laps told from the length of a stop, `+` for at least that many, `~` for a tread reckoned from your own wear, `--` until your own car has run the compound. Your own row shows your real tread. Under iRacing only the laps are shown
 - The whole class by default, scrolling under fixed captions; or a number of cars each side of you, one to ten
@@ -1284,6 +1281,7 @@ What happened in the race, one line an event, newest first: made for somebody wh
 - Le Mans Ultimate's forecast changing, with how far off its first rain is. That figure is an estimate, the Weather Forecast's own, and is marked with `~`
 - Switches over the list: all cars, your class or your car, and each kind of event on or off. What they open with is set in the widget's settings; what you switch on the panel is not saved
 - New lines arrive at the top. If you have scrolled down to read, the list stays where you are and counts the new lines in a button that takes you back to the top
+- The lines are in the order they were said, and each carries the time the thing happened. A fastest lap is said once it has stood for fifteen seconds, so its line can sit above one timed a few seconds later; nothing is ever put in among lines you have already read
 - The clock in the sim on each line, or the session clock
 - Background opacity, session visibility and an option to show only when on track
 

@@ -9,7 +9,7 @@ import {
   raceHistoryReadable,
   usageBudget,
   useCarHistoryState,
-  useCarRaceRecords,
+  useCarRaceReads,
   type CarRaceRecord,
 } from '@irdashies/domain/raceHistory';
 import type {
@@ -144,7 +144,9 @@ const ChartArea = ({
 const RaceChartsPanel = ({ settings }: { settings: RaceChartsConfig }) => {
   const readable = raceHistoryReadable();
   const cars = useChartCars(settings.others, settings.carNumbers);
-  const records = useCarRaceRecords(readable ? cars.carIdxs : NO_CARS);
+  const { records, failed } = useCarRaceReads(
+    readable ? cars.carIdxs : NO_CARS
+  );
   const own = cars.own;
   const history = useCarHistoryState(readable && own ? own.carIdx : null);
 
@@ -180,6 +182,7 @@ const RaceChartsPanel = ({ settings }: { settings: RaceChartsConfig }) => {
     readable,
     recording: history.recording,
     read: ownRecord !== undefined,
+    failed: failed.has(own.carIdx),
   });
 
   return (

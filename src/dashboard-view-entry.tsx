@@ -43,6 +43,8 @@ async function initializeDashboardView() {
   // Reads only, answered by the bridge the app's windows ask: the panels
   // that show a car's laps and stints find it as they do in a window.
   window.raceHistoryBridge = bridge.raceHistory;
+  // What was asked while the socket was down is asked again when it is back.
+  window.browserConnection = bridge.connection;
   // Only the per-widget toggles reach the browser view; the global hide
   // (Alt+H) is for the overlay on the streamer's own screen.
   window.globalKey = {

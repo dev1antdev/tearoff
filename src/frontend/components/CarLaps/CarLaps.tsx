@@ -10,7 +10,7 @@ import {
   raceHistoryReadable,
   useCarChoice,
   useCarHistoryState,
-  useCarRaceRecord,
+  useCarRaceRead,
   useClassBestLap,
   type CarLapRow as CarLapRowData,
 } from '@irdashies/domain/raceHistory';
@@ -45,7 +45,7 @@ const CarLapsPanel = ({ settings }: { settings: CarLapsConfig }) => {
   const { choices, car, choose } = useCarChoice();
   const readable = raceHistoryReadable();
   const carIdx = readable && car ? car.carIdx : null;
-  const record = useCarRaceRecord(carIdx);
+  const { record, failed } = useCarRaceRead(carIdx);
   const history = useCarHistoryState(carIdx);
   const classBest = useClassBestLap(carIdx);
   // The car whose every lap was asked for: another car starts short again.
@@ -64,6 +64,7 @@ const CarLapsPanel = ({ settings }: { settings: CarLapsConfig }) => {
       readable,
       recording: history.recording,
       read: view !== null,
+      failed,
     }) ??
     (view && view.rows.length === 0
       ? `No lap of #${car.number} has been recorded yet.`

@@ -20,6 +20,8 @@ export default {
     // Pace; subscribed only while that tile is on.
     'lap-times.snapshot',
   ],
+  // Read only while the Pace tile is on.
+  conditionalChannels: ['lap-times.snapshot'],
   // No preset: the delta arrives at its channel's own rate, which is set for
   // a figure that has to be read, and the sector times arrive as they change.
   ratePreset: 'static',

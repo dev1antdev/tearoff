@@ -14,6 +14,7 @@ import type {
 import { ChannelBus } from '../bridge/channelBus';
 import logger from '../logger';
 import { createBridgeProxy } from './bridgeProxy';
+import { SOCKET_LOG_LINES } from './socketLog';
 import { setRacePlanSource } from '../services/racePlanSource';
 
 // Exercise the real proxy handlers synchronously, without network timing.
@@ -326,14 +327,17 @@ describe('browser Inspector serialization demand', () => {
     source.session(session('latest'));
     expect(serializations('telemetry')).toBe(0);
     expect(serializations('sessionData')).toBe(0);
-    expect(logger.error).toHaveBeenCalledTimes(6);
+    // Each of the six was refused. One connection writes only so many
+    // refusals to the log a minute, so the log holds the first few.
+    expect(logger.error).toHaveBeenCalledTimes(SOCKET_LOG_LINES);
 
     inspector.request('telemetryInspectorSubscribe', 'telemetryInspector');
     inspector.request('telemetryInspectorUnsubscribe', 'telemetry');
     clock.mockReturnValue(100);
     source.telemetry(telemetry(20));
+    // The unsubscription was refused too: the stream is still served.
     expect(serializations('telemetry')).toBe(2);
-    expect(logger.error).toHaveBeenCalledTimes(7);
+    expect(logger.error).toHaveBeenCalledTimes(SOCKET_LOG_LINES);
   });
 
   it('preserves subscriptions across source changes and requires new sockets to subscribe after reconnect', () => {
@@ -438,6 +442,135 @@ describe('browser Inspector serialization demand', () => {
     bus.publish('session.lifecycle', { type: 'disconnect' });
     expect(ordinary.messages('channel')).toHaveLength(1);
     bus.dispose();
+  });
+});
+
+describe('what a browser connection may write to the log', () => {
+  beforeEach(() => vi.clearAllMocks());
+  afterEach(() => vi.restoreAllMocks());
+
+  const send = (client: Client, message: unknown) =>
+    client.emit('message', Buffer.from(JSON.stringify(message)));
+  const unknownLines = () =>
+    vi
+      .mocked(logger.info)
+      .mock.calls.map((args) => args.map(String).join(' '))
+      .filter((line) => line.includes('Unknown message type'));
+
+  it('is a short cleaned piece of an unknown message type, never the whole', () => {
+    const { connect } = setup();
+    const client = connect();
+    const megabytes = 'A'.repeat(3 * 1024 * 1024);
+
+    send(client, { type: megabytes });
+    send(client, {
+      type: 'forged' + String.fromCharCode(13, 10) + '[error] x',
+    });
+    send(client, { type: { nested: megabytes } });
+
+    expect(unknownLines()).toEqual([
+      `Bridge proxy: Unknown message type "${'A'.repeat(40)}" (cut from ${megabytes.length} characters)`,
+      'Bridge proxy: Unknown message type "forged??[error] x"',
+      'Bridge proxy: Unknown message type (not text: object)',
+    ]);
+    // Nothing of the message went to the log beside the line itself.
+    for (const args of vi.mocked(logger.info).mock.calls) {
+      expect(args.join(' ').length).toBeLessThan(200);
+    }
+  });
+
+  it('is a few lines a minute about messages that cannot be read', () => {
+    const { connect } = setup();
+    const client = connect();
+    const time = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+
+    for (let i = 0; i < 500; i += 1) client.emit('message', Buffer.from('{'));
+    expect(logger.error).toHaveBeenCalledTimes(SOCKET_LOG_LINES);
+    // Its own few, apart from those for a message that is not known.
+    send(client, { type: 'mistyped' });
+    expect(unknownLines()).toHaveLength(1);
+
+    time.mockReturnValue(1_000_000 + 60_000);
+    client.emit('message', Buffer.from('{'));
+    expect(logger.error).toHaveBeenLastCalledWith(
+      `Error parsing client message (${500 - SOCKET_LOG_LINES} more not logged):`,
+      expect.any(SyntaxError)
+    );
+  });
+
+  it('is a few such lines a minute for one connection, however many it sends', () => {
+    const { connect } = setup();
+    const noisy = connect();
+    const quiet = connect();
+    const time = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+
+    for (let i = 0; i < 500; i += 1) send(noisy, { type: `nonsense-${i}` });
+    expect(unknownLines()).toHaveLength(SOCKET_LOG_LINES);
+
+    // Another connection has its own few.
+    send(quiet, { type: 'mistyped' });
+    expect(unknownLines()).toHaveLength(SOCKET_LOG_LINES + 1);
+
+    // A minute on, the noisy one is heard again, with how many were left out.
+    time.mockReturnValue(1_000_000 + 60_000);
+    send(noisy, { type: 'later' });
+    expect(unknownLines().at(-1)).toBe(
+      `Bridge proxy: Unknown message type "later" (${500 - SOCKET_LOG_LINES} more not logged)`
+    );
+  });
+});
+
+describe('the dashboard a browser connection is answered with', () => {
+  const layout = (id: string) =>
+    ({ widgets: [{ id, enabled: true }] }) as unknown as DashboardLayout;
+  const initialDashboard = (client: Client) =>
+    (client.messages('initialState')[0].data as { dashboard: unknown })
+      .dashboard;
+  const ask = (client: Client, type: string, data?: unknown) =>
+    client.emit(
+      'message',
+      Buffer.from(JSON.stringify({ type, requestId: 'request-one', data }))
+    );
+
+  it("stays the active profile's when another profile's save is announced", async () => {
+    let active = layout('active-profile-widget');
+    const other = layout('other-profile-widget');
+    const dashboardUpdated = vi.fn<DashboardBridge['dashboardUpdated']>();
+    const { connect } = setup({
+      getCurrentDashboard: () => active,
+      getDashboardForProfile: async () => null,
+      dashboardUpdated,
+    } as unknown as DashboardBridge);
+    const announce = dashboardUpdated.mock.calls[0][0];
+    const open = connect();
+
+    // A page of the other profile saved where its widgets sit, or the driver
+    // tags were saved and every profile announced in turn.
+    announce(other, 'other');
+
+    // Pages are told, and each keeps what names its own profile.
+    expect(open.messages('dashboardUpdated')).toEqual([
+      {
+        type: 'dashboardUpdated',
+        data: { dashboard: other, profileId: 'other' },
+      },
+    ]);
+    // What "the dashboard" is has not moved to the profile that spoke last.
+    const late = connect();
+    expect(initialDashboard(late)).toEqual(active);
+    ask(late, 'getDashboard');
+    expect(late.messages('dashboard')[0].data).toEqual(active);
+    // A page whose link names a profile that no longer exists falls back to
+    // the active one, not to another profile's.
+    ask(late, 'getDashboardForProfile', { profileId: 'deleted' });
+    await vi.waitFor(() =>
+      expect(late.messages('getDashboardForProfile')[0]?.data).toEqual(active)
+    );
+
+    // The active profile's own save, or a switch of profile, does move it.
+    active = layout('active-profile-widget-moved');
+    announce(active, 'active');
+    expect(initialDashboard(connect())).toEqual(active);
   });
 });
 

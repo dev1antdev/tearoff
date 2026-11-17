@@ -1,4 +1,4 @@
-import { tyresChangedAcross } from '@irdashies/shared';
+import { stopUnderWay, tyresChangedAcross } from '@irdashies/shared';
 import type { RaceLap, RaceStint } from '@irdashies/types';
 
 /**
@@ -150,14 +150,10 @@ export const stopSeen = (
   const either = lastLap !== undefined && nextLap !== undefined;
   return {
     standingS: stop.standingTime,
-    // The lane time is written when the car leaves. It also stays unknown
-    // for a visit whose entry was not seen, which is told apart by the car
-    // having lapped on since.
-    inPits:
-      stop.laneTime === null &&
-      next !== undefined &&
-      next.closedBy === null &&
-      next.laps <= 1,
+    // The lane time is written when the car leaves, and stays unknown for
+    // a visit whose entry was not seen: the one rule that tells the two
+    // apart is asked.
+    inPits: stopUnderWay(stint, next),
     refilled: either ? refilledAcross(lastLap, nextLap) : null,
     // The rule the laps on a set of tyres are counted by, so that this
     // and the Tyres cells never disagree about one stop.
@@ -203,6 +199,11 @@ export interface CarRecordStanding {
   recording: boolean;
   /** The car's record has been read. */
   read: boolean;
+  /**
+   * The last read of it failed, and no other is on its way: it is asked
+   * for again when the car's records change, or the page reconnects.
+   */
+  failed?: boolean;
 }
 
 /**
@@ -213,9 +214,12 @@ export const carRecordNotice = ({
   readable,
   recording,
   read,
+  failed = false,
 }: CarRecordStanding): string | null => {
   if (!readable) return 'The race history is not available on this page.';
   if (!recording) return 'Waiting for a session to record.';
+  // Not "Reading": nothing is being read, and it would say so for ever.
+  if (!read && failed) return 'The race history could not be read.';
   if (!read) return 'Reading the race history.';
   return null;
 };

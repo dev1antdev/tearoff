@@ -16,6 +16,8 @@ would gather by hand before a release:
 - whether the built-in web server serves the browser pages (the overlays and
   the Pit Wall) and its own connection, and turns away a page from another
   site and a name pointed at this machine;
+- whether a browser can draw the Pit Wall page the server hands out: the page
+  is opened in a browser of the run's own and photographed;
 - what the app left in the profile: `logs/main.log`, `laps.db` and its backup,
   `config.json`, the track profiles, and anything a recording should not leave.
 
@@ -161,10 +163,19 @@ app.
    own (`COMPONENT_PORT`): `/dashboard`, `/pitwall`, the page bundle, a
    connection as the server's own page, then a request and a connection as
    another site and a request under a foreign host name, which must all be
-   refused. A copied profile with the web server switched off is noted and
-   not checked. The run knocks from this machine, which is asked for no key;
-   that a device which is not this machine is refused without one is covered
-   by the specs in `src/app/webserver/`, not here.
+   refused. Then it **opens `/pitwall` in a browser** and photographs it
+   (`shots/browser/pitwall.png`, listed under Windows in the report): asking
+   the server for the page shows that it is served, not that a browser can
+   draw it. The browser is the repository's Electron running
+   `tools/smoke/browserPage.cjs`, not the app: a window that is never shown,
+   with nothing of the app in it and a user-data folder in the system's
+   temporary folder that is removed afterwards. The check fails when the Pit
+   Wall does not appear in the page or draws nothing, when the page shows
+   `NaN` / `undefined`, or when its console has an error. A copied profile
+   with the web server switched off is noted and not checked. The run knocks
+   from this machine, which is asked for no key; that a device which is not
+   this machine is refused without one is covered by the specs in
+   `src/app/webserver/`, not here.
 9. **Quits the app** by asking the browser to close (`Browser.close`), which
    runs the app's own shutdown and storage flush, the same as Quit in the tray.
 10. **Inspects the profile and the real profile**, and writes the report.
@@ -269,5 +280,6 @@ not either; this is what was seen:
   `No config.json yet: starting from the defaults`, at info level. A file that
   is there and cannot be read or parsed is still a warning with its error.
 - **The tool's own pieces** that are pure (the grid, the error classification,
-  the report and verdict, the profile and database comparisons, the guards)
-  have specs in `tools/smoke/*.spec.ts`.
+  the report and verdict, the profile and database comparisons, the guards,
+  what is made of the browser's answer about the Pit Wall page) have specs in
+  `tools/smoke/*.spec.ts`. The browser itself is not run by a spec.
