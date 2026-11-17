@@ -145,13 +145,40 @@ export interface LapLibraryInspection {
   backups: DbInfo[];
   /** The library as it was before the run (a copied profile only). */
   original?: DbInfo;
-  /** The first backup against the original: every table, column and row. */
+  /**
+   * How many of the backups are of the schema the library had before the
+   * run: the only ones that can hold it as it was. A profile that has been
+   * upgraded before carries older backups too, which are of other schemas.
+   */
+  backupsOfOriginalSchema?: number;
+  /**
+   * A backup of that schema against the original, every table, column and
+   * row: the one that matches where one does, and otherwise the last one
+   * looked at, with what it lacks. Absent where there is no such backup.
+   */
   backupMatchesOriginal?: DumpComparison;
   /** The original's rows, in the columns it had, against the library now. */
   rowsKept?: DumpComparison;
   /** Rows the run added. A recording is not the player's: there should be none. */
   rowsAdded: { table: string; before: number; after: number }[];
 }
+
+/**
+ * The backups that can hold a library of this schema as it was: the ones
+ * that read, and are of that schema themselves.
+ */
+export const backupsOfSchema = (
+  backups: readonly DbInfo[],
+  schemaVersion: number | undefined
+): DbInfo[] =>
+  schemaVersion === undefined
+    ? []
+    : backups.filter(
+        (backup) =>
+          backup.exists &&
+          !backup.error &&
+          backup.schemaVersion === schemaVersion
+      );
 
 export function inspectLapLibrary(
   profileDir: string,
@@ -187,14 +214,21 @@ export function inspectLapLibrary(
       before: before.get(table.name) ?? 0,
       after: table.rows,
     }));
+  // The app keeps the file as it was under the schema it had
+  // (`laps.v2.bak.db` for a library at schema 2), reuses a copy that already
+  // holds exactly that, and takes the next free name otherwise. So the
+  // backup of this run is one of those of the original's schema, and never
+  // an older one the profile brought with it.
+  const candidates = backupsOfSchema(backups, original.schemaVersion);
+  inspection.backupsOfOriginalSchema = candidates.length;
   try {
     const originalDump = dumpDb(originalDb, scratch);
-    if (backups[0]?.exists && !backups[0].error) {
-      inspection.backupMatchesOriginal = compareDumps(
-        originalDump,
-        dumpDb(backups[0].file, scratch)
-      );
+    let comparison: DumpComparison | undefined;
+    for (const backup of candidates) {
+      comparison = compareDumps(originalDump, dumpDb(backup.file, scratch));
+      if (comparison.equal) break;
     }
+    if (comparison) inspection.backupMatchesOriginal = comparison;
     if (!current.error) {
       // Only the columns the original had: an upgrade adds columns, and a
       // row that kept everything it held is a row that survived.

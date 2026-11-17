@@ -262,10 +262,12 @@ export function judge(result: RunResult): Verdict {
     if (library.rowsKept && !library.rowsKept.equal) {
       blocking.push('the lap library lost or changed rows in the upgrade');
     }
+    // Only a backup of the schema the library had counts: a profile that
+    // was upgraded before brings older backups, which are not this one's.
     if (
       library.original?.exists &&
       library.original.schemaVersion !== library.current.schemaVersion &&
-      library.backups.length === 0
+      (library.backupsOfOriginalSchema ?? 0) === 0
     ) {
       blocking.push('the lap library was upgraded without a backup');
     }
