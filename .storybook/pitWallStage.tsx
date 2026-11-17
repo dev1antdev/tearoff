@@ -4,7 +4,8 @@ import type {
   ActiveSimulator,
   DashboardBridge,
   DashboardLayout,
-  PitWallLayoutId,
+  PitWallCustomPanel,
+  PitWallLayoutChoice,
   PitWallTabId,
   RaceHistoryBridge,
 } from '@irdashies/types';
@@ -28,7 +29,12 @@ import { pitWallRace } from './pitWallRaceStage';
  * the layout and tab chosen, the simulator, and where the page is shown.
  */
 export interface PitWallStage {
-  layout?: PitWallLayoutId;
+  layout?: PitWallLayoutChoice;
+  /**
+   * The panels the profile saved for the Custom layout. Left out, the
+   * profile has arranged nothing and the layout is shown as it starts.
+   */
+  custom?: readonly PitWallCustomPanel[];
   /** The tab in front, for a layout made of tabs; the first without. */
   tab?: PitWallTabId;
   /**
@@ -66,6 +72,7 @@ const OWN_LAPS = { driving: 162, watching: 141 };
  */
 const stageBridge = ({
   layout = 'race',
+  custom,
   tab,
   simulator = 'lmu',
   without = [],
@@ -82,7 +89,11 @@ const stageBridge = ({
               ...widget,
               enabled: true,
               scale,
-              config: { layout, ...(tab ? { tab } : {}) },
+              config: {
+                layout,
+                ...(tab ? { tab } : {}),
+                ...(custom ? { custom } : {}),
+              },
             }
           : widget
       ),
