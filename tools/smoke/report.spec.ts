@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import type {
+  DbInfo,
+  LapLibraryInspection,
+  ProfileInspection,
+} from './inspect.ts';
 import {
   buildReport,
   judge,
@@ -108,6 +113,115 @@ describe('widgetStatus', () => {
     expect(widgetStatus(row({ ownWindow: true, captures: [] }))).toBe(
       'own window'
     );
+  });
+});
+
+const database = (schemaVersion: number, file = 'laps.db'): DbInfo => ({
+  file,
+  exists: true,
+  schemaVersion,
+  integrity: 'ok',
+  tables: [{ name: 'lap', rows: 2 }],
+});
+
+/** What the profile holds after a run, with a lap library to judge. */
+const inspection = (lapLibrary: LapLibraryInspection): ProfileInspection => ({
+  log: {
+    file: 'profile/logs/main.log',
+    exists: true,
+    summary: { entries: 3, errors: [], warnings: [], evidence: {} },
+    lines: [],
+  },
+  lapLibrary,
+  config: { parsed: true, profiles: ['default'] },
+  files: [],
+  trackProfiles: [],
+  shouldNotBeThere: [],
+});
+
+describe('judge, on the lap library of a copied profile', () => {
+  const same = { equal: true, differences: [] };
+
+  it('passes an upgrade whose backup is the library as it was, beside an older backup', () => {
+    // The profile was upgraded once before: `laps.v1.bak.db` came with it.
+    const verdict = judge(
+      result({
+        inspection: inspection({
+          current: database(3),
+          original: database(2),
+          backups: [
+            database(1, 'laps.v1.bak.db'),
+            database(2, 'laps.v2.bak.db'),
+          ],
+          backupsOfOriginalSchema: 1,
+          backupMatchesOriginal: same,
+          rowsKept: same,
+          rowsAdded: [],
+        }),
+      })
+    );
+
+    expect(verdict).toEqual({ verdict: 'PASS', blocking: [], attention: [] });
+  });
+
+  it('fails an upgrade that kept nothing of the library as it was, whatever older backup is there', () => {
+    const verdict = judge(
+      result({
+        inspection: inspection({
+          current: database(3),
+          original: database(2),
+          backups: [database(1, 'laps.v1.bak.db')],
+          backupsOfOriginalSchema: 0,
+          rowsKept: same,
+          rowsAdded: [],
+        }),
+      })
+    );
+
+    expect(verdict.verdict).toBe('FAIL');
+    expect(verdict.blocking).toEqual([
+      'the lap library was upgraded without a backup',
+    ]);
+  });
+
+  it('fails when the backup of that schema is not the library as it was', () => {
+    const verdict = judge(
+      result({
+        inspection: inspection({
+          current: database(3),
+          original: database(2),
+          backups: [database(2, 'laps.v2.bak.db')],
+          backupsOfOriginalSchema: 1,
+          backupMatchesOriginal: {
+            equal: false,
+            differences: ['table lap: 1 row differs'],
+          },
+          rowsKept: same,
+          rowsAdded: [],
+        }),
+      })
+    );
+
+    expect(verdict.blocking).toEqual([
+      'the lap library backup is not the library as it was',
+    ]);
+  });
+
+  it('asks for no backup where nothing was upgraded', () => {
+    const verdict = judge(
+      result({
+        inspection: inspection({
+          current: database(3),
+          original: database(3),
+          backups: [database(2, 'laps.v2.bak.db')],
+          backupsOfOriginalSchema: 0,
+          rowsKept: same,
+          rowsAdded: [],
+        }),
+      })
+    );
+
+    expect(verdict.verdict).toBe('PASS');
   });
 });
 
