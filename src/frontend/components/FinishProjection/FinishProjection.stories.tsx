@@ -147,7 +147,7 @@ const invalid = (
     laneLossS: null,
     plannedStandingS: null,
     refuelLines: null,
-    playerStopsOwed: 0,
+    playerStopsOwed: null,
     rivals: [],
   });
 
@@ -466,9 +466,18 @@ export const PitLaneNotKnown: Story = {
   ),
 };
 
-/** Before a lap has been measured: laps to go, and dashes for what to put in. */
+/**
+ * Before a lap has been measured: laps to go, and dashes for what to put
+ * in, for the stops the player owes and for the gaps they would leave.
+ */
 export const NoUsageYet: Story = {
-  ...story(snapshot({ energy: null, playerStopsOwed: 0 })),
+  ...story(
+    snapshot({
+      energy: null,
+      playerStopsOwed: null,
+      rivals: RIVALS.map((entry) => ({ ...entry, projectedGapS: null })),
+    })
+  ),
 };
 
 /** Alone in the class: the rivals section goes. */

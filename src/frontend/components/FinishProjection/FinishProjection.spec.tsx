@@ -592,6 +592,19 @@ describe('FinishProjection', () => {
       expect(rivalRows()).toEqual(['4|#46|V. Rossi|-3.4|1 v 1|--|unknown']);
     });
 
+    it('says it does not know the stops the player owes, and sets no rival behind them', () => {
+      // Before a lap has been measured nothing is read aboard the car. It
+      // read "1 v 0" and a gap as if the player owed no stop.
+      show(
+        snapshot({
+          energy: null,
+          playerStopsOwed: null,
+          rivals: [rival(2, 4, -3.4, { projectedGapS: null })],
+        })
+      );
+      expect(rivalRows()).toEqual(['4|#46|V. Rossi|-3.4|1 v --|--|unknown']);
+    });
+
     it('can add the pace over the laps left', () => {
       const rivals = [
         rival(2, 4, -3.4, { projectedGapS: -2, paceDeltaS: 6.3 }),

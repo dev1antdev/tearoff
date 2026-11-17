@@ -121,7 +121,7 @@ export const FinishProjection = () => {
         inPit={rival.inPit}
         gap={formatRivalGap(rival.gapS)}
         rivalStops={rival.stopsOwed}
-        playerStops={snapshot?.playerStopsOwed ?? 0}
+        playerStops={snapshot?.playerStopsOwed ?? null}
         projected={formatRivalGap(projectedS)}
         outcome={outcome}
         assumed={rival.basis === 'assumed'}

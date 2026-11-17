@@ -409,8 +409,11 @@ describe.skipIf(!lmuTapeAvailable())(
       });
       expect(last(ticks).snapshot.energy?.perLap).toBeCloseTo(2.28, 1);
       expect(last(ticks).snapshot.energy?.aboard).toBeCloseTo(38.8, 0);
+      // Not known until then, and none once it is.
       for (const { at, snapshot } of ticks) {
-        expect(snapshot.playerStopsOwed, `at ${at}`).toBe(0);
+        expect(snapshot.playerStopsOwed, `at ${at}`).toBe(
+          snapshot.energy === null ? null : 0
+        );
       }
     }, 120_000);
 
@@ -538,8 +541,11 @@ describe.skipIf(!lmuTapeAvailable())(
           }
           // Nobody has a stop to make in a race with eight laps left.
           expect(rival.stopsOwed, `car ${rival.carIdx} at ${at}`).toBe(0);
+          // And nobody is set anywhere against the player until the
+          // player's own first lap is measured, 93 s in: what it owes is
+          // not known before.
           expect(rival.projectedGapS, `car ${rival.carIdx} at ${at}`).toBe(
-            rival.gapS
+            snapshot.playerStopsOwed === null ? null : rival.gapS
           );
         }
       }
@@ -625,9 +631,10 @@ describe.skipIf(!lmuTapeAvailable())(
         expect(snapshot.laneLossS, `at ${at}`).toBeNull();
         for (const rival of snapshot.rivals) {
           expect(rival.stopLossS, `car ${rival.carIdx} at ${at}`).toBeNull();
-          // With no stop owed the gap needs no costing.
+          // With no stop owed the gap needs no costing, once the player's
+          // own stops are known to be none.
           expect(rival.projectedGapS, `car ${rival.carIdx} at ${at}`).toBe(
-            rival.gapS
+            snapshot.playerStopsOwed === null ? null : rival.gapS
           );
         }
       }

@@ -457,7 +457,8 @@ describe('FinishProjectionProcessor', () => {
       const snapshot = run({ fuel: fuel({ completedLaps: [] }) });
       expect(snapshot.valid).toBe(true);
       expect(snapshot.energy).toBeNull();
-      expect(snapshot.playerStopsOwed).toBe(0);
+      // Not known, which is not none.
+      expect(snapshot.playerStopsOwed).toBeNull();
     });
 
     describe('while somebody else drives the car', () => {
@@ -483,7 +484,7 @@ describe('FinishProjectionProcessor', () => {
         expect(snapshot.valid).toBe(true);
         expect(snapshot.lapsToGo).toBe(6.2);
         expect(snapshot.energy).toBeNull();
-        expect(snapshot.playerStopsOwed).toBe(0);
+        expect(snapshot.playerStopsOwed).toBeNull();
       });
 
       it('costs no fuel hose without the tank read on the frame', () => {
@@ -1026,6 +1027,31 @@ describe('FinishProjectionProcessor', () => {
           }),
         };
         expect(rivalOf(run(unplanned), 1).projectedGapS).toBeNull();
+      });
+
+      it('is not known while the stops the player owes are not', () => {
+        // Before the first measured lap, or with a team-mate driving where
+        // the sim stops writing the budget: nothing is read aboard. Counted
+        // as owing no stop, the player was set one stop ahead of this rival:
+        // 8 + 62 = +70 s.
+        const read = scene();
+        const snapshot = run({
+          ...read,
+          fuel: {
+            ...(read.fuel as FuelProjectionSnapshot),
+            completedLaps: [],
+          },
+        });
+
+        expect(snapshot.energy).toBeNull();
+        expect(snapshot.playerStopsOwed).toBeNull();
+        expect(rivalOf(snapshot, 1)).toMatchObject({
+          gapS: 8,
+          // What is known of the rival still is.
+          stopsOwed: 1,
+          stopLossS: 62,
+          projectedGapS: null,
+        });
       });
 
       it('is the gap as it stands when nobody owes a stop', () => {

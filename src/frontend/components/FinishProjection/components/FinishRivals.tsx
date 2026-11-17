@@ -1,5 +1,8 @@
 import { memo } from 'react';
-import type { RivalOutcome } from '@irdashies/domain/finishProjection';
+import {
+  NO_FIGURE,
+  type RivalOutcome,
+} from '@irdashies/domain/finishProjection';
 import { ClassLabel } from '../../shared/ClassLabel/ClassLabel';
 import { DriverStatusBadges } from '../../shared/DriverStatusBadges/DriverStatusBadges';
 
@@ -38,9 +41,12 @@ export interface FinishRivalRowProps {
   inPit: boolean;
   /** The race gap now, as written. */
   gap: string;
-  /** Stops still owed: the rival's, then the player's. */
+  /**
+   * Stops still owed: the rival's, then the player's, which is null while
+   * what the player's car has aboard is not read.
+   */
   rivalStops: number;
-  playerStops: number;
+  playerStops: number | null;
   /** The gap once both have made them, as written. */
   projected: string;
   outcome: RivalOutcome;
@@ -99,7 +105,7 @@ export const FinishRivalRow = memo(
         className={`${FIGURE.stops} text-slate-300`}
       >
         {assumed && '~'}
-        {rivalStops} v {playerStops}
+        {rivalStops} v {playerStops ?? NO_FIGURE}
       </span>
       <span
         data-testid="finish-rival-projected"

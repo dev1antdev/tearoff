@@ -268,7 +268,7 @@ describe('finishRivalRows', () => {
     rival(7, 11.8),
     rival(8, 48.3),
   ];
-  const snapshot = (rivals = RIVALS, playerStopsOwed = 0) => ({
+  const snapshot = (rivals = RIVALS, playerStopsOwed: number | null = 0) => ({
     rivals,
     playerStopsOwed,
   });
@@ -327,6 +327,17 @@ describe('finishRivalRows', () => {
     );
     expect(rows.ahead[0].projectedS).toBeCloseTo(-1.8, 9);
     expect(rows.ahead[0].outcome).toBe('behind');
+  });
+
+  it('ends nowhere against a rival while the stops the player owes are not known', () => {
+    // Whatever the snapshot carries for the rival: a gap made with the
+    // player's stops counted as none would set the rival that far behind.
+    const rows = finishRivalRows(
+      snapshot([rival(4, -3.4, { projectedGapS: 2.2, paceDeltaS: 6.3 })], null),
+      { ...OPTIONS, includePace: true }
+    );
+    expect(rows.ahead[0].projectedS).toBeNull();
+    expect(rows.ahead[0].outcome).toBe('unknown');
   });
 
   it('adds the pace over the laps left when asked', () => {

@@ -247,10 +247,10 @@ export class RaceForecastProcessor implements TelemetryProcessor<
       finish.laneLossS !== null && finish.plannedStandingS !== null
         ? round(finish.laneLossS + finish.plannedStandingS, 1)
         : null;
-    // With nothing read aboard the own entry the projection counts it as
-    // owing no stop, which is its way of saying it cannot tell. A gap or a
-    // place made from that would be an invention, so none is published.
-    const ownStopsOwed = finish.energy ? finish.playerStopsOwed : null;
+    // With nothing read aboard the own entry the projection does not know
+    // the stops it owes. A gap or a place made from a count of none would
+    // be an invention, so none is published.
+    const ownStopsOwed = finish.playerStopsOwed;
     const placeable = ownStopsOwed !== null;
 
     const pitFigures = (carIdx: number) => {
@@ -481,7 +481,8 @@ export class RaceForecastProcessor implements TelemetryProcessor<
         lapsLeft: reckoning.playerLapsLeft,
         lapsInHand: lapsLeft,
         stintLaps: reckoning.playerStintLaps,
-        stopsOwed: finish.playerStopsOwed,
+        // Known here: the budget this is made from is what it is counted on.
+        stopsOwed: finish.playerStopsOwed ?? 0,
       }),
     };
   }

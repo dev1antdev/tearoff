@@ -808,7 +808,7 @@ Where the race ends, and what that asks of your car. A timed race ends when the 
 - A "Last" column for what your last stop and the leader's cost, once either has been through the pit lane
 - A choice of whether the leader loses the same time as you in a stop-length column, or none
 - A header with the race clock, or the laps left of a lap race, and the share of a lap you lose to the leader every lap
-- Class rivals: up to three class cars ahead and three behind, two each by default, with the gap now, the stops each of you still owes as "1 v 2" (theirs against yours), and the gap once they are made, green when you end ahead and red when behind. The difference in measured pace over the laps left can be added in
+- Class rivals: up to three class cars ahead and three behind, two each by default, with the gap now, the stops each of you still owes as "1 v 2" (theirs against yours), and the gap once they are made, green when you end ahead and red when behind. Until your own first lap has been measured, and while a team-mate drives where the game stops reporting what the car has aboard, your stops are not known: they read `--` and so does the gap, rather than counting you as owing none. The difference in measured pace over the laps left can be added in
 - Optional rows with the two lap fractions TinyPedal's table shows
 - It describes your own entry: it stays up at the pit wall and while a team-mate drives the car, and hides with the camera on another car
 - Adjustable background opacity, session visibility (races only by default) and an option to show only when on track
