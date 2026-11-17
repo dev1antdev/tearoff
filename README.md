@@ -1284,6 +1284,7 @@ What happened in the race, one line an event, newest first: made for somebody wh
 - Le Mans Ultimate's forecast changing, with how far off its first rain is. That figure is an estimate, the Weather Forecast's own, and is marked with `~`
 - Switches over the list: all cars, your class or your car, and each kind of event on or off. What they open with is set in the widget's settings; what you switch on the panel is not saved
 - New lines arrive at the top. If you have scrolled down to read, the list stays where you are and counts the new lines in a button that takes you back to the top
+- The lines are in the order they were said, and each carries the time the thing happened. A fastest lap is said once it has stood for fifteen seconds, so its line can sit above one timed a few seconds later; nothing is ever put in among lines you have already read
 - The clock in the sim on each line, or the session clock
 - Background opacity, session visibility and an option to show only when on track
 
