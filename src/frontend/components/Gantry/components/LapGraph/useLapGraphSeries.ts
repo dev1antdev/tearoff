@@ -1,11 +1,10 @@
 import { useMemo } from 'react';
 import type { LapGraphAxisFit } from '@irdashies/types';
 import {
-  buildGapAxis,
   buildLinearAxis,
-  buildPositionAxis,
   type LinearAxis,
-} from './lapGraphScales';
+} from '@irdashies/utils/charts/linearAxis';
+import { buildGapAxis, buildPositionAxis } from './lapGraphScales';
 import {
   clampWindow,
   type LapBounds,
@@ -223,19 +222,6 @@ export const buildModeAxis = (
     );
   }
   return buildLinearAxis(extent.min, extent.max);
-};
-
-/** Vertical pixel for a value. Position mode counts downwards from the top. */
-export const valueToY = (
-  value: number,
-  axis: LinearAxis,
-  plotHeight: number,
-  inverted: boolean
-): number => {
-  const span = axis.max - axis.min;
-  if (span <= 0) return plotHeight / 2;
-  const ratio = Math.min(1, Math.max(0, (value - axis.min) / span));
-  return inverted ? ratio * plotHeight : (1 - ratio) * plotHeight;
 };
 
 const HEX_SHORT = /^#([\da-f])([\da-f])([\da-f])$/i;

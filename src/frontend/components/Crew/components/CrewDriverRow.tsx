@@ -3,7 +3,7 @@ import {
   driverFillClass,
   driverTextClass,
   driverTintClass,
-} from '../crewColours';
+} from '../../shared/DriverColour/driverColours';
 
 /** The columns of the drivers' table, shared by its captions and its rows. */
 export const CREW_DRIVER_GRID =

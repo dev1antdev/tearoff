@@ -15,10 +15,12 @@ import { useElementSize } from '@irdashies/context';
 import type { LapGraphAxisFit } from '@irdashies/types';
 import { useWidgetScale } from '@irdashies/domain/widgetPresentation/WidgetScale';
 import {
-  formatAxisValue,
   lapAxisLabels,
   lapLabelCapacity,
-} from './lapGraphScales';
+  valueToY,
+} from '@irdashies/utils/charts/linearAxis';
+import { anchorInsideBounds } from '@irdashies/utils/charts/readoutAnchor';
+import { formatAxisValue } from './lapGraphScales';
 import {
   brushXToLap,
   centreWindowOn,
@@ -40,13 +42,11 @@ import {
   lapBoundsOf,
   prepareLapGraph,
   valueAtLap,
-  valueToY,
   type LapGraphGeometry,
   type LapGraphMode,
   type LapGraphSeries,
   type PreparedSeries,
 } from './useLapGraphSeries';
-import { anchorInsideBounds } from '../Tooltip/tooltipPosition';
 import { scaleDash } from './lapGraphPalette';
 
 export type {

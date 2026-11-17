@@ -10,12 +10,11 @@ import {
   tierFor,
   valueAtLap,
   valueExtentOf,
-  valueToY,
   windowSlice,
   type LapGraphSeries,
   type LapPoint,
 } from './useLapGraphSeries';
-import { buildLinearAxis } from './lapGraphScales';
+import { buildLinearAxis, valueToY } from '@irdashies/utils/charts/linearAxis';
 
 const ramp = (laps: number, slope: number, from = 1): LapPoint[] =>
   Array.from({ length: laps }, (_, i) => ({

@@ -1,6 +1,9 @@
 import { memo, type CSSProperties } from 'react';
 import type { StintPaceTone } from '@irdashies/domain/lapTiming/stintPaceDisplay';
-import { driverTextClass, driverTintClass } from '../crewColours';
+import {
+  driverTextClass,
+  driverTintClass,
+} from '../../shared/DriverColour/driverColours';
 
 /** The least the driver's name and the stop are given, rem. */
 const DRIVER_MIN_REM = 5;

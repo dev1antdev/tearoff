@@ -1,5 +1,6 @@
 /**
- * A car's drivers are told apart by colour, in the order they first drove.
+ * A car's drivers are told apart by colour, in the order they first drove:
+ * on Crew and Stints, and along the line of the Race Charts.
  *
  * Our own car's are the colours the stint timeline gives the bars of the
  * same drivers, amber first. Another car's start past amber, which on every
@@ -26,6 +27,21 @@ const TINT = [
   'bg-sky-400/10',
   'bg-rose-400/10',
 ];
+/** A line drawn in the driver's colour, and a mark filled with it. */
+const STROKE = [
+  'stroke-amber-400',
+  'stroke-teal-400',
+  'stroke-purple-400',
+  'stroke-sky-400',
+  'stroke-rose-400',
+];
+const MARK = [
+  'fill-amber-400',
+  'fill-teal-400',
+  'fill-purple-400',
+  'fill-sky-400',
+  'fill-rose-400',
+];
 
 /** How many colours a car's drivers go round: a fifth takes the first again. */
 const DRIVER_COLOURS = 4;
@@ -43,3 +59,9 @@ export const driverFillClass = (colour: number): string =>
   FILL[colour % FILL.length];
 export const driverTintClass = (colour: number): string =>
   TINT[colour % TINT.length];
+/** For a line of an SVG drawing. */
+export const driverStrokeClass = (colour: number): string =>
+  STROKE[colour % STROKE.length];
+/** For a filled mark of an SVG drawing. */
+export const driverMarkClass = (colour: number): string =>
+  MARK[colour % MARK.length];

@@ -1,15 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { MAX_GRIDLINES } from '@irdashies/utils/charts/linearAxis';
 import {
   MAX_GAP_CEILING_SECONDS,
-  MAX_GRIDLINES,
   buildGapAxis,
-  buildLinearAxis,
   buildPositionAxis,
   formatAxisValue,
   gapAxisStep,
-  lapAxisLabels,
-  lapLabelCapacity,
-  niceStep,
 } from './lapGraphScales';
 
 describe('buildGapAxis', () => {
@@ -57,109 +53,6 @@ describe('gapAxisStep', () => {
     expect(gapAxisStep(40)).toBe(5);
     expect(gapAxisStep(200)).toBe(30);
     expect(gapAxisStep(600)).toBe(120);
-  });
-});
-
-describe('lapAxisLabels', () => {
-  it('labels every lap for a short race', () => {
-    expect(lapAxisLabels(1, 6, 10)).toEqual([1, 2, 3, 4, 5, 6]);
-  });
-
-  it('thins labels so a long race does not smear', () => {
-    const labels = lapAxisLabels(1, 500, 20);
-
-    expect(labels.length).toBeLessThanOrEqual(21);
-    expect(labels[0]).toBe(1);
-    expect(labels[labels.length - 1]).toBe(500);
-  });
-
-  it('always includes the last lap', () => {
-    const labels = lapAxisLabels(1, 47, 8);
-
-    expect(labels[labels.length - 1]).toBe(47);
-  });
-
-  it('handles a single recorded lap', () => {
-    expect(lapAxisLabels(3, 3, 10)).toEqual([3]);
-  });
-});
-
-describe('lapLabelCapacity', () => {
-  it('scales with the plot width', () => {
-    expect(lapLabelCapacity(1368, 34)).toBe(40);
-    expect(lapLabelCapacity(340, 34)).toBe(10);
-  });
-
-  it('never drops below two labels, even at zero width', () => {
-    expect(lapLabelCapacity(0, 34)).toBe(2);
-  });
-});
-
-describe('niceStep', () => {
-  it('walks the ladder as the range grows', () => {
-    expect(niceStep(8)).toBe(1);
-    expect(niceStep(80)).toBe(10);
-    expect(niceStep(800)).toBe(100);
-  });
-
-  it('handles a sub-unit range', () => {
-    expect(niceStep(0.4)).toBeCloseTo(0.05, 10);
-  });
-
-  it('never returns zero', () => {
-    expect(niceStep(0)).toBeGreaterThan(0);
-    expect(niceStep(Number.NaN)).toBeGreaterThan(0);
-  });
-});
-
-describe('buildLinearAxis', () => {
-  it('spans a negative-to-positive trace range', () => {
-    const axis = buildLinearAxis(-42, 17);
-
-    expect(axis.min).toBeLessThanOrEqual(-42);
-    expect(axis.max).toBeGreaterThanOrEqual(17);
-    expect(axis.values.length).toBeLessThanOrEqual(MAX_GRIDLINES + 1);
-  });
-
-  it('never draws more than the gridline cap', () => {
-    for (const [low, high] of [
-      [0, 1],
-      [-1000, 1000],
-      [-1e6, 1e6],
-      [0.001, 0.002],
-    ] as const) {
-      expect(buildLinearAxis(low, high).values.length).toBeLessThanOrEqual(
-        MAX_GRIDLINES + 1
-      );
-    }
-  });
-
-  it('pads a flat series instead of returning a zero-height axis', () => {
-    const axis = buildLinearAxis(5, 5);
-
-    expect(axis.max).toBeGreaterThan(axis.min);
-    expect(axis.values.length).toBeGreaterThan(1);
-  });
-
-  it('accepts a reversed range', () => {
-    expect(buildLinearAxis(20, -20)).toEqual(buildLinearAxis(-20, 20));
-  });
-
-  it('survives non-finite input', () => {
-    const axis = buildLinearAxis(Number.NaN, Number.POSITIVE_INFINITY);
-
-    expect(Number.isFinite(axis.min)).toBe(true);
-    expect(Number.isFinite(axis.max)).toBe(true);
-  });
-
-  it('does not drift on a fractional step', () => {
-    const axis = buildLinearAxis(0, 1);
-
-    for (const value of axis.values) {
-      expect(Math.abs(value * 100 - Math.round(value * 100))).toBeLessThan(
-        1e-6
-      );
-    }
   });
 });
 
