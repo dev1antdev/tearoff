@@ -474,14 +474,32 @@ Where the overlay Standings is trimmed to the cars around you, the tower lists e
 - **Sect** (Le Mans Ultimate): three squares for the car's most recent first, second and third sector. Purple is the best of the class, green the car's own best, amber slower than that, grey no time yet. While a lap is under way the squares of the sectors not driven yet are still the lap before's
 - **Stops** and **Stint**: pit stops made, and laps completed since the last
 - **Energy** (Le Mans Ultimate): virtual energy left in percent for a car that runs on it, and fuel left, marked with a pump, for one that does not
-- **Tyres**: the compound, or four marks where the wheels differ
+- **Tyres**: the compound, or four marks where the wheels differ. For the cars of your own class, beside it: the laps the car has run on its tyres and the tread left, as in `17 ~86%`. See [the tyres of your class](#the-tyres-of-your-class) below. Both can be switched off, which leaves the compound
 - Two switches in the tower's header, each starting from a setting and kept for as long as the tower stays on screen: **Averages over** clean laps or all laps, as in [Standings](#standings), and **Pace against** the previous stint or the previous driver. The previous driver is the most recent stint somebody else drove, which after a double stint is not the stint before
 - On a panel too narrow for every column the tower leaves columns out rather than scroll sideways, the least important first: Stops, Int, Best, Sect, Tyres, Energy, Stint, Avg 10, Last, Gap, Avg 5, vs stint. The place, the number and the driver always stay
 - Name format, the team line, the status tag, background opacity, session visibility and an option to show only when on track. Its type does not follow the General font size: use the tower's own scale
 
 **What each sim gives.** Under iRacing the tower has no **Sect** and no **Energy** column, since iRacing times nobody else's sectors and publishes no fuel for another car, and its **Stops** are the stops seen since the tower was first shown. Le Mans Ultimate counts the stops itself.
 
-**What it knows, and from when.** The stints behind **vs stint** are the race history's: they are known from when Tearoff began recording the race, and showing the column is what has the race recorded. The sector bests are the quickest sectors driven since the tower was first shown in the session, and are kept while its window is hidden or closed; only the first sector also takes the sim's own best, which reaches back to the start of the session. Le Mans Ultimate's own best figures for the second and third sectors are not sector bests and are not used.
+#### The tyres of your class
+
+No sim says that a rival changed tyres. Tearoff works the laps on a set out backwards from now, one stop at a time, from the stints and stops the race history holds, and writes them with how sure they are:
+
+- **Bare**, as in `17`: another compound was seen on the car after a stop, or it has not stopped since the start
+- **With `?`**, as in `17?`: told from how long the car stood at a stop. Longer than its refill and its driver change explain by what four tyres take, and a set likely went on then; shorter than four tyres take, and the set before is likely still on, which is how a car comes to show more laps than its stint has
+- **With `+`**, as in `17+`: at least that many. Counted from a stop that cannot be judged, a spell in the garage, or laps Tearoff did not see, at which any set may have gone on
+
+The tread is an estimate, marked `~`: what a lap costs your own car's tread on that compound, the mean of its four wheels over its clean laps, times the laps the other car has run on its set. It is your wear applied to their laps, and another car wears its tyres differently. It reads `--` until your own car has three clean laps on the compound, in this session or in earlier ones on the same track, and for a compound you have not run. Where the laps are only a floor it reads `<` in place of `~`: no more than that.
+
+Your own car shows its real tread, without a mark, and the laps since its ledger last saw a tyre go on. So does every other car where the sim publishes its tread, which Le Mans Ultimate does offline against the AI: there a reading that goes back up in the pits is a set seen to go on, and the figure is the sim's own. Online a rival's tread reads 100 % all race; Tearoff takes a reading for the car's own only once it has been seen to fall, and estimates until then.
+
+What a refill takes is costed with the rates Le Mans Ultimate states for your own car, and so is a change of four tyres, unless you set **Tyre Change Takes** on the tower's Columns tab. Both stand for the rest of the class, which is a guess. Under iRacing there are no such rates and no tread to read: a set is either the one from the start, one seen to change compound, or at least as old as the laps since the last stop, and only the laps are shown.
+
+What it gets wrong: a change of two tyres, which takes little longer than a slow refill and is counted as none; a repair or a penalty served at the stop, which reads as time for tyres. What it cannot tell, and marks `+`: a new set of the same compound at a stop whose refill it cannot reckon, which online is every stop of a car whose fuel the sim withholds. None of this has been checked against a race with pit stops: no recording of one exists.
+
+Cars of other classes show their compound and nothing more. While the laps are shown Tearoff records the race for them.
+
+**What it knows, and from when.** The stints behind **vs stint** and the laps on a set of tyres are the race history's: they are known from when Tearoff began recording the race, and showing either is what has the race recorded. The sector bests are the quickest sectors driven since the tower was first shown in the session, and are kept while its window is hidden or closed; only the first sector also takes the sim's own best, which reaches back to the start of the session. Le Mans Ultimate's own best figures for the second and third sectors are not sector bests and are not used.
 
 **Not verified yet.** Nothing of the tower has been seen in a live game. The one Le Mans Ultimate recording has no pit stop and no driver change, so the pace against an earlier stint, the stops and the tags have been checked on staged data only, and the sector marks on the recording's two and a half laps of green running.
 
@@ -838,8 +856,9 @@ Every running car of your class in a race, in the order of their places with you
 - Next: the lap each car's next stop is due, marked `~` as the estimate it is. Your own row shows your pit window
 - Net gap: the gap once both of you have made the stops you still owe, green when you end ahead and red when behind
 - Pace 5: each car's mean of its last five clean laps against yours, green when you are the faster. Your own row shows your mean
+- Tyres: the compound each car is on, the laps it has run on the set and the tread left, as in `17 ~86%`: the [Timing Tower](#the-tyres-of-your-class)'s figures, with the same marks. `?` for laps told from the length of a stop, `+` for at least that many, `~` for a tread reckoned from your own wear, `--` until your own car has run the compound. Your own row shows your real tread. Under iRacing only the laps are shown
 - The whole class by default, scrolling under fixed captions; or a number of cars each side of you, one to ten
-- Each group of columns can be switched off, and so can the line under the table that says what Net Gap and Pace 5 are
+- Each group of columns can be switched off, and so can the line under the table that says what Net Gap, Pace 5 and the marks in Tyres are
 - Adjustable background opacity, session visibility (races only by default) and an option to show only when on track
 
 The figures are the same forecast Our Car shows, car by car (see [Our Car](#our-car) for how it is made). A row whose stops are assumed, not read or seen, is drawn fainter where it forecasts, and its net gap carries a `~`. A stop made before Tearoff began watching has no lap to show, a gap that hangs on a stop nobody can cost yet reads `--`, and so does every net gap while your own car's stops are not known.

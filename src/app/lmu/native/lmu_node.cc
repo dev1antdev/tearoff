@@ -278,6 +278,13 @@ void LmuSdkNode::FillVehicleArrays(Napi::Object &out) const
   auto wheelCompounds = Napi::Int16Array::New(env, cap * 4);
   if (cap > 0)
     std::fill(wheelCompounds.Data(), wheelCompounds.Data() + cap * 4, -1);
+  // Tread left per wheel, laid out like the compounds, as the sim publishes
+  // it: a fraction, 1 for a new tyre. -1 for a car with no telemetry block.
+  // Offline the sim writes it for every car; what it writes for a rival
+  // online is for the reader to judge, not for this to hide.
+  auto wheelWear = Napi::Float32Array::New(env, cap * 4);
+  if (cap > 0)
+    std::fill(wheelWear.Data(), wheelWear.Data() + cap * 4, -1.0f);
   // Track-limit infringements, counted in the sim's own steps rather than in
   // points: the divisor is mTrackLimitsStepsPerPoint on the scoring block.
   // -1 for a car with no telemetry block, since 0 steps is a clean car.
@@ -358,8 +365,12 @@ void LmuSdkNode::FillVehicleArrays(Napi::Object &out) const
       lapNumber[id] = telemetryVehicle->mLapNumber;
       elapsedTime[id] = telemetryVehicle->mElapsedTime;
       for (int wheel = 0; wheel < 4; ++wheel)
+      {
         wheelCompounds[id * 4 + wheel] =
             telemetryVehicle->mWheels[wheel].mCompoundIndex;
+        wheelWear[id * 4 + wheel] =
+            static_cast<float>(telemetryVehicle->mWheels[wheel].mWear);
+      }
       trackLimitsSteps[id] = telemetryVehicle->mTrackLimitsSteps;
       virtualEnergy[id] = telemetryVehicle->mVirtualEnergy;
     }
@@ -405,6 +416,7 @@ void LmuSdkNode::FillVehicleArrays(Napi::Object &out) const
   out.Set("vehLapNumber", lapNumber);
   out.Set("vehElapsedTime", elapsedTime);
   out.Set("vehWheelCompounds", wheelCompounds);
+  out.Set("vehWheelWear", wheelWear);
   out.Set("vehTrackLimitsSteps", trackLimitsSteps);
   out.Set("vehNumPenalties", numPenalties);
   out.Set("vehNumPitstops", numPitstops);

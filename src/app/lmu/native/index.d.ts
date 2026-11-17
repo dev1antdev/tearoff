@@ -422,6 +422,16 @@ export interface LmuRawTelemetry {
    */
   vehWheelCompounds?: ArrayLike<number>;
   /**
+   * Tread left per wheel, per car, as the sim publishes it: four entries
+   * per slot at `id * 4 + wheel`, a fraction with 1 for a new tyre.
+   *
+   * -1 where the car had no telemetry block that frame. Measured on the
+   * recorded offline race, where it falls lap by lap for every one of the
+   * 38 cars. Online a rival's is reported to read 1 throughout, so a reader
+   * must not take a figure that never moves for the car's own.
+   */
+  vehWheelWear?: ArrayLike<number>;
+  /**
    * Track-limit infringement steps per car, indexed by slot.
    *
    * -1 where the car had no telemetry block that frame. 0 is a clean car, so

@@ -85,6 +85,17 @@ export type Telemetry = {
    */
   LmuCarIdxWheelCompounds?: TelemetryVar<number[]>;
   /**
+   * LMU's tread left for every wheel of every car, as a fraction with 1 for
+   * a new tyre: `carIdx * 4 + wheel`, laid out like the compounds above. -1
+   * where the car reported no telemetry that frame; empty from an addon
+   * built before it was exported.
+   *
+   * The sim's own figure for the car offline. Online a rival's is reported
+   * to read 1 throughout: a reader takes it for the car's own only once it
+   * has been seen to fall (`ClassTyresTracker`).
+   */
+  LmuCarIdxWheelWear?: TelemetryVar<number[]>;
+  /**
    * LMU's track-limits penalty points per car, in points rather than the
    * sim's own infringement steps. -1 where a car has no reading, or the
    * session has not stated the scale -- a clean car reads 0, and the two must

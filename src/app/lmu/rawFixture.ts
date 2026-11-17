@@ -198,6 +198,10 @@ export function fixture(): LmuRawTelemetry {
     // choice, and the case the split rendering exists for -- and car 2 is
     // uniform on 0.
     vehWheelCompounds: [1, 1, 1, 1, 3, 3, 0, 0, 0, 0, 0, 0],
+    // Tread left per wheel, laid out the same way: car 0 a few laps into a
+    // set, car 1, the player, with the wear its own block reads below, and
+    // car 2 with no telemetry block to read one from.
+    vehWheelWear: [0.97, 0.96, 0.98, 0.97, 0.9, 0.8, 0.7, 0.6, -1, -1, -1, -1],
     // Infringement steps per car. Four to a point and twelve to a penalty, so
     // car 0 reads 0.25 of three, car 1 is clean, and car 2 is one step from a
     // drive-through.
