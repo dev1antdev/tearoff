@@ -424,10 +424,12 @@ describe('Crew (staged)', () => {
     });
 
     it('says the history is not available where there is no bridge to it', () => {
-      // The page served to a browser has no race history bridge.
+      // A page that was given no bridge to the race history. No page of
+      // the app is one: a window has it over IPC, a browser page over
+      // its socket.
       const { channels } = show({}, {}, { withHistory: false });
       expect(screen.getByTestId('crew-notice')).toHaveTextContent(
-        'The race history is not available in a browser yet.'
+        'The race history is not available on this page.'
       );
       expect(screen.queryByTestId('crew-stint')).toBeNull();
       // Nothing to read it for: the summary is left alone.

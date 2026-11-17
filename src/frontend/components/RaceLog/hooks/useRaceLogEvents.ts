@@ -36,8 +36,9 @@ export interface RaceLogEvents {
  * since the widget came on screen is kept, so that a reader who has
  * scrolled down does not lose their place, and a page from before that is
  * asked of the race history's bridge when the reader wants one: never on a
- * timer. Another race (`raceToken`) drops everything first. Outside
- * Electron there is no bridge, and the list is the channel's alone.
+ * timer. Another race (`raceToken`) drops everything first. The bridge is
+ * a window's over IPC and a browser page's over its socket; on a page that
+ * was given none the list is the channel's alone.
  */
 export const useRaceLogEvents = (): RaceLogEvents => {
   const snapshot = useRaceLogSnapshot();

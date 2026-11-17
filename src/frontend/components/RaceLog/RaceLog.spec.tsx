@@ -488,7 +488,7 @@ describe('a log longer than the channel carries', () => {
     expect(screen.getByTestId('race-log-earlier')).toBeInTheDocument();
   });
 
-  it('offers nothing where there is no bridge to ask, as in a browser', () => {
+  it('offers nothing where there is no bridge to ask', () => {
     window.raceHistoryBridge = undefined;
     mocks.snapshot = snapshot(run(51, 250), { total: 250 });
     render(<RaceLog />);

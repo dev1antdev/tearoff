@@ -281,7 +281,9 @@ describe('StintTimeline (staged)', () => {
     });
 
     it('leaves the driven part empty where there is no bridge to ask', () => {
-      // The page served to a browser has no race history bridge.
+      // A page that was given no bridge to the race history. No page of
+      // the app is one: a window has it over IPC, a browser page over
+      // its socket.
       show({}, {}, { withHistory: false });
       expect(barsOf('77')).toEqual([0, 4]);
       expect(barsOf('91')).toEqual([0, 5]);

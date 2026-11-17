@@ -70,7 +70,10 @@ export const TimesOnly: Story = {
   }),
 };
 
-/** A page served to a browser, which has no bridge to the race history. */
+/**
+ * A page that was given no bridge to the race history, which is no page of
+ * the app any more: what the panel says should it ever be drawn on one.
+ */
 export const NoBridge: Story = {
   ...raceHistoryStory('carlaps', { noBridge: true }),
 };

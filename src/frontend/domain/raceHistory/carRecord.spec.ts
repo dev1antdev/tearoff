@@ -262,7 +262,7 @@ describe('carRecordNotice', () => {
   it('says the history is not available where it cannot be read', () => {
     expect(
       carRecordNotice({ readable: false, recording: true, read: true })
-    ).toBe('The race history is not available in a browser yet.');
+    ).toBe('The race history is not available on this page.');
   });
 
   it('says what it is waiting for, and nothing once it has the record', () => {
