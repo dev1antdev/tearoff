@@ -99,6 +99,20 @@ describe('TelemetryInspector', () => {
     ['LongAccel', [-18.1], 'm/s²'],
     ['YawNorth', [2.363], 'rad'],
     ['LmuLiftAndCoast', [0.4], 'fraction'],
+    ['LmuCurrentSectorTimes', [28.412, null, null], 's'],
+    ['LmuLastSectorTimes', [28.412, 35.07, 34.341], 's'],
+    ['LmuBestSectorTimes', [28.1, 34.9, 34.2], 's'],
+    [
+      'LmuCarIdxCurrentSectorTimes',
+      [28.412, null, null, 29.03, 35.2, null],
+      's',
+    ],
+    [
+      'LmuCarIdxLastSectorTimes',
+      [28.412, 35.07, 34.341, null, null, null],
+      's',
+    ],
+    ['LmuCarIdxBestSectorTimes', [28.1, 34.9, 34.2, 28.9, 35.1, 34.6], 's'],
   ])('labels %s with its unit', (path, value, unit) => {
     stores.telemetry = { [path]: { value } };
     mount([{ source: 'telemetry', path }]);
