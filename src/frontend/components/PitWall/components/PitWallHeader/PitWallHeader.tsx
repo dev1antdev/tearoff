@@ -62,7 +62,8 @@ export const PitWallHeader = ({
 
   return (
     <header
-      className={`settings-shell flex shrink-0 flex-wrap items-center gap-y-2 border-b border-slate-700 bg-slate-950 px-4 py-2 text-slate-200 tabular-nums ${
+      // Positioned, for the mark that hangs from it while reconnecting.
+      className={`settings-shell relative flex shrink-0 flex-wrap items-center gap-y-2 border-b border-slate-700 bg-slate-950 px-4 py-2 text-slate-200 tabular-nums ${
         tall ? 'gap-x-5' : 'gap-x-7'
       }`}
     >
@@ -184,22 +185,6 @@ export const PitWallHeader = ({
         <span role="status" className="sr-only">
           {reconnecting ? 'Reconnecting to Tearoff' : ''}
         </span>
-        {/* With the page's own controls: it is about the page, not the race. */}
-        {reconnecting && (
-          <div
-            aria-hidden="true"
-            data-item="reconnecting"
-            className="flex items-center gap-2 rounded-md border border-amber-400/70 bg-amber-950 px-2.5 py-1.5 text-sm font-semibold text-amber-200"
-            title="This page has lost its connection to Tearoff. It shows what it last had until the connection is back."
-          >
-            <ArrowsClockwiseIcon
-              size={16}
-              weight="bold"
-              className="animate-spin [animation-duration:2s] motion-reduce:animate-none"
-            />
-            Reconnecting
-          </div>
-        )}
         <nav
           aria-label="Layout"
           className="flex overflow-hidden rounded-md border border-slate-700"
@@ -252,6 +237,27 @@ export const PitWallHeader = ({
           )}
         </div>
       </div>
+
+      {/* Hung from the strip's lower right corner and not set into it. The
+          strip is full on a tablet: a mark that took room in it pushed the
+          controls onto a second line and the whole page down with them,
+          and back up when the connection returned. Out of the flow it
+          moves nothing, at any width, and covers none of the strip. */}
+      {reconnecting && (
+        <div
+          aria-hidden="true"
+          data-item="reconnecting"
+          className="absolute top-full right-4 z-20 mt-1.5 flex items-center gap-2 rounded-md border border-amber-400/70 bg-amber-950 px-2.5 py-1.5 text-sm font-semibold text-amber-200 shadow-lg shadow-black/50"
+          title="This page has lost its connection to Tearoff. It shows what it last had until the connection is back."
+        >
+          <ArrowsClockwiseIcon
+            size={16}
+            weight="bold"
+            className="animate-spin [animation-duration:2s] motion-reduce:animate-none"
+          />
+          Reconnecting
+        </div>
+      )}
     </header>
   );
 };

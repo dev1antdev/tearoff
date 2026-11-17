@@ -325,6 +325,24 @@ describe('the Pit Wall in a browser whose socket drops', () => {
     expect(header.innerHTML).toBe(before);
   });
 
+  it('hangs the mark from the header, out of the flow of its items', () => {
+    // Set into the strip beside the controls, the mark took room a tablet's
+    // strip does not have: the controls went onto a second line and every
+    // panel moved down, and back when the socket returned. That was seen
+    // and measured in a browser, which lays a page out; here it can only
+    // be said where the mark is, which is what keeps it from happening.
+    renderWith(stagedConnection(false));
+    const header = screen.getByRole('banner');
+    const controls = screen.getByRole('navigation', {
+      name: 'Layout',
+    }).parentElement;
+
+    expect(mark()?.parentElement).toBe(header);
+    expect(mark()).toHaveClass('absolute', 'top-full');
+    expect(header).toHaveClass('relative');
+    expect(controls?.contains(mark())).toBe(false);
+  });
+
   it('stops listening to the socket when the page goes', () => {
     const socket = stagedConnection();
     const { unmount } = renderWith(socket);
