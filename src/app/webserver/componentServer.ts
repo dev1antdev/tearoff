@@ -699,12 +699,16 @@ export async function startComponentServer(
 
       // One row per widget. This is the page people copy URLs out of
       // when setting up a VR overlay host, so each row shows the URL itself
-      // rather than only linking it.
+      // rather than only linking it. The URL names the host the visitor
+      // reached this page by, so it is one that opens where it is being read:
+      // by this PC's network address it would be refused on the device it
+      // was carried to, which has not shown the key.
+      const pageHost = pageHostOf(req);
       const widgets = listDashboardWidgets();
       const widgetLinks = widgets
         .map(({ id, enabled }) => {
           const href = `/widget/${encodeURIComponent(id)}`;
-          const full = `http://${SERVER_IP}:${actualPort}${href}`;
+          const full = `http://${pageHost}:${actualPort}${href}`;
           const badge = enabled ? '' : '<em>off on desktop</em>';
           return `<a href="${href}"><span>${escapeHtml(id)}${badge}</span><code>${escapeHtml(full)}</code></a>`;
         })
@@ -713,6 +717,18 @@ export async function startComponentServer(
       const widgetSection = widgets.length
         ? `<h2>Single widgets</h2><div class="widgets">${widgetLinks}</div>`
         : `<h2>Single widgets</h2><p class="empty">This profile has no widgets.</p>`;
+
+      // The key is never written into this page, for this PC either: the
+      // settings window alone is handed it (R12.7). So while other devices
+      // can reach the server, the page says where a link that carries the
+      // key is copied from instead of showing one.
+      const keyNote = !openToNetwork
+        ? ''
+        : `<p class="note">${
+            pass.thisMachine
+              ? 'The links on this page open on this PC. Another device has to show the key, and is refused by them.'
+              : 'The links on this page open in this browser, which has shown the key. Anywhere else, on another device or in another app on this one such as OBS, they are refused.'
+          } Copy a link that carries the key in Tearoff on the PC: Settings &rarr; Profiles &rarr; Copy URL for the dashboard, Settings &rarr; Pit Wall for the Pit Wall. For a single widget, put its path from this page in place of /dashboard in that link.</p>`;
 
       const html = `
       <!DOCTYPE html>
@@ -733,11 +749,13 @@ export async function startComponentServer(
           code { color: #64748b; font-size: 0.8rem; white-space: nowrap; }
           .empty { color: #64748b; font-size: 0.9rem; }
           em { font-style: normal; color: #64748b; font-size: 0.75rem; margin-left: 0.6rem; }
+          .note { color: #94a3b8; font-size: 0.85rem; line-height: 1.5; margin-bottom: 0.5rem; }
         </style>
       </head>
       <body>
         <div class="container">
           <h1>Tearoff</h1>
+          ${keyNote}
           <h2>Full dashboard</h2>
           <div class="profiles">${profileLinks}</div>
           <h2>Pit Wall</h2>

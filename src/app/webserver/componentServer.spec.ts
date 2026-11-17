@@ -522,6 +522,53 @@ describe('a device that is not this PC', () => {
     }
   });
 
+  describe('the index page', () => {
+    const COPY_FROM = /Copy a link that carries the key in Tearoff on the PC/;
+
+    it('names its widget links by the host it was reached by, never the key', async () => {
+      await startOpen();
+
+      // This PC by name: a link that opens on this PC, such as in a VR
+      // overlay host. By the network address it would be refused on the
+      // device it was copied to, which has not shown the key.
+      const here = await request('/');
+      expect(here.body).toContain(
+        '<code>http://localhost:3000/widget/standings</code>'
+      );
+      expect(here.body).not.toContain(LAN);
+      expect(here.body).toContain('The links on this page open on this PC.');
+      expect(here.body).toMatch(COPY_FROM);
+
+      // A device that showed the key: by the address it used, which its
+      // browser's cookie opens, and told that nothing else is let in by it.
+      const tablet = await request('/', cookie(STORED_KEY), TABLET);
+      expect(tablet.body).toContain(
+        `<code>http://${LAN}:3000/widget/standings</code>`
+      );
+      expect(tablet.body).toContain(
+        'open in this browser, which has shown the key'
+      );
+      expect(tablet.body).toMatch(COPY_FROM);
+
+      // The key is written into the page for nobody, this PC included.
+      for (const page of [here, tablet]) {
+        expect(page.body).not.toContain(STORED_KEY);
+        expect(page.body).not.toContain('key=');
+      }
+    });
+
+    it('says nothing of a key while the server answers this PC only', async () => {
+      await startWith({ enableWebServer: true, enableNetworkAccess: false });
+      const res = await request('/');
+
+      expect(res.body).toContain(
+        '<code>http://localhost:3000/widget/standings</code>'
+      );
+      expect(res.body).not.toMatch(COPY_FROM);
+      expect(res.body).not.toContain('class="note"');
+    });
+  });
+
   it('is refused a wrong key, in its link or in its cookie', async () => {
     await startOpen();
 
