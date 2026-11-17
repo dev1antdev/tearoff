@@ -317,6 +317,58 @@ describe('drivenBars', () => {
     ]);
   });
 
+  describe('for a car that went to its garage', () => {
+    /** One stint driven, then the garage at 2100 s, as the recorder keeps it. */
+    const toTheGarage = stintOf(1, { closedBy: 'garage', stop: null });
+    const inTheGarage = stintOf(2, {
+      openedBy: 'garage',
+      closedBy: null,
+      startTime: 2100,
+      endTime: null,
+      firstLap: null,
+      lastLap: null,
+      laps: 0,
+      cleanLaps: 0,
+      avgLap: null,
+      bestLap: null,
+      stop: null,
+    });
+
+    it('draws nothing after the stint it left the track on while it has no lap since', () => {
+      // An hour later the car is still there. The open stint ran from the
+      // moment it left to now, so its bar grew with the clock.
+      expect(
+        drivenBars([toTheGarage, inTheGarage], time, 5700).map(
+          ({ from, to, current }) => [from, to, current]
+        )
+      ).toEqual([[100, 2100, false]]);
+      expect(
+        drivenBars([toTheGarage, inTheGarage], laps, 20.4).map(
+          ({ from, to }) => [from, to]
+        )
+      ).toEqual([[0, 20]]);
+    });
+
+    it('leaves the time in the garage as a gap once the car is lapping again', () => {
+      // Back on the track at 3300 s, twenty minutes later, and three laps on.
+      const back = {
+        ...inTheGarage,
+        startTime: 3300,
+        firstLap: 21,
+        lastLap: 23,
+        laps: 3,
+      };
+      expect(
+        drivenBars([toTheGarage, back], time, 3650).map(
+          ({ from, to, current }) => [from, to, current]
+        )
+      ).toEqual([
+        [100, 2100, false],
+        [3300, 3650, true],
+      ]);
+    });
+  });
+
   it('is empty for a car with nothing recorded', () => {
     expect(drivenBars([], time, 5270)).toEqual([]);
   });

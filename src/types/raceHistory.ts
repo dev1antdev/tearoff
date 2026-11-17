@@ -148,7 +148,12 @@ export interface RaceStint {
   /** Lap numbers of its first and last completed lap; null with none. */
   firstLap: number | null;
   lastLap: number | null;
-  /** Session clock, seconds. The end of a stint a stop ended is pit entry. */
+  /**
+   * Session clock, seconds. The end of a stint a stop ended is pit entry.
+   * A stint that a stop or a spell in the garage opened starts where the
+   * car came back to the track; until it has, its start is when the car
+   * went in, and it has no lap.
+   */
   startTime: number;
   endTime: number | null;
   /** Laps completed in it. */

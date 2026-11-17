@@ -709,6 +709,84 @@ describe('a visit to the pit lane', () => {
     expect(run.recorder.summary().stops[0]).toBe(0);
   });
 
+  describe('a stint that began in the garage', () => {
+    const vanish = (field: Field) => {
+      field.cars[0].halted = true;
+      field.cars[0].surface = TrackLocation.NotInWorld;
+    };
+
+    it('is driven from where the car came back to the track, not from when it went away', () => {
+      const field = new Field();
+      const run = start(field);
+      const car = field.cars[0];
+
+      driveLaps(field, run.recorder, 0, 1);
+      drive(field, run.recorder, 20);
+      vanish(field);
+      const goneAt = field.time;
+      // Twenty minutes of repairs.
+      drive(field, run.recorder, 1200);
+      leavePits(car);
+      const backAt = field.time;
+      driveLaps(field, run.recorder, 0, 2);
+      drive(field, run.recorder, 2);
+
+      const [before, after] = run.recorder.carStints(0);
+      expect(before).toMatchObject({ closedBy: 'garage', laps: 1 });
+      expect(before.endTime).toBeCloseTo(goneAt, 0);
+      expect(after).toMatchObject({ openedBy: 'garage', closedBy: null });
+      // It kept the moment the car went away as its start, so the twenty
+      // minutes in the garage were part of the stint.
+      expect(after.startTime).toBeCloseTo(backAt, 0);
+    });
+
+    it('is driven from the pit exit where the car came out by the lane', () => {
+      const field = new Field();
+      const run = start(field);
+      const car = field.cars[0];
+
+      driveLaps(field, run.recorder, 0, 1);
+      drive(field, run.recorder, 20);
+      vanish(field);
+      drive(field, run.recorder, 600);
+      // Down the lane without standing in it.
+      car.halted = false;
+      enterPits(car);
+      drive(field, run.recorder, 8);
+      leavePits(car);
+      const exitAt = field.time;
+      driveLaps(field, run.recorder, 0, 1);
+      drive(field, run.recorder, 2);
+
+      const after = run.recorder.carStints(0)[1];
+      expect(after).toMatchObject({ openedBy: 'garage', laps: 1 });
+      expect(after.startTime).toBeCloseTo(exitAt, 0);
+      expect(run.recorder.summary().stops[0]).toBe(0);
+    });
+
+    it('stays as it was opened, with no lap, for a car that never comes back', () => {
+      const field = new Field();
+      const run = start(field);
+
+      driveLaps(field, run.recorder, 0, 1);
+      drive(field, run.recorder, 20);
+      vanish(field);
+      const goneAt = field.time;
+      drive(field, run.recorder, 1200);
+
+      const [before, open] = run.recorder.carStints(0);
+      expect(before).toMatchObject({ closedBy: 'garage', laps: 1 });
+      // What a reader has to go by: no lap, and the moment the car left.
+      expect(open).toMatchObject({
+        openedBy: 'garage',
+        closedBy: null,
+        laps: 0,
+        firstLap: null,
+      });
+      expect(open.startTime).toBeCloseTo(goneAt, 0);
+    });
+  });
+
   it('counts no stop for a car found standing in its box before it has driven a lap', () => {
     // Staged as iRacing has it before a race: every car waits in its stall
     // until it is sent to the grid. Each was counted as having stopped, so
