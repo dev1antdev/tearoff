@@ -906,21 +906,43 @@ describe('on a panel too narrow for every column', () => {
     const { container, rerender } = render(<TimingTower />);
     expect(headers(container)).toHaveLength(8);
 
-    // What every column needs with the driver's at its narrowest and the
-    // Tyres one carrying its laps and tread: more than the 900 that was
-    // enough for the compound alone.
-    const needed = towerColumnsWidth(
-      TOWER_COLUMNS.map((column) => column.id),
-      'tread'
-    );
-    expect(needed).toBeGreaterThan(900);
-    scene.width = needed - 1;
+    scene.width = 900;
     rerender(<TimingTower />);
-    expect(headers(container)).toHaveLength(14);
 
-    scene.width = needed;
+    expect(headers(container)).toHaveLength(15);
+  });
+
+  it('shows the laps and the tread only where every column still fits beside them', () => {
+    const all = TOWER_COLUMNS.map((column) => column.id);
+    // What every column needs with the driver's at its narrowest: for the
+    // compound alone, with the laps beside it, and with the tread as well.
+    const withLaps = towerColumnsWidth(all, 'laps');
+    const withTread = towerColumnsWidth(all, 'tread');
+
+    // Room for all of it.
+    scene.width = withTread;
+    const { container, rerender } = render(<TimingTower />);
+    expect(headers(container)).toHaveLength(15);
+    expect(tyres(rowOf(container, '33'))).toEqual({
+      laps: '12',
+      tread: '~90%',
+    });
+
+    // A pixel short: the tread goes, and no column does.
+    scene.width = withTread - 1;
     rerender(<TimingTower />);
     expect(headers(container)).toHaveLength(15);
+    expect(tyres(rowOf(container, '33'))).toEqual({ laps: '12', tread: null });
+
+    // Short of the laps too: the compound alone, as the column was, with
+    // every column a panel 900 wide had before.
+    scene.width = withLaps - 1;
+    rerender(<TimingTower />);
+    expect(headers(container)).toHaveLength(15);
+    expect(tyres(rowOf(container, '33'))).toEqual({ laps: null, tread: null });
+    expect(
+      cell(rowOf(container, '33'), 'tyres')?.querySelector('svg')
+    ).not.toBeNull();
   });
 });
 

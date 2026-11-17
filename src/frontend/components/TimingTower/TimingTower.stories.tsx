@@ -258,8 +258,17 @@ export const WithoutTeams: Story = {
 };
 
 /**
- * A panel 700 wide: Stops, Int and Best are left out so that the rest fit
- * without scrolling sideways.
+ * A panel 900 wide: every column still fits, and the Tyres column has room
+ * for the laps on each set but not for the tread, which goes first.
+ */
+export const TyresWithoutRoomForTheTread: Story = {
+  ...story({}, { width: 900 }),
+};
+
+/**
+ * A panel 700 wide: Stops, Int, Best and Sect are left out so that the
+ * rest fit without scrolling sideways. The Tyres column gave up its laps
+ * and tread before any of them went, and shows the compound alone.
  */
 export const Narrow: Story = { ...story({}, { width: 700 }) };
 

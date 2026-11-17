@@ -4,6 +4,7 @@ import {
   DRIVER_MIN_WIDTH,
   enabledTowerColumns,
   fitTowerColumns,
+  fitTowerLayout,
   TOWER_COLUMNS,
   TOWER_DROP_ORDER,
   towerColumnsWidth,
@@ -117,17 +118,67 @@ describe('fitting the columns to a panel', () => {
     expect(fitTowerColumns(ALL, 940, 'tread')).toEqual(ALL);
   });
 
-  it('leaves Stops out first where the wider Tyres column no longer fits', () => {
-    // Every column fits 864 with the compound alone, and not with the
-    // laps and the tread beside it.
-    expect(fitTowerColumns(ALL, 864)).toEqual(ALL);
-    expect(fitTowerColumns(ALL, 864, 'tread')).toEqual(
-      ALL.filter((id) => id !== 'pitStops' && id !== 'interval')
+  it('has the Tyres column give up its tread, then its laps, before any column goes', () => {
+    const fits = (detail: 'tread' | 'laps' | 'compound') =>
+      towerColumnsWidth(ALL, detail);
+
+    expect(fitTowerLayout(ALL, fits('tread'), 'tread')).toEqual({
+      columns: ALL,
+      tyres: 'tread',
+    });
+    // A pixel less: the tread goes, the laps stay, and so does every column.
+    expect(fitTowerLayout(ALL, fits('tread') - 1, 'tread')).toEqual({
+      columns: ALL,
+      tyres: 'laps',
+    });
+    // Less again: the compound alone, which is the column as it was.
+    expect(fitTowerLayout(ALL, fits('laps') - 1, 'tread')).toEqual({
+      columns: ALL,
+      tyres: 'compound',
+    });
+    // And only then a column: the first of the order.
+    expect(fitTowerLayout(ALL, fits('compound') - 1, 'tread')).toEqual({
+      columns: ALL.filter((id) => id !== 'pitStops'),
+      tyres: 'compound',
+    });
+    // With only the laps to show there is no tread to give up.
+    expect(fitTowerLayout(ALL, fits('laps'), 'laps').tyres).toBe('laps');
+    expect(fitTowerLayout(ALL, fits('laps') - 1, 'laps').tyres).toBe(
+      'compound'
     );
-    // What goes with the Tyres column is its width as drawn.
-    const without = fitTowerColumns(ALL, 600, 'tread');
-    expect(without).not.toContain('tyres');
-    expect(towerColumnsWidth(without, 'tread')).toBeLessThanOrEqual(600);
+  });
+
+  it('never leaves a column out for the figures in the Tyres column', () => {
+    // At every width the columns kept are the ones kept with the compound
+    // alone, and what is drawn fits.
+    const least = towerColumnsWidth(['position', 'carNumber', 'driver']);
+    for (let width = 300; width <= 1000; width += 7) {
+      const before = fitTowerColumns(ALL, width);
+      for (const detail of ['laps', 'tread'] as const) {
+        const { columns, tyres } = fitTowerLayout(ALL, width, detail);
+        expect(columns, `${detail} at ${width}`).toEqual(before);
+        expect(towerColumnsWidth(columns, tyres)).toBeLessThanOrEqual(
+          Math.max(width, least)
+        );
+      }
+    }
+  });
+
+  it('has nothing to narrow where the Tyres column is switched off', () => {
+    const without = ALL.filter((id) => id !== 'tyres');
+    const needed = towerColumnsWidth(without);
+    // Nothing of the column is drawn, so what it would have carried is
+    // not taken off the width either.
+    expect(fitTowerLayout(without, needed - 1, 'tread').columns).toEqual(
+      without.filter((id) => id !== 'pitStops')
+    );
+  });
+
+  it('leaves the Tyres column as asked on a panel not measured yet', () => {
+    expect(fitTowerLayout(ALL, 0, 'tread')).toEqual({
+      columns: ALL,
+      tyres: 'tread',
+    });
   });
 
   it('leaves nothing out of a panel that has not been measured', () => {

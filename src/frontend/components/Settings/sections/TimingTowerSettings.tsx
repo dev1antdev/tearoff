@@ -114,8 +114,9 @@ export const TimingTowerSettings = () => {
                       for all that are on, the tower leaves columns out rather
                       than scroll sideways, the least important first: Stops,
                       Int, Best, Sect, Tyres, Energy, Stint, Avg 10, Last, Gap,
-                      Avg 5 and vs Stint. The place, the number and the driver
-                      always stay.
+                      Avg 5 and vs Stint. Before any of them goes, the Tyres
+                      column gives up its tread, then its laps. The place, the
+                      number and the driver always stay.
                     </p>
                     <SettingProp path="position.enabled" />
                     <SettingProp path="carNumber.enabled" />

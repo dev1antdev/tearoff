@@ -31,7 +31,7 @@ import { useTimingTowerSettings } from './hooks/useTimingTowerSettings';
 import { useViewSetting } from './hooks/useViewSetting';
 import {
   enabledTowerColumns,
-  fitTowerColumns,
+  fitTowerLayout,
   towerColumn,
   towerColumnWidth,
   type TowerTyresDetail,
@@ -111,7 +111,7 @@ const TowerTable = ({ settings }: { settings: TimingTowerConfig }) => {
   // The column is as wide as what it carries, decided over the class so
   // that it does not move as figures arrive: the laps once there are any,
   // and the tread where the sim gives one to work from.
-  const tyresDetail: TowerTyresDetail = !classTyres?.setLaps.some(
+  const tyresToShow: TowerTyresDetail = !classTyres?.setLaps.some(
     (laps) => laps >= 0
   )
     ? 'compound'
@@ -150,17 +150,19 @@ const TowerTable = ({ settings }: { settings: TimingTowerConfig }) => {
   const scroller = useRef<HTMLDivElement>(null);
   const { width } = useElementSize(scroller);
   const sectorsAvailable = sectors?.available === true;
-  const columns = useMemo(
+  // What the panel has room for: the Tyres column gives up its tread,
+  // then its laps, before any column is left out.
+  const { columns, tyres: tyresDetail } = useMemo(
     () =>
-      fitTowerColumns(
+      fitTowerLayout(
         enabledTowerColumns(settings, {
           sectors: sectorsAvailable,
           energy: hasEnergy,
         }),
         width,
-        tyresDetail
+        tyresToShow
       ),
-    [settings, sectorsAvailable, hasEnergy, width, tyresDetail]
+    [settings, sectorsAvailable, hasEnergy, width, tyresToShow]
   );
 
   // Our car's row is kept where it can be read: brought into view when the
@@ -305,7 +307,7 @@ const TowerTable = ({ settings }: { settings: TimingTowerConfig }) => {
                   energyIsVirtual={row.energyIsVirtual}
                   tireCompound={row.tireCompound}
                   wheelCompounds={row.wheelCompounds}
-                  tyreLaps={tyres.laps}
+                  tyreLaps={tyresDetail === 'compound' ? '' : tyres.laps}
                   tyreTread={tyresDetail === 'tread' ? tyres.tread : ''}
                   tyreTitle={tyres.title}
                 />
