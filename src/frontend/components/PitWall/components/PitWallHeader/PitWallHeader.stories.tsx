@@ -79,6 +79,27 @@ export const InABrowser: Story = {
 };
 
 /**
+ * In a browser while the page's socket is down: the strip says it is
+ * reconnecting, beside the page's own controls, and everything else stays
+ * as it last was.
+ */
+export const Reconnecting: Story = {
+  args: { layout: 'compact', onOpenSettings: undefined, reconnecting: true },
+  decorators: [
+    (Story) => (
+      <div className="w-[1180px]">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+/** The same on the Race layout, at the width of a monitor. */
+export const ReconnectingOnAMonitor: Story = {
+  args: { onOpenSettings: undefined, reconnecting: true },
+};
+
+/**
  * Practice under iRacing: no in-game clock, and a car the sim has not ranked
  * yet, which shows a placeholder rather than a place.
  */

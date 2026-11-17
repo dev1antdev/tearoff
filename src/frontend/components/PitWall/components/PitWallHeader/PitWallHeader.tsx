@@ -1,4 +1,9 @@
-import { CornersInIcon, CornersOutIcon, GearIcon } from '@phosphor-icons/react';
+import {
+  ArrowsClockwiseIcon,
+  CornersInIcon,
+  CornersOutIcon,
+  GearIcon,
+} from '@phosphor-icons/react';
 import { PIT_WALL_LAYOUT_LIST, type PitWallLayoutId } from '@irdashies/types';
 import logo from '../../../../assets/icons/logo.svg';
 import type { PitWallHeaderData } from '../../hooks/usePitWallHeader';
@@ -12,6 +17,12 @@ export interface PitWallHeaderProps {
   onToggleFullscreen: () => void;
   /** Opens the Pit Wall's settings. Left out, the strip has no gear. */
   onOpenSettings?: () => void;
+  /**
+   * The page has lost its connection to the app and is trying to get it
+   * back: what it shows is what it last had. Only a page in a browser can
+   * be in that state.
+   */
+  reconnecting?: boolean;
 }
 
 const FLAG_TONE_CLASS: Record<FlagTone, string> = {
@@ -43,6 +54,7 @@ export const PitWallHeader = ({
   fullscreen,
   onToggleFullscreen,
   onOpenSettings,
+  reconnecting = false,
 }: PitWallHeaderProps) => {
   const { car } = data;
   // Touch-sized targets on the layout made for a tablet.
@@ -167,6 +179,27 @@ export const PitWallHeader = ({
 
       {/* Pushed to the right of whichever line the strip wraps them onto. */}
       <div className="ml-auto flex items-center gap-x-5">
+        {/* Said to a reader from a region that is always there, so that the
+            words are heard when they appear. It takes no room in the strip. */}
+        <span role="status" className="sr-only">
+          {reconnecting ? 'Reconnecting to Tearoff' : ''}
+        </span>
+        {/* With the page's own controls: it is about the page, not the race. */}
+        {reconnecting && (
+          <div
+            aria-hidden="true"
+            data-item="reconnecting"
+            className="flex items-center gap-2 rounded-md border border-amber-400/70 bg-amber-950 px-2.5 py-1.5 text-sm font-semibold text-amber-200"
+            title="This page has lost its connection to Tearoff. It shows what it last had until the connection is back."
+          >
+            <ArrowsClockwiseIcon
+              size={16}
+              weight="bold"
+              className="animate-spin [animation-duration:2s] motion-reduce:animate-none"
+            />
+            Reconnecting
+          </div>
+        )}
         <nav
           aria-label="Layout"
           className="flex overflow-hidden rounded-md border border-slate-700"

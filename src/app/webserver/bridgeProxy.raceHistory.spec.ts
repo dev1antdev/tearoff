@@ -52,6 +52,10 @@ vi.mock('../widgetVisibility', () => ({
 vi.mock('../logger', () => ({
   default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
+// The page's own bridge logs to the console where there is no app to tell.
+vi.mock('../../frontend/utils/logger', () => ({
+  default: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+}));
 
 import { createRaceHistoryBridge } from '../bridge/raceHistoryBridge';
 import { createSessionLifecycle } from '../sessionLifecycle';
@@ -63,6 +67,7 @@ import {
   type RaceHistoryFile,
 } from '../processors/raceHistoryStoreFixture';
 import { createBridgeProxy } from './bridgeProxy';
+import { WebSocketBridge } from './componentRenderer';
 import {
   RACE_HISTORY_BUSY,
   RACE_HISTORY_MAX_WAITING,
@@ -131,6 +136,8 @@ const gate = <T>() => {
 
 const servers: http.Server[] = [];
 const sockets: WebSocket[] = [];
+/** Pages' own bridges, opened by `openPage`. */
+const pages: WebSocketBridge[] = [];
 const disposals: (() => void)[] = [];
 /** Where the next connection to arrive is said to come from. */
 let arrivingFrom: string | undefined;
@@ -194,7 +201,7 @@ async function start({
     },
     localHosts: policy.localHosts,
   });
-  createBridgeProxy(
+  const { wss } = createBridgeProxy(
     server,
     irsdk,
     {
@@ -211,7 +218,15 @@ async function start({
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   servers.push(server);
   port = (server.address() as AddressInfo).port;
-  return { port, bus, demand, devices, source };
+  return {
+    port,
+    bus,
+    demand,
+    devices,
+    source,
+    /** Drops every open socket from the server's end, with no goodbye. */
+    cut: () => wss.clients.forEach((client) => client.terminate()),
+  };
 }
 
 interface Message {
@@ -267,17 +282,36 @@ function visit(port: number, who: From = {}): Promise<Visit> {
     const closed = new Promise<{ code: number }>((done) =>
       socket.on('close', (code) => done({ code }))
     );
+    /** Whoever waits for a message, told of each as it arrives. */
+    const waiters = new Set<(message: Message) => void>();
     socket.on('message', (raw: Buffer) => {
+      const message = JSON.parse(raw.toString()) as Message;
       bytes.push(raw.length);
-      messages.push(JSON.parse(raw.toString()));
+      messages.push(message);
+      [...waiters].forEach((waiter) => waiter(message));
     });
+    // Answered the moment the message arrives, not at the next look: a
+    // spec that asks fifty times in a row would spend seconds looking.
     const reply: Visit['reply'] = (type, requestId) =>
-      vi.waitFor(() => {
-        const found = messages.find(
-          (m) => m.type === type && m.requestId === requestId
-        );
-        if (!found) throw new Error(`no ${type} reply yet`);
-        return found;
+      new Promise((found, lost) => {
+        const fits = (m: Message) =>
+          m.type === type && m.requestId === requestId;
+        const already = messages.find(fits);
+        if (already) {
+          found(already);
+          return;
+        }
+        const waiter = (message: Message) => {
+          if (!fits(message)) return;
+          clearTimeout(timer);
+          waiters.delete(waiter);
+          found(message);
+        };
+        const timer = setTimeout(() => {
+          waiters.delete(waiter);
+          lost(new Error(`no ${type} reply to ${String(requestId)}`));
+        }, 2000);
+        waiters.add(waiter);
       });
     const send: Visit['send'] = (type, data, requestId) =>
       socket.send(JSON.stringify({ type, data, requestId }));
@@ -324,6 +358,8 @@ afterEach(async () => {
   arrivingFrom = undefined;
   vi.mocked(logger.info).mockClear();
   vi.mocked(logger.warn).mockClear();
+  pages.splice(0).forEach((page) => page.stop());
+  vi.unstubAllGlobals();
   disposals.splice(0).forEach((dispose) => dispose());
   sockets.splice(0).forEach((socket) => socket.terminate());
   await Promise.all(
@@ -1120,4 +1156,184 @@ describe('the real race history behind the socket', () => {
     expect((laps as RaceCarLaps).laps.length).toBeGreaterThanOrEqual(2);
     expect((laps as RaceCarLaps).laps[0]).toMatchObject({ carIdx: 0, lap: 1 });
   });
+});
+
+/**
+ * The page's side and the app's side together: the bridge a browser page is
+ * given (`WebSocketBridge`, as `dashboard-view-entry.tsx` hands it to the
+ * widgets) against the real server, over a real socket. Each half has specs
+ * of its own; this is that the two speak the same messages.
+ */
+describe('a browser page’s own bridge against the real server', () => {
+  const T0 = Date.UTC(2026, 10, 17, 12, 0, 0);
+  let file: RaceHistoryFile | undefined;
+
+  afterEach(() => {
+    file?.close();
+    file = undefined;
+  });
+
+  const startRecording = async () => {
+    file = openRaceHistoryFile();
+    let wall = T0;
+    const bus = new ChannelBus({
+      now: () => wall,
+      schedule: () => ({ cancel: () => undefined }),
+    });
+    const runtime = new RaceHistoryRuntime(
+      bus,
+      createSessionLifecycle(),
+      { markStart: () => undefined, markEnd: () => undefined },
+      file.openStore(),
+      {
+        simulator: () => 'lmu',
+        sessionIdsAreUnique: () => false,
+        now: () => wall,
+        bootId: 'spec',
+      }
+    );
+    const staged = await start({
+      runtime,
+      bus,
+      onDemand: (needed) => runtime.updateEnabled(needed),
+    });
+    const field = new Field({ lmu: true });
+    runtime.onSession(field.session());
+    return {
+      ...staged,
+      /** What a window of the app is answered, to compare with. */
+      window: createRaceHistoryBridge(runtime),
+      lap: (laps: number) =>
+        driveLaps(
+          field,
+          {
+            onFrame: (frame) => {
+              wall = T0 + field.time * 1000;
+              runtime.onFrame(frame);
+            },
+          },
+          0,
+          laps
+        ),
+    };
+  };
+
+  /** The page a browser on this PC has open: its bridge, connected. */
+  const openPage = async (port: number) => {
+    const origin = `http://127.0.0.1:${port}`;
+    // A browser names the page it is on; the socket of `ws` has to be told.
+    class PageSocket extends WebSocket {
+      constructor(url: string | URL) {
+        super(url, { origin });
+        sockets.push(this);
+      }
+    }
+    vi.stubGlobal('WebSocket', PageSocket);
+    const page = new WebSocketBridge({ onKeyReplaced: vi.fn() });
+    pages.push(page);
+    await page.connect(origin);
+    return page;
+  };
+
+  /** As a value is once it has been through a socket. */
+  const sent = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
+
+  it('reads the summary and then the records it points at, as the panels’ hook does', async () => {
+    const { port, demand, lap, window } = await startRecording();
+    const page = await openPage(port);
+    const summaries: RaceHistorySummarySnapshot[] = [];
+
+    // Reading the summary is what makes the race be recorded at all.
+    page.subscribe('race-history.summary', (summary) =>
+      summaries.push(summary)
+    );
+    await vi.waitFor(() => expect(demand).toHaveBeenLastCalledWith(true));
+    lap(3);
+    await vi.waitFor(() =>
+      expect(summaries.at(-1)?.laps[0]).toBeGreaterThanOrEqual(2)
+    );
+
+    const laps = await page.raceHistory.getCarLaps(0);
+    const stints = await page.raceHistory.getCarStints(0);
+
+    expect(laps.laps.length).toBeGreaterThanOrEqual(2);
+    expect(laps.laps[0]).toMatchObject({ carIdx: 0, lap: 1 });
+    expect(laps).toEqual(sent(await window.getCarLaps(0)));
+    expect(stints).toEqual(sent(await window.getCarStints(0)));
+    expect(stints).toHaveLength(1);
+    // The other three reads, each what a window is answered.
+    expect(await page.raceHistory.getDriverChanges()).toEqual(
+      sent(await window.getDriverChanges())
+    );
+    expect(await page.raceHistory.getEvents()).toEqual(
+      sent(await window.getEvents())
+    );
+    expect(await page.raceHistory.listRaces()).toEqual(
+      sent(await window.listRaces())
+    );
+  });
+
+  it('is told no in the bridge’s own words, as a rejection', async () => {
+    const { port } = await startRecording();
+    const page = await openPage(port);
+    const reads = page.raceHistory as unknown as Record<
+      string,
+      (...args: unknown[]) => Promise<unknown>
+    >;
+
+    await expect(reads.getCarLaps(128)).rejects.toThrow(
+      'Invalid car for raceHistory:getCarLaps'
+    );
+    await expect(reads.getCarStints(0, -1)).rejects.toThrow(
+      'Invalid race for raceHistory:getCarStints'
+    );
+    await expect(reads.getEvents(undefined, 0)).rejects.toThrow(
+      'Invalid event for raceHistory:getEvents'
+    );
+    // And is answered as before straight after.
+    await expect(page.raceHistory.getCarLaps(0)).resolves.toMatchObject({
+      laps: [],
+    });
+  });
+
+  it('comes back after its socket dropped: reads again, and is a reason to record again', async () => {
+    const { port, demand, lap, cut, window } = await startRecording();
+    const page = await openPage(port);
+    const summaries: RaceHistorySummarySnapshot[] = [];
+    page.subscribe('race-history.summary', (summary) =>
+      summaries.push(summary)
+    );
+    await vi.waitFor(() => expect(demand).toHaveBeenLastCalledWith(true));
+    lap(2);
+    await vi.waitFor(() => expect(summaries.length).toBeGreaterThan(0));
+    const heard = summaries.length;
+    const connection: boolean[] = [];
+    page.connection.onConnectionChanged((connected) =>
+      connection.push(connected)
+    );
+
+    cut();
+
+    await vi.waitFor(() => expect(page.connection.isConnected()).toBe(false));
+    await expect(page.raceHistory.getCarLaps(0)).rejects.toThrow(
+      'The race history cannot be read while disconnected'
+    );
+    // Its subscription went with the socket, and so did the reason.
+    await vi.waitFor(() => expect(demand).toHaveBeenLastCalledWith(false));
+
+    // The page tries again by itself, a second later.
+    await vi.waitFor(() => expect(page.connection.isConnected()).toBe(true), {
+      timeout: 5000,
+    });
+    expect(connection).toEqual([false, true]);
+    // It asks for its channels again, which counts as it did before.
+    await vi.waitFor(() => expect(demand).toHaveBeenLastCalledWith(true));
+
+    // Its readers hear of the race again without having asked twice.
+    lap(2);
+    await vi.waitFor(() => expect(summaries.length).toBeGreaterThan(heard));
+    expect(await page.raceHistory.getCarLaps(0)).toEqual(
+      sent(await window.getCarLaps(0))
+    );
+  }, 15_000);
 });

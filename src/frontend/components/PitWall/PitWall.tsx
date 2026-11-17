@@ -14,6 +14,7 @@ import {
   PitWallPanel,
   PitWallPanelNote,
 } from './components/PitWallPanel/PitWallPanel';
+import { usePitWallReconnecting } from './PitWallConnection';
 import { useFullscreen } from './hooks/useFullscreen';
 import { usePitWallHeader } from './hooks/usePitWallHeader';
 import { usePitWallPage, useSetPitWallLayout } from './hooks/usePitWallPage';
@@ -47,6 +48,8 @@ export const PitWall = memo(({ renderPanel }: PitWallProps) => {
   const header = usePitWallHeader();
   const setLayout = useSetPitWallLayout();
   const { fullscreen, toggle: toggleFullscreen } = useFullscreen();
+  // Only ever true in a browser, whose page is fed over a socket.
+  const reconnecting = usePitWallReconnecting();
 
   // The settings window is the app's. A browser has no way to open it, so
   // the page it shows is drawn without the gears that would.
@@ -71,6 +74,7 @@ export const PitWall = memo(({ renderPanel }: PitWallProps) => {
         fullscreen={fullscreen}
         onToggleFullscreen={toggleFullscreen}
         onOpenSettings={canOpenSettings ? openOwnSettings : undefined}
+        reconnecting={reconnecting}
       />
       {!running ? (
         <EmptyState>
