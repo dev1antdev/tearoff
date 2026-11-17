@@ -237,7 +237,7 @@ import { Icon } from '@phosphor-icons/react';
 **Always use Tailwind** - no custom CSS unless absolutely necessary.
 
 - **Theme**: `theme.css` with CSS variables
-- **Font**: Lato | **Version**: 4.1
+- **Font**: Lato | **Version**: 4.3
 
 ### Common Patterns
 
@@ -400,10 +400,10 @@ npm run package        # Create installer
 
 | Tech       | Version |     | Tech      | Version |
 | ---------- | ------- | --- | --------- | ------- |
-| React      | 19      |     | Electron  | 35.1    |
-| TypeScript | 5.9     |     | Vitest    | 3.2     |
+| React      | 19      |     | Electron  | 45.3    |
+| TypeScript | 6.0     |     | Vitest    | 5.1     |
 | Zustand    | 5       |     | Storybook | 10      |
-| Tailwind   | 4.1     |     | Vite      | 7.1     |
+| Tailwind   | 4.3     |     | Vite      | 8.3     |
 
 ---
 
