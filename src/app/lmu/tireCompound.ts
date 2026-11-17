@@ -52,6 +52,17 @@ const isUsableName = (name: unknown): name is string =>
  * Sorted by index so the result is stable between frames: it reaches the
  * renderer through a session snapshot that is only republished when its
  * signature changes, and an unstable order would be gratuitous churn.
+ *
+ * One table for the whole grid, so it takes every class to number its
+ * compounds alike: were index 0 one name for a prototype and another for a
+ * GT car, the car read last would name it for both, and the others would be
+ * shown under a wrong name and colour. Whether Le Mans Ultimate ever does
+ * that is not known. The one recorded race does not say: over its 477
+ * session snapshots every car of its three classes (14 LMP2, 14 GT3, 10
+ * LMP3) states the single pair 0 = Medium, front and rear, and the
+ * recording holds no answer from the tyre catalogue. A session with two
+ * classes on different compounds is what would settle it; until one is
+ * seen the table is left as it is.
  */
 export const lmuDriverTires = (
   drivers: readonly CompoundSource[],
