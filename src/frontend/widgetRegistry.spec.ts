@@ -8,7 +8,11 @@ import { WIDGET_MAP, getWidget } from './WidgetIndex';
 import { WIDGET_SETTINGS } from './components/Settings/SettingsLoader';
 
 const runtimeModules = import.meta.glob<{
-  default: { id: string; channels?: readonly string[] };
+  default: {
+    id: string;
+    channels?: readonly string[];
+    conditionalChannels?: readonly string[];
+  };
 }>('./components/*/widgetRuntimeDefinition.ts', { eager: true });
 const widgetModules = import.meta.glob<{
   default: { id: string } | readonly { id: string }[];
@@ -50,6 +54,16 @@ describe('widget registry', () => {
     // Every reader is flagged, and nothing that does not read it: the Pit
     // Wall was, before it had panels, and those read the history of races.
     expect(sorted(flagged)).toEqual(sorted(readers));
+  });
+
+  it('calls conditional only channels the widget is fed', () => {
+    // A performance run does not ask to see a conditional channel publish.
+    // One that is not in `channels` would be a channel nobody feeds.
+    for (const { default: definition } of Object.values(runtimeModules)) {
+      for (const channel of definition.conditionalChannels ?? []) {
+        expect(definition.channels ?? [], definition.id).toContain(channel);
+      }
+    }
   });
 
   it('declares each widget id exactly once across widget.ts files', () => {

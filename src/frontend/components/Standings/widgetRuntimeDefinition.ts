@@ -20,6 +20,8 @@ export default {
     // reading it is what has a race recorded.
     'race-history.summary',
   ],
+  // Read only while the clock's countdown, or the "vs stint" column, is on.
+  conditionalChannels: ['track-profile.snapshot', 'race-history.summary'],
   ratePreset: 'gapTiming',
   channelRates: { 'radio.snapshot': 25, 'race-history.summary': 1 },
 } satisfies WidgetRuntimeDefinition;

@@ -17,6 +17,14 @@ export interface WidgetRuntimeDefinition {
   sessionData?: boolean;
   pitLaneData?: boolean;
   channels?: readonly ChannelName[];
+  /**
+   * Those of `channels` the widget reads only under some of its settings
+   * (a column that is off by default) or under one simulator. They stay in
+   * `channels`: the widget is fed them when it asks. A performance run
+   * reads this to know that such a channel publishing nothing is not an
+   * input that went missing.
+   */
+  conditionalChannels?: readonly ChannelName[];
   ratePreset?: WidgetRatePreset;
   channelRates?: Partial<Record<ChannelName, number>>;
 }

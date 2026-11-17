@@ -14,6 +14,7 @@ import { BrowserWindow } from 'electron';
 import type { NumericSampleStats, Telemetry } from '@irdashies/types';
 import type { ChannelBusMetricsSnapshot } from './bridge/channelBridge';
 import { FixedSampleBuffer } from '../shared/performanceSamples';
+import { PROCESSOR_CHANNELS } from './perfProcessorChannels';
 import {
   cpuSecondsByProcess,
   cpuSecondsSince,
@@ -78,25 +79,6 @@ export interface PerfReport {
 interface ChannelMetricsSource {
   metricsSnapshot(): ChannelBusMetricsSnapshot;
 }
-
-const PROCESSOR_CHANNELS: Readonly<Record<string, string>> = {
-  blindSpotProcessing: 'blind-spot.snapshot',
-  carSpeedsProcessing: 'car-speeds.snapshot',
-  driverControlsProcessing: 'driver-controls.snapshot',
-  fuelProjectionProcessing: 'fuel.projection',
-  lapLogProcessing: 'lap-log.snapshot',
-  lapTimesProcessing: 'lap-times.snapshot',
-  lapTraceSampleProcessing: 'lap-trace.sample',
-  radarProcessing: 'radar.snapshot',
-  radioProcessing: 'radio.snapshot',
-  referenceLapProcessing: 'reference-laps.snapshot',
-  relativeGapProcessing: 'relative-gaps.snapshot',
-  sectorTimingProcessing: 'sector-timing.snapshot',
-  sessionBarProcessing: 'session-bar.snapshot',
-  sessionTimingProcessing: 'session-timing.snapshot',
-  standingsProcessing: 'standings.snapshot',
-  trackStateProcessing: 'track-state.snapshot',
-};
 
 const DEFAULT_REPORT_INTERVAL_MS = 10_000;
 export const PERF_MAIN_LOG_PREFIX = '[PerfMetrics:JSON] ';

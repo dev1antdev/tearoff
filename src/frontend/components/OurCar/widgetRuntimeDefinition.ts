@@ -18,6 +18,9 @@ export default {
     // The driving state the widget hides by, and who is at the wheel.
     'track-state.snapshot',
   ],
+  // Read only while the pace tiles are shown: always, or through a
+  // team-mate's stint, as the Pace setting says.
+  conditionalChannels: ['race-history.summary'],
   // Laps to a stop that is minutes away: once a second.
   ratePreset: 'informational',
   // Hiding when the car goes to its garage should not wait a second.

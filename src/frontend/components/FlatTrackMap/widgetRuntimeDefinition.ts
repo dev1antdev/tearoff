@@ -13,5 +13,7 @@ export default {
     'flag-state.snapshot',
     'track-profile.snapshot',
   ],
+  // Read under Le Mans Ultimate only.
+  conditionalChannels: ['flag-state.snapshot', 'track-profile.snapshot'],
   ratePreset: 'static',
 } satisfies WidgetRuntimeDefinition;

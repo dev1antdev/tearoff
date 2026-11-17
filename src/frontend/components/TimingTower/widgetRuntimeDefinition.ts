@@ -30,6 +30,14 @@ export default {
     // it.
     'radio.snapshot',
   ],
+  // Each read only while the column it is for is on.
+  conditionalChannels: [
+    'lap-times.snapshot',
+    'car-pit.snapshot',
+    'car-sectors.snapshot',
+    'race-history.summary',
+    'class-tyres.snapshot',
+  ],
   // A table to read from a second screen, not to drive by: twice a second
   // keeps a gap to the tenth current and leaves most rows as they were
   // between two readings.
