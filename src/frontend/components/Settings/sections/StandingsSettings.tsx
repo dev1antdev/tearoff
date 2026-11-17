@@ -15,6 +15,7 @@ import { FormatSelect } from '../components/FormatSelect';
 import { type StandingsBadgeFormat } from '@irdashies/types';
 import { DriverNamePreview } from '../components/DriverNamePreview';
 import { DEFAULT_SESSION_BAR_DISPLAY_ORDER } from '../sessionBarConstants';
+import { columnOrder } from '../columnOrder';
 import { lapAverageHint } from '../lapAverageHint';
 import { STINT_PACE_HINT } from '../stintPaceHint';
 import { SessionVisibility } from '../components/SessionVisibility';
@@ -452,15 +453,10 @@ const DisplaySettingsList = ({
   );
 };
 
-const buildItemsOrder = (saved: string[] | undefined) => {
-  const validIds = new Set(sortableSettings.map((s) => s.id));
-  const filtered = (saved ?? []).filter((id) => validIds.has(id));
-  const present = new Set(filtered);
-  const missing = sortableSettings
-    .filter((s) => !present.has(s.id))
-    .map((s) => s.id);
-  return [...filtered, ...missing];
-};
+const SORTABLE_IDS = sortableSettings.map((s) => s.id);
+
+const buildItemsOrder = (saved: string[] | undefined) =>
+  columnOrder(SORTABLE_IDS, saved);
 
 const StandingsSettingsPage = ({ widgetId }: { widgetId: string }) => {
   const { currentDashboard, onDashboardUpdated } = useDashboard();
@@ -618,8 +614,10 @@ const StandingsSettingsPage = ({ widgetId }: { widgetId: string }) => {
                       <SettingActionButton
                         label="Reset to Default Order"
                         onClick={() => {
-                          const defaultOrder = sortableSettings.map(
-                            (s) => s.id
+                          // The order a new profile has, not the order the
+                          // rows happen to be written in above.
+                          const defaultOrder = buildItemsOrder(
+                            defaultConfig.displayOrder
                           );
                           setItemsOrder(defaultOrder);
                           handleConfigChange({ displayOrder: defaultOrder });
