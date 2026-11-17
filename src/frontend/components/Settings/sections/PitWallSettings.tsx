@@ -52,7 +52,7 @@ export const PitWallSettings = () => {
   return (
     <BaseSettingsSection
       title="Pit Wall"
-      description="A page in a window of its own that follows a race from your car's side: the session, the flag, where the car is and who is in it, over panels of the widgets you already have. Made for a second monitor, and for the hours a team-mate drives."
+      description="A page in a window of its own that follows a race from your car's side: the session, the flag, where the car is and who is in it, over the timing tower, your car, your class rivals, the crew and its stints, the charts and the race log. Made for a second monitor, and for the hours a team-mate drives."
       settings={settings}
       onSettingsChange={setSettings}
       widgetId={SETTING_ID}
@@ -92,20 +92,28 @@ export const PitWallSettings = () => {
             <SettingsSection title="What this is">
               <div className="space-y-3 text-sm text-slate-400">
                 <p>
-                  This is the first stage of the Pit Wall. What is built: the
-                  window, the same page in a browser, the header, the three
-                  layouts, and panels that show widgets Tearoff already has,
-                  each with the settings you gave that widget, whether or not it
-                  is switched on for the overlay. A panel&apos;s gear opens that
-                  widget&apos;s settings.
+                  Each panel is one of Tearoff&apos;s widgets: the Timing Tower,
+                  Our Car, Class Rivals, the Stint Timeline, Crew and Stints,
+                  Car Laps, the Race Charts, the Race Log, the Track Map and the
+                  Weather Forecast. A panel shows its widget with the settings
+                  you gave that widget, whether or not it is switched on for the
+                  overlay, and its gear opens those settings.
                 </p>
                 <p>
-                  What is not built yet: the endurance timing tower with lap
-                  averages, the class rivals table, the crew and stint timeline,
-                  the race log and the pace chart. Their places are taken by the
-                  nearest widget, or left out. A panel whose widget the running
-                  simulator does not support is left out too: under iRacing that
-                  is Tyre &amp; Brake Wear, Weather Forecast, Tyres and Damage.
+                  Race is the whole page for a second monitor, with the tower
+                  down the left. Watching is for the hours a team-mate drives.
+                  Compact is a page of tabs for a tablet: Overview, Timing,
+                  Strategy, Crew, Map, Charts and Log. On a phone the page is
+                  always those tabs, with the panels of a tab one under another.
+                  The window remembers its layout and its tab; a browser keeps
+                  its own.
+                </p>
+                <p>
+                  A panel whose widget the running simulator does not support is
+                  left out and its neighbours take the room: under iRacing that
+                  is the Weather Forecast. While the Pit Wall is switched on the
+                  race is recorded for its panels from the start, whether or not
+                  the window is open.
                 </p>
                 <p>
                   Nothing here has been seen in a live game yet. It has only

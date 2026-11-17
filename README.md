@@ -1444,25 +1444,28 @@ A race control window with live standings, an automatic incident feed, and a per
 
 One page about the race from your own car's side, in an ordinary window of its own: made for a second monitor, and for the hours of an endurance race when a team-mate drives and you sit at the monitor. Switch it on in Settings (it is under Standings); the window opens once, and **Show Window** on its settings page or **Pit Wall** in the tray menu brings it back after you close it. It works under Le Mans Ultimate and iRacing.
 
-This is its first stage, and nothing of it has been seen in a live game yet: it has been checked on staged data only.
+Nothing of it has been seen in a live game yet: it has been checked on staged data only.
 
 **What is there:**
 
 - A header with the simulator that is connected, the session and the track, the time left, the in-game clock, the flag, your car's number, class, place in class and overall, who is at the wheel, and "You are watching" while that is not you
-- Three fixed layouts, switched in the header and remembered: **Race** for a full second monitor, **Watching** for a team-mate's stint, **Compact** for a small or touch screen
-- Panels that host the widgets Tearoff already has, each with the settings you gave that widget, whether or not it is switched on for the overlay. A gear on each panel opens that widget's settings
-  - Race: Standings, Fuel Calculator, Pit Stop, Flag Panel, Finish Projection, Stint History, Weather Forecast, Track Map, Traffic, Tyre & Brake Wear
-  - Watching: Finish Projection, Stint History, Pit Stop, Timing, Lap Timer, Tyres, Damage, Standings, Weather Forecast
-  - Compact: Standings, Fuel Calculator, Pit Stop, Finish Projection, Weather
-- A panel whose widget the running simulator does not support is left out and its neighbours take the room. Le Mans Ultimate supports every panel; under iRacing Tyre & Brake Wear, Weather Forecast, Tyres and Damage are left out
+- Three fixed layouts, switched in the header and remembered: **Race** for a full second monitor, **Watching** for a team-mate's stint, **Compact** for a tablet
+- Panels that each host one of Tearoff's widgets, with the settings you gave that widget, whether or not it is switched on for the overlay. A gear on each panel opens that widget's settings
+  - Race: the [Timing Tower](#timing-tower) down the left for the page's whole height; beside it [Our Car](#our-car) and the Track Map, [Class Rivals](#class-rivals) across, the [Race Charts](#race-charts) with [Crew and Stints](#crew-and-stints), and the Weather Forecast with the [Race Log](#race-log)
+  - Watching: Our Car, which leads with the gaps and the pace while a team-mate drives, over [Car Laps](#car-laps); the [Stint Timeline](#stint-timeline) over Crew and Stints; the Timing Tower, the Weather Forecast and the Race Log
+  - Compact: a page of tabs with touch-sized buttons. **Overview** has the Timing Tower, Our Car, the Weather Forecast and the Race Log; **Timing** the tower alone, wide enough for every column; **Strategy** Class Rivals and the Stint Timeline; **Crew** Crew and Stints and Car Laps; **Map**, **Charts** and **Log** one panel each. The tab in front is remembered
+- On a phone, or any page narrower than 700 pixels, the page is always the tabs of Compact, with the panels of a tab one under another at the page's width. The page itself never scrolls sideways: a table wider than the phone scrolls inside its panel
+- A panel whose widget the running simulator does not support is left out and its neighbours take the room. Le Mans Ultimate supports every panel; under iRacing the Weather Forecast is left out
 - On this page the widgets ignore their "show only when on track" and session switches. Those keep a widget off the game's screen, and this is a screen of its own
-- A widget wider than its panel is drawn smaller to fit, and one taller than its panel scrolls inside it
+- A panel too narrow for its widget shows what the widget makes of the room: the Timing Tower leaves columns out and a wide table scrolls sideways inside its panel. Only a panel narrower than its widget can be read at is drawn smaller. A widget taller than its panel scrolls inside it
+- While the Pit Wall is switched on the race is recorded for its panels from the start, whether or not the window is open: every car's laps, stints, stops and driver changes, and the log
 - Full screen with F11 or the button in the header; the window remembers its place, its size, its monitor and whether it was maximised
 - The page's own scale, in its settings
 - The same page in an ordinary browser, at `http://localhost:3000/pitwall` on this PC. With **Enable Network Access** on, a tablet or a second PC on your network opens it too, by the link under **Settings > Pit Wall > In a browser**. That link carries a key: a device that is not this PC is refused everything the web server has without it, and **New key** there replaces it at once and disconnects whoever held the old one. A layout chosen in a browser is kept by that browser and leaves the window as it is; a browser has no settings window to open, so the page there has no gears
 - A browser page shows what the window shows, the race history included: a car's laps and stints, the driver changes and the earlier pages of the race's log are read from Tearoff as the window reads them, and a browser can change none of it. If the page loses its connection to Tearoff it keeps what it last had, and a mark under the right end of its header says **Reconnecting** until the connection is back
+- The same page in an ordinary browser, at `http://localhost:3000/pitwall` on this PC. With **Enable Network Access** on, a tablet or a second PC on your network opens it too, by the link under **Settings > Pit Wall > In a browser**. That link carries a key: a device that is not this PC is refused everything the web server has without it, and **New key** there replaces it at once and disconnects whoever held the old one. A layout or a tab chosen in a browser is kept by that browser and leaves the window as it is; a browser has no settings window to open, so the page there has no gears
 
-**What is not there yet:** the [Timing Tower](#timing-tower), [Crew and Stints](#crew-and-stints), [Car Laps](#car-laps), the [Race Log](#race-log) and the [Race Charts](#race-charts) as panels of this page (the widgets exist, and none of the three layouts holds them yet), the class rivals table and the stint timeline. Panels cannot be moved or resized. The page is for your own devices on your own network: nothing reaches it from outside.
+The layouts are fixed: panels cannot be moved or resized. The widgets these panels took the place of (Standings, Fuel Calculator, Pit Stop, Finish Projection, Stint History, Traffic, Flag Panel, Tyre & Brake Wear, Timing, Lap Timer, Tyres, Damage and Weather) are no longer on the page; they are on the overlay as before. The page is for your own devices on your own network: nothing reaches it from outside.
 
 ### Broadcast overlays
 

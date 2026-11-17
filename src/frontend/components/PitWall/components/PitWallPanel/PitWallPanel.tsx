@@ -5,6 +5,11 @@ interface PitWallPanelProps {
   title: string;
   /** The panel's `grid-area` in the page's grid. */
   area?: string;
+  /**
+   * Where the panels are one under another instead of in a grid: the
+   * height this one has at the least, as a CSS length.
+   */
+  basis?: string;
   /** Opens the settings of what the panel shows; no button without it. */
   onOpenSettings?: () => void;
   children: ReactNode;
@@ -16,10 +21,18 @@ interface PitWallPanelProps {
  * that keeps its own look.
  */
 export const PitWallPanel = memo(
-  ({ title, area, onOpenSettings, children }: PitWallPanelProps) => (
+  ({ title, area, basis, onOpenSettings, children }: PitWallPanelProps) => (
     <section
       aria-label={title}
-      style={area ? { gridArea: area } : undefined}
+      style={
+        area
+          ? { gridArea: area }
+          : basis !== undefined
+            ? // Never shrunk: the page scrolls past what does not fit.
+              // Grown only where the panels together leave room over.
+              { flex: `1 0 ${basis}` }
+            : undefined
+      }
       className="flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border border-settings-hover bg-settings-control/40"
     >
       <div className="settings-shell flex shrink-0 items-center justify-between gap-2 min-h-8 border-b border-slate-700 py-1 pr-1.5 pl-3">

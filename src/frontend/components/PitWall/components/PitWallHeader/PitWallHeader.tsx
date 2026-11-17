@@ -12,7 +12,8 @@ import type { FlagTone } from '../../pitWallHeaderFormat';
 export interface PitWallHeaderProps {
   data: PitWallHeaderData;
   layout: PitWallLayoutId;
-  onLayoutChange: (layout: PitWallLayoutId) => void;
+  /** Chooses a layout. Left out, the strip offers no choice of one. */
+  onLayoutChange?: (layout: PitWallLayoutId) => void;
   fullscreen: boolean;
   onToggleFullscreen: () => void;
   /** Opens the Pit Wall's settings. Left out, the strip has no gear. */
@@ -105,7 +106,14 @@ export const PitWallHeader = ({
       {data.inSession && (
         <div className="flex min-w-0 flex-col" data-item="session">
           {data.session && (
-            <span className={`${labelClass} truncate`}>{data.session}</span>
+            // On the small layout a long track name is cut at the width
+            // of the clock under it, so the strip keeps to its line.
+            <span
+              className={`${labelClass} truncate ${tall ? 'w-0 min-w-full' : ''}`}
+              title={data.session}
+            >
+              {data.session}
+            </span>
           )}
           <span className="text-xl leading-tight font-bold text-white">
             {data.timeLeft}{' '}
@@ -187,6 +195,7 @@ export const PitWallHeader = ({
         </span>
         <nav
           aria-label="Layout"
+          hidden={!onLayoutChange}
           className="flex overflow-hidden rounded-md border border-slate-700"
         >
           {PIT_WALL_LAYOUT_LIST.map((option) => (
@@ -195,7 +204,7 @@ export const PitWallHeader = ({
               type="button"
               title={option.description}
               aria-pressed={option.id === layout}
-              onClick={() => onLayoutChange(option.id)}
+              onClick={() => onLayoutChange?.(option.id)}
               className={[
                 'px-3.5 text-sm transition-colors',
                 tall ? 'min-h-11' : 'min-h-10',

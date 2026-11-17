@@ -59,6 +59,7 @@ import { PitWall } from './PitWall';
 import { PitWallConnection } from './PitWallConnection';
 import {
   PIT_WALL_DEVICE_LAYOUT_KEY,
+  PIT_WALL_DEVICE_TAB_KEY,
   PitWallDeviceLayout,
 } from './PitWallDeviceLayout';
 
@@ -68,21 +69,29 @@ const widget = (
   extra: Partial<DashboardWidget> = {}
 ): DashboardWidget => ({ id, enabled: false, layout, ...extra });
 
-/** The Race layout saved in the profile, with the Fuel widget missing. */
+/** The Race layout saved in the profile, with the Our Car widget missing. */
 const savedDashboard = (): DashboardLayout => ({
   widgets: [
     widget('pitwall', { enabled: true, config: { layout: 'race' } }),
-    widget('standings'),
-    widget('pitstop'),
-    widget('finishorder'),
-    widget('weather'),
+    widget('timingtower'),
+    widget('classrivals'),
+    widget('racelog'),
+    widget('map'),
   ],
 });
 
 const shownLayout = () => screen.getByRole('main').getAttribute('data-layout');
+const shownTab = () => screen.getByRole('main').getAttribute('data-tab');
 const choose = (name: string) =>
   fireEvent.click(
     within(screen.getByRole('navigation', { name: 'Layout' })).getByRole(
+      'button',
+      { name }
+    )
+  );
+const chooseTab = (name: string) =>
+  fireEvent.click(
+    within(screen.getByRole('navigation', { name: 'Tabs' })).getByRole(
       'button',
       { name }
     )
@@ -114,21 +123,19 @@ describe('the Pit Wall in the app’s window', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pit Wall settings' }));
     expect(mocks.openWidgetSettings).toHaveBeenLastCalledWith('pitwall');
     fireEvent.click(
-      screen.getByRole('button', { name: 'Open Standings settings' })
+      screen.getByRole('button', { name: 'Open Timing Tower settings' })
     );
-    expect(mocks.openWidgetSettings).toHaveBeenLastCalledWith('standings');
+    expect(mocks.openWidgetSettings).toHaveBeenLastCalledWith('timingtower');
   });
 
   it('offers the settings of a widget the profile has lost', () => {
     renderInWindow();
-    const fuel = screen.getByRole('region', { name: 'Fuel Calculator' });
+    const ourCar = screen.getByRole('region', { name: 'Our Car' });
 
     fireEvent.click(
-      within(fuel).getByRole('button', {
-        name: 'Open Fuel Calculator settings',
-      })
+      within(ourCar).getByRole('button', { name: 'Open Our Car settings' })
     );
-    expect(mocks.openWidgetSettings).toHaveBeenLastCalledWith('fuel');
+    expect(mocks.openWidgetSettings).toHaveBeenLastCalledWith('ourcar');
   });
 
   it('saves a chosen layout into the profile, and keeps nothing in the browser', () => {
@@ -141,6 +148,26 @@ describe('the Pit Wall in the app’s window', () => {
       { layout: 'compact' }
     );
     expect(localStorage.getItem(PIT_WALL_DEVICE_LAYOUT_KEY)).toBeNull();
+  });
+
+  it('saves a chosen tab into the profile, and keeps nothing in the browser', () => {
+    mocks.dashboard = {
+      widgets: savedDashboard().widgets.map((saved) =>
+        saved.id === 'pitwall'
+          ? { ...saved, config: { layout: 'compact' } }
+          : saved
+      ),
+    };
+    renderInWindow();
+    expect(shownTab()).toBe('overview');
+
+    chooseTab('Strategy');
+
+    expect(mocks.onDashboardUpdated).toHaveBeenCalledTimes(1);
+    expect(mocks.onDashboardUpdated.mock.calls[0][0].widgets[0].config).toEqual(
+      { layout: 'compact', tab: 'strategy' }
+    );
+    expect(localStorage.getItem(PIT_WALL_DEVICE_TAB_KEY)).toBeNull();
   });
 });
 
@@ -157,12 +184,10 @@ describe('the Pit Wall in a browser', () => {
 
   it('says a widget is missing without offering settings it cannot open', () => {
     renderInBrowser();
-    const fuel = screen.getByRole('region', { name: 'Fuel Calculator' });
+    const ourCar = screen.getByRole('region', { name: 'Our Car' });
 
-    expect(fuel).toHaveTextContent(
-      'This profile has no Fuel Calculator widget.'
-    );
-    expect(within(fuel).queryByRole('button')).toBeNull();
+    expect(ourCar).toHaveTextContent('This profile has no Our Car widget.');
+    expect(within(ourCar).queryByRole('button')).toBeNull();
   });
 
   it('shows the profile’s layout until one is chosen here', () => {
@@ -238,6 +263,73 @@ describe('the Pit Wall in a browser', () => {
 
     expect(shownLayout()).toBe('watching');
     expect(mocks.onDashboardUpdated).not.toHaveBeenCalled();
+  });
+
+  it('keeps a chosen tab on the device and leaves the profile alone', () => {
+    renderInBrowser();
+    choose('Compact');
+    expect(shownTab()).toBe('overview');
+
+    chooseTab('Crew');
+
+    expect(shownTab()).toBe('crew');
+    expect(screen.getByRole('button', { name: 'Crew' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(
+      screen.getAllByRole('region').map((region) => region.ariaLabel)
+    ).toEqual(['Crew and Stints', 'Car Laps']);
+    expect(localStorage.getItem(PIT_WALL_DEVICE_TAB_KEY)).toBe('crew');
+    // A tablet on another tab must not turn the page in the window.
+    expect(mocks.onDashboardUpdated).not.toHaveBeenCalled();
+  });
+
+  it('opens on the tab chosen here last time', () => {
+    localStorage.setItem(PIT_WALL_DEVICE_LAYOUT_KEY, 'compact');
+    localStorage.setItem(PIT_WALL_DEVICE_TAB_KEY, 'log');
+
+    renderInBrowser();
+
+    expect(shownTab()).toBe('log');
+  });
+
+  it('shows the profile’s tab until one is chosen here', () => {
+    mocks.dashboard = {
+      widgets: savedDashboard().widgets.map((saved) =>
+        saved.id === 'pitwall'
+          ? { ...saved, config: { layout: 'compact', tab: 'map' } }
+          : saved
+      ),
+    };
+
+    renderInBrowser();
+
+    expect(shownTab()).toBe('map');
+    expect(localStorage.getItem(PIT_WALL_DEVICE_TAB_KEY)).toBeNull();
+  });
+
+  it('takes nothing but a known tab from what the browser kept', () => {
+    localStorage.setItem(PIT_WALL_DEVICE_LAYOUT_KEY, 'compact');
+    localStorage.setItem(PIT_WALL_DEVICE_TAB_KEY, 'everything');
+
+    renderInBrowser();
+
+    expect(shownTab()).toBe('overview');
+  });
+
+  it('keeps the tab through a change of layout and back', () => {
+    renderInBrowser();
+    choose('Compact');
+    chooseTab('Charts');
+
+    // Race is one page: it has the first tab and no bar.
+    choose('Race');
+    expect(shownTab()).toBe('overview');
+    expect(screen.queryByRole('navigation', { name: 'Tabs' })).toBeNull();
+
+    choose('Compact');
+    expect(shownTab()).toBe('charts');
   });
 });
 
