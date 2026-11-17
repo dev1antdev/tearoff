@@ -5,8 +5,11 @@ import { WebSocketServer } from 'ws';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   ask,
+  browserPageVerdict,
   raceHistoryReadVerdict,
   raceHistoryRefusalVerdict,
+  readBrowserPageAnswer,
+  type BrowserPageSeen,
 } from './server.ts';
 
 // The smoke run's one question over the page's socket, against a stand-in
@@ -230,6 +233,169 @@ describe('raceHistoryRefusalVerdict', () => {
     expect(raceHistoryRefusalVerdict({ opened: false, status: 403 })).toEqual({
       passed: false,
       detail: 'The connection did not open (status 403).',
+    });
+  });
+});
+
+describe('the Pit Wall page as a browser draws it', () => {
+  // What the helper says of a page that drew: found in the frame the
+  // server's page puts around it, with text, no errors and a picture.
+  const drawn: BrowserPageSeen = {
+    status: 200,
+    found: true,
+    attributes: { 'data-layout': 'race', 'data-tab': 'overview' },
+    drawn: 1840,
+    text: 'Tearoff\nPIT WALL\nLe Mans Ultimate connected\nTIMING TOWER\n#77',
+    errors: [],
+    pictured: true,
+    failure: null,
+  };
+
+  it('passes a page that appeared, drew its text and was photographed', () => {
+    expect(browserPageVerdict(drawn)).toEqual({
+      passed: true,
+      detail:
+        'Drawn by a browser on this machine, in the race layout: 1840 characters of text, no error in its console, and photographed.',
+    });
+  });
+
+  it('fails a page the server hands out and a browser cannot draw', () => {
+    // What asking the server for the page cannot tell: it answered 200
+    // with the page in it, and nothing came of it in a browser.
+    const verdict = browserPageVerdict({
+      ...drawn,
+      found: false,
+      attributes: {},
+      drawn: 0,
+      text: '',
+      errors: ['Uncaught TypeError: bridge.connection is undefined'],
+    });
+
+    expect(verdict.passed).toBe(false);
+    expect(verdict.detail).toContain('the Pit Wall never appeared in it');
+    expect(verdict.detail).toContain('bridge.connection is undefined');
+    expect(verdict.detail).toContain('Its picture shows what was there.');
+  });
+
+  it('fails a page that appeared and drew nothing', () => {
+    const verdict = browserPageVerdict({ ...drawn, drawn: 0, text: '' });
+
+    expect(verdict.passed).toBe(false);
+    expect(verdict.detail).toContain('drew nothing');
+  });
+
+  it('fails a page that shows what a page should never show', () => {
+    const verdict = browserPageVerdict({
+      ...drawn,
+      text: `${drawn.text}\nGap NaN`,
+    });
+
+    expect(verdict).toEqual({
+      passed: false,
+      detail:
+        'In a browser the page shows NaN. Its picture shows what was there.',
+    });
+  });
+
+  it('fails a page with an error in its console, and says the first', () => {
+    const verdict = browserPageVerdict({
+      ...drawn,
+      errors: ['The race history could not be read', 'and another'],
+    });
+
+    expect(verdict.passed).toBe(false);
+    expect(verdict.detail).toBe(
+      'Drawn in a browser, with 2 errors in its console: The race history could not be read'
+    );
+  });
+
+  it('does not count what the browser itself says in the console', () => {
+    expect(
+      browserPageVerdict({
+        ...drawn,
+        errors: [
+          '%cElectron Security Warning (Insecure Content-Security-Policy)',
+        ],
+      }).passed
+    ).toBe(true);
+  });
+
+  it('fails a page the server refused, by its status', () => {
+    const verdict = browserPageVerdict({
+      ...drawn,
+      status: 403,
+      found: false,
+      drawn: 0,
+      text: '',
+    });
+
+    expect(verdict.passed).toBe(false);
+    expect(verdict.detail).toContain('answered 403');
+  });
+
+  it('fails where the browser could not open the page or take its picture', () => {
+    expect(
+      browserPageVerdict({
+        ...drawn,
+        found: false,
+        pictured: false,
+        failure: 'ERR_CONNECTION_REFUSED (-102)',
+      })
+    ).toEqual({
+      passed: false,
+      detail:
+        'A browser could not open the page: ERR_CONNECTION_REFUSED (-102)',
+    });
+    expect(browserPageVerdict({ ...drawn, pictured: false }).passed).toBe(
+      false
+    );
+  });
+
+  describe('the answer of the helper', () => {
+    const line = `SMOKE_PAGE ${JSON.stringify({ url: 'http://localhost:3000/pitwall', ...drawn, warnings: 2 })}`;
+
+    it('is read out of everything else the browser wrote', () => {
+      const output = [
+        '',
+        '(node:1234) electron: something of its own',
+        line,
+        '',
+      ].join('\r\n');
+
+      expect(readBrowserPageAnswer(output)).toEqual(drawn);
+    });
+
+    it('is not there when the browser said nothing, or not in JSON', () => {
+      expect(readBrowserPageAnswer('')).toBeUndefined();
+      expect(readBrowserPageAnswer('SMOKE_PAGE {"status":')).toBeUndefined();
+      expect(readBrowserPageAnswer('SMOKE_PAGE null')).toBeUndefined();
+    });
+
+    it('reads a field that is not what it should be as not seen', () => {
+      const seen = readBrowserPageAnswer(
+        `SMOKE_PAGE ${JSON.stringify({
+          status: '200',
+          found: 'yes',
+          attributes: { 'data-layout': 7, 'data-tab': 'all' },
+          drawn: '12',
+          text: 5,
+          errors: ['one', 2],
+          pictured: 1,
+          failure: {},
+        })}`
+      );
+
+      expect(seen).toEqual({
+        status: null,
+        found: false,
+        attributes: { 'data-tab': 'all' },
+        drawn: 0,
+        text: '',
+        errors: ['one'],
+        pictured: false,
+        failure: null,
+      });
+      expect(browserPageVerdict(seen as BrowserPageSeen).passed).toBe(false);
     });
   });
 });
