@@ -158,13 +158,18 @@ export class OverlayManager {
 
   /**
    * Gantry-only widgets live in the Gantry window, so no overlay needs them.
-   * Nor does one need the Pit Wall, which is a page in a window of its own:
-   * its layout is the size of its preview, not a place on a display.
+   * Nor does one need the Gantry itself or the Pit Wall, each a page in a
+   * window of its own: their layout is the size of a preview, not a place on
+   * a display. Counted as an overlay widget, the Gantry's 1920x1080 at the
+   * origin stretched the overlay window of that display over all of it,
+   * whatever the widgets on it needed.
    */
   private isOnOverlay(widget: DashboardWidget): boolean {
+    const type = widget.type ?? widget.id;
     return (
       widget.placement !== 'gantry' &&
-      (widget.type ?? widget.id) !== PIT_WALL_WIDGET_ID &&
+      type !== 'gantry' &&
+      type !== PIT_WALL_WIDGET_ID &&
       this.isWidgetVisible(widget)
     );
   }
@@ -685,9 +690,8 @@ export class OverlayManager {
   }
 
   private syncWidgetWindows(dashboard: DashboardLayout): void {
-    const widgets = dashboard.widgets.filter(
-      (widget) =>
-        this.isOnOverlay(widget) && (widget.type ?? widget.id) !== 'gantry'
+    const widgets = dashboard.widgets.filter((widget) =>
+      this.isOnOverlay(widget)
     );
     const ids = new Set(widgets.map((widget) => `widget:${widget.id}`));
     for (const [id, win] of this.displayWindows) {
