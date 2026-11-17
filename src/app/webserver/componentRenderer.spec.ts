@@ -243,6 +243,55 @@ describe('WebSocketBridge simulator compatibility', () => {
     expect(seen).toHaveBeenCalledWith('lmu');
   });
 
+  it('tells a page that subscribes after the connection opened whether a simulator is running', async () => {
+    // The app says it once, as the connection opens, and the page is drawn
+    // after that: a subscriber that was told nothing would show "no
+    // simulator is running" in the middle of a race.
+    const { bridge, socket } = await connected();
+    socket.deliver({ type: 'initialState', data: { isRunning: true } });
+
+    const seen = vi.fn();
+    bridge.onRunningState(seen);
+
+    expect(seen).toHaveBeenCalledTimes(1);
+    expect(seen).toHaveBeenCalledWith(true);
+    await expect(bridge.getRunningState()).resolves.toBe(true);
+  });
+
+  it('tells a late subscriber the latest word, not the first', async () => {
+    const { bridge, socket } = await connected();
+    socket.deliver({ type: 'initialState', data: { isRunning: true } });
+    socket.deliver({ type: 'runningState', data: false });
+
+    const seen = vi.fn();
+    bridge.onRunningState(seen);
+
+    expect(seen).toHaveBeenCalledWith(false);
+    await expect(bridge.getRunningState()).resolves.toBe(false);
+  });
+
+  it('says nothing of a simulator before the app has, and takes no answer that is not one', async () => {
+    const { bridge, socket } = await connected();
+    const seen = vi.fn();
+    const unsubscribe = bridge.onRunningState(seen);
+
+    expect(seen).not.toHaveBeenCalled();
+    await expect(bridge.getRunningState()).resolves.toBe(false);
+
+    socket.deliver({ type: 'runningState', data: 'yes' });
+    socket.deliver({ type: 'initialState', data: { simulator: 'lmu' } });
+    expect(seen).not.toHaveBeenCalled();
+
+    socket.deliver({ type: 'runningState', data: true });
+    expect(seen).toHaveBeenCalledWith(true);
+
+    unsubscribe?.();
+    socket.deliver({ type: 'runningState', data: false });
+    expect(seen).toHaveBeenCalledTimes(1);
+    // Still kept for whoever asks next.
+    await expect(bridge.getRunningState()).resolves.toBe(false);
+  });
+
   it('forwards a simulator change to its subscribers', async () => {
     const { bridge, socket } = await connected();
     const seen = vi.fn();

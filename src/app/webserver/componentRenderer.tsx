@@ -80,6 +80,8 @@ export class WebSocketBridge
   private telemetryCallbacks: Set<(data: Telemetry) => void>;
   private sessionCallbacks: Set<(data: Session) => void>;
   private runningCallbacks: Set<(running: boolean) => void>;
+  /** Whether a simulator is running, as the app last said; undefined before. */
+  private lastRunning: boolean | undefined;
   private channelCallbacks = new Map<
     ChannelName,
     Set<{
@@ -359,15 +361,7 @@ export class WebSocketBridge
               }
             });
           }
-          if (state.isRunning !== undefined) {
-            this.runningCallbacks.forEach((cb) => {
-              try {
-                cb(state.isRunning);
-              } catch (e) {
-                logger.error('Error in running state callback:', e);
-              }
-            });
-          }
+          this.publishRunning(state.isRunning);
           if (state.isDemoMode !== undefined) {
             this.currentIsDemoMode = state.isDemoMode;
             this.demoModeCallbacks.forEach((cb) => {
@@ -420,13 +414,7 @@ export class WebSocketBridge
           });
           break;
         case 'runningState':
-          this.runningCallbacks.forEach((cb) => {
-            try {
-              cb(data);
-            } catch (e) {
-              logger.error('Error in running state callback:', e);
-            }
-          });
+          this.publishRunning(data);
           break;
         case 'dashboardUpdated': {
           const { dashboard: updatedDashboard, profileId: updatedProfileId } =
@@ -728,12 +716,52 @@ export class WebSocketBridge
     );
   }
 
+  /**
+   * Keeps what the app said of the simulator running, and tells whoever
+   * listens. Anything that is not a yes or a no is not an answer.
+   */
+  private publishRunning(running: unknown): void {
+    if (typeof running !== 'boolean') return;
+    this.lastRunning = running;
+    this.runningCallbacks.forEach((cb) => {
+      try {
+        cb(running);
+      } catch (e) {
+        logger.error('Error in running state callback:', e);
+      }
+    });
+  }
+
+  /**
+   * The app says whether a simulator is running once, as the connection
+   * opens, and after that only when it changes. The page is drawn after the
+   * connection is open, so what subscribes here comes too late for the
+   * first word: it is told what was said, as the app's own bridges tell a
+   * late subscriber. Without that a page opened while a race is on would
+   * say that no simulator is running until the simulator stopped and
+   * started again.
+   */
   onRunningState(
     callback: (running: boolean) => void
   ): (() => void) | undefined {
     if (!callback) return undefined;
     this.runningCallbacks.add(callback);
+    if (this.lastRunning !== undefined) {
+      try {
+        callback(this.lastRunning);
+      } catch (e) {
+        logger.error('Error in running state callback:', e);
+      }
+    }
     return () => this.runningCallbacks.delete(callback);
+  }
+
+  /**
+   * What the app last said of the simulator running; false before it has
+   * said anything, which is also what a page starts from.
+   */
+  getRunningState(): Promise<boolean> {
+    return Promise.resolve(this.lastRunning ?? false);
   }
 
   /** Read-only race plan state for browser views; null when unavailable. */
