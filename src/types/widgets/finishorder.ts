@@ -83,7 +83,7 @@ export default defineWidgetManifest({
       type: 'number',
       label: 'Extra Time',
       description:
-        'Added to every stop that is worked out, for your reaction and the crew: the planned stop, the stop to finish and each stop you still owe against a rival.',
+        'Added to every stop that is worked out, for your reaction and the crew: the planned stop, the stop to finish and each stop you still owe against a rival. Our Car and Class Rivals cost a stop without it, so a gap there is the After column with this at 0.',
       min: 0,
       max: 10,
       step: 0.5,

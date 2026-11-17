@@ -307,7 +307,9 @@ export const OurCar = () => {
                     ? 'enough aboard to finish'
                     : own?.stopLossS === null || own?.stopLossS === undefined
                       ? 'the stop is not costed yet'
-                      : `next costs ${formatSeconds(own.stopLossS)}`
+                      : // The Pit Stop widget's loss for the same stop is
+                        // higher by its Extra Time setting.
+                        `next ${formatSeconds(own.stopLossS)}, no extra time`
               }
             />
           </>

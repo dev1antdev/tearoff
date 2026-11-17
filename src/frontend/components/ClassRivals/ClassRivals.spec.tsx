@@ -221,7 +221,7 @@ describe('ClassRivals (staged)', () => {
   it('explains its two forecast columns, and the marks in Tyres', () => {
     show();
     expect(screen.getByTestId('class-rivals-legend')).toHaveTextContent(
-      'Net gap: the gap once both cars have made the stops they still owe. Pace 5: their mean of five clean laps against ours; green means we are faster. Tyres: laps on the set (? told from the length of a stop, + at least that many) and the tread left, from our own wear. ~ marks an estimate.'
+      'Net gap: the gap once both cars have made the stops they still owe, with no extra time added to a stop. Pace 5: their mean of five clean laps against ours; green means we are faster. Tyres: laps on the set (? told from the length of a stop, + at least that many) and the tread left, from our own wear. ~ marks an estimate.'
     );
   });
 
@@ -382,7 +382,7 @@ describe('ClassRivals (staged)', () => {
     it('explains only the columns it shows', () => {
       show({}, { showPace: false, showTyres: false });
       expect(screen.getByTestId('class-rivals-legend')).toHaveTextContent(
-        /^Net gap: the gap once both cars have made the stops they still owe\. ~ marks an estimate\.$/
+        /^Net gap: the gap once both cars have made the stops they still owe, with no extra time added to a stop\. ~ marks an estimate\.$/
       );
     });
 

@@ -99,7 +99,7 @@ describe('OurCar (staged)', () => {
       });
       expect(tile('stops')).toMatchObject({
         value: '3 more',
-        note: 'next costs 58 s',
+        note: 'next 58 s, no extra time',
       });
     });
 
