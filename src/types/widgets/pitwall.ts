@@ -19,13 +19,16 @@ export default defineWidgetManifest({
   },
   config: {
     layout: 'race',
+    // Which tab of a layout with tabs is in front. The page changes it; the
+    // settings page has no row for it.
+    tab: 'overview',
   },
   properties: {
     layout: {
       type: 'enum',
       label: 'Layout',
       description:
-        'Race is the full page for a second monitor. Watching is for the hours a team-mate drives. Compact fits a small or touch screen. The header of the window switches between them too.',
+        'Race is the full page for a second monitor. Watching is for the hours a team-mate drives. Compact is a page of tabs for a small or touch screen. The header of the window switches between them too.',
       options: [
         { value: 'race', label: 'Race' },
         { value: 'watching', label: 'Watching' },

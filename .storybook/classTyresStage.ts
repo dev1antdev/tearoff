@@ -79,6 +79,17 @@ export interface ClassTyresStoryCar {
   number: string;
   /** Laps it has completed since its last stop. */
   sinceStop: number;
+  /**
+   * The compound on each wheel, LF, RF, LR, RR, where the stage that asks
+   * holds the car's records: in place of the one written out above, so
+   * that the tables agree with the laps those records show.
+   */
+  wheels?: readonly [number, number, number, number];
+  /**
+   * Another compound went on at its last stop, by the same records. The
+   * set was then seen to go on, whatever is written out above for the car.
+   */
+  newCompound?: boolean;
 }
 
 export interface ClassTyresStoryOptions {
@@ -136,18 +147,19 @@ export const classTyresStorySnapshot = (
       snapshot.treadSource.push(TREAD_NONE);
       continue;
     }
-    const first =
-      typeof staged.wheels === 'number' ? staged.wheels : staged.wheels[0];
+    const told = car.wheels ?? staged.wheels;
+    const first = typeof told === 'number' ? told : told[0];
     // iRacing has one compound a car.
     const wheels =
-      iracing || typeof staged.wheels === 'number'
+      iracing || typeof told === 'number'
         ? Array.from({ length: WHEELS }, () => first)
-        : staged.wheels;
-    const sure: Sure = beforeStart
-      ? 'seen'
-      : iracing && staged.sure === 'likely'
-        ? 'atLeast'
-        : staged.sure;
+        : told;
+    const sure: Sure =
+      beforeStart || car.newCompound
+        ? 'seen'
+        : iracing && staged.sure === 'likely'
+          ? 'atLeast'
+          : staged.sure;
     const laps = beforeStart
       ? 0
       : car.sinceStop +

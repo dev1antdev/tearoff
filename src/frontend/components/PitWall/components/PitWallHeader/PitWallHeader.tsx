@@ -12,7 +12,8 @@ import type { FlagTone } from '../../pitWallHeaderFormat';
 export interface PitWallHeaderProps {
   data: PitWallHeaderData;
   layout: PitWallLayoutId;
-  onLayoutChange: (layout: PitWallLayoutId) => void;
+  /** Chooses a layout. Left out, the strip offers no choice of one. */
+  onLayoutChange?: (layout: PitWallLayoutId) => void;
   fullscreen: boolean;
   onToggleFullscreen: () => void;
   /** Opens the Pit Wall's settings. Left out, the strip has no gear. */
@@ -23,6 +24,12 @@ export interface PitWallHeaderProps {
    * be in that state.
    */
   reconnecting?: boolean;
+  /**
+   * Hangs that mark from the positioned element around the strip instead of
+   * from the strip. The page does, with its tab bar inside the same
+   * element, so that the mark is under the bar and on none of the tabs.
+   */
+  markHangsOutside?: boolean;
 }
 
 const FLAG_TONE_CLASS: Record<FlagTone, string> = {
@@ -55,6 +62,7 @@ export const PitWallHeader = ({
   onToggleFullscreen,
   onOpenSettings,
   reconnecting = false,
+  markHangsOutside = false,
 }: PitWallHeaderProps) => {
   const { car } = data;
   // Touch-sized targets on the layout made for a tablet.
@@ -62,10 +70,11 @@ export const PitWallHeader = ({
 
   return (
     <header
-      // Positioned, for the mark that hangs from it while reconnecting.
-      className={`settings-shell relative flex shrink-0 flex-wrap items-center gap-y-2 border-b border-slate-700 bg-slate-950 px-4 py-2 text-slate-200 tabular-nums ${
-        tall ? 'gap-x-5' : 'gap-x-7'
-      }`}
+      // Positioned, for the mark that hangs from it while reconnecting,
+      // unless the mark is to hang from what is around it.
+      className={`settings-shell flex shrink-0 flex-wrap items-center gap-y-2 border-b border-slate-700 bg-slate-950 px-4 py-2 text-slate-200 tabular-nums ${
+        markHangsOutside ? '' : 'relative'
+      } ${tall ? 'gap-x-5' : 'gap-x-7'}`}
     >
       <div className="flex items-center gap-3">
         <img src={logo} alt="" className="size-7 shrink-0" />
@@ -105,7 +114,14 @@ export const PitWallHeader = ({
       {data.inSession && (
         <div className="flex min-w-0 flex-col" data-item="session">
           {data.session && (
-            <span className={`${labelClass} truncate`}>{data.session}</span>
+            // On the small layout a long track name is cut at the width
+            // of the clock under it, so the strip keeps to its line.
+            <span
+              className={`${labelClass} truncate ${tall ? 'w-0 min-w-full' : ''}`}
+              title={data.session}
+            >
+              {data.session}
+            </span>
           )}
           <span className="text-xl leading-tight font-bold text-white">
             {data.timeLeft}{' '}
@@ -187,6 +203,7 @@ export const PitWallHeader = ({
         </span>
         <nav
           aria-label="Layout"
+          hidden={!onLayoutChange}
           className="flex overflow-hidden rounded-md border border-slate-700"
         >
           {PIT_WALL_LAYOUT_LIST.map((option) => (
@@ -195,7 +212,7 @@ export const PitWallHeader = ({
               type="button"
               title={option.description}
               aria-pressed={option.id === layout}
-              onClick={() => onLayoutChange(option.id)}
+              onClick={() => onLayoutChange?.(option.id)}
               className={[
                 'px-3.5 text-sm transition-colors',
                 tall ? 'min-h-11' : 'min-h-10',

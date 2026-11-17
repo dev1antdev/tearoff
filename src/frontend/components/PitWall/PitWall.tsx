@@ -5,6 +5,7 @@ import {
   useRunningState,
 } from '@irdashies/context';
 import {
+  PIT_WALL_GAP_PX,
   PIT_WALL_WIDGET_ID,
   getWidgetManifest,
   type ResolvedPitWallPanel,
@@ -15,9 +16,14 @@ import {
   PitWallPanelNote,
 } from './components/PitWallPanel/PitWallPanel';
 import { usePitWallReconnecting } from './PitWallConnection';
+import { PitWallTabs } from './components/PitWallTabs/PitWallTabs';
 import { useFullscreen } from './hooks/useFullscreen';
 import { usePitWallHeader } from './hooks/usePitWallHeader';
-import { usePitWallPage, useSetPitWallLayout } from './hooks/usePitWallPage';
+import {
+  usePitWallPage,
+  useSetPitWallLayout,
+  useSetPitWallTab,
+} from './hooks/usePitWallPage';
 
 export interface PitWallProps {
   /**
@@ -38,8 +44,10 @@ const EmptyState = ({ children }: { children: ReactNode }) => (
 );
 
 /**
- * The Pit Wall page: a header about the session and our car over a fixed
- * grid of panels, each of which hosts one of the app's overlay widgets.
+ * The Pit Wall page: a header about the session and our car over the panels
+ * of the chosen layout, each of which hosts one of the app's widgets. A
+ * layout made of tabs has a bar of them under the header. The panels are a
+ * fixed grid, or on a phone a stack the page scrolls down.
  */
 export const PitWall = memo(({ renderPanel }: PitWallProps) => {
   const { bridge } = useDashboard();
@@ -47,9 +55,11 @@ export const PitWall = memo(({ renderPanel }: PitWallProps) => {
   const page = usePitWallPage();
   const header = usePitWallHeader();
   const setLayout = useSetPitWallLayout();
+  const setTab = useSetPitWallTab();
   const { fullscreen, toggle: toggleFullscreen } = useFullscreen();
   // Only ever true in a browser, whose page is fed over a socket.
   const reconnecting = usePitWallReconnecting();
+  const stacked = page.stack !== undefined;
 
   // The settings window is the app's. A browser has no way to open it, so
   // the page it shows is drawn without the gears that would.
@@ -67,15 +77,31 @@ export const PitWall = memo(({ renderPanel }: PitWallProps) => {
     <div className="flex h-full w-full flex-col overflow-hidden bg-settings-page text-white tabular-nums">
       {/* The header's clock. Hosted widgets that read the same store share it. */}
       <SessionTimingStoreUpdater enabled />
-      <PitWallHeader
-        data={header}
-        layout={page.layout.id}
-        onLayoutChange={setLayout}
-        fullscreen={fullscreen}
-        onToggleFullscreen={toggleFullscreen}
-        onOpenSettings={canOpenSettings ? openOwnSettings : undefined}
-        reconnecting={reconnecting}
-      />
+      {/* The strip and the tab bar as one positioned block, for the mark the
+          strip hangs out while reconnecting: under the bar where there is
+          one, so that it is on none of the tabs, and under the strip where
+          there is none. */}
+      <div className="relative shrink-0">
+        <PitWallHeader
+          data={header}
+          layout={page.layout.id}
+          // A phone is given the tabs whatever layout is chosen, so it is
+          // offered no choice of one.
+          onLayoutChange={stacked ? undefined : setLayout}
+          fullscreen={fullscreen}
+          onToggleFullscreen={toggleFullscreen}
+          onOpenSettings={canOpenSettings ? openOwnSettings : undefined}
+          reconnecting={reconnecting}
+          markHangsOutside
+        />
+        {page.tabs.length > 1 && (
+          <PitWallTabs
+            tabs={page.tabs}
+            tab={page.tab.id}
+            onTabChange={setTab}
+          />
+        )}
+      </div>
       {!running ? (
         <EmptyState>
           No simulator is running. The Pit Wall fills in when Le Mans Ultimate
@@ -87,22 +113,40 @@ export const PitWall = memo(({ renderPanel }: PitWallProps) => {
         </EmptyState>
       ) : (
         <main
-          className="grid min-h-0 flex-1 gap-3 p-3"
+          className={
+            stacked
+              ? // Down the page only: a panel wider than a phone scrolls
+                // sideways inside itself.
+                'flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto'
+              : 'grid min-h-0 flex-1'
+          }
           data-layout={page.layout.id}
+          data-tab={page.tab.id}
+          data-stacked={stacked || undefined}
           style={{
-            gridTemplateColumns: page.grid.columns,
-            gridTemplateRows: page.grid.rows,
-            gridTemplateAreas: page.grid.areas,
+            // The gap the grid reckoned its tracks with.
+            gap: PIT_WALL_GAP_PX,
+            padding: PIT_WALL_GAP_PX,
+            ...(stacked
+              ? {}
+              : {
+                  gridTemplateColumns: page.grid.columns,
+                  gridTemplateRows: page.grid.rows,
+                  gridTemplateAreas: page.grid.areas,
+                }),
           }}
         >
-          {page.panels.map((panel) => {
+          {page.panels.map((panel, index) => {
             const title = panelTitle(panel);
             const type = panel.slot.widget;
             return (
               <PitWallPanel
+                // By type alone, so a panel two tabs share stays as it was
+                // left: the class chosen in the tower, the car in a list.
                 key={type}
                 title={title}
-                area={type}
+                area={stacked ? undefined : type}
+                basis={page.stack?.[index]}
                 // A panel with no widget offers its settings in its body.
                 onOpenSettings={
                   panel.status === 'ready' && canOpenSettings

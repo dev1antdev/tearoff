@@ -50,6 +50,23 @@ export const LongTitle: Story = {
   ],
 };
 
+/**
+ * Stacked, as on a phone: the panels are one under another in a page that
+ * scrolls, each at least the height it is given.
+ */
+export const Stacked: Story = {
+  args: { ...Titled.args, basis: 'min(240px, 86%)' },
+  decorators: [
+    (Story) => (
+      <div className="flex h-[480px] w-[390px] flex-col gap-3 overflow-y-auto">
+        <Story />
+        <Story />
+        <Story />
+      </div>
+    ),
+  ],
+};
+
 /** What a panel says when the profile has no widget for it. */
 export const MissingWidget: Story = {
   args: {

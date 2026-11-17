@@ -151,6 +151,22 @@ export const Flags: Story = {
   ),
 };
 
+/**
+ * On a phone, 390 wide: the page is given the tabs whatever layout is
+ * chosen, so the strip offers no choice of one, and wraps onto as many lines
+ * as it needs.
+ */
+export const OnAPhone: Story = {
+  args: { layout: 'compact', onLayoutChange: undefined },
+  decorators: [
+    (Story) => (
+      <div className="w-[390px]">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
 /** A simulator is connected and in no session: nothing about a race. */
 export const NoSession: Story = {
   args: {

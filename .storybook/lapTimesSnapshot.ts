@@ -31,6 +31,13 @@ export interface StoryLapPlan {
    * equal to `laps` leaves the car in the pits now.
    */
   inLaps?: readonly number[];
+  /**
+   * The laps as they were driven, seconds, oldest first, as many as `laps`:
+   * for a stage that holds the car's laps and wants the averages made of
+   * them. A lap the sim gave no time is -1. Left out, the laps are made up
+   * around the car's best.
+   */
+  times?: readonly number[];
 }
 
 /** Seconds a lap is over the car's best, lap after lap. One is the best. */
@@ -54,6 +61,8 @@ const ON_TRACK = 3;
  */
 const lapTimesOf = (car: StoryLapCar, plan: StoryLapPlan): number[] =>
   Array.from({ length: plan.laps }, (_, index) => {
+    const driven = plan.times?.[index];
+    if (driven !== undefined) return driven;
     const lap = index + 1;
     if (lap === plan.laps) return car.lastLap;
     const offset = SPREAD[index % SPREAD.length];

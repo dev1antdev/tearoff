@@ -78,6 +78,49 @@ export interface TowerStoryCar extends StoryGridCar {
   vsDriver?: number;
   /** Who drove the stint before, where it was not the driver now. */
   driverBefore?: string;
+  /**
+   * What a stage that holds the car's records tells of it. The tower's own
+   * cars leave it out, and those figures are made up around the rest.
+   */
+  told?: TowerStoryCarRecords;
+}
+
+/** The three sector times of a lap, seconds; null for one with no time. */
+type StorySectors = readonly (number | null)[];
+
+/** A car of another staged race, as far as that race's records go. */
+export interface TowerStoryCarRecords {
+  /** Its last laps as driven, seconds, oldest first; -1 for one given no time. */
+  lapTimes: readonly number[];
+  /** Which of them it stood in its box on, counted from 1. */
+  inLaps: readonly number[];
+  /**
+   * Its sectors: the quickest it has done each in the race, those of the
+   * lap before the last and of the last, and what is done of the lap under
+   * way. Null where the sim times nobody's sectors.
+   */
+  sectors: {
+    best: StorySectors;
+    before: StorySectors;
+    last: StorySectors;
+    current: StorySectors;
+  } | null;
+  /**
+   * Its last stop: the laps it had completed, and the seconds in the pit
+   * lane and standing, so far for a car that is still in it. Null before
+   * the first.
+   */
+  lastStop: { lap: number; laneS: number; standingS: number } | null;
+  /** Its longest completed stint, laps; 0 before it has completed one. */
+  longestStint: number;
+  /**
+   * The share of a full budget its last lap cost and a lap costs it on
+   * average, 0..1; -1 where the sim does not say what a car has left.
+   */
+  usedLastLap: number;
+  usedAverage: number;
+  /** Another compound went on at its last stop. */
+  newCompound: boolean;
 }
 
 /** The player's car, by number. */
@@ -456,12 +499,8 @@ const buildSectors = (
   const processor = new CarSectorsProcessor();
   processor.onLifecycle({ type: 'enter', replay: false });
   processor.init(session);
-  const none = [null, null, null];
-  const frame = (
-    time: number,
-    last: (number | null)[][],
-    current: (number | null)[][]
-  ) =>
+  const none: StorySectors = [null, null, null];
+  const frame = (time: number, last: StorySectors[], current: StorySectors[]) =>
     ({
       SessionTime: { value: [time] },
       SessionNum: { value: [0] },
@@ -480,22 +519,37 @@ const buildSectors = (
     return structuredClone(processor.snapshot());
   }
 
+  // A race told as the sim that times nobody's sectors gives it: a frame
+  // without them, and the channel says it has none.
+  if (cars.every((car) => car.told?.sectors === null)) {
+    processor.onFrame({
+      SessionTime: { value: [10] },
+      SessionNum: { value: [0] },
+    } as unknown as Telemetry);
+    return structuredClone(processor.snapshot());
+  }
+
   // The lap before the last: a little quicker or slower in each sector, so
   // that some of the last lap's sectors are the car's best and some not.
-  const before = cars.map((car, slot) =>
-    sectorsOf(car.bestLap + 0.9, [
-      (seeded(slot, 1) - 0.5) * 0.9,
-      (seeded(slot, 2) - 0.5) * 0.9,
-    ])
+  const before = cars.map(
+    (car, slot): StorySectors =>
+      car.told?.sectors?.before ??
+      sectorsOf(car.bestLap + 0.9, [
+        (seeded(slot, 1) - 0.5) * 0.9,
+        (seeded(slot, 2) - 0.5) * 0.9,
+      ])
   );
-  const last = cars.map((car, slot) =>
-    sectorsOf(car.lastLap, [
-      (seeded(slot, 3) - 0.5) * 0.5,
-      (seeded(slot, 4) - 0.5) * 0.5,
-    ])
+  const last = cars.map(
+    (car, slot): StorySectors =>
+      car.told?.sectors?.last ??
+      sectorsOf(car.lastLap, [
+        (seeded(slot, 3) - 0.5) * 0.5,
+        (seeded(slot, 4) - 0.5) * 0.5,
+      ])
   );
   // The lap under way, as far round as the car is.
-  const current = cars.map((car, slot) => {
+  const current = cars.map((car, slot): StorySectors => {
+    if (car.told?.sectors) return car.told.sectors.current;
     const fraction = car.progress - Math.floor(car.progress);
     if (car.inPits || car.inGarage) return none;
     const [s1, s2] = sectorsOf(car.bestLap + 0.4, [
@@ -509,6 +563,18 @@ const buildSectors = (
     ];
   });
 
+  // A car whose records are held has bests from before these two laps:
+  // shown first, as a lap of them, so that a sector is coloured against
+  // the quickest of the whole race.
+  if (cars.some((car) => car.told?.sectors)) {
+    processor.onFrame(
+      frame(
+        11_760,
+        cars.map((car) => car.told?.sectors?.best ?? none),
+        cars.map(() => none)
+      )
+    );
+  }
   processor.onFrame(
     frame(
       12_000,
@@ -525,6 +591,14 @@ const buildSectors = (
  * the stops of the cars that made one in that time.
  */
 const lapPlanOf = (car: TowerStoryCar): StoryLapPlan => {
+  // A car whose laps are held is given them as they were driven.
+  if (car.told) {
+    return {
+      laps: car.told.lapTimes.length,
+      inLaps: car.told.inLaps,
+      times: car.told.lapTimes,
+    };
+  }
   const laps = 14;
   if (car.inGarage) return { laps: 6 };
   // The lap into the pits is the one before the first lap of the stint.
@@ -599,19 +673,43 @@ const buildCarPit = (
         ? CAR_PIT_IN_LANE
         : CAR_PIT_ON_TRACK
   );
-  const none = cars.map(() => -1);
+  // What a stage that holds the car's records tells of its stops and of
+  // what a lap costs it, where the tower's own cars have nothing to say.
+  const told = <T>(
+    of: (records: TowerStoryCarRecords, car: TowerStoryCar) => T,
+    otherwise: (car: TowerStoryCar) => T
+  ): T[] =>
+    cars.map((car) =>
+      racing && car.told ? of(car.told, car) : otherwise(car)
+    );
+  const none = () => -1;
   return {
     where,
-    laneTimeS: cars.map((car) => (car.inPits ? 31.4 : 0)),
-    standingS: cars.map((car) => (car.inPits ? 18.2 : 0)),
+    laneTimeS: told(
+      (records) => records.lastStop?.laneS ?? 0,
+      (car) => (car.inPits ? 31.4 : 0)
+    ),
+    standingS: told(
+      (records) => records.lastStop?.standingS ?? 0,
+      (car) => (car.inPits ? 18.2 : 0)
+    ),
     stops: cars.map((car) => (racing ? car.stops : 0)),
-    lastPitLap: none,
-    lastStopLap: none,
+    // The boxes of a told race are before the line: a car goes into the
+    // lane and stops on the same lap.
+    lastPitLap: told((records) => records.lastStop?.lap ?? -1, none),
+    lastStopLap: told((records) => records.lastStop?.lap ?? -1, none),
     stintLaps: cars.map((car) => (racing ? car.stintLaps : 0)),
-    longestStintLaps: cars.map(() => (racing ? 21 : 0)),
-    usedLastLap: none,
-    usedAverage: none,
-    lapsLeft: none,
+    longestStintLaps: told(
+      (records) => records.longestStint,
+      () => (racing ? 21 : 0)
+    ),
+    usedLastLap: told((records) => records.usedLastLap, none),
+    usedAverage: told((records) => records.usedAverage, none),
+    lapsLeft: told(
+      (records, car) =>
+        records.usedLastLap > 0 ? car.energy / records.usedLastLap : -1,
+      none
+    ),
     requested: cars.map(() => false),
     counts: {
       onTrack: where.filter((place) => place === CAR_PIT_ON_TRACK).length,
@@ -645,6 +743,18 @@ export interface TimingTowerStageOptions {
    * least as old as the laps since the last stop.
    */
   iracingTyres?: boolean;
+  /**
+   * The cars of another staged race, in slot order, in place of the
+   * tower's own: for a stage that shows the tower beside other panels and
+   * has to tell them all the same race.
+   */
+  cars?: readonly TowerStoryCar[];
+  /**
+   * The tread the sim reads on our own car, percent, or null where it
+   * reads none, as with a team-mate at the wheel. Left out, the tower's
+   * own figure.
+   */
+  ownTreadPct?: number | null;
 }
 
 /** The tread the sim reads on our own car, percent. */
@@ -654,11 +764,13 @@ const OWN_TREAD_PCT = 86.4;
 export const timingTowerStage = ({
   beforeStart = false,
   iracingTyres = false,
+  cars: field = TOWER_STORY_CARS,
+  ownTreadPct = OWN_TREAD_PCT,
 }: TimingTowerStageOptions = {}): TimingTowerStage => {
   const racing = !beforeStart;
   const cars: readonly TowerStoryCar[] = racing
-    ? TOWER_STORY_CARS
-    : TOWER_STORY_CARS.map((car, slot) => ({
+    ? field
+    : field.map((car, slot) => ({
         ...car,
         // In grid order, a few metres apart, on the lap to the line.
         progress: 0.97 - slot * 0.004,
@@ -719,10 +831,28 @@ export const timingTowerStage = ({
       'car-sectors.snapshot': buildSectors(cars, session, racing),
       'car-pit.snapshot': buildCarPit(cars, racing),
       'class-tyres.snapshot': classTyresStorySnapshot(
-        cars.map((car) => ({ number: car.number, sinceStop: car.stintLaps })),
+        cars.map((car) => ({
+          number: car.number,
+          sinceStop: car.stintLaps,
+          // The compounds of a car whose records are held are theirs.
+          ...(car.told
+            ? {
+                wheels:
+                  typeof car.wheels === 'number'
+                    ? ([
+                        car.wheels,
+                        car.wheels,
+                        car.wheels,
+                        car.wheels,
+                      ] as const)
+                    : car.wheels,
+                newCompound: car.told.newCompound,
+              }
+            : {}),
+        })),
         {
           own: TOWER_STORY_PLAYER,
-          ownTreadPct: OWN_TREAD_PCT,
+          ownTreadPct: ownTreadPct ?? undefined,
           beforeStart,
           iracing: iracingTyres,
         }

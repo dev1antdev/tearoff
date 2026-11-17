@@ -2356,6 +2356,21 @@ export const PIT_WALL_LAYOUT_IDS = ['race', 'watching', 'compact'] as const;
 export type PitWallLayoutId = (typeof PIT_WALL_LAYOUT_IDS)[number];
 
 /**
+ * The tabs a layout can be divided into, in the order its tab bar lists
+ * them. A layout that is one page has the first of them and no bar.
+ */
+export const PIT_WALL_TAB_IDS = [
+  'overview',
+  'timing',
+  'strategy',
+  'crew',
+  'map',
+  'charts',
+  'log',
+] as const;
+export type PitWallTabId = (typeof PIT_WALL_TAB_IDS)[number];
+
+/**
  * The Pit Wall window: one page about the race from our own car's side.
  * Sanitise with sanitizePitWallConfig; where the window sits on the screen
  * is kept by the main process, not here.
@@ -2363,6 +2378,11 @@ export type PitWallLayoutId = (typeof PIT_WALL_LAYOUT_IDS)[number];
 export interface PitWallConfig {
   /** Which of the fixed layouts the page shows. */
   layout: PitWallLayoutId;
+  /**
+   * The tab last shown, for a layout that has tabs. View state of the
+   * window: a browser keeps its own, as it keeps its own layout.
+   */
+  tab: PitWallTabId;
 }
 
 export type PitWallWidgetSettings = BaseWidgetSettings<PitWallConfig>;
