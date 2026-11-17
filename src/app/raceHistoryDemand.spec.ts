@@ -188,6 +188,23 @@ describe('watchRaceHistoryDemand', () => {
     expect(app.onChange.mock.calls).toEqual([[false], [true], [false]]);
   });
 
+  it('records for a reader of the laps on a set of tyres', () => {
+    // The Timing Tower's tyres on the overlay, with the Pit Wall off: the
+    // laps on a set are counted from the stints and stops.
+    const app = fakeApp(layout(widget('pitwall', false)), 'lmu');
+
+    app.setSubscribers('class-tyres.snapshot', 1);
+    expect(app.onChange.mock.calls).toEqual([[false], [true]]);
+
+    // One reader leaving is not the last one leaving.
+    app.setSubscribers('race-history.summary', 1);
+    app.setSubscribers('class-tyres.snapshot', 0);
+    expect(app.onChange.mock.calls).toEqual([[false], [true]]);
+
+    app.setSubscribers('race-history.summary', 0);
+    expect(app.onChange.mock.calls).toEqual([[false], [true], [false]]);
+  });
+
   it('starts recording for a subscriber that was there first', () => {
     const app = fakeApp(layout(), 'lmu', { subscribers: 1 });
 

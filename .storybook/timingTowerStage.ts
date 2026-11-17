@@ -15,6 +15,7 @@ import {
   CAR_PIT_ON_TRACK,
 } from '../src/types/channels/carPit';
 import { CarSectorsProcessor } from '../src/app/processors/CarSectorsProcessor';
+import { classTyresStorySnapshot } from './classTyresStage';
 import { buildStoryLapTimes, type StoryLapPlan } from './lapTimesSnapshot';
 import {
   buildStoryGrid,
@@ -45,6 +46,8 @@ import { trackStateStorySnapshot } from './trackStateSnapshot';
  *   pace against the stint before, and their stops are in their averages
  *   over all laps.
  * - #10 (LMGT3) is nearly out of energy and on a mixed set of tyres.
+ * - The LMGT3s, our class, carry the laps on their tyres and the tread
+ *   left in every state that has one: see `classTyresStage.ts`.
  * - #54 (LMGT3) has a last lap the sim gave no time.
  * - The LMP2 cars run on fuel, not virtual energy.
  */
@@ -636,11 +639,21 @@ export interface TimingTowerStageOptions {
    * the first time, with no lap, no sector and no stop behind it.
    */
   beforeStart?: boolean;
+  /**
+   * The laps on a set of tyres as iRacing allows them: no tread to make a
+   * figure from, and a set that is either the one from the start or at
+   * least as old as the laps since the last stop.
+   */
+  iracingTyres?: boolean;
 }
+
+/** The tread the sim reads on our own car, percent. */
+const OWN_TREAD_PCT = 86.4;
 
 /** The staged race, as the channels and the session would hold it. */
 export const timingTowerStage = ({
   beforeStart = false,
+  iracingTyres = false,
 }: TimingTowerStageOptions = {}): TimingTowerStage => {
   const racing = !beforeStart;
   const cars: readonly TowerStoryCar[] = racing
@@ -705,6 +718,15 @@ export const timingTowerStage = ({
       'race-history.summary': buildSummary(cars, racing),
       'car-sectors.snapshot': buildSectors(cars, session, racing),
       'car-pit.snapshot': buildCarPit(cars, racing),
+      'class-tyres.snapshot': classTyresStorySnapshot(
+        cars.map((car) => ({ number: car.number, sinceStop: car.stintLaps })),
+        {
+          own: TOWER_STORY_PLAYER,
+          ownTreadPct: OWN_TREAD_PCT,
+          beforeStart,
+          iracing: iracingTyres,
+        }
+      ),
       'track-state.snapshot': {
         ...trackStateStorySnapshot,
         focusCarIdx: grid.slotOf(TOWER_STORY_PLAYER),
@@ -717,3 +739,7 @@ export const timingTowerStage = ({
 export const timingTowerRace = timingTowerStage();
 /** The same field on its way to the start. */
 export const timingTowerGrid = timingTowerStage({ beforeStart: true });
+/** The race with the tyres as iRacing would let them be told. */
+export const timingTowerRaceIRacingTyres = timingTowerStage({
+  iracingTyres: true,
+});

@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { LapLibraryLap, LedgerLap } from '@irdashies/types';
 import { LEDGER_LAP_IN_LAP, LEDGER_LAP_YELLOW } from '@irdashies/types';
-import { baselineFrom, LedgerRateBook, medianOf } from './ledgerRates';
+import {
+  baselineFrom,
+  LedgerRateBook,
+  medianOf,
+  treadCostsOf,
+} from './ledgerRates';
 
 const MEDIUMS = ['Medium', 'Medium', 'Medium', 'Medium'];
 
@@ -204,6 +209,9 @@ describe('ledger rates', () => {
       0.006, 0.006, 0.004, 0.004,
     ]);
     expect(baseline?.treadByCompound.Hard).toEqual([0.003, 0.003, null, null]);
+    // How many laps stand behind each of those.
+    expect(baseline?.treadLapsByCompound.Medium).toEqual([2, 2, 3, 2]);
+    expect(baseline?.treadLapsByCompound.Hard).toEqual([1, 1, 0, 0]);
     expect(baselineFrom([])).toBeNull();
 
     const book = new LedgerRateBook();
@@ -211,5 +219,101 @@ describe('ledger rates', () => {
     expect(book.rates([], '', 1, hards).tread).toEqual([
       0.003, 0.003, 0.004, 0.004,
     ]);
+  });
+
+  describe('what a lap costs the tread on each compound', () => {
+    const HARDS = ['Hard', 'Hard', 'Hard', 'Hard'];
+
+    it('is the mean of the clean laps on it, wheel by wheel', () => {
+      const costs = treadCostsOf(
+        [
+          lap({ compounds: MEDIUMS, treadUsed: [0.004, 0.004, 0.002, 0.002] }),
+          lap({ compounds: MEDIUMS, treadUsed: [0.006, 0.006, 0.004, 0.004] }),
+          lap({ compounds: MEDIUMS, treadUsed: [0.008, 0.008, 0.006, 0.006] }),
+          lap({ compounds: HARDS, treadUsed: [0.003, 0.003, 0.002, 0.002] }),
+          // An in-lap is no measure of what a lap costs.
+          lap({
+            compounds: MEDIUMS,
+            treadUsed: [0.05, 0.05, 0.05, 0.05],
+            flags: LEDGER_LAP_IN_LAP,
+          }),
+        ],
+        null,
+        3
+      );
+
+      const mediums = costs.get('Medium');
+      expect(mediums?.laps).toEqual([3, 3, 3, 3]);
+      mediums?.perLap.forEach((cost, wheel) =>
+        expect(cost).toBeCloseTo(wheel < 2 ? 0.006 : 0.004, 9)
+      );
+      expect(costs.get('Hard')).toEqual({
+        perLap: [0.003, 0.003, 0.002, 0.002],
+        laps: [1, 1, 1, 1],
+      });
+      expect(costs.has('Soft')).toBe(false);
+    });
+
+    it('takes each wheel from the laps it ran the compound on', () => {
+      const costs = treadCostsOf(
+        [
+          lap({
+            compounds: ['Hard', 'Hard', 'Medium', 'Medium'],
+            treadUsed: [0.003, 0.003, 0.004, null],
+          }),
+          // A lap that names no compound says nothing of any.
+          lap({ compounds: [null, null, null, null] }),
+        ],
+        null,
+        3
+      );
+
+      expect(costs.get('Hard')).toEqual({
+        perLap: [0.003, 0.003, null, null],
+        laps: [1, 1, 0, 0],
+      });
+      expect(costs.get('Medium')).toEqual({
+        perLap: [null, null, 0.004, null],
+        laps: [0, 0, 1, 0],
+      });
+    });
+
+    it('lets earlier sessions stand in until there are laps enough', () => {
+      const baseline = baselineFrom([
+        stored(2.5, 90, HARDS, [0.003, 0.003, 0.002, 0.002]),
+        stored(2.5, 90, HARDS, [0.003, 0.003, 0.002, 0.002]),
+        stored(2.5, 90, HARDS, [0.005, 0.005, 0.004, 0.004]),
+        stored(2.5, 90, MEDIUMS, [0.006, 0.006, 0.005, 0.005]),
+      ]);
+      const mediumLap = () =>
+        lap({ compounds: MEDIUMS, treadUsed: [0.01, 0.01, 0.01, 0.01] });
+
+      // Never run on hards here: three stored laps of them are enough.
+      const fresh = treadCostsOf([mediumLap()], baseline, 3);
+      expect(fresh.get('Hard')).toEqual({
+        perLap: [0.003, 0.003, 0.002, 0.002],
+        laps: [3, 3, 3, 3],
+      });
+      // One lap on mediums here and one stored: this session's is kept.
+      expect(fresh.get('Medium')).toEqual({
+        perLap: [0.01, 0.01, 0.01, 0.01],
+        laps: [1, 1, 1, 1],
+      });
+
+      // Laps enough here: what was stored no longer counts.
+      const run = treadCostsOf(
+        [
+          lap({ compounds: HARDS, treadUsed: [0.004, 0.004, 0.004, 0.004] }),
+          lap({ compounds: HARDS, treadUsed: [0.004, 0.004, 0.004, 0.004] }),
+          lap({ compounds: HARDS, treadUsed: [0.004, 0.004, 0.004, 0.004] }),
+        ],
+        baseline,
+        3
+      );
+      expect(run.get('Hard')).toEqual({
+        perLap: [0.004, 0.004, 0.004, 0.004],
+        laps: [3, 3, 3, 3],
+      });
+    });
   });
 });

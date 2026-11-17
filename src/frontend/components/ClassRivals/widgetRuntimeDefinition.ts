@@ -6,8 +6,12 @@ export default {
   // the cars are named and coloured from the session's grid.
   sessionData: true,
   channels: [
-    // Every row is made of this one channel.
+    // Every row is made of this channel, but for its tyres.
     'race-forecast.snapshot',
+    // The compound each car is on, the laps on the set and the tread left.
+    // Read only while the Tyres column is on: reading it has the race
+    // recorded.
+    'class-tyres.snapshot',
     // The driving state the widget hides by.
     'track-state.snapshot',
   ],

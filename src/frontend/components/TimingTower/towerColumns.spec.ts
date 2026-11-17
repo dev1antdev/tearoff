@@ -4,9 +4,12 @@ import {
   DRIVER_MIN_WIDTH,
   enabledTowerColumns,
   fitTowerColumns,
+  fitTowerLayout,
   TOWER_COLUMNS,
   TOWER_DROP_ORDER,
   towerColumnsWidth,
+  towerColumnWidth,
+  TYRES_COLUMN_WIDTH,
   type TowerColumnId,
 } from './towerColumns';
 
@@ -91,6 +94,91 @@ describe('fitting the columns to a panel', () => {
     // come off it.
     expect(needed).toBeLessThanOrEqual(864);
     expect(needed).toBeGreaterThan(DRIVER_MIN_WIDTH);
+  });
+
+  it('makes the Tyres column as wide as what it carries', () => {
+    expect(towerColumnWidth('tyres')).toBe(TYRES_COLUMN_WIDTH.compound);
+    expect(towerColumnWidth('tyres', 'laps')).toBe(TYRES_COLUMN_WIDTH.laps);
+    expect(towerColumnWidth('tyres', 'tread')).toBe(TYRES_COLUMN_WIDTH.tread);
+    expect(TYRES_COLUMN_WIDTH.compound).toBeLessThan(TYRES_COLUMN_WIDTH.laps);
+    expect(TYRES_COLUMN_WIDTH.laps).toBeLessThan(TYRES_COLUMN_WIDTH.tread);
+    // No other column's width depends on it, and the driver's has none.
+    expect(towerColumnWidth('energy', 'tread')).toBe(
+      towerColumnWidth('energy')
+    );
+    expect(towerColumnWidth('driver', 'tread')).toBeNull();
+    expect(towerColumnsWidth(ALL, 'tread') - needed).toBe(
+      TYRES_COLUMN_WIDTH.tread - TYRES_COLUMN_WIDTH.compound
+    );
+  });
+
+  it('fits every column with the laps and the tread in the default window', () => {
+    // 960 wide, less the place of the scrollbar.
+    expect(towerColumnsWidth(ALL, 'tread')).toBeLessThanOrEqual(940);
+    expect(fitTowerColumns(ALL, 940, 'tread')).toEqual(ALL);
+  });
+
+  it('has the Tyres column give up its tread, then its laps, before any column goes', () => {
+    const fits = (detail: 'tread' | 'laps' | 'compound') =>
+      towerColumnsWidth(ALL, detail);
+
+    expect(fitTowerLayout(ALL, fits('tread'), 'tread')).toEqual({
+      columns: ALL,
+      tyres: 'tread',
+    });
+    // A pixel less: the tread goes, the laps stay, and so does every column.
+    expect(fitTowerLayout(ALL, fits('tread') - 1, 'tread')).toEqual({
+      columns: ALL,
+      tyres: 'laps',
+    });
+    // Less again: the compound alone, which is the column as it was.
+    expect(fitTowerLayout(ALL, fits('laps') - 1, 'tread')).toEqual({
+      columns: ALL,
+      tyres: 'compound',
+    });
+    // And only then a column: the first of the order.
+    expect(fitTowerLayout(ALL, fits('compound') - 1, 'tread')).toEqual({
+      columns: ALL.filter((id) => id !== 'pitStops'),
+      tyres: 'compound',
+    });
+    // With only the laps to show there is no tread to give up.
+    expect(fitTowerLayout(ALL, fits('laps'), 'laps').tyres).toBe('laps');
+    expect(fitTowerLayout(ALL, fits('laps') - 1, 'laps').tyres).toBe(
+      'compound'
+    );
+  });
+
+  it('never leaves a column out for the figures in the Tyres column', () => {
+    // At every width the columns kept are the ones kept with the compound
+    // alone, and what is drawn fits.
+    const least = towerColumnsWidth(['position', 'carNumber', 'driver']);
+    for (let width = 300; width <= 1000; width += 7) {
+      const before = fitTowerColumns(ALL, width);
+      for (const detail of ['laps', 'tread'] as const) {
+        const { columns, tyres } = fitTowerLayout(ALL, width, detail);
+        expect(columns, `${detail} at ${width}`).toEqual(before);
+        expect(towerColumnsWidth(columns, tyres)).toBeLessThanOrEqual(
+          Math.max(width, least)
+        );
+      }
+    }
+  });
+
+  it('has nothing to narrow where the Tyres column is switched off', () => {
+    const without = ALL.filter((id) => id !== 'tyres');
+    const needed = towerColumnsWidth(without);
+    // Nothing of the column is drawn, so what it would have carried is
+    // not taken off the width either.
+    expect(fitTowerLayout(without, needed - 1, 'tread').columns).toEqual(
+      without.filter((id) => id !== 'pitStops')
+    );
+  });
+
+  it('leaves the Tyres column as asked on a panel not measured yet', () => {
+    expect(fitTowerLayout(ALL, 0, 'tread')).toEqual({
+      columns: ALL,
+      tyres: 'tread',
+    });
   });
 
   it('leaves nothing out of a panel that has not been measured', () => {

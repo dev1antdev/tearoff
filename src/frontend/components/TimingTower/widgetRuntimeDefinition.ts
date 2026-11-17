@@ -20,6 +20,10 @@ export default {
     // The pace of each car's stint. Reading it is what has the race
     // recorded, so it is read only while the "vs stint" column is on.
     'race-history.summary',
+    // How long each car of our class has run on its tyres, and the tread
+    // left. Reading it has the race recorded as well, so it is read only
+    // while the Tyres column shows it.
+    'class-tyres.snapshot',
     // The driving state the widget hides on.
     'track-state.snapshot',
     // Subscribed transitively by useDriverStandings; the tower never shows
@@ -35,6 +39,7 @@ export default {
     'car-pit.snapshot': 1,
     'car-sectors.snapshot': 2,
     'race-history.summary': 1,
+    'class-tyres.snapshot': 1,
     'track-state.snapshot': 1,
     'radio.snapshot': 1,
   },

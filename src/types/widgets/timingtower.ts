@@ -2,6 +2,7 @@ import {
   lapAveragesOverProperty,
   stintPaceAgainstProperty,
 } from './properties';
+import { TYRE_CHANGE_SECONDS_MAX } from '../channels/classTyres';
 import { defineWidgetManifest } from './types';
 
 /** What both switches of the tower's header say of the setting they start from. */
@@ -45,7 +46,8 @@ export default defineWidgetManifest({
     pitStops: { enabled: true },
     stintLaps: { enabled: true },
     energy: { enabled: true },
-    tyres: { enabled: true },
+    // What four tyres take is left to the sim.
+    tyres: { enabled: true, set: true, changeSeconds: 0 },
     showOnlyWhenOnTrack: false,
     sessionVisibility: {
       race: true,
@@ -181,6 +183,23 @@ export default defineWidgetManifest({
       type: 'boolean',
       label: 'Tyres',
       description: 'The compound on the car; four marks where they differ.',
+    },
+    'tyres.set': {
+      type: 'boolean',
+      label: 'Laps On The Set And Tread',
+      description:
+        'For the cars of your own class, beside the compound: the laps the car has run on its tyres, and the tread left. No sim says that a rival changed tyres, so the laps come with how sure they are. Bare: another compound was seen on the car after a stop, or it has not stopped. With ?: told from how long it stood at a stop, against what its refill and driver change explain. With +: at least that many, counted from a stop, a spell in the garage or laps Tearoff did not see, at which any set may have gone on. The tread is an estimate marked ~: what a lap costs your own car on that compound, times those laps. It is your wear applied to their laps, and another car wears its tyres differently. It reads -- until your own car has three clean laps on the compound, in this session or earlier ones on this track, and < in place of ~ where the laps are only a floor. Your own car shows its real tread, as does every car where the sim publishes it (Le Mans Ultimate offline). Under iRacing only the laps are shown. While it is shown, Tearoff records the race.',
+    },
+    'tyres.changeSeconds': {
+      type: 'number',
+      control: 'input',
+      label: 'Tyre Change Takes',
+      description:
+        'How long a change of four tyres keeps a car standing, for telling one from the length of a stop. At 0 Tearoff takes what Le Mans Ultimate states for your own car, which is a guess for the rest of the class; iRacing states none, and a stop is then not judged by its length at all. A stop that long beyond its refill counts as a likely change, one shorter than this as none. Class Rivals reads the same figure.',
+      min: 0,
+      max: TYRE_CHANGE_SECONDS_MAX,
+      step: 1,
+      units: 's',
     },
     showOnlyWhenOnTrack: {
       type: 'boolean',

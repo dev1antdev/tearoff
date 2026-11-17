@@ -1,11 +1,19 @@
 import { useEffect, useMemo, useRef } from 'react';
 import {
+  useClassTyresSnapshot,
   useDrivingState,
   useRaceForecastSnapshot,
   useSessionDrivers,
   useSessionVisibility,
   useWeekendInfoNumCarClasses,
 } from '@irdashies/context';
+import {
+  TYRE_SET_AT_LEAST_MARK,
+  TYRE_SET_LIKELY_MARK,
+  hasTreadFigures,
+  tyreSetDisplay,
+  wheelCompoundsByCar,
+} from '@irdashies/domain/classTyres';
 import {
   ESTIMATE,
   NO_FIGURE,
@@ -25,16 +33,19 @@ import { useClassRivalsSettings } from './hooks/useClassRivalsSettings';
 /**
  * Class Rivals: the running cars of the own entry's class in the order of
  * their places, the own car among them in amber, with the stops each has
- * made, when its last was and its next is due, the gap once both cars have
- * made the stops they owe, and its mean of five clean laps against ours.
+ * made, when its last was and its next is due, the tyres it is on and how
+ * long it has run on them, the gap once both cars have made the stops they
+ * owe, and its mean of five clean laps against ours.
  *
- * Every figure is `race-forecast.snapshot`'s. The captions stay put and the
- * cars scroll under them, with the own car brought into view when the list
- * first fills.
+ * Every figure is `race-forecast.snapshot`'s but the tyres, which are
+ * `class-tyres.snapshot`'s. The captions stay put and the cars scroll under
+ * them, with the own car brought into view when the list first fills.
  */
 export const ClassRivals = () => {
   const settings = useClassRivalsSettings();
   const forecast = useRaceForecastSnapshot();
+  // Reading it has the race recorded, so it is read only while it shows.
+  const classTyres = useClassTyresSnapshot(settings.showTyres);
   const { isDriving, isWatchingOwnCar } = useDrivingState();
   const isSessionVisible = useSessionVisibility(settings.sessionVisibility);
   const drivers = useSessionDrivers();
@@ -53,15 +64,26 @@ export const ClassRivals = () => {
         : [],
     [forecast, settings.carsAhead, settings.carsBehind]
   );
+  // The tread is left out where no car has one, which is where the sim
+  // reads no tread to work one out from: under iRacing, always.
+  const showTread = hasTreadFigures(classTyres);
+  const compounds = useMemo(
+    () => wheelCompoundsByCar(classTyres),
+    [classTyres]
+  );
   const columns = useMemo<ClassRivalColumns>(
     () => ({
       stops: settings.showStops,
+      tyres: settings.showTyres,
+      tread: showTread,
       nextStop: settings.showNextStop,
       netGap: settings.showNetGap,
       pace: settings.showPace,
     }),
     [
       settings.showStops,
+      settings.showTyres,
+      showTread,
       settings.showNextStop,
       settings.showNetGap,
       settings.showPace,
@@ -110,6 +132,8 @@ export const ClassRivals = () => {
                 const driver = drivers?.find(
                   (entry) => entry.CarIdx === car.carIdx
                 );
+                const tyres = tyreSetDisplay(classTyres, car.carIdx);
+                const wheels = compounds[car.carIdx];
                 return (
                   <ClassRivalRow
                     key={car.carIdx}
@@ -144,7 +168,17 @@ export const ClassRivals = () => {
                     netGapTone={row.netGap.tone}
                     pace={row.pace.text}
                     paceTone={row.pace.tone}
+                    tyreCompounds={
+                      wheels?.some((wheel) => wheel >= 0)
+                        ? wheels.join(',')
+                        : ''
+                    }
+                    tyreLaps={tyres.laps}
+                    tyreTread={tyres.tread}
+                    tyreTitle={tyres.title}
                     showStops={settings.showStops}
+                    showTyres={settings.showTyres}
+                    showTread={showTread}
                     showNextStop={settings.showNextStop}
                     showNetGap={settings.showNetGap}
                     showPace={settings.showPace}
@@ -163,6 +197,10 @@ export const ClassRivals = () => {
                   'Net gap: the gap once both cars have made the stops they still owe.',
                 settings.showPace &&
                   'Pace 5: their mean of five clean laps against ours; green means we are faster.',
+                settings.showTyres &&
+                  `Tyres: laps on the set (${TYRE_SET_LIKELY_MARK} told from the length of a stop, ${TYRE_SET_AT_LEAST_MARK} at least that many)${
+                    showTread ? ' and the tread left, from our own wear.' : '.'
+                  }`,
                 `${ESTIMATE} marks an estimate.`,
               ]
                 .filter(Boolean)

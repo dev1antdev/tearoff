@@ -137,6 +137,38 @@ afterEach(() => {
 });
 
 describe('a race being driven', () => {
+  it('lets a reader in this process work from its records as they grow', () => {
+    // What counts the laps on a set of tyres reads these, once a second.
+    const running = start(openStore());
+    const field = new Field();
+    const { records } = running.runtime;
+    running.runtime.onSession(field.session());
+    expect(records.raceToken()).toBe('');
+    expect(records.laps(0)).toEqual([]);
+
+    runLaps(field, running, 2, 2);
+    expect(records.recording()).toBe(true);
+    expect(records.raceToken()).toBe('run-a:1');
+    expect(records.laps(0).map((lap) => lap.lap)).toEqual([1, 2]);
+    expect(records.stints(0)).toMatchObject([
+      { openedBy: 'start', closedBy: null, laps: 2 },
+    ]);
+
+    // The car's counter moves with what is kept of it.
+    const revision = records.revision(0);
+    runLaps(field, running, 2, 1);
+    expect(records.revision(0)).toBeGreaterThan(revision);
+    expect(records.laps(0)).toHaveLength(3);
+
+    // Not recording while nothing wants the record, or a replay is loaded.
+    running.runtime.updateEnabled(false);
+    expect(records.recording()).toBe(false);
+    running.runtime.updateEnabled(true);
+    expect(records.recording()).toBe(true);
+    running.runtime.setPaused(true);
+    expect(records.recording()).toBe(false);
+  });
+
   it('is stored as it is made: every lap, every stint, every driver change', async () => {
     const store = openStore();
     const field = new Field({ timeLag: 2.5 });

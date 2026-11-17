@@ -24,6 +24,7 @@ import {
 } from '../src/types';
 import { carFinish, flagTime } from '../src/shared';
 import { RaceForecastProcessor } from '../src/app/processors/RaceForecastProcessor';
+import { classTyresStorySnapshot } from './classTyresStage';
 import {
   buildStoryGrid,
   LMU_STORY_CLASSES,
@@ -673,9 +674,23 @@ const build = (stage: StrategyStage) => {
     version: 1,
   };
 
+  // The mean of the four wheels, where the sim reads our car's tread.
+  const ownTread = wear.available
+    ? wear.wheels.reduce((sum, wheel) => sum + (wheel.treadPct ?? 0), 0) /
+      wear.wheels.length
+    : undefined;
   const snapshots: Partial<ChannelPayloads> = {
     'race-forecast.snapshot': forecast,
     'race-history.summary': summary,
+    'class-tyres.snapshot': classTyresStorySnapshot(
+      CARS.map((car) => ({ number: car.number, sinceStop: car.since })),
+      {
+        own: STRATEGY_OWN_CAR,
+        ownTreadPct: ownTread,
+        iracing: stage.iracing,
+        beforeStart: stage.session === 'grid',
+      }
+    ),
     'wear.snapshot': wear,
     'damage.snapshot': damage,
     'track-state.snapshot': {

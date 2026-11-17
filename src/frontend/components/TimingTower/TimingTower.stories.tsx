@@ -9,6 +9,7 @@ import {
   TelemetryDecorator,
   timingTowerGrid,
   timingTowerRace,
+  timingTowerRaceIRacingTyres,
   trackStateStorySnapshot,
   type TimingTowerStage,
 } from '@irdashies/storybook';
@@ -31,6 +32,15 @@ import { TimingTower } from './TimingTower';
  * #94 on its out-lap and #88 in its garage; #50 and #28, a few laps after a
  * stop, with no pace against the stint before yet; #10, nearly out of
  * energy on a mixed set of tyres; #54, whose last lap did not count.
+ *
+ * And in the Tyres column of our own class, LMGT3, every state the laps on
+ * a set and the tread have (written out in `.storybook/classTyresStage.ts`):
+ * #33, seen to go on, with its estimate; #46, told from the length of a
+ * stop, with a ?; #54 and #27, through a stop on the same set; #85, at
+ * least so many, with a + and a <; #23 in its box and #88 in its garage,
+ * at least none; #91 and #31 on hards and #10 with softs at the rear, which
+ * our own car has not run, with no estimate; #77, ours, with the tread the
+ * sim reads.
  */
 
 interface StoryOptions {
@@ -89,8 +99,49 @@ type Story = StoryObj<typeof TimingTower>;
 /**
  * As it opens: on the class of our own car, LMGT3, in class order, with
  * every column. Gaps are to the class leader and positions are in class.
+ * The Tyres column carries the laps on each set and the tread left.
  */
 export const OwnClass: Story = { ...story() };
+
+/**
+ * The Tyres column with little else beside it, so that its states can be
+ * read: bare laps for a set seen to go on, ? for one told from the length
+ * of a stop, + for at least so many; ~ before an estimate of the tread, <
+ * where the laps are only a floor, -- for a compound our own car has not
+ * run, and no mark on our own car's real figure.
+ */
+export const TyresOfOurClass: Story = {
+  ...story(
+    {
+      gap: { enabled: false },
+      interval: { enabled: false },
+      lastTime: { enabled: false },
+      bestTime: { enabled: false },
+      avgLast5: { enabled: false },
+      avgLast10: { enabled: false },
+      stintPace: { enabled: false },
+      sectors: { enabled: false },
+    },
+    { width: 560, height: 560 }
+  ),
+};
+
+/**
+ * The laps and the tread switched off: the compound alone, as the column
+ * was before it carried them. No race is recorded for it then.
+ */
+export const TyresCompoundOnly: Story = {
+  ...story({ tyres: { enabled: true, set: false, changeSeconds: 0 } }),
+};
+
+/**
+ * The laps on a set where the sim reads no tread to make a figure from, as
+ * under iRacing: the column is narrower, and a set is either the one from
+ * the start or at least as old as the laps since the last stop.
+ */
+export const TyresWithoutTread: Story = {
+  ...story({}, { stage: timingTowerRaceIRacingTyres }),
+};
 
 /** The Hypercar tab. #94 is on its out-lap, one lap after its stop. */
 export const Hypercar: Story = { ...story({}, { press: ['Hypercar'] }) };
@@ -104,7 +155,8 @@ export const Lmp2: Story = { ...story({}, { press: ['LMP2'] }) };
 /**
  * The whole field in overall order, each number on its class colour.
  * Positions are overall, gaps are to the leader of the race and intervals
- * to the car one place ahead, whatever its class.
+ * to the car one place ahead, whatever its class. Only the cars of our own
+ * class carry the laps on their tyres; the others show their compound.
  */
 export const AllClasses: Story = { ...story({}, { press: ['All'] }) };
 
@@ -206,8 +258,17 @@ export const WithoutTeams: Story = {
 };
 
 /**
- * A panel 700 wide: Stops, Int and Best are left out so that the rest fit
- * without scrolling sideways.
+ * A panel 900 wide: every column still fits, and the Tyres column has room
+ * for the laps on each set but not for the tread, which goes first.
+ */
+export const TyresWithoutRoomForTheTread: Story = {
+  ...story({}, { width: 900 }),
+};
+
+/**
+ * A panel 700 wide: Stops, Int, Best and Sect are left out so that the
+ * rest fit without scrolling sideways. The Tyres column gave up its laps
+ * and tread before any of them went, and shows the compound alone.
  */
 export const Narrow: Story = { ...story({}, { width: 700 }) };
 
@@ -235,7 +296,7 @@ export const PaceColumnsOnly: Story = {
       pitStops: { enabled: false },
       stintLaps: { enabled: false },
       energy: { enabled: false },
-      tyres: { enabled: false },
+      tyres: { enabled: false, set: true, changeSeconds: 0 },
     },
     { width: 620 }
   ),

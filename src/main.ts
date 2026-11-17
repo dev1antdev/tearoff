@@ -75,6 +75,9 @@ import { setLivePlayerStintSource } from './app/processors/livePlayerStint';
 import { wirePlayerLapRecording } from './app/playerLapRecording';
 import { setupLapLibraryBridge } from './app/bridge/lapLibraryBridge';
 import { RaceHistoryRuntime } from './app/processors/raceHistoryRuntime';
+import { ClassTyresRuntime } from './app/processors/classTyresRuntime';
+import { liveOwnTyres, setLiveOwnTyresSource } from './app/processors/ownTyres';
+import { getClassTyresTuning } from './app/storage/classTyresTuning';
 import { watchRaceHistoryDemand } from './app/raceHistoryDemand';
 import { setupRaceHistoryBridge } from './app/bridge/raceHistoryBridge';
 import { isRecordedSource } from './app/tapeReplaySource';
@@ -246,6 +249,7 @@ let disposeLapLibraryRecording: (() => void) | undefined;
 let disposeTrackProfileRecording: (() => void) | undefined;
 let disposePitStopRuntime: (() => void) | undefined;
 let disposeRaceHistory: (() => void) | undefined;
+let disposeClassTyres: (() => void) | undefined;
 let disposeStreamChat: (() => void) | undefined;
 let disposeReplayContextRuntime: (() => void) | undefined;
 const knownLocalUserIds = createKnownLocalUserIdStore();
@@ -357,6 +361,8 @@ function setupLapLibraryRecording(replayContext: ReplayContextRuntime): void {
       ledger = next;
       // Its stints are where the best lap of a stint ends.
       setLivePlayerStintSource(next);
+      // And it is what watches the tyres on our own car.
+      setLiveOwnTyresSource(next);
       applyEnabled();
     },
   });
@@ -372,6 +378,7 @@ function setupLapLibraryRecording(replayContext: ReplayContextRuntime): void {
     ledger?.dispose();
     ledger = undefined;
     setLivePlayerStintSource(undefined);
+    setLiveOwnTyresSource(undefined);
   };
 }
 
@@ -579,7 +586,7 @@ function setupPitStopRuntime(
 function setupRaceHistory(
   initialDashboard: DashboardLayout,
   replayContext: ReplayContextRuntime
-): void {
+): RaceHistoryRuntime {
   const lifecycle = getSessionLifecycle();
   const runtime = new RaceHistoryRuntime(
     channelBus,
@@ -655,6 +662,60 @@ function setupRaceHistory(
     unsubscribeEnter();
     unsubscribeReplayContext();
     disposeBridge();
+    runtime.dispose();
+  };
+  return runtime;
+}
+
+/**
+ * Says how long each car of our class has run on its tyres, and what is
+ * left of them.
+ *
+ * It keeps no record of its own: the laps on a set are worked out from the
+ * race history's stints and stops, and are the same after a restart as
+ * before it. It is hosted beside the race history and follows it, so that
+ * a set of tyres seen to go on while no window was looking is not missed;
+ * whatever reads its channel has the race recorded.
+ */
+function setupClassTyres(raceHistory: RaceHistoryRuntime): void {
+  const runtime = new ClassTyresRuntime(
+    channelBus,
+    getSessionLifecycle(),
+    runtimePerfMetrics,
+    {
+      recording: raceHistory.records.recording,
+      history: raceHistory.records,
+      // The ledger running now, which is made once a simulator is known.
+      own: liveOwnTyres,
+      // What four tyres take is the Timing Tower's to say.
+      tuning: getClassTyresTuning,
+    },
+    { now: () => Date.now() }
+  );
+
+  let unsubscribeSession: (() => void) | undefined;
+  let unsubscribeTelemetry: (() => void) | undefined;
+  const wireToTelemetryBridge = () => {
+    unsubscribeSession?.();
+    unsubscribeTelemetry?.();
+    const bridge = getCurrentBridge();
+    if (!bridge) return;
+    unsubscribeSession =
+      bridge.onSessionData((session) => runtime.onSession(session)) ??
+      undefined;
+    unsubscribeTelemetry =
+      bridge.onTelemetry((telemetry) => runtime.onFrame(telemetry)) ??
+      undefined;
+  };
+  wireToTelemetryBridge();
+  const unsubscribeBridgeChanged = onBridgeChanged(wireToTelemetryBridge);
+
+  disposeClassTyres = () => {
+    unsubscribeSession?.();
+    unsubscribeTelemetry?.();
+    unsubscribeSession = undefined;
+    unsubscribeTelemetry = undefined;
+    unsubscribeBridgeChanged?.();
     runtime.dispose();
   };
 }
@@ -878,7 +939,8 @@ void app.whenReady().then(async () => {
   setupLapLibraryRecording(replayContextRuntime);
   setupTrackProfiles(replayContextRuntime);
   setupPitStopRuntime(dashboard, replayContextRuntime);
-  setupRaceHistory(dashboard, replayContextRuntime);
+  // After the race history, whose records it reads on the same frame.
+  setupClassTyres(setupRaceHistory(dashboard, replayContextRuntime));
   disposeStreamChat = setupStreamChat(channelBus, listDashboards);
   // Returns false when the Gantry widget is disabled, so Settings can explain
   // why the button did nothing instead of appearing to be broken.
@@ -1108,6 +1170,7 @@ const handleBeforeQuit = createBeforeQuitHandler({
     disposeLapLibraryRecording?.();
     disposeTrackProfileRecording?.();
     disposePitStopRuntime?.();
+    disposeClassTyres?.();
     disposeRaceHistory?.();
     disposeOverlayVisibility?.();
     disposeStreamChat?.();

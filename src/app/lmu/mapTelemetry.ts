@@ -706,6 +706,10 @@ export function mapLmuTelemetry(
   // goes out beside it as LmuCarIdxWheelCompounds.
   t.CarIdxTireCompound = numArr(lmuCompoundChannel(raw.vehWheelCompounds));
   t.LmuCarIdxWheelCompounds = numArr(raw.vehWheelCompounds);
+  // Every car's tread as the sim publishes it, laid out the same way. It is
+  // real offline; online a rival's is reported to read 1 all race, which
+  // whoever reads it has to tell apart.
+  t.LmuCarIdxWheelWear = numArr(raw.vehWheelWear);
   // Points, not the sim's steps: the step count is an encoding detail of this
   // sim, and the ceiling has to be comparable with the figure.
   t.LmuCarIdxTrackLimitsPoints = numArr(

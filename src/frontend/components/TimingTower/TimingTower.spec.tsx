@@ -18,6 +18,7 @@ import { singleClassGrid } from '../../../../.storybook/lmuEnduranceGrid';
 import {
   timingTowerGrid,
   timingTowerRace,
+  timingTowerRaceIRacingTyres,
 } from '../../../../.storybook/timingTowerStage';
 import { trackStateStorySnapshot } from '../../../../.storybook/trackStateSnapshot';
 
@@ -60,6 +61,7 @@ vi.mock('./towerScroll', () => ({
 }));
 
 import { TimingTower } from './TimingTower';
+import { TOWER_COLUMNS, towerColumnsWidth } from './towerColumns';
 
 const DEFAULTS = getWidgetDefaultConfig('timingtower');
 
@@ -92,6 +94,13 @@ const headers = (container: HTMLElement) =>
   );
 const tag = (row: HTMLElement) =>
   row.querySelector('[data-testid="tower-tag"]')?.textContent ?? null;
+/** What a row says of its tyres beside the compound; null for each left out. */
+const tyres = (row: HTMLElement) => ({
+  laps:
+    row.querySelector('[data-testid="tower-tyre-laps"]')?.textContent ?? null,
+  tread:
+    row.querySelector('[data-testid="tower-tyre-tread"]')?.textContent ?? null,
+});
 const marks = (row: HTMLElement) =>
   Array.from(row.querySelectorAll<HTMLElement>('[data-sector]')).map(
     (mark) => mark.dataset.tone
@@ -413,6 +422,78 @@ describe('what a row says of its car', () => {
     );
   });
 
+  it('gives the laps on its tyres and the tread left, for a car of our class', () => {
+    const { container } = render(<TimingTower />);
+
+    // Seen to go on twelve laps ago; the tread is our own wear on its laps.
+    expect(tyres(rowOf(container, '33'))).toEqual({
+      laps: '12',
+      tread: '~90%',
+    });
+    // Told from the length of a stop, and through one on the same set.
+    expect(tyres(rowOf(container, '46'))).toEqual({
+      laps: '13?',
+      tread: '~90%',
+    });
+    expect(tyres(rowOf(container, '54'))).toEqual({
+      laps: '47?',
+      tread: '~62%',
+    });
+    // At least so many, so no more than so much.
+    expect(tyres(rowOf(container, '85'))).toEqual({
+      laps: '15+',
+      tread: '<88%',
+    });
+    // Hards, which our own car has not run: no estimate.
+    expect(tyres(rowOf(container, '91'))).toEqual({ laps: '9', tread: '--' });
+    // Our own car: the tread the sim reads, without a mark.
+    expect(tyres(rowOf(container, '77'))).toEqual({ laps: '17', tread: '86%' });
+    expect(cell(rowOf(container, '85'), 'tyres')?.getAttribute('title')).toBe(
+      'At least 15 laps on this set: what it was given before that was not seen; no more than about 88% of the tread left, at what a lap costs our own car.'
+    );
+    // The compound is still drawn before them.
+    expect(
+      cell(rowOf(container, '33'), 'tyres')?.querySelector('svg')
+    ).not.toBeNull();
+  });
+
+  it('gives a car of another class its compound alone', () => {
+    const { container } = render(<TimingTower />);
+    press('Hypercar');
+
+    for (const row of rows(container)) {
+      expect(tyres(row)).toEqual({ laps: null, tread: null });
+      expect(cell(row, 'tyres')?.querySelector('svg')).not.toBeNull();
+    }
+    // On the tab of the whole field our class keeps its figures.
+    press('All');
+    expect(tyres(rowOf(container, '33')).laps).toBe('12');
+    expect(tyres(rowOf(container, '7')).laps).toBeNull();
+  });
+
+  it('gives the compound alone with the laps and tread switched off', () => {
+    configure({ tyres: { ...DEFAULTS.tyres, set: false } });
+
+    const { container } = render(<TimingTower />);
+
+    expect(tyres(rowOf(container, '33'))).toEqual({ laps: null, tread: null });
+    expect(
+      cell(rowOf(container, '33'), 'tyres')?.querySelector('svg')
+    ).not.toBeNull();
+  });
+
+  it('gives a profile saved before the laps existed the laps', () => {
+    // Saved with the Tyres column as it was: a switch and nothing else.
+    scene.config = { ...DEFAULTS, tyres: { enabled: true } };
+
+    const { container } = render(<TimingTower />);
+
+    expect(tyres(rowOf(container, '33'))).toEqual({
+      laps: '12',
+      tread: '~90%',
+    });
+  });
+
   it('draws three sector marks a car, by the bests of its class', () => {
     const { container } = render(<TimingTower />);
 
@@ -570,6 +651,23 @@ describe('before anybody has completed a lap', () => {
   });
 });
 
+describe('where the sim reads no tread', () => {
+  it('gives the laps on the set and leaves the tread out', () => {
+    // As under iRacing: no figure for any car, our own included.
+    stage(
+      timingTowerRaceIRacingTyres.session,
+      timingTowerRaceIRacingTyres.snapshots
+    );
+
+    const { container } = render(<TimingTower />);
+
+    expect(tyres(rowOf(container, '33'))).toEqual({ laps: '12', tread: null });
+    // No rates to hold a stop against: at least the laps since it.
+    expect(tyres(rowOf(container, '46'))).toEqual({ laps: '13+', tread: null });
+    expect(tyres(rowOf(container, '77'))).toEqual({ laps: '17', tread: null });
+  });
+});
+
 describe('where the sim has less to give', () => {
   it('leaves the sector marks and the energy out under iRacing', () => {
     const standings = timingTowerRace.snapshots[
@@ -648,7 +746,7 @@ describe('the columns that are switched off', () => {
     configure({
       interval: { enabled: false },
       bestTime: { enabled: false },
-      tyres: { enabled: false },
+      tyres: { ...DEFAULTS.tyres, enabled: false },
     });
 
     const { container } = render(<TimingTower />);
@@ -813,6 +911,39 @@ describe('on a panel too narrow for every column', () => {
 
     expect(headers(container)).toHaveLength(15);
   });
+
+  it('shows the laps and the tread only where every column still fits beside them', () => {
+    const all = TOWER_COLUMNS.map((column) => column.id);
+    // What every column needs with the driver's at its narrowest: for the
+    // compound alone, with the laps beside it, and with the tread as well.
+    const withLaps = towerColumnsWidth(all, 'laps');
+    const withTread = towerColumnsWidth(all, 'tread');
+
+    // Room for all of it.
+    scene.width = withTread;
+    const { container, rerender } = render(<TimingTower />);
+    expect(headers(container)).toHaveLength(15);
+    expect(tyres(rowOf(container, '33'))).toEqual({
+      laps: '12',
+      tread: '~90%',
+    });
+
+    // A pixel short: the tread goes, and no column does.
+    scene.width = withTread - 1;
+    rerender(<TimingTower />);
+    expect(headers(container)).toHaveLength(15);
+    expect(tyres(rowOf(container, '33'))).toEqual({ laps: '12', tread: null });
+
+    // Short of the laps too: the compound alone, as the column was, with
+    // every column a panel 900 wide had before.
+    scene.width = withLaps - 1;
+    rerender(<TimingTower />);
+    expect(headers(container)).toHaveLength(15);
+    expect(tyres(rowOf(container, '33'))).toEqual({ laps: null, tread: null });
+    expect(
+      cell(rowOf(container, '33'), 'tyres')?.querySelector('svg')
+    ).not.toBeNull();
+  });
 });
 
 describe('what it reads', () => {
@@ -826,10 +957,24 @@ describe('what it reads', () => {
         'car-pit.snapshot',
         'car-sectors.snapshot',
         'race-history.summary',
+        'class-tyres.snapshot',
         'track-state.snapshot',
         'radio.snapshot',
       ])
     );
+  });
+
+  it('is not the laps on a set with them or the Tyres column off, so that no race is recorded for them', () => {
+    configure({ tyres: { ...DEFAULTS.tyres, set: false } });
+    render(<TimingTower />);
+    expect(scene.subscribed).not.toContain('class-tyres.snapshot');
+    cleanup();
+
+    scene.subscribed = [];
+    configure({ tyres: { ...DEFAULTS.tyres, enabled: false } });
+    render(<TimingTower />);
+    expect(scene.subscribed).not.toContain('class-tyres.snapshot');
+    expect(scene.subscribed).toContain('standings.snapshot');
   });
 
   it('is not the race history with the pace column off, so that no race is recorded for it', () => {

@@ -285,6 +285,26 @@ describe('mapLmuTelemetry', () => {
     ]);
   });
 
+  it("maps every car's tread per wheel, as the sim publishes it", () => {
+    const t = mapLmuTelemetry(fixture());
+    // Flat, four per car, a fraction left; -1 for a car that reported none.
+    expect(t.LmuCarIdxWheelWear?.value).toEqual([
+      0.97, 0.96, 0.98, 0.97, 0.9, 0.8, 0.7, 0.6, -1, -1, -1, -1,
+    ]);
+    // The player's slot holds what the player's own channels do.
+    expect(t.LmuCarIdxWheelWear?.value.slice(4, 8)).toEqual([
+      t.LFwearM.value[0],
+      t.RFwearM.value[0],
+      t.LRwearM.value[0],
+      t.RRwearM.value[0],
+    ]);
+  });
+
+  it('publishes no tread for the field from an addon built before it was exported', () => {
+    const older = { ...fixture(), vehWheelWear: undefined };
+    expect(mapLmuTelemetry(older).LmuCarIdxWheelWear?.value).toEqual([]);
+  });
+
   it('reports the player’s own compound', () => {
     const base = fixture();
     // The fixture's player is car 1, on a wet front.

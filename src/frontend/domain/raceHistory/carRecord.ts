@@ -1,3 +1,4 @@
+import { tyresChangedAcross } from '@irdashies/shared';
 import type { RaceLap, RaceStint } from '@irdashies/types';
 
 /**
@@ -110,14 +111,6 @@ export interface StopSeen {
   driver: boolean;
 }
 
-const tyresChanged = (before: RaceLap, after: RaceLap): boolean =>
-  before.compounds.some((compound, wheel) => {
-    const next = after.compounds[wheel];
-    return (
-      compound >= 0 && next !== undefined && next >= 0 && next !== compound
-    );
-  });
-
 const refilledAcross = (
   before: RaceLap,
   after: RaceLap
@@ -166,7 +159,11 @@ export const stopSeen = (
       next.closedBy === null &&
       next.laps <= 1,
     refilled: either ? refilledAcross(lastLap, nextLap) : null,
-    tyres: either ? tyresChanged(lastLap, nextLap) : false,
+    // The rule the laps on a set of tyres are counted by, so that this
+    // and the Tyres cells never disagree about one stop.
+    tyres: either
+      ? tyresChangedAcross(lastLap.compounds, nextLap.compounds)
+      : false,
     driver:
       stop.driverChanged ||
       (next !== undefined &&

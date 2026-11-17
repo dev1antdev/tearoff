@@ -7,6 +7,7 @@ export * from './racePlanProgress';
 export * from './pitStops';
 export * from './playerLedger';
 export * from './wear';
+export * from './classTyres';
 export * from './carPit';
 export * from './carSectors';
 export * from './pitStop';

@@ -42,6 +42,20 @@ describe('completeTimingTowerConfig', () => {
     expect(config.sectors).toEqual({ enabled: true });
   });
 
+  it('gives a Tyres column saved before the laps on a set their defaults', () => {
+    // All a build before them stored of the column: its switch.
+    const config = completeTimingTowerConfig({
+      ...DEFAULTS,
+      tyres: { enabled: false },
+    });
+
+    expect(config.tyres).toEqual({
+      enabled: false,
+      set: true,
+      changeSeconds: 0,
+    });
+  });
+
   it('fills in the part of a group that is missing, and keeps the rest of it', () => {
     const config = completeTimingTowerConfig({
       ...DEFAULTS,

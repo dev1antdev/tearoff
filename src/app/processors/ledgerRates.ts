@@ -54,6 +54,8 @@ export interface LedgerBaseline {
   brake: (number | null)[];
   /** Tread per lap, per wheel, for each compound by name. */
   treadByCompound: Record<string, (number | null)[]>;
+  /** How many laps each of those is the median of, per wheel. */
+  treadLapsByCompound: Record<string, number[]>;
 }
 
 /**
@@ -74,16 +76,17 @@ export const baselineFrom = (
     }
   }
   const treadByCompound: Record<string, (number | null)[]> = {};
+  const treadLapsByCompound: Record<string, number[]> = {};
   for (const name of compounds) {
-    treadByCompound[name] = Array.from({ length: WHEELS }, (_, wheel) =>
-      medianOf(
-        readings(
-          rows
-            .filter((lap) => lap.ledger?.compounds[wheel] === name)
-            .map((lap) => lap.ledger?.treadUsed[wheel] ?? null)
-        )
+    const worn = Array.from({ length: WHEELS }, (_, wheel) =>
+      readings(
+        rows
+          .filter((lap) => lap.ledger?.compounds[wheel] === name)
+          .map((lap) => lap.ledger?.treadUsed[wheel] ?? null)
       )
     );
+    treadByCompound[name] = worn.map((values) => medianOf(values));
+    treadLapsByCompound[name] = worn.map((values) => values.length);
   }
   return {
     laps: rows.length,
@@ -96,6 +99,7 @@ export const baselineFrom = (
       )
     ),
     treadByCompound,
+    treadLapsByCompound,
   };
 };
 
@@ -148,6 +152,76 @@ const cleanLaps = (
   return kept;
 };
 
+/** What a lap costs the tread on one compound, wheel by wheel. */
+export interface TreadCost {
+  /** Tread worn a lap, per wheel; null for a wheel that never ran it. */
+  perLap: (number | null)[];
+  /** How many clean laps each of those is taken from. */
+  laps: number[];
+}
+
+/**
+ * What a lap costs the tread on every compound the car has run, by the
+ * compound's name: per wheel, the mean of what its clean laps on it wore.
+ *
+ * For reckoning a set's whole life from its laps, which is why it is the
+ * mean of every clean lap and not the median of the last few: a forecast
+ * wants what the next lap costs, this what all of them did. Where a wheel
+ * has fewer than `minLaps` of them, what the track and car cost on that
+ * compound in earlier sessions stands in, if the baseline holds more laps
+ * of it.
+ *
+ * @param laps The ledger's rows, in any order.
+ */
+export const treadCostsOf = (
+  laps: readonly LedgerLap[],
+  baseline: LedgerBaseline | null,
+  minLaps: number
+): Map<string, TreadCost> => {
+  const sums = new Map<string, { worn: number[]; laps: number[] }>();
+  for (const lap of laps) {
+    if (!isCleanLap(lap.flags)) continue;
+    for (let wheel = 0; wheel < WHEELS; wheel += 1) {
+      const name = lap.compounds?.[wheel];
+      const used = lap.treadUsed[wheel];
+      if (!name || used === null || used === undefined) continue;
+      let entry = sums.get(name);
+      if (!entry) {
+        entry = { worn: [0, 0, 0, 0], laps: [0, 0, 0, 0] };
+        sums.set(name, entry);
+      }
+      entry.worn[wheel] += used;
+      entry.laps[wheel] += 1;
+    }
+  }
+
+  const costs = new Map<string, TreadCost>();
+  const names = new Set([
+    ...sums.keys(),
+    ...Object.keys(baseline?.treadByCompound ?? {}),
+  ]);
+  for (const name of names) {
+    const own = sums.get(name);
+    const stored = baseline?.treadByCompound[name];
+    const storedLaps = baseline?.treadLapsByCompound[name];
+    const cost: TreadCost = { perLap: [], laps: [] };
+    for (let wheel = 0; wheel < WHEELS; wheel += 1) {
+      const ownLaps = own?.laps[wheel] ?? 0;
+      const before = stored?.[wheel] ?? null;
+      const beforeLaps = storedLaps?.[wheel] ?? 0;
+      if (ownLaps < minLaps && before !== null && beforeLaps > ownLaps) {
+        cost.perLap.push(before);
+        cost.laps.push(beforeLaps);
+      } else {
+        cost.perLap.push(own && ownLaps > 0 ? own.worn[wheel] / ownLaps : null);
+        cost.laps.push(ownLaps);
+      }
+    }
+    costs.set(name, cost);
+  }
+  return costs;
+};
+
 export class LedgerRateBook {
   private baseline: LedgerBaseline | null = null;
   /** Tread worn on each clean lap on the tyre now fitted, per wheel. */
@@ -160,6 +234,11 @@ export class LedgerRateBook {
 
   setBaseline(baseline: LedgerBaseline | null): void {
     this.baseline = baseline;
+  }
+
+  /** What this track and car cost before, as last set; null without. */
+  currentBaseline(): LedgerBaseline | null {
+    return this.baseline;
   }
 
   /** A lap closed. */

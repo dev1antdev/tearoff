@@ -144,16 +144,33 @@ export const TOWER_COLUMNS: readonly TowerColumn[] = [
     align: 'right',
   },
   // Wide enough for the compound alone. The laps on the set and the tread
-  // left go beside it, to the right, when they exist: the cell is laid out
-  // from its left edge so that they only widen it.
+  // left go beside it, to the right, when they are shown: the cell is laid
+  // out from its left edge so that they only widen it, by what
+  // `TYRES_COLUMN_WIDTH` says.
   {
     id: 'tyres',
     label: 'Tyres',
-    title: 'Tyre compound',
+    title: 'Tyre compound, laps on the set and tread left',
     width: 44,
     align: 'left',
   },
 ];
+
+/**
+ * What the Tyres column carries beside the compound: nothing, the laps on
+ * the set, or the laps and the tread left.
+ */
+export type TowerTyresDetail = 'compound' | 'laps' | 'tread';
+
+/**
+ * The width of the Tyres column for each: the compound, then room for
+ * "136+", then for "<100%" as well.
+ */
+export const TYRES_COLUMN_WIDTH: Readonly<Record<TowerTyresDetail, number>> = {
+  compound: 44,
+  laps: 64,
+  tread: 108,
+};
 
 const COLUMN_BY_ID = new Map(
   TOWER_COLUMNS.map((column) => [column.id, column])
@@ -161,6 +178,16 @@ const COLUMN_BY_ID = new Map(
 
 export const towerColumn = (id: TowerColumnId): TowerColumn =>
   COLUMN_BY_ID.get(id) as TowerColumn;
+
+/**
+ * The width a column is drawn at: its own, but for Tyres, which is as wide
+ * as what it carries. Null for the driver's, which takes what is left.
+ */
+export const towerColumnWidth = (
+  id: TowerColumnId,
+  tyres: TowerTyresDetail = 'compound'
+): number | null =>
+  id === 'tyres' ? TYRES_COLUMN_WIDTH[tyres] : towerColumn(id).width;
 
 /**
  * The order columns are left out in when the panel is too narrow, the
@@ -207,11 +234,25 @@ export const enabledTowerColumns = (
   });
 
 /** The width the columns need, with the driver's at its narrowest. */
-export const towerColumnsWidth = (columns: readonly TowerColumnId[]): number =>
+export const towerColumnsWidth = (
+  columns: readonly TowerColumnId[],
+  tyres: TowerTyresDetail = 'compound'
+): number =>
   columns.reduce(
-    (sum, id) => sum + (towerColumn(id).width ?? DRIVER_MIN_WIDTH),
+    (sum, id) => sum + (towerColumnWidth(id, tyres) ?? DRIVER_MIN_WIDTH),
     0
   );
+
+/** What the Tyres column carries once it gives up its last figure. */
+const NARROWER_TYRES: Readonly<
+  Record<TowerTyresDetail, TowerTyresDetail | null>
+> = { tread: 'laps', laps: 'compound', compound: null };
+
+/** The columns a panel has room for, and what its Tyres column carries. */
+export interface TowerLayout {
+  columns: TowerColumnId[];
+  tyres: TowerTyresDetail;
+}
 
 /**
  * The columns that fit a panel `availableWidth` pixels wide: all of them
@@ -219,22 +260,47 @@ export const towerColumnsWidth = (columns: readonly TowerColumnId[]): number =>
  * until the rest do. A width of nothing is a panel not measured yet, and
  * leaves nothing out.
  *
+ * What the Tyres column carries beside the compound goes before any
+ * column does: the tread first, then the laps. Its figures are shown where
+ * there is room for them and never at the cost of another column, so a
+ * panel too narrow for them shows exactly what it did before the column
+ * had any.
+ *
  * The tower never scrolls sideways: a column that cannot be seen without
  * reaching for it is a column that is not read during a race.
+ *
+ * @param tyres What the Tyres column has to show, with room for it.
  */
-export const fitTowerColumns = (
+export const fitTowerLayout = (
   columns: readonly TowerColumnId[],
-  availableWidth: number
-): TowerColumnId[] => {
+  availableWidth: number,
+  tyres: TowerTyresDetail = 'compound'
+): TowerLayout => {
   const kept = [...columns];
-  if (!(availableWidth > 0)) return kept;
-  let needed = towerColumnsWidth(kept);
+  let detail = tyres;
+  if (!(availableWidth > 0)) return { columns: kept, tyres: detail };
+  let needed = towerColumnsWidth(kept, detail);
+  if (kept.includes('tyres')) {
+    let narrower = NARROWER_TYRES[detail];
+    while (needed > availableWidth && narrower !== null) {
+      needed -= TYRES_COLUMN_WIDTH[detail] - TYRES_COLUMN_WIDTH[narrower];
+      detail = narrower;
+      narrower = NARROWER_TYRES[detail];
+    }
+  }
   for (const id of TOWER_DROP_ORDER) {
     if (needed <= availableWidth) break;
     const at = kept.indexOf(id);
     if (at < 0) continue;
     kept.splice(at, 1);
-    needed -= towerColumn(id).width ?? 0;
+    needed -= towerColumnWidth(id, detail) ?? 0;
   }
-  return kept;
+  return { columns: kept, tyres: detail };
 };
+
+/** The columns of `fitTowerLayout`, for whoever wants nothing else of it. */
+export const fitTowerColumns = (
+  columns: readonly TowerColumnId[],
+  availableWidth: number,
+  tyres: TowerTyresDetail = 'compound'
+): TowerColumnId[] => fitTowerLayout(columns, availableWidth, tyres).columns;

@@ -43,6 +43,7 @@ type RuntimeOwnedChannelName =
   | 'player-ledger.snapshot'
   | 'player-stint.snapshot'
   | 'wear.snapshot'
+  | 'class-tyres.snapshot'
   | 'race-history.summary'
   | 'race-log.snapshot'
   | 'replay.context'

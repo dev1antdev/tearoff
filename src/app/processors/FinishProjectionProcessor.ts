@@ -30,7 +30,9 @@ import {
   classIdsByCar,
   classNeighbourhood,
   classPositionsByCar,
+  energyRefuelLines,
   flagTime,
+  fuelRefuelLine,
   leaderFinish,
   pitDriveTimeS,
   plannedStandingS,
@@ -50,8 +52,6 @@ import { isAwayFromWheel } from './watchedCar';
  * as any of it moves.
  */
 const FINISH_TICK_HZ = 1;
-/** A full budget of virtual energy, in the percent it is counted in. */
-const ENERGY_PERCENT = 100;
 /**
  * A standing time that stands for "a stop that stands" where only the kind
  * of visit matters: the lane is then driven as the player's own stops were.
@@ -174,15 +174,6 @@ const nothing = (reason: FinishInvalidReason): Projection => ({
   playerStopsOwed: 0,
   rivals: [],
 });
-
-/** A hose on and off again, or null where the sim does not state both. */
-const hoseS = (
-  insert: number | undefined,
-  remove: number | undefined
-): number | null =>
-  typeof insert === 'number' && typeof remove === 'number'
-    ? insert + remove
-    : null;
 
 /**
  * Whether a kind of pit work may run alongside refuelling, as the session
@@ -559,46 +550,29 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
     fuel: FuelProjectionSnapshot
   ): FinishRefuelLine[] | null {
     const service = this.pitService;
-    const fuelRate = service?.fuelFillRate;
-    const fuelHoseS = hoseS(service?.fuelInsert, service?.fuelRemove);
-    if (!service || !(fuelRate && fuelRate > 0) || fuelHoseS === null) {
-      return null;
-    }
+    const rounded = (line: FinishRefuelLine): FinishRefuelLine => ({
+      fixedS: round(line.fixedS, 2),
+      perUnitS: round(line.perUnitS, 4),
+    });
     if (fuel.budget !== 'virtualEnergy') {
-      return [
-        { fixedS: round(fuelHoseS, 2), perUnitS: round(1 / fuelRate, 4) },
-      ];
+      const line = fuelRefuelLine(service);
+      return line && [rounded(line)];
     }
-    const energyRate = service.virtualEnergyFillRate;
-    const energyHoseS = hoseS(
-      service.virtualEnergyInsert,
-      service.virtualEnergyRemove
-    );
     const ratio = scalar(frame, 'LmuRefuelRatio');
     const litres = fuel.tank?.level;
     if (
-      !(energyRate && energyRate > 0) ||
-      energyHoseS === null ||
       ratio === null ||
-      !(ratio > 0) ||
       litres === undefined ||
       scalar(frame, 'FuelLevel') === null
     ) {
       return null;
     }
-    return [
-      {
-        fixedS: round(energyHoseS, 2),
-        perUnitS: round(1 / (energyRate * ENERGY_PERCENT), 4),
-      },
-      {
-        fixedS: round(
-          fuelHoseS + (fuel.fuelLevel * ratio - litres) / fuelRate,
-          2
-        ),
-        perUnitS: round(ratio / fuelRate, 4),
-      },
-    ];
+    const lines = energyRefuelLines(
+      service,
+      ratio,
+      fuel.fuelLevel * ratio - litres
+    );
+    return lines && lines.map(rounded);
   }
 
   /** A car's race progress, counted as `fuel.projection` counts it. */
