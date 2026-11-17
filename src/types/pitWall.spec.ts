@@ -214,13 +214,13 @@ describe('PIT_WALL_LAYOUTS', () => {
       hostedBy(tabOf(layout, tab));
     expect(hosted('race', 'overview')).toEqual([
       'timingtower',
+      'racecharts',
       'ourcar',
       'map',
       'classrivals',
-      'racecharts',
       'crew',
-      'weatherforecast',
       'racelog',
+      'weatherforecast',
     ]);
     expect(hosted('watching', 'overview')).toEqual([
       'ourcar',
@@ -306,18 +306,45 @@ describe('pitWallGrid', () => {
     expect(rows[3]).toEqual(['timingtower', 'ourcar', 'map']);
     expect(rows[4]).toEqual(['timingtower', 'classrivals', 'classrivals']);
     expect(rows[6]).toEqual(['timingtower', 'classrivals', 'classrivals']);
-    expect(rows[7]).toEqual(['timingtower', 'racecharts', 'crew']);
-    expect(rows[10]).toEqual(['timingtower', 'weatherforecast', 'racelog']);
-    expect(rows[11]).toEqual(['timingtower', 'weatherforecast', 'racelog']);
+    // The tower is eight rows and the charts have the four under it.
+    expect(rows[7]).toEqual(['timingtower', 'crew', 'racelog']);
+    expect(rows[8]).toEqual(['racecharts', 'crew', 'racelog']);
+    expect(rows[9]).toEqual(['racecharts', 'crew', 'racelog']);
+    expect(rows[10]).toEqual([
+      'racecharts',
+      'weatherforecast',
+      'weatherforecast',
+    ]);
+    expect(rows[11]).toEqual([
+      'racecharts',
+      'weatherforecast',
+      'weatherforecast',
+    ]);
     expect(grid.slots.map((entry) => entry.widget)).toEqual([
       'timingtower',
+      'racecharts',
       'ourcar',
       'map',
       'classrivals',
-      'racecharts',
       'crew',
-      'weatherforecast',
       'racelog',
+      'weatherforecast',
+    ]);
+  });
+
+  it('gives the Race Charts the width of the tower, not half the other side', () => {
+    const { rectangles } = areaRectangles(pitWallGrid(RACE).areas);
+    const area = (name: string) =>
+      rectangles.find((entry) => entry.name === name);
+    // One track of four fractions, against one of one and a half.
+    expect(area('racecharts')).toMatchObject({ width: 1, height: 4 });
+    expect(area('timingtower')).toMatchObject({ width: 1, height: 8 });
+    const column = areaRectangles(pitWallGrid(RACE).areas).rows.map(
+      (row) => row[0]
+    );
+    expect(column).toEqual([
+      ...Array<string>(8).fill('timingtower'),
+      ...Array<string>(4).fill('racecharts'),
     ]);
   });
 
@@ -326,40 +353,106 @@ describe('pitWallGrid', () => {
     const area = (name: string) =>
       rectangles.find((entry) => entry.name === name);
     expect(area('classrivals')).toMatchObject({ width: 2, height: 3 });
+    expect(area('weatherforecast')).toMatchObject({ width: 2, height: 2 });
     expect(area('ourcar')).toMatchObject({ width: 1, height: 4 });
-    expect(area('timingtower')).toMatchObject({ width: 1, height: 12 });
+    expect(area('crew')).toMatchObject({ width: 1, height: 3 });
   });
 
   it('gives a left-out panel’s half of a band to its neighbour', () => {
+    const grid = pitWallGrid(RACE, (entry) => entry.widget !== 'crew');
+    const { rows, rectangles } = areaRectangles(grid.areas);
+    expect(rows[7]).toEqual(['timingtower', 'racelog', 'racelog']);
+    expect(rectangles.find((area) => area.name === 'racelog')).toMatchObject({
+      width: 2,
+      height: 3,
+      filled: true,
+    });
+    expect(grid.slots.map((entry) => entry.widget)).not.toContain('crew');
+  });
+
+  it('gives a band with nobody left to the rest of its column', () => {
+    // The tower and the charts are eight and four: without the charts the
+    // tower has the column.
+    const grid = pitWallGrid(RACE, (entry) => entry.widget !== 'racecharts');
+    const column = areaRectangles(grid.areas).rows.map((row) => row[0]);
+    expect(column).toEqual(Array<string>(12).fill('timingtower'));
+  });
+
+  describe('a panel that keeps its rows', () => {
+    const column = (bands: (PitWallSlot | PitWallSlot[])[]) => ({
+      columns: [{ width: 1, bands }],
+    });
+    const rowsOf = (
+      tab: ReturnType<typeof column>,
+      without: readonly string[] = []
+    ) => {
+      const grid = pitWallGrid(
+        tab,
+        (entry) => !without.includes(entry.widget as string)
+      );
+      const names = areaRectangles(grid.areas).rows.map((row) => row[0]);
+      return Object.fromEntries(
+        [...new Set(names)].map((name) => [
+          name,
+          names.filter((entry) => entry === name).length,
+        ])
+      );
+    };
+    const whole = { ...slot('whole', 4), rigid: true };
+
+    it('has them while every panel of its column is shown, like any other', () => {
+      const tab = column([whole, slot('b', 3), slot('c', 3), slot('d', 2)]);
+      expect(rowsOf(tab)).toEqual({ whole: 4, b: 3, c: 3, d: 2 });
+    });
+
+    it('leaves the rows a left-out panel frees to the others', () => {
+      const tab = column([whole, slot('b', 3), slot('c', 3), slot('d', 2)]);
+      // Shared in proportion it would be five, four and three.
+      expect(rowsOf(tab, ['d'])).toEqual({ whole: 4, b: 4, c: 4 });
+      // Three and two of the eight left: 4.8 and 3.2 rows.
+      expect(rowsOf(tab, ['c'])).toEqual({ whole: 4, b: 5, d: 3 });
+    });
+
+    it('holds a band to its rows through one panel of it', () => {
+      const tab = column([
+        [whole, slot('beside', 4)],
+        slot('b', 4),
+        slot('c', 4),
+      ]);
+      expect(rowsOf(tab, ['c'])).toMatchObject({ whole: 4, b: 8 });
+      // Its neighbour alone is not held.
+      expect(rowsOf(tab, ['whole', 'c'])).toEqual({ beside: 6, b: 6 });
+    });
+
+    it('takes the rows after all where nobody else is left to', () => {
+      const tab = column([whole, slot('b', 8)]);
+      expect(rowsOf(tab, ['b'])).toEqual({ whole: 12 });
+    });
+
+    it('never has more rows than the column while others are shown', () => {
+      const tab = column([
+        { ...slot('a', 6), rigid: true },
+        { ...slot('b', 6), rigid: true },
+      ]);
+      expect(rowsOf(tab)).toEqual({ a: 6, b: 6 });
+    });
+  });
+
+  it('keeps Our Car at its four rows on the Race page without the forecast', () => {
     const grid = pitWallGrid(
       RACE,
       (entry) => entry.widget !== 'weatherforecast'
     );
-    const { rows, rectangles } = areaRectangles(grid.areas);
-    expect(rows[11]).toEqual(['timingtower', 'racelog', 'racelog']);
-    expect(rectangles.find((area) => area.name === 'racelog')).toMatchObject({
-      width: 2,
-      height: 2,
-      filled: true,
-    });
+    const column = areaRectangles(grid.areas).rows.map((row) => row[1]);
+    // The two rows freed go to the bands that only show more for them.
+    expect(column).toEqual([
+      ...Array<string>(4).fill('ourcar'),
+      ...Array<string>(4).fill('classrivals'),
+      ...Array<string>(4).fill('crew'),
+    ]);
     expect(grid.slots.map((entry) => entry.widget)).not.toContain(
       'weatherforecast'
     );
-  });
-
-  it('gives a band with nobody left to the rest of its column', () => {
-    const grid = pitWallGrid(
-      RACE,
-      (entry) =>
-        entry.widget !== 'weatherforecast' && entry.widget !== 'racelog'
-    );
-    const column = areaRectangles(grid.areas).rows.map((row) => row[1]);
-    // Four, three and three of ten: 4.8, 3.6 and 3.6 rows.
-    expect(column).toEqual([
-      ...Array<string>(5).fill('ourcar'),
-      ...Array<string>(4).fill('classrivals'),
-      ...Array<string>(3).fill('racecharts'),
-    ]);
   });
 
   it('shares rows that do not divide evenly without losing any', () => {
@@ -816,10 +909,10 @@ describe('resolvePitWall', () => {
 
     expect(shown({ layout: 'race' })).toEqual([
       'timingtower',
+      'racecharts',
       'ourcar',
       'map',
       'classrivals',
-      'racecharts',
       'crew',
       'racelog',
     ]);
@@ -843,13 +936,17 @@ describe('resolvePitWall', () => {
     ]);
   });
 
-  it('gives the forecast’s place to the Race Log beside it under iRacing', () => {
+  it('gives the forecast’s rows to Class Rivals and to Crew and the Race Log under iRacing', () => {
     const resolved = resolvePitWall(dashboardWith({ layout: 'race' }), {
       support: DEFAULT_SIM_WIDGET_SUPPORT,
       simulator: 'iracing',
     });
     const { rows, rectangles } = areaRectangles(resolved.grid.areas);
-    expect(rows[11]).toEqual(['timingtower', 'racelog', 'racelog']);
+    expect(rows[3]).toEqual(['timingtower', 'ourcar', 'map']);
+    expect(rows[4]).toEqual(['timingtower', 'classrivals', 'classrivals']);
+    expect(rows[7]).toEqual(['timingtower', 'classrivals', 'classrivals']);
+    expect(rows[8]).toEqual(['racecharts', 'crew', 'racelog']);
+    expect(rows[11]).toEqual(['racecharts', 'crew', 'racelog']);
     for (const area of rectangles) expect(area.filled, area.name).toBe(true);
   });
 
@@ -898,8 +995,8 @@ describe('resolvePitWall', () => {
         'ourcar',
         'map',
         'classrivals',
-        'weatherforecast',
         'racelog',
+        'weatherforecast',
       ]);
     });
 

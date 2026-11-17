@@ -101,12 +101,12 @@ export const PitWallSettings = () => {
                 </p>
                 <p>
                   Race is the whole page for a second monitor, with the tower
-                  down the left. Watching is for the hours a team-mate drives.
-                  Compact is a page of tabs for a tablet: Overview, Timing,
-                  Strategy, Crew, Map, Charts and Log. On a phone the page is
-                  always those tabs, with the panels of a tab one under another.
-                  The window remembers its layout and its tab; a browser keeps
-                  its own.
+                  over the charts on the left. Watching is for the hours a
+                  team-mate drives. Compact is a page of tabs for a tablet:
+                  Overview, Timing, Strategy, Crew, Map, Charts and Log. On a
+                  phone the page is always those tabs, with the panels of a tab
+                  one under another. The window remembers its layout and its
+                  tab; a browser keeps its own.
                 </p>
                 <p>
                   A panel whose widget the running simulator does not support is

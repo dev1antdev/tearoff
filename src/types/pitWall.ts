@@ -88,6 +88,12 @@ export interface PitWallSlot {
    * Left out, the widget gets the whole panel.
    */
   aspect?: number;
+  /**
+   * The panel keeps its rows when another of its column is left out: the
+   * rows freed go to the panels that can use them. For a panel that is
+   * whole at the height it has, beside ones that only show more.
+   */
+  rigid?: boolean;
 }
 
 /**
@@ -161,13 +167,18 @@ const raceLog = slotOf('racelog', 280);
 const trackMap = slotOf('map', 220);
 const forecast = slotOf('weatherforecast', 300);
 
+/** The same panel, keeping its rows when a neighbour is left out. */
+const rigid = (slot: PitWallSlot): PitWallSlot => ({ ...slot, rigid: true });
+
 /**
  * The three fixed layouts, as the design drew them.
  *
- * - Race: the whole page for a second monitor while driving. The Timing
- *   Tower down the left; beside it Our Car and the Track Map, Class Rivals
- *   across, the Race Charts with Crew and Stints, and the Weather Forecast
- *   with the Race Log.
+ * - Race: the whole page for a second monitor while driving. On the left
+ *   the Timing Tower over the Race Charts, which need the column's width
+ *   for a plot worth reading; on the right Our Car and the Track Map, Class
+ *   Rivals across, Crew and Stints with the Race Log, and the Weather
+ *   Forecast across. This is where the page leaves the design, which had
+ *   the charts in half the right side and the tower's lower half empty.
  * - Watching: for a team-mate's stint. Our Car and the laps of a car; the
  *   Stint Timeline and Crew and Stints; our class in the tower, the
  *   forecast and the log.
@@ -191,16 +202,19 @@ export const PIT_WALL_LAYOUTS: Readonly<
         id: 'overview',
         label: 'Race',
         columns: [
-          { width: 4, bands: [tower(12)] },
+          // Eight rows hold a class of fourteen without scrolling.
+          { width: 4, bands: [tower(8), raceCharts(4)] },
           {
             width: 3,
             bands: [
-              [ourCar(4), trackMap(4)],
+              // Our Car is whole in four rows: without the forecast, as
+              // under iRacing, its rows go to the two bands that scroll.
+              [rigid(ourCar(4)), rigid(trackMap(4))],
               classRivals(3),
               // Half the column is narrower than the crew's table at any
               // window size: it scrolls sideways here.
-              [raceCharts(3), crew(3, 320)],
-              [forecast(2), raceLog(2)],
+              [crew(3, 320), raceLog(3)],
+              forecast(2),
             ],
           },
         ],
@@ -301,17 +315,15 @@ export interface PitWallGrid {
 }
 
 /**
- * Shares PIT_WALL_ROWS between the weights in proportion, in whole rows.
+ * Shares so many rows between the weights in proportion, in whole rows.
  * The rows a division leaves over go to the largest remainders, earlier
- * bands first, so the result always adds up. A band never gets fewer rows
- * than it has with its whole column shown, because leaving a band out only
- * raises the share of the others.
+ * bands first, so the result always adds up.
  */
-const shareRows = (weights: readonly number[]): number[] => {
+const inProportion = (weights: readonly number[], count: number): number[] => {
   const total = weights.reduce((sum, weight) => sum + weight, 0);
-  const exact = weights.map((weight) => (weight / total) * PIT_WALL_ROWS);
+  const exact = weights.map((weight) => (weight / total) * count);
   const rows = exact.map((value) => Math.floor(value));
-  let spare = PIT_WALL_ROWS - rows.reduce((sum, value) => sum + value, 0);
+  let spare = count - rows.reduce((sum, value) => sum + value, 0);
   const byRemainder = exact
     .map((value, index) => ({ index, remainder: value - Math.floor(value) }))
     .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
@@ -319,6 +331,35 @@ const shareRows = (weights: readonly number[]): number[] => {
     rows[byRemainder[turn % byRemainder.length].index] += 1;
   }
   return rows;
+};
+
+/**
+ * Shares PIT_WALL_ROWS between the bands of a column. A rigid band keeps
+ * its rows and the others share the rest in proportion to their own; a
+ * column of rigid bands alone shares like any other, since somebody has to
+ * take the rows. A band never gets fewer rows than it has with its whole
+ * column shown, because leaving a band out only raises the share of the
+ * others.
+ */
+const shareRows = (
+  bands: readonly { rows: number; rigid: boolean }[]
+): number[] => {
+  const kept = bands
+    .filter((band) => band.rigid)
+    .reduce((sum, band) => sum + band.rows, 0);
+  const free = bands.filter((band) => !band.rigid);
+  if (free.length === 0 || kept >= PIT_WALL_ROWS) {
+    return inProportion(
+      bands.map((band) => band.rows),
+      PIT_WALL_ROWS
+    );
+  }
+  const shared = inProportion(
+    free.map((band) => band.rows),
+    PIT_WALL_ROWS - kept
+  );
+  let next = 0;
+  return bands.map((band) => (band.rigid ? band.rows : shared[next++]));
 };
 
 const greatestCommonDivisor = (a: number, b: number): number =>
@@ -401,7 +442,13 @@ export const pitWallGrid = (
 
   // Each column as its rows, each row as the area of every track.
   const columnAreas = columns.map((column) => {
-    const rows = shareRows(column.bands.map((slots) => slots[0].rows));
+    const rows = shareRows(
+      column.bands.map((slots) => ({
+        rows: slots[0].rows,
+        // One panel of a band that keeps its rows holds the band to them.
+        rigid: slots.some((slot) => slot.rigid === true),
+      }))
+    );
     return column.bands.flatMap((slots, index) => {
       const each = column.tracks / slots.length;
       const row = Array.from(

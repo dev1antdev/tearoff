@@ -58,16 +58,17 @@ type Story = StoryObj<typeof PitWall>;
 
 /**
  * The Race layout under Le Mans Ultimate, five and a quarter hours into the
- * race with the user back at the wheel: the Timing Tower down the left,
- * beside it Our Car and the Track Map, Class Rivals across, the Race Charts
- * with Crew and Stints, and the Weather Forecast with the Race Log.
+ * race with the user back at the wheel: on the left the Timing Tower over
+ * the Race Charts; on the right Our Car and the Track Map, Class Rivals
+ * across, Crew and Stints with the Race Log, and the Weather Forecast
+ * across.
  */
 export const Race: Story = { ...pitWallStage({ layout: 'race' }) };
 
 /**
- * The Race layout under iRacing, which gives no forecast: the Race Log has
- * the bottom of the page to itself, and the panels have no sectors, no
- * virtual energy, no tread and no damage to show.
+ * The Race layout under iRacing, which gives no forecast: its rows go to
+ * Class Rivals and to Crew and Stints with the Race Log, and the panels
+ * have no sectors, no virtual energy, no tread and no damage to show.
  */
 export const RaceIRacing: Story = {
   ...pitWallStage({ layout: 'race', simulator: 'iracing' }),
