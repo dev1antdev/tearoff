@@ -20,6 +20,7 @@ vi.mock('electron', () => ({
 }));
 
 import {
+  RaceHistoryRequestError,
   createRaceHistoryBridge,
   setupRaceHistoryBridge,
   type RaceHistorySource,
@@ -341,5 +342,54 @@ describe('race history bridge called directly', () => {
     await expect(bridge.getEvents(undefined, 'newest')).rejects.toThrow(
       'Invalid event for raceHistory:getEvents'
     );
+  });
+
+  it('says how many arguments a request takes when it brought more', async () => {
+    const bridge = createRaceHistoryBridge(source()) as unknown as Record<
+      string,
+      (...args: unknown[]) => Promise<unknown>
+    >;
+
+    await expect(bridge.getCarLaps(7, 12, 1)).rejects.toThrow(
+      'raceHistory:getCarLaps takes at most 2 argument(s)'
+    );
+    await expect(bridge.getCarStints(7, 12, 1)).rejects.toThrow(
+      'raceHistory:getCarStints takes at most 2 argument(s)'
+    );
+    await expect(bridge.getDriverChanges(12, 12)).rejects.toThrow(
+      'raceHistory:getDriverChanges takes at most 1 argument(s)'
+    );
+    await expect(bridge.listRaces(null)).rejects.toThrow(
+      'raceHistory:listRaces takes at most 0 argument(s)'
+    );
+    await expect(bridge.getEvents(12, 801, 5000)).rejects.toThrow(
+      'raceHistory:getEvents takes at most 2 argument(s)'
+    );
+  });
+
+  it('refuses under a name of its own, which a failure further in does not have', async () => {
+    // A road that sends an answer back passes a refusal's words on and
+    // keeps a failure's to itself: this is how it tells the two apart.
+    const service = source();
+    const failure = new Error('SQLITE_CANTOPEN: C:\\Users\\somebody\\laps.db');
+    service.getCarLaps.mockRejectedValueOnce(failure);
+    const bridge = createRaceHistoryBridge(service) as unknown as Record<
+      string,
+      (...args: unknown[]) => Promise<unknown>
+    >;
+
+    await expect(bridge.getCarLaps(1)).rejects.toBe(failure);
+    for (const refused of [
+      bridge.getCarLaps(-1),
+      bridge.getCarLaps(1, 0),
+      bridge.getEvents(undefined, 0),
+      bridge.listRaces(1),
+    ]) {
+      const error = await refused.catch((reason: unknown) => reason);
+      expect(error).toBeInstanceOf(RaceHistoryRequestError);
+      // Still a TypeError, as it was before it had a name.
+      expect(error).toBeInstanceOf(TypeError);
+    }
+    expect(failure).not.toBeInstanceOf(RaceHistoryRequestError);
   });
 });

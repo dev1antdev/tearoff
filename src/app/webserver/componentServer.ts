@@ -9,6 +9,7 @@ import {
   type IrSdkSourceBridge,
   type DashboardBridge,
   type PitLaneBridge,
+  type RaceHistoryBridge,
 } from '@irdashies/types';
 import logger from '../logger';
 import { currentDashboard } from './bridgeProxy';
@@ -428,12 +429,17 @@ async function serveStaticFile(filePath: string, res: http.ServerResponse) {
  * This machine is answered as it asks. Any other device, which can only
  * reach the server while network access is on, must show the key for every
  * one of them: see `deviceKey.ts`.
+ *
+ * @param raceHistoryBridge The bridge the app's windows read the race
+ * history through over IPC: that instance, so a page's socket is answered
+ * by the same checks.
  */
 export async function startComponentServer(
   irsdkBridge?: IrSdkSourceBridge,
   dashboardBridge?: DashboardBridge,
   channelBus?: import('../bridge/channelBridge').ChannelBus,
-  pitLaneBridge?: PitLaneBridge
+  pitLaneBridge?: PitLaneBridge,
+  raceHistoryBridge?: RaceHistoryBridge
 ) {
   const { getDashboard, getCurrentProfileId } =
     await import('../storage/dashboards');
@@ -788,7 +794,8 @@ export async function startComponentServer(
         channelBus,
         pitLaneBridge,
         accessPolicy,
-        devices
+        devices,
+        raceHistoryBridge
       );
 
       const { onBridgeChanged } = await import('../bridge/iracingSdk/setup');

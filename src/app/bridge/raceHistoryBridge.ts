@@ -13,6 +13,21 @@ import { RACE_HISTORY_MAX_CARS } from '@irdashies/types';
 /** What the bridge is answered from: the race history's runtime. */
 export type RaceHistorySource = RaceHistoryBridge;
 
+/**
+ * A request the bridge refused for what it was sent.
+ *
+ * It has a name of its own so that a road a request comes by can tell a
+ * refusal from a failure further in. A refusal's words are written here and
+ * repeat nothing of what was sent, so they may go back to whoever asked; a
+ * failure's words are the storage's, and may name a file.
+ */
+export class RaceHistoryRequestError extends TypeError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RaceHistoryRequestError';
+  }
+}
+
 /** A car slot: a whole number from 0 up to the most the record keeps. */
 const isCarIdx = (value: unknown): value is number =>
   typeof value === 'number' &&
@@ -25,7 +40,9 @@ const isRaceId = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 
 const carIdxOrThrow = (value: unknown, request: string): number => {
-  if (!isCarIdx(value)) throw new TypeError(`Invalid car for ${request}`);
+  if (!isCarIdx(value)) {
+    throw new RaceHistoryRequestError(`Invalid car for ${request}`);
+  }
   return value;
 };
 
@@ -35,7 +52,9 @@ const carIdxOrThrow = (value: unknown, request: string): number => {
  */
 const raceIdOrThrow = (value: unknown, request: string): number | undefined => {
   if (value === undefined || value === null) return undefined;
-  if (!isRaceId(value)) throw new TypeError(`Invalid race for ${request}`);
+  if (!isRaceId(value)) {
+    throw new RaceHistoryRequestError(`Invalid race for ${request}`);
+  }
   return value;
 };
 
@@ -47,19 +66,24 @@ const raceIdOrThrow = (value: unknown, request: string): number | undefined => {
 const beforeOrThrow = (value: unknown, request: string): number | undefined => {
   if (value === undefined || value === null) return undefined;
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1) {
-    throw new TypeError(`Invalid event for ${request}`);
+    throw new RaceHistoryRequestError(`Invalid event for ${request}`);
   }
   return value;
 };
 
-/** A request with more than it takes is not one this app makes. */
+/**
+ * A request with more than it takes is not one this app makes. `rest` is
+ * what came after the `takes` arguments the request has a use for.
+ */
 const noMoreThan = (
-  args: readonly unknown[],
-  count: number,
+  rest: readonly unknown[],
+  takes: number,
   request: string
 ): void => {
-  if (args.length > count) {
-    throw new TypeError(`${request} takes at most ${count} argument(s)`);
+  if (rest.length > 0) {
+    throw new RaceHistoryRequestError(
+      `${request} takes at most ${takes} argument(s)`
+    );
   }
 };
 
@@ -73,21 +97,21 @@ export const createRaceHistoryBridge = (
   source: RaceHistorySource
 ): RaceHistoryBridge => ({
   async getCarLaps(carIdx: unknown, raceId?: unknown, ...rest: unknown[]) {
-    noMoreThan(rest, 0, 'raceHistory:getCarLaps');
+    noMoreThan(rest, 2, 'raceHistory:getCarLaps');
     return source.getCarLaps(
       carIdxOrThrow(carIdx, 'raceHistory:getCarLaps'),
       raceIdOrThrow(raceId, 'raceHistory:getCarLaps')
     );
   },
   async getCarStints(carIdx: unknown, raceId?: unknown, ...rest: unknown[]) {
-    noMoreThan(rest, 0, 'raceHistory:getCarStints');
+    noMoreThan(rest, 2, 'raceHistory:getCarStints');
     return source.getCarStints(
       carIdxOrThrow(carIdx, 'raceHistory:getCarStints'),
       raceIdOrThrow(raceId, 'raceHistory:getCarStints')
     );
   },
   async getDriverChanges(raceId?: unknown, ...rest: unknown[]) {
-    noMoreThan(rest, 0, 'raceHistory:getDriverChanges');
+    noMoreThan(rest, 1, 'raceHistory:getDriverChanges');
     return source.getDriverChanges(
       raceIdOrThrow(raceId, 'raceHistory:getDriverChanges')
     );
@@ -97,7 +121,7 @@ export const createRaceHistoryBridge = (
     return source.listRaces();
   },
   async getEvents(raceId?: unknown, before?: unknown, ...rest: unknown[]) {
-    noMoreThan(rest, 0, 'raceHistory:getEvents');
+    noMoreThan(rest, 2, 'raceHistory:getEvents');
     return source.getEvents(
       raceIdOrThrow(raceId, 'raceHistory:getEvents'),
       beforeOrThrow(before, 'raceHistory:getEvents')
