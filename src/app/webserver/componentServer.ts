@@ -1,7 +1,6 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import os from 'os';
 import { app } from 'electron';
 import {
   DEVICE_KEY_PARAM,
@@ -24,6 +23,7 @@ import {
   type AccessPolicy,
 } from './accessPolicy';
 import { createDeviceAccess, type DeviceAccess } from './deviceAccess';
+import { findLanAddress } from './lanAddress';
 import {
   DEVICE_KEY_COOKIE,
   createKeyRefusalLog,
@@ -45,36 +45,6 @@ const isDev =
   process.env.NODE_ENV === 'development' || process.env.VITE_DEV_SERVER_URL;
 
 declare const MAIN_WINDOW_VITE_NAME: string;
-
-// Get the local IP address dynamically
-function getLocalIPAddress(): string {
-  const interfaces = os.networkInterfaces();
-  const candidates: string[] = [];
-
-  for (const name of Object.keys(interfaces)) {
-    const nets = interfaces[name];
-    if (!nets) continue;
-
-    for (const net of nets) {
-      if (net.family === 'IPv4' && !net.internal) {
-        candidates.push(net.address);
-      }
-    }
-  }
-
-  if (candidates.length > 0) {
-    // Prefer 192.168.x.x or 10.x.x.x addresses (common home/office networks)
-    const preferred = candidates.find(
-      (ip) =>
-        ip.startsWith('192.168.') ||
-        ip.startsWith('10.') ||
-        ip.startsWith('172.')
-    );
-    return preferred || candidates[0];
-  }
-
-  return 'localhost';
-}
 
 let SERVER_IP = 'localhost';
 
@@ -458,7 +428,9 @@ export async function startComponentServer(
   const networkAccess =
     dashboard?.generalSettings?.enableNetworkAccess ?? false;
   const bindHost = networkAccess ? '0.0.0.0' : 'localhost';
-  SERVER_IP = networkAccess ? getLocalIPAddress() : 'localhost';
+  // The address the links for other devices name: see `pickLanAddress` for
+  // which of this PC's adapters it is taken from.
+  SERVER_IP = networkAccess ? await findLanAddress() : 'localhost';
 
   const localHosts = createLocalHostsReader();
   const accessPolicy: AccessPolicy = {

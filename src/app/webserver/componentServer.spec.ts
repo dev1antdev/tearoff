@@ -15,6 +15,16 @@ vi.mock('electron', () => ({
   app: { getPath: () => '/tmp/irdashies-test' },
 }));
 
+// No route is looked up in a spec: with no socket to ask, the address is
+// chosen from the adapters `os.networkInterfaces` is made to list.
+vi.mock('dgram', () => ({
+  default: {
+    createSocket: () => {
+      throw new Error('no sockets in a spec');
+    },
+  },
+}));
+
 vi.mock('../logger', () => ({
   default: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
