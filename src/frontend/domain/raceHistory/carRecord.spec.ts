@@ -222,15 +222,28 @@ describe('what a stop is seen to have done', () => {
 
   it('says the car is still in the pits until it is seen to leave', () => {
     const standing = stoppedStint(1, 1, 10, {
+      endTime: 1200,
       stop: { laneTime: null, standingTime: 3, driverChanged: false },
     });
-    expect(stopSeen(standing, stintOf(2), before, undefined)?.inPits).toBe(
-      true
-    );
-    // A visit whose entry was not seen never gets a lane time: it is over
-    // once the car has lapped on.
+    // As the record keeps it: the stint the stop opened starts where the
+    // one before it ended, until the car is out of the lane.
     expect(
-      stopSeen(standing, stintOf(2, { laps: 2 }), before, after)?.inPits
+      stopSeen(standing, stintOf(2, { startTime: 1200 }), before, undefined)
+        ?.inPits
+    ).toBe(true);
+    // A visit whose entry was not seen never gets a lane time. It is over
+    // when the car leaves, a lap or two before it has lapped on.
+    expect(
+      stopSeen(standing, stintOf(2, { startTime: 1215 }), before, undefined)
+        ?.inPits
+    ).toBe(false);
+    expect(
+      stopSeen(
+        standing,
+        stintOf(2, { startTime: 1215, laps: 2 }),
+        before,
+        after
+      )?.inPits
     ).toBe(false);
     expect(stopSeen(stint, stintOf(2), before, undefined)?.inPits).toBe(false);
   });

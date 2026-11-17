@@ -121,7 +121,13 @@ export type RaceStintClosedBy =
 
 /** The stop that ended a stint. */
 export interface RaceStintStop {
-  /** Seconds from pit entry to pit exit; null while the car is still in. */
+  /**
+   * Seconds from pit entry to pit exit. Null while the car is still in the
+   * lane, and null for good where it was not seen to drive in, so that the
+   * visit could not be timed. The null alone does not say which: whether a
+   * stop is still under way is asked of `stopUnderWay`
+   * (`src/shared/raceStop.ts`), which goes by the stint the stop opened.
+   */
   laneTime: number | null;
   /** Seconds standing still on that visit. */
   standingTime: number;

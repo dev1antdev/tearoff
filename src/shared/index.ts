@@ -15,4 +15,5 @@ export * from './trafficForecast';
 export * from './classNeighbours';
 export * from './finishProjection';
 export * from './raceForecast';
+export * from './raceStop';
 export * from './tyreSet';
