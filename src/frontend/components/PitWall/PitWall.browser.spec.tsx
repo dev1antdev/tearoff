@@ -404,6 +404,38 @@ describe('the Pit Wall in a browser whose socket drops', () => {
     expect(mark()).toHaveTextContent('Reconnecting');
   });
 
+  it('hangs the mark under the tab bar on a layout of tabs, clear of every tab', () => {
+    localStorage.setItem(PIT_WALL_DEVICE_LAYOUT_KEY, 'compact');
+    renderWith(stagedConnection(false));
+
+    const strip = screen.getByRole('banner');
+    const tabs = screen.getByRole('navigation', { name: 'Tabs' });
+    const block = tabs.parentElement as HTMLElement;
+    // One positioned block holds the strip and the bar, and the strip is
+    // not positioned itself: the mark hangs from the foot of the block,
+    // which is the foot of the bar.
+    expect(block).toHaveClass('relative');
+    expect(block).toContainElement(strip);
+    expect(block.lastElementChild).toBe(tabs);
+    expect(strip).not.toHaveClass('relative');
+    expect(mark()).toHaveClass('absolute', 'top-full');
+    expect(block).toContainElement(mark() as HTMLElement);
+    // None of the page's panels is inside the block.
+    expect(block).not.toContainElement(screen.getByRole('main'));
+  });
+
+  it('hangs it under the strip on a layout that is one page', () => {
+    renderWith(stagedConnection(false));
+
+    const strip = screen.getByRole('banner');
+    const block = strip.parentElement as HTMLElement;
+    expect(screen.queryByRole('navigation', { name: 'Tabs' })).toBeNull();
+    expect(block).toHaveClass('relative');
+    // The strip is all there is in the block: its foot is the strip's.
+    expect(block.children).toHaveLength(1);
+    expect(block).toContainElement(mark() as HTMLElement);
+  });
+
   it('changes nothing else in the header', () => {
     const socket = stagedConnection();
     renderWith(socket);
@@ -431,7 +463,10 @@ describe('the Pit Wall in a browser whose socket drops', () => {
 
     expect(mark()?.parentElement).toBe(header);
     expect(mark()).toHaveClass('absolute', 'top-full');
-    expect(header).toHaveClass('relative');
+    // On the page the mark hangs from the block the strip shares with the
+    // tab bar, so that it is under the bar where there is one.
+    expect(header.parentElement).toHaveClass('relative');
+    expect(header).not.toHaveClass('relative');
     expect(controls?.contains(mark())).toBe(false);
   });
 

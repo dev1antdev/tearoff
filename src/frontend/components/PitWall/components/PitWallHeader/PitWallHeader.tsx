@@ -24,6 +24,12 @@ export interface PitWallHeaderProps {
    * be in that state.
    */
   reconnecting?: boolean;
+  /**
+   * Hangs that mark from the positioned element around the strip instead of
+   * from the strip. The page does, with its tab bar inside the same
+   * element, so that the mark is under the bar and on none of the tabs.
+   */
+  markHangsOutside?: boolean;
 }
 
 const FLAG_TONE_CLASS: Record<FlagTone, string> = {
@@ -56,6 +62,7 @@ export const PitWallHeader = ({
   onToggleFullscreen,
   onOpenSettings,
   reconnecting = false,
+  markHangsOutside = false,
 }: PitWallHeaderProps) => {
   const { car } = data;
   // Touch-sized targets on the layout made for a tablet.
@@ -63,10 +70,11 @@ export const PitWallHeader = ({
 
   return (
     <header
-      // Positioned, for the mark that hangs from it while reconnecting.
-      className={`settings-shell relative flex shrink-0 flex-wrap items-center gap-y-2 border-b border-slate-700 bg-slate-950 px-4 py-2 text-slate-200 tabular-nums ${
-        tall ? 'gap-x-5' : 'gap-x-7'
-      }`}
+      // Positioned, for the mark that hangs from it while reconnecting,
+      // unless the mark is to hang from what is around it.
+      className={`settings-shell flex shrink-0 flex-wrap items-center gap-y-2 border-b border-slate-700 bg-slate-950 px-4 py-2 text-slate-200 tabular-nums ${
+        markHangsOutside ? '' : 'relative'
+      } ${tall ? 'gap-x-5' : 'gap-x-7'}`}
     >
       <div className="flex items-center gap-3">
         <img src={logo} alt="" className="size-7 shrink-0" />

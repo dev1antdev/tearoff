@@ -77,20 +77,31 @@ export const PitWall = memo(({ renderPanel }: PitWallProps) => {
     <div className="flex h-full w-full flex-col overflow-hidden bg-settings-page text-white tabular-nums">
       {/* The header's clock. Hosted widgets that read the same store share it. */}
       <SessionTimingStoreUpdater enabled />
-      <PitWallHeader
-        data={header}
-        layout={page.layout.id}
-        // A phone is given the tabs whatever layout is chosen, so it is
-        // offered no choice of one.
-        onLayoutChange={stacked ? undefined : setLayout}
-        fullscreen={fullscreen}
-        onToggleFullscreen={toggleFullscreen}
-        onOpenSettings={canOpenSettings ? openOwnSettings : undefined}
-        reconnecting={reconnecting}
-      />
-      {page.tabs.length > 1 && (
-        <PitWallTabs tabs={page.tabs} tab={page.tab.id} onTabChange={setTab} />
-      )}
+      {/* The strip and the tab bar as one positioned block, for the mark the
+          strip hangs out while reconnecting: under the bar where there is
+          one, so that it is on none of the tabs, and under the strip where
+          there is none. */}
+      <div className="relative shrink-0">
+        <PitWallHeader
+          data={header}
+          layout={page.layout.id}
+          // A phone is given the tabs whatever layout is chosen, so it is
+          // offered no choice of one.
+          onLayoutChange={stacked ? undefined : setLayout}
+          fullscreen={fullscreen}
+          onToggleFullscreen={toggleFullscreen}
+          onOpenSettings={canOpenSettings ? openOwnSettings : undefined}
+          reconnecting={reconnecting}
+          markHangsOutside
+        />
+        {page.tabs.length > 1 && (
+          <PitWallTabs
+            tabs={page.tabs}
+            tab={page.tab.id}
+            onTabChange={setTab}
+          />
+        )}
+      </div>
       {!running ? (
         <EmptyState>
           No simulator is running. The Pit Wall fills in when Le Mans Ultimate
