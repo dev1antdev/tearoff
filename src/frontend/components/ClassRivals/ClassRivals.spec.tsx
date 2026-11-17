@@ -1,5 +1,5 @@
-import { render, screen, within } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDashboard, useSessionStore } from '@irdashies/context';
 import type {
   ChannelBridge,
@@ -440,6 +440,183 @@ describe('ClassRivals (staged)', () => {
       expect(screen.getByTestId('class-rivals-reason')).toHaveTextContent(
         'A forecast needs a race: this session is not one.'
       );
+    });
+  });
+
+  describe('the footnote, in a panel of a given height', () => {
+    /*
+     * jsdom lays nothing out, so a layout is staged: the panel is as tall
+     * as `panel.height`, the captions take 25 pixels and each car 29, the
+     * footnote takes 57 of the panel while it is drawn, and the list has
+     * what the footnote leaves. `panel.width` against the 700 the table is
+     * laid out at says whether the list scrolls sideways.
+     */
+    const CAPTIONS = 25;
+    const CAR = 29;
+    const FOOTNOTE = 57;
+    const TABLE_WIDTH = 700;
+    const panel = { width: 800, height: 0 };
+    let resized: (() => void)[] = [];
+
+    class FakeResizeObserver {
+      private readonly changed: () => void;
+      constructor(changed: () => void) {
+        this.changed = changed;
+      }
+      observe() {
+        resized.push(this.changed);
+      }
+      disconnect() {
+        resized = resized.filter((entry) => entry !== this.changed);
+      }
+    }
+
+    const isList = (element: HTMLElement) =>
+      element.dataset.testid === 'class-rivals-rows';
+    const footnote = () => screen.queryByTestId('class-rivals-legend');
+
+    /** The panel is given another size, and the browser says so. */
+    const resize = (size: Partial<typeof panel>) => {
+      Object.assign(panel, size);
+      act(() => resized.forEach((changed) => changed()));
+    };
+
+    beforeEach(() => {
+      panel.width = 800;
+      panel.height = 0;
+      resized = [];
+      const define = (name: string, get: (this: HTMLElement) => number) =>
+        Object.defineProperty(HTMLElement.prototype, name, {
+          configurable: true,
+          get,
+        });
+      define('clientWidth', () => panel.width);
+      define('scrollWidth', function () {
+        return isList(this) ? TABLE_WIDTH : panel.width;
+      });
+      define('clientHeight', function () {
+        return isList(this)
+          ? panel.height - (footnote() ? FOOTNOTE : 0)
+          : panel.height;
+      });
+      define('scrollHeight', function () {
+        return isList(this) ? CAPTIONS + rows().length * CAR : panel.height;
+      });
+      // A car's row, by its place in the list under the captions.
+      define('offsetTop', function () {
+        return CAPTIONS + Math.max(0, rows().indexOf(this)) * CAR;
+      });
+      define('offsetHeight', () => CAR);
+      vi.stubGlobal('ResizeObserver', FakeResizeObserver);
+    });
+
+    afterEach(() => {
+      for (const name of [
+        'clientWidth',
+        'clientHeight',
+        'scrollWidth',
+        'scrollHeight',
+        'offsetTop',
+        'offsetHeight',
+      ]) {
+        Reflect.deleteProperty(HTMLElement.prototype, name);
+      }
+      vi.unstubAllGlobals();
+    });
+
+    // Fourteen cars under their captions come to 431, and to 488 with the
+    // footnote.
+    it('is drawn where the cars fit over it', () => {
+      panel.height = 488;
+      show();
+      expect(footnote()).toHaveTextContent(/^Net gap: .* marks an estimate\.$/);
+    });
+
+    it('is left out where the list would have to scroll for it', () => {
+      // Two pixels short: one is let pass, as the browser rounds.
+      panel.height = 486;
+      show();
+      expect(footnote()).toBeNull();
+      // Every car is still listed, and the list has the panel's height.
+      expect(rows()).toHaveLength(14);
+      expect(screen.getByTestId('class-rivals-rows').clientHeight).toBe(486);
+    });
+
+    it("is left out in the Race page's panel at 1600 by 900", () => {
+      // 161 high, where the footnote left two cars on show.
+      panel.height = 161;
+      show();
+      expect(footnote()).toBeNull();
+    });
+
+    it('is drawn in a short panel that lists few enough cars', () => {
+      panel.height = 161;
+      show({}, { carsAhead: 1, carsBehind: 1 });
+      // Three cars: 112, and 169 with the footnote.
+      expect(rows()).toHaveLength(3);
+      expect(footnote()).toBeNull();
+
+      resize({ height: 169 });
+      expect(footnote()).not.toBeNull();
+    });
+
+    it('comes back when the panel is made tall enough, and goes when it is not', () => {
+      panel.height = 300;
+      show();
+      expect(footnote()).toBeNull();
+      resize({ height: 600 });
+      expect(footnote()).not.toBeNull();
+      resize({ height: 300 });
+      expect(footnote()).toBeNull();
+    });
+
+    it('is not left out for a list that scrolls sideways only', () => {
+      panel.width = 400;
+      panel.height = 600;
+      show();
+      const list = screen.getByTestId('class-rivals-rows');
+      expect(list.scrollWidth).toBeGreaterThan(list.clientWidth);
+      expect(footnote()).not.toBeNull();
+    });
+
+    it('is not drawn at any height when it is switched off', () => {
+      panel.height = 600;
+      show({}, { showLegend: false });
+      expect(footnote()).toBeNull();
+    });
+
+    describe('and where the list is put', () => {
+      const list = () => screen.getByTestId('class-rivals-rows');
+
+      it('shows our car with the car behind it in the room the footnote left', () => {
+        panel.height = 161;
+        show();
+        // Our car is the fourth: its row ends at 141, the next at 170. The
+        // list was first put for the 104 it had over the footnote, and
+        // again for the 161 it has without it.
+        expect(footnote()).toBeNull();
+        expect(list().scrollTop).toBe(170 - 161);
+      });
+
+      it('is put again when the footnote comes back, while nobody has scrolled it', () => {
+        panel.height = 161;
+        show();
+        expect(list().scrollTop).toBe(9);
+        resize({ height: 600 });
+        // The class fits: the list is back at its top.
+        expect(footnote()).not.toBeNull();
+        expect(list().scrollTop).toBe(0);
+      });
+
+      it('is left where somebody scrolled it to', () => {
+        panel.height = 161;
+        show();
+        list().scrollTop = 200;
+        resize({ height: 300 });
+        resize({ height: 600 });
+        expect(footnote()).not.toBeNull();
+        expect(list().scrollTop).toBe(200);
+      });
     });
   });
 });

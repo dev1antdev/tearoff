@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   useClassTyresSnapshot,
   useDrivingState,
@@ -21,6 +21,7 @@ import {
   forecastReasonText,
 } from '@irdashies/domain/raceForecast';
 import { useHighlightColor } from '@irdashies/domain/standings/useHighlightColor';
+import { useFitLevel } from '@irdashies/domain/widgetPresentation/useFitLevel';
 import { DriverName, extractDriverName } from '../shared/DriverName/DriverName';
 import {
   ClassRivalCaptions,
@@ -29,6 +30,10 @@ import {
   type ClassRivalColumns,
 } from './components/ClassRivalRow';
 import { useClassRivalsSettings } from './hooks/useClassRivalsSettings';
+
+/** The cars need more height than their list has: it scrolls down. */
+const scrollsDown = (list: HTMLElement): boolean =>
+  list.scrollHeight > list.clientHeight + 1;
 
 /**
  * Class Rivals: the running cars of the own entry's class in the order of
@@ -40,6 +45,10 @@ import { useClassRivalsSettings } from './hooks/useClassRivalsSettings';
  * Every figure is `race-forecast.snapshot`'s but the tyres, which are
  * `class-tyres.snapshot`'s. The captions stay put and the cars scroll under
  * them, with the own car brought into view when the list first fills.
+ *
+ * The footnote that explains the columns is drawn only where the cars fit
+ * over it. A list that would have to scroll for it is given its room
+ * instead: in a short panel it left two cars on show.
  */
 export const ClassRivals = () => {
   const settings = useClassRivalsSettings();
@@ -90,18 +99,49 @@ export const ClassRivals = () => {
     ]
   );
 
-  // Once, when the list first has the own car in it: after that the list is
-  // the user's to scroll. Only the list itself is moved, and only as far as
-  // it takes to show the own car with the car behind it under it; a class
-  // that fits is left where it is.
+  // The footnote is tried first, and left out if the list scrolls down
+  // with it there. Asked again when the panel's size changes, or the
+  // number of cars, or the columns, which are what the footnote is about.
+  const {
+    level: footnoteLeftOut,
+    target: fitList,
+    frame: fitPanel,
+  } = useFitLevel({
+    levels: settings.showLegend ? 2 : 1,
+    content: `${rows.length}|${Object.values(columns).join()}`,
+    room: 'size',
+    overflows: scrollsDown,
+  });
+  const listRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      list.current = node;
+      fitList(node);
+    },
+    [fitList]
+  );
+
+  // When the list first has the own car in it, and again when the footnote
+  // comes or goes and leaves the list another height, for as long as the
+  // list is where it was put: once somebody has scrolled it, it is theirs.
+  // Only the list itself is moved, and only as far as it takes to show the
+  // own car with the car behind it under it; a class that fits is left
+  // where it is.
   const hasRows = rows.length > 0;
+  const placedAt = useRef<number | null>(null);
   useEffect(() => {
     const box = list.current;
     const row = ownRow.current;
-    if (!hasRows || !box || !row) return;
-    const below = row.offsetTop + row.offsetHeight * 2 - box.clientHeight;
-    if (below > box.scrollTop) box.scrollTop = below;
-  }, [hasRows]);
+    if (!hasRows || !box || !row) {
+      placedAt.current = null;
+      return;
+    }
+    if (placedAt.current !== null && box.scrollTop !== placedAt.current) return;
+    box.scrollTop = Math.max(
+      0,
+      row.offsetTop + row.offsetHeight * 2 - box.clientHeight
+    );
+    placedAt.current = box.scrollTop;
+  }, [hasRows, footnoteLeftOut]);
 
   if (!isSessionVisible) return <></>;
   if (settings.showOnlyWhenOnTrack && !(isDriving || isWatchingOwnCar)) {
@@ -110,6 +150,7 @@ export const ClassRivals = () => {
 
   return (
     <div
+      ref={fitPanel}
       data-testid="class-rivals"
       data-valid={hasRows}
       className="flex h-full w-full flex-col overflow-hidden rounded bg-slate-800/(--bg-opacity) text-[0.8125rem] text-slate-200 tabular-nums"
@@ -120,7 +161,7 @@ export const ClassRivals = () => {
       {hasRows ? (
         <>
           <div
-            ref={list}
+            ref={listRef}
             data-testid="class-rivals-rows"
             // Positioned, so a row's offset is measured from the list.
             className="relative min-h-0 flex-1 overflow-auto"
@@ -187,7 +228,7 @@ export const ClassRivals = () => {
               })}
             </div>
           </div>
-          {settings.showLegend && (
+          {settings.showLegend && footnoteLeftOut === 0 && (
             <p
               data-testid="class-rivals-legend"
               className="flex-none px-3 py-1.5 text-[0.6875rem] leading-snug text-slate-400"

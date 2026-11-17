@@ -152,3 +152,31 @@ export const NoticeInAPitWallPanel: Story = {
     panel: { width: 820, height: 160 },
   }),
 };
+
+/**
+ * In the panel the Race page has for it in a window of 1600 by 900: 677 by
+ * 195. The fourteen cars do not fit, so the footnote is left out and the
+ * list has its three lines.
+ */
+export const InTheRacePanelAt1600: Story = {
+  ...strategyStory('classrivals', { panel: { width: 677, height: 195 } }),
+};
+
+/**
+ * Two cars each side of us in a panel 820 by 250: five cars fit over the
+ * footnote, so it is drawn.
+ */
+export const FewCarsInAShortPanel: Story = {
+  ...strategyStory('classrivals', {
+    config: { carsAhead: 2, carsBehind: 2 },
+    panel: { width: 820, height: 250 },
+  }),
+};
+
+/** The same five cars in a panel 820 by 210: the footnote no longer fits. */
+export const FewCarsInAShorterPanel: Story = {
+  ...strategyStory('classrivals', {
+    config: { carsAhead: 2, carsBehind: 2 },
+    panel: { width: 820, height: 210 },
+  }),
+};
