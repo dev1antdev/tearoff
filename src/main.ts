@@ -83,7 +83,7 @@ import {
   setupRaceHistoryBridge,
   type CheckedRaceHistoryBridge,
 } from './app/bridge/raceHistoryBridge';
-import { isRecordedSource } from './app/tapeReplaySource';
+import { isRecordedSource, keepsPlayerRecords } from './app/tapeReplaySource';
 import { flushLapTracesOnShutdown } from './app/storage/lapTraces';
 import { flushPitLaneDataOnShutdown } from './app/storage/pitLaneData';
 import {
@@ -308,20 +308,19 @@ function setupLapLibraryRecording(replayContext: ReplayContextRuntime): void {
   const library = startLapLibrary();
   const disposeBridge = setupLapLibraryBridge(library);
   const lifecycle = getSessionLifecycle();
-  // A tape is somebody's old session played back for development: its laps
-  // are not the player's.
-  const isTapeReplay = Boolean(
-    process.env.IRDASHIES_TELEMETRY_REPLAY || process.env.IRDASHIES_LMU_REPLAY
-  );
   const bootId = Date.now().toString(36);
   let ledger: PlayerLedgerRuntime | undefined;
   let replaySource = false;
 
-  // A tape, a replay source and demo mode are measured and shown, but none
-  // of it is the player's to keep. With a replay file loaded nothing is
-  // measured at all: scrubbing is not driving.
+  // A recording of any kind (a tape, or a capture played through the
+  // isolated SDK addon), a replay source and demo mode are measured and
+  // shown, but none of it is the player's to keep: the rule the history of
+  // races goes by. With a replay file loaded nothing is measured at all:
+  // scrubbing is not driving.
   const applyEnabled = () => {
-    ledger?.setPersisting(!isTapeReplay && !replaySource && !getIsDemoMode());
+    ledger?.setPersisting(
+      keepsPlayerRecords({ replaySource, demoMode: getIsDemoMode() })
+    );
     ledger?.setPaused(replayContext.isReplayFile());
   };
   // Before any ledger exists, so that one hears of a replay source before
@@ -619,7 +618,7 @@ function setupRaceHistory(
   let replaySource = false;
   const applyEnabled = () => {
     runtime.setPersisting(
-      !isRecordedSource() && !replaySource && !getIsDemoMode()
+      keepsPlayerRecords({ replaySource, demoMode: getIsDemoMode() })
     );
     runtime.setPaused(replayContext.isReplayFile());
   };
@@ -747,11 +746,7 @@ function setupReplayContextRuntime(
     replayArchiveIndex,
     knownLocalUserIds,
     {
-      isLiveSource: () =>
-        !getIsDemoMode() &&
-        !process.env.IRDASHIES_TELEMETRY_REPLAY &&
-        !process.env.IRDASHIES_LMU_REPLAY &&
-        process.env.IRDASHIES_IRSDK_REPLAY !== '1',
+      isLiveSource: () => !getIsDemoMode() && !isRecordedSource(),
     }
   );
 
