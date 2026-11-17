@@ -12,21 +12,104 @@ import type { TrackPathData, TrackPathPoint } from './trackGeometry';
  */
 
 /**
- * The samples of a map with the first repeated at the end, or null for a map
- * too short to be a circuit.
+ * How much the stretches of a line sampled at even steps along it may differ:
+ * the stored coordinates are rounded to a hundredth.
+ */
+const EVEN_SPACING_TOLERANCE = 0.05;
+
+const between = (
+  from: TrackPathPoint,
+  to: TrackPathPoint,
+  share: number
+): TrackPathPoint => ({
+  x: from.x + (to.x - from.x) * share,
+  y: from.y + (to.y - from.y) * share,
+});
+
+/**
+ * The samples of a map as the maps read them: `count` of them, sample `i`
+ * standing `i / count` of the way round the lap.
  *
- * An LMU map holds samples at even lap distance: sample `i` of `count` sits
- * `i / count` of the way round, so the stored line stops one sample short of
- * where it began. Repeating the first point closes it. Without that the last
- * stretch of every lap would be squeezed into the points before it and a car
- * crossing the line would jump the gap.
+ * A map the app recorded is stored that way, and comes back as it is. The
+ * outlines bundled with the app, and one read from TinyPedal's files, were
+ * sampled at even steps along a line that ended short of where it began:
+ * every stretch is the same length but the one from the last sample back to
+ * the first, which is up to four times as long and holds that much more of
+ * the lap. Read as one part in `count` like the others, it had a car drawn
+ * further and further behind as the lap went on, by up to 0.6 % of a lap at
+ * the end of it, and then made up over the last 0.2 %. For such a line the
+ * closing stretch is given the share of the lap its length is of the whole
+ * line, the samples before it share the rest, and the line is sampled again
+ * at even lap distance. Every new sample lies on the stored line.
+ */
+const samplesAtEvenLapDistance = (
+  points: readonly TrackPathPoint[]
+): readonly TrackPathPoint[] => {
+  const count = points.length;
+  let shortest = Number.POSITIVE_INFINITY;
+  let longest = 0;
+  let stored = 0;
+  for (let index = 1; index < count; index += 1) {
+    const stretch = Math.hypot(
+      points[index].x - points[index - 1].x,
+      points[index].y - points[index - 1].y
+    );
+    shortest = Math.min(shortest, stretch);
+    longest = Math.max(longest, stretch);
+    stored += stretch;
+  }
+  const closing = Math.hypot(
+    points[0].x - points[count - 1].x,
+    points[0].y - points[count - 1].y
+  );
+  const spacing = stored / (count - 1);
+  const evenAlongTheLine =
+    shortest > 0 && longest - shortest <= shortest * EVEN_SPACING_TOLERANCE;
+  if (
+    !evenAlongTheLine ||
+    !Number.isFinite(closing) ||
+    closing <= spacing * (1 + EVEN_SPACING_TOLERANCE)
+  ) {
+    return points;
+  }
+
+  const closingShare = closing / (stored + closing);
+  const storedShare = 1 - closingShare;
+  return Array.from({ length: count }, (_, index) => {
+    const lap = index / count;
+    if (lap >= storedShare) {
+      return between(
+        points[count - 1],
+        points[0],
+        (lap - storedShare) / closingShare
+      );
+    }
+    const at = (lap / storedShare) * (count - 1);
+    const from = Math.floor(at);
+    return between(
+      points[from],
+      points[Math.min(from + 1, count - 1)],
+      at - from
+    );
+  });
+};
+
+/**
+ * The samples of a map at even lap distance, with the first repeated at the
+ * end, or null for a map too short to be a circuit.
+ *
+ * Sample `i` of `count` sits `i / count` of the way round, so the line stops
+ * one sample short of where it began. Repeating the first point closes it.
+ * Without that the last stretch of every lap would be squeezed into the
+ * points before it and a car crossing the line would jump the gap.
  */
 const closedSamples = (
   map: LmuTrackMap | null | undefined
 ): TrackPathPoint[] | null => {
   const points = map?.active?.trackPathPoints;
   if (!points || points.length < 3) return null;
-  return [...points, points[0]];
+  const samples = samplesAtEvenLapDistance(points);
+  return [...samples, samples[0]];
 };
 
 /**

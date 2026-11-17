@@ -31,6 +31,27 @@ const square = [
   { x: 0, y: 100 },
 ];
 
+/** Where a square of side 100, driven from its top-left corner, is `arc` round. */
+const onSquare = (arc: number) => {
+  const side = Math.floor(arc / 100) % 4;
+  const along = arc % 100;
+  return [
+    { x: along, y: 0 },
+    { x: 100, y: along },
+    { x: 100 - along, y: 100 },
+    { x: 0, y: 100 - along },
+  ][side];
+};
+
+/**
+ * The square as the bundled outlines are stored: a sample every ten units
+ * along the line, which stops thirty short of where it began. Thirty-eight
+ * samples, and a closing stretch three times as long as the others.
+ */
+const shortOfTheLine = Array.from({ length: 38 }, (_, index) =>
+  onSquare(index * 10)
+);
+
 describe('lmuTrackPathData', () => {
   it('closes the loop the stored line leaves open', () => {
     const path = lmuTrackPathData(squareMap(square));
@@ -62,6 +83,40 @@ describe('lmuTrackPathData', () => {
     pointAtProgress(geometry, 0.875, point);
     expect(point.x).toBeCloseTo(0, 0);
     expect(point.y).toBeCloseTo(50, 0);
+  });
+
+  it('leaves a map alone whose closing stretch is a stretch like the others', () => {
+    // As the app records one: sample i is where the car was at i / count of
+    // the lap, so the stretches are as uneven as the car's line. Thirty,
+    // fifty, a hundred and forty, a hundred and eighty of the 400 round.
+    const recorded = [0, 30, 80, 220].map(onSquare);
+    expect(
+      lmuTrackPathData(squareMap(recorded))?.trackPathPoints.slice(0, -1)
+    ).toEqual(recorded);
+    // And one sampled evenly along a line that does close.
+    expect(
+      lmuTrackPathData(squareMap(square))?.trackPathPoints.slice(0, -1)
+    ).toEqual(square);
+  });
+
+  it('samples a line again at even lap distance when it stops short of where it began', () => {
+    const path = lmuTrackPathData(squareMap(shortOfTheLine));
+    const samples = path?.trackPathPoints.slice(0, -1) ?? [];
+
+    // As many samples as were stored, from the same first one.
+    expect(samples).toHaveLength(38);
+    expect(samples[0]).toEqual(shortOfTheLine[0]);
+    expect(path?.totalLength).toBe(38);
+    // Evenly spaced along the whole line now, the closing stretch included:
+    // 400 round in 38 parts, but for the two that cut a corner off.
+    const stretches = samples.map((point, index) => {
+      const next = samples[(index + 1) % samples.length];
+      return Math.hypot(next.x - point.x, next.y - point.y);
+    });
+    expect(Math.max(...stretches)).toBeCloseTo(400 / 38, 6);
+    expect(
+      stretches.filter((stretch) => Math.abs(stretch - 400 / 38) < 1e-6)
+    ).toHaveLength(36);
   });
 
   it('runs in the order the samples were driven', () => {
@@ -116,6 +171,40 @@ describe('lmuTrackDrawing', () => {
     const beforeLine = place(map, 0.999);
     expect(beforeLine.x).toBeCloseTo(0, 5);
     expect(beforeLine.y).toBeCloseTo(0.4, 5);
+  });
+
+  it('places a car as far round the drawn line as it is round the lap when the line stops short', () => {
+    const map = squareMap(shortOfTheLine);
+    const at = (progress: number) => {
+      const { x, y } = place(map, progress);
+      return { x: Number(x.toFixed(6)), y: Number(y.toFixed(6)) };
+    };
+
+    // The middle of each side. Read as one part in 38 like the others, the
+    // closing stretch had the car at the middle of the last side drawn
+    // 17.5 short of it, and further behind the nearer the line.
+    expect(at(0.125)).toEqual({ x: 50, y: 0 });
+    expect(at(0.375)).toEqual({ x: 100, y: 50 });
+    expect(at(0.625)).toEqual({ x: 50, y: 100 });
+    expect(at(0.875)).toEqual({ x: 0, y: 50 });
+    // The last stored sample is 370 of the 400 round, and the closing
+    // stretch is the lap from there to the line.
+    expect(at(0.925)).toEqual({ x: 0, y: 30 });
+    expect(at(0.9625)).toEqual({ x: 0, y: 15 });
+    expect(at(0)).toEqual({ x: 0, y: 0 });
+  });
+
+  it('strokes the line it places cars on', () => {
+    const drawing = lmuTrackDrawing(squareMap(shortOfTheLine));
+    const samples = drawing?.active.trackPathPoints?.slice(0, -1) ?? [];
+
+    expect(drawing?.active.inside).toBe(
+      `${samples
+        .map(
+          (point, index) => `${index === 0 ? 'M' : 'L'}${point.x},${point.y}`
+        )
+        .join(' ')} Z`
+    );
   });
 
   it('takes the line and the direction from the outline', () => {

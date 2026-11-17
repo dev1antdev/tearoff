@@ -202,11 +202,13 @@ describe.skipIf(!lmuTapeAvailable())(
       }
 
       expect(checked).toBeGreaterThan(40_000);
-      // And each is as far round the drawing as it is round the lap, to
-      // under one percent: the samples are evenly spaced along the drawn
-      // line but for the stretch that closes it, which is three spacings
-      // long on this outline.
-      expect(furthest).toBeLessThan(0.01);
+      // And each is as far round the drawing as it is round the lap. The
+      // outline is stored as samples evenly spaced along a line that stops
+      // three spacings short of where it began; read as one part in 512
+      // like the others, that closing stretch had cars up to 0.4 % of a
+      // lap from here. The reader gives it the share of the lap it is of
+      // the line, and what is left is a corner cut between two samples.
+      expect(furthest).toBeLessThan(0.0005);
     });
 
     it('moves no car further than a car can go between two updates, the line included', () => {
@@ -292,9 +294,20 @@ describe.skipIf(!lmuTapeAvailable())(
             })
           );
 
-        // Sample for sample the two are within three spacings of each
-        // other all the way round: 26 units at most.
-        expect(apart((index) => bundled[index])).toBeLessThan(25);
+        // Sample for sample the lap is on the outline the cars are drawn
+        // on, to a spacing at the median: what is left is the difference
+        // between the line the car took and the one the outline was made
+        // from. The stored samples, read as 512 equal parts of a lap, were
+        // twice as far off, and 18 units out by the last of them.
+        expect(apart((index) => outline[index])).toBeLessThan(10);
+        expect(apart((index) => bundled[index])).toBeGreaterThan(14);
+        const last = SAMPLES - 1;
+        expect(
+          Math.hypot(
+            driven[last].x - outline[last].x,
+            driven[last].y - outline[last].y
+          )
+        ).toBeLessThan(3);
         // Flipped left to right or top to bottom, turned half round, or
         // driven the other way, the bundled outline is hundreds of units
         // from the lap: none of those is what the game drives.
