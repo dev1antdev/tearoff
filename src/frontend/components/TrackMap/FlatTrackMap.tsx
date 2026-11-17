@@ -21,7 +21,11 @@ export const FlatTrackMap = ({ embedded = false }: { embedded?: boolean }) => {
   const { drivers: driversTrackData } = useDriverProgress();
   const settings = useFlatTrackMapSettings();
   const highlightColor = useHighlightColor();
-  const isOnTrack = useTrackStateSnapshot()?.isOnTrack;
+  const trackState = useTrackStateSnapshot();
+  const isOnTrack = trackState?.isOnTrack;
+  // Cars in the pit lane are greyed and lettered P, as the Track Map draws
+  // them from the same snapshot.
+  const carIdxIsOnPitRoad = trackState?.carIdxOnPitRoad;
   const driverLivePositions = useDriverLivePositions({
     enabled: (settings?.displayMode ?? 'carNumber') === 'livePosition',
   });
@@ -58,6 +62,7 @@ export const FlatTrackMap = ({ embedded = false }: { embedded?: boolean }) => {
       drivers={driversTrackData}
       highlightColor={highlightColor}
       driverLivePositions={driverLivePositions}
+      carIdxIsOnPitRoad={carIdxIsOnPitRoad}
     />
   );
 };

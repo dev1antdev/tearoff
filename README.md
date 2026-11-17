@@ -625,11 +625,11 @@ Displays a simplified horizontal track map showing driver positions along a flat
 - Option to use highlight color for player circle
 - Auto-scales to container width
 - Multi-class support
+- Cars in the pit lane are grey and lettered P
 
 **In Le Mans Ultimate:**
 
 - It needs no map of the circuit, so it is drawn for every track from the first moment
-- Cars in the pit lane are grey and lettered P
 - A sector under a local yellow flag is painted yellow on the line, once one clean lap of the circuit has shown where the game's sectors start
 - With "show only when on track" it stays up while you watch a car on track, such as a team-mate's stint
 

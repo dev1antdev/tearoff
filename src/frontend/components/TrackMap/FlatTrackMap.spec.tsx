@@ -18,8 +18,14 @@ vi.mock('@irdashies/context', () => {
     })),
   };
 });
+const canvasProps = vi.hoisted(() => ({
+  last: undefined as { carIdxIsOnPitRoad?: readonly boolean[] } | undefined,
+}));
 vi.mock('./FlatTrackMapCanvas', () => ({
-  FlatTrackMapCanvas: () => <div>Flat Track Canvas</div>,
+  FlatTrackMapCanvas: (props: { carIdxIsOnPitRoad?: readonly boolean[] }) => {
+    canvasProps.last = props;
+    return <div>Flat Track Canvas</div>;
+  },
 }));
 vi.mock('@irdashies/domain/track', () => ({
   useTrackDrawing: vi.fn(),
@@ -31,7 +37,11 @@ import { useDriverLivePositions } from '@irdashies/domain';
 import { useTrackDrawing } from '@irdashies/domain/track';
 import { useFlatTrackMapSettings } from './hooks/useFlatTrackMapSettings';
 import { useHighlightColor } from './hooks/useHighlightColor';
-import { useSessionVisibility, useTelemetryValue } from '@irdashies/context';
+import {
+  useSessionVisibility,
+  useTelemetryValue,
+  useTrackStateSnapshot,
+} from '@irdashies/context';
 
 describe('FlatTrackMap', () => {
   beforeEach(() => {
@@ -291,5 +301,20 @@ describe('FlatTrackMap', () => {
 
     expect(container.querySelector('.w-full')).toBeTruthy();
     expect(container.textContent).toContain('Flat Track Canvas');
+  });
+
+  it('hands the canvas the cars in the pit lane, which it greys and letters P as the Track Map does', () => {
+    vi.mocked(useFlatTrackMapSettings).mockReturnValue({
+      showOnlyWhenOnTrack: false,
+    } as any);
+    vi.mocked(useTrackStateSnapshot).mockReturnValue({
+      isOnTrack: true,
+      carIdxOnPitRoad: [false, true, false],
+    } as any);
+
+    render(<FlatTrackMap />);
+
+    // The canvas has always drawn them so; under iRacing it was told of none.
+    expect(canvasProps.last?.carIdxIsOnPitRoad).toEqual([false, true, false]);
   });
 });
