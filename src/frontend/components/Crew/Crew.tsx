@@ -13,7 +13,7 @@ import {
   stintEndText,
   useCarChoice,
   useCarHistoryState,
-  useCarRaceRecord,
+  useCarRaceRead,
   useSessionClockMinute,
   type CrewDriver,
   type DriveTimeLimits,
@@ -83,7 +83,7 @@ const CrewPanel = ({ settings }: { settings: CrewConfig }) => {
   const { choices, car, choose } = useCarChoice();
   const readable = raceHistoryReadable();
   const carIdx = readable && car ? car.carIdx : null;
-  const record = useCarRaceRecord(carIdx);
+  const { record, failed } = useCarRaceRead(carIdx);
   const history = useCarHistoryState(carIdx);
   // For the stint under way, which has no end to be measured to.
   const nowS = useSessionClockMinute();
@@ -106,6 +106,7 @@ const CrewPanel = ({ settings }: { settings: CrewConfig }) => {
       readable,
       recording: history.recording,
       read: view !== null,
+      failed,
     }) ??
     (view && view.stints.length === 0
       ? `No stint of #${car.number} has been recorded yet.`

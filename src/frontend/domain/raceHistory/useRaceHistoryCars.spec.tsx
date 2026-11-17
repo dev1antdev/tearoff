@@ -12,6 +12,8 @@ import type {
 import { lapOf, stintOf } from './recordFixture';
 import {
   raceHistoryReadable,
+  useCarRaceRead,
+  useCarRaceReads,
   useCarRaceRecord,
   useCarRaceRecords,
   useRaceStints,
@@ -120,8 +122,26 @@ const history = () => {
   return { bridge, asked };
 };
 
+/** The socket of a page served to a browser, which a test takes down and up. */
+const socket = () => {
+  const listeners = new Set<(connected: boolean) => void>();
+  window.browserConnection = {
+    isConnected: () => true,
+    onConnectionChanged: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+  return {
+    drop: () => act(() => listeners.forEach((listener) => listener(false))),
+    comeBack: () => act(() => listeners.forEach((listener) => listener(true))),
+    listeners: () => listeners.size,
+  };
+};
+
 afterEach(() => {
   window.raceHistoryBridge = undefined;
+  window.browserConnection = undefined;
   vi.restoreAllMocks();
 });
 
@@ -288,6 +308,112 @@ describe('useCarRaceRecord', () => {
     expect(bridge.getCarLaps).not.toHaveBeenCalled();
     await summary.publish(summaryOf([1]));
     expect(bridge.getCarLaps).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('a read that failed', () => {
+  it('is said to have failed, until it is asked again', async () => {
+    const summary = channel(summaryOf([1]));
+    const { asked } = history();
+    const { result } = renderHook(() => useCarRaceRead(0));
+    // Being read: no record, and not failed.
+    expect(result.current).toEqual({ record: undefined, failed: false });
+
+    await asked[0].fail();
+    expect(result.current).toEqual({ record: undefined, failed: true });
+
+    // The car's records change: it is read again, and no longer failed.
+    await summary.publish({ ...summaryOf([2]), version: 2 });
+    expect(result.current).toEqual({ record: undefined, failed: false });
+    await asked[1].answer(2);
+    expect(result.current.record?.laps).toHaveLength(2);
+    expect(result.current.failed).toBe(false);
+  });
+
+  it('is asked again when the page’s connection comes back', async () => {
+    // A page served to a browser: the read was in flight when its socket
+    // dropped, or was made while it was down. The car's records may not
+    // change for a lap, and for a car that has retired never do: its panel
+    // read "Reading the race history." until then.
+    channel(summaryOf([1]));
+    const { bridge, asked } = history();
+    const page = socket();
+    const { result } = renderHook(() => useCarRaceRead(0));
+    await page.drop();
+    await asked[0].fail();
+    expect(result.current.failed).toBe(true);
+    expect(bridge.getCarLaps).toHaveBeenCalledTimes(1);
+
+    await page.comeBack();
+
+    expect(bridge.getCarLaps).toHaveBeenCalledTimes(2);
+    expect(result.current).toEqual({ record: undefined, failed: false });
+    await asked[1].answer(3);
+    expect(result.current.record?.laps).toHaveLength(3);
+  });
+
+  it('asks again only for the cars that have no answer', async () => {
+    channel(summaryOf([1, 1, 1]));
+    const { bridge, asked } = history();
+    const page = socket();
+    const cars = [0, 2];
+    const { result } = renderHook(() => useCarRaceReads(cars));
+    await asked[0].answer(4);
+    await asked[1].fail();
+    expect([...result.current.records.keys()]).toEqual([0]);
+    expect([...result.current.failed]).toEqual([2]);
+
+    await page.drop();
+    await page.comeBack();
+
+    // Car 0 has its answer and is left alone; car 2 is asked for again.
+    expect(bridge.getCarLaps).toHaveBeenCalledTimes(3);
+    expect(bridge.getCarLaps).toHaveBeenLastCalledWith(2);
+    expect([...result.current.failed]).toEqual([]);
+    await asked[2].answer(1);
+    expect([...result.current.records.keys()].sort()).toEqual([0, 2]);
+  });
+
+  it('asks nothing again for a read still on its way when the connection comes back', async () => {
+    channel(summaryOf([1]));
+    const { bridge } = history();
+    const page = socket();
+    renderHook(() => useCarRaceRead(0));
+
+    await page.comeBack();
+
+    expect(bridge.getCarLaps).toHaveBeenCalledTimes(1);
+  });
+
+  it('is not asked again in a window of the app, which has no such connection', async () => {
+    channel(summaryOf([1]));
+    const { bridge, asked } = history();
+    expect(window.browserConnection).toBeUndefined();
+    const { result } = renderHook(() => useCarRaceRead(0));
+    await asked[0].fail();
+
+    // Nothing to come back, and nothing listened to: as before.
+    expect(result.current).toEqual({ record: undefined, failed: true });
+    expect(bridge.getCarLaps).toHaveBeenCalledTimes(1);
+  });
+
+  it('forgets a failure with the car it was about, and stops listening when it goes', async () => {
+    channel(summaryOf([1, 1]));
+    const { asked } = history();
+    const page = socket();
+    const { result, rerender, unmount } = renderHook(
+      ({ carIdx }: { carIdx: number }) => useCarRaceRead(carIdx),
+      { initialProps: { carIdx: 0 } }
+    );
+    await asked[0].fail();
+    expect(result.current.failed).toBe(true);
+
+    rerender({ carIdx: 1 });
+    expect(result.current).toEqual({ record: undefined, failed: false });
+
+    expect(page.listeners()).toBe(1);
+    unmount();
+    expect(page.listeners()).toBe(0);
   });
 });
 

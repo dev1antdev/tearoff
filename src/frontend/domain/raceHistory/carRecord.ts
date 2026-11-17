@@ -199,6 +199,11 @@ export interface CarRecordStanding {
   recording: boolean;
   /** The car's record has been read. */
   read: boolean;
+  /**
+   * The last read of it failed, and no other is on its way: it is asked
+   * for again when the car's records change, or the page reconnects.
+   */
+  failed?: boolean;
 }
 
 /**
@@ -209,9 +214,12 @@ export const carRecordNotice = ({
   readable,
   recording,
   read,
+  failed = false,
 }: CarRecordStanding): string | null => {
   if (!readable) return 'The race history is not available on this page.';
   if (!recording) return 'Waiting for a session to record.';
+  // Not "Reading": nothing is being read, and it would say so for ever.
+  if (!read && failed) return 'The race history could not be read.';
   if (!read) return 'Reading the race history.';
   return null;
 };

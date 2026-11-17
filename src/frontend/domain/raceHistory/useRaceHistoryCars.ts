@@ -20,7 +20,27 @@ import type { CarRaceRecord } from './carRecord';
 type Read<T> = (bridge: RaceHistoryBridge, carIdx: number) => Promise<T>;
 
 const NOTHING_HELD: ReadonlyMap<number, never> = new Map<number, never>();
+const NONE_FAILED: ReadonlySet<number> = new Set<number>();
 const NO_CARS: readonly number[] = [];
+
+/** What is held for the cars asked about. */
+interface CarReads<T> {
+  /** The answers, by car. A car with none has no entry. */
+  held: ReadonlyMap<number, T>;
+  /**
+   * The cars whose last read failed and that have no answer since: asked
+   * again when their records next change, or the page's connection is back.
+   */
+  failed: ReadonlySet<number>;
+}
+
+const without = (
+  cars: ReadonlySet<number>,
+  gone: (carIdx: number) => boolean
+): ReadonlySet<number> => {
+  const kept = [...cars].filter((carIdx) => !gone(carIdx));
+  return kept.length === 0 ? NONE_FAILED : new Set(kept);
+};
 
 const carsOf = (key: string): number[] =>
   key.split(',').filter(Boolean).map(Number);
@@ -35,9 +55,14 @@ const carsOf = (key: string): number[] =>
  * was given no bridge the map stays empty.
  *
  * The bridge is a window's over IPC and a browser page's over its socket,
- * and the hook does not know which. A read that is refused or lost, as
- * one is when a page's socket drops, is asked again the next time the
- * car's records change.
+ * and the hook does not know which. A read that is refused or lost is asked
+ * again the next time the car's records change. On a page served to a
+ * browser that is not soon enough: a read in flight when the socket drops,
+ * or made while it is down, is lost, and a car that has retired never
+ * changes again. So when the page's connection comes back
+ * (`window.browserConnection`, which a window of the app has not) every car
+ * that has no answer is asked for again. Until it has one, a car whose
+ * read failed is named in `failed`, for a panel to say so.
  *
  * Subscribing to the summary is also what keeps the race recorded while a
  * reader is on screen.
@@ -48,7 +73,7 @@ const carsOf = (key: string): number[] =>
 const useRaceHistoryCars = <T>(
   carIdxs: readonly number[],
   read: Read<T>
-): ReadonlyMap<number, T> => {
+): CarReads<T> => {
   // A string, so that the same cars in a new array are the same cars.
   const key = carIdxs.join(',');
   const select = useCallback(
@@ -64,6 +89,10 @@ const useRaceHistoryCars = <T>(
   });
 
   const [held, setHeld] = useState<ReadonlyMap<number, T>>(NOTHING_HELD);
+  /** The cars whose last read failed and has not been made good. */
+  const [failed, setFailed] = useState<ReadonlySet<number>>(NONE_FAILED);
+  /** Counts the times the page's connection came back. */
+  const [reconnected, setReconnected] = useState(0);
   /** What each car was last asked about at: the race and the revision. */
   const asked = useRef(new Map<number, string>());
   const mounted = useRef(true);
@@ -72,6 +101,15 @@ const useRaceHistoryCars = <T>(
     return () => {
       mounted.current = false;
     };
+  }, []);
+
+  useEffect(() => {
+    // A page served to a browser; the app's windows have no connection.
+    const connection = window.browserConnection;
+    if (!connection) return;
+    return connection.onConnectionChanged((connected) => {
+      if (connected) setReconnected((count) => count + 1);
+    });
   }, []);
 
   useEffect(() => {
@@ -93,12 +131,22 @@ const useRaceHistoryCars = <T>(
         ? before
         : new Map([...before].filter(([carIdx]) => questions.has(carIdx)))
     );
+    // A failure is forgotten with the car, and with the race it was in.
+    setFailed((before) =>
+      raceToken && [...before].every((carIdx) => wanted.has(carIdx))
+        ? before
+        : without(before, (carIdx) => !raceToken || !wanted.has(carIdx))
+    );
     if (!raceToken) return;
 
     cars.forEach((carIdx, index) => {
       const stamp = `${raceToken}:${revisions[index]}`;
       if (questions.get(carIdx) === stamp) return;
       questions.set(carIdx, stamp);
+      // Asked again: it is being read, not failed.
+      setFailed((before) =>
+        before.has(carIdx) ? without(before, (car) => car === carIdx) : before
+      );
       read(bridge, carIdx)
         .then((answer) => {
           // Answered after a newer question for the car, after the car was
@@ -108,13 +156,20 @@ const useRaceHistoryCars = <T>(
         })
         .catch((error: unknown) => {
           logger.warn('Race history: could not read a car’s records', error);
-          // So the next change of the car's records asks again.
-          if (questions.get(carIdx) === stamp) questions.delete(carIdx);
+          if (questions.get(carIdx) !== stamp) return;
+          // So the next change of the car's records, or the connection
+          // coming back, asks again.
+          questions.delete(carIdx);
+          if (mounted.current) {
+            setFailed((before) => new Set(before).add(carIdx));
+          }
         });
     });
-  }, [state, key, read]);
+    // `reconnected` is here to run this again when the connection is back:
+    // a car whose read was lost has no question standing, and gets one.
+  }, [state, key, read, reconnected]);
 
-  return held;
+  return useMemo(() => ({ held, failed }), [held, failed]);
 };
 
 const readStints: Read<RaceStint[]> = (bridge, carIdx) =>
@@ -124,7 +179,7 @@ const readStints: Read<RaceStint[]> = (bridge, carIdx) =>
 export const useRaceStints = (
   carIdxs: readonly number[]
 ): ReadonlyMap<number, readonly RaceStint[]> =>
-  useRaceHistoryCars(carIdxs, readStints);
+  useRaceHistoryCars(carIdxs, readStints).held;
 
 const readRecord: Read<CarRaceRecord> = async (bridge, carIdx) => {
   const [laps, stints] = await Promise.all([
@@ -141,13 +196,32 @@ const readRecord: Read<CarRaceRecord> = async (bridge, carIdx) => {
  */
 export const useCarRaceRecord = (
   carIdx: number | null
-): CarRaceRecord | undefined => {
+): CarRaceRecord | undefined => useCarRaceRead(carIdx).record;
+
+/** One car's record, and whether the last read of it failed. */
+export interface CarRaceRead {
+  record: CarRaceRecord | undefined;
+  /**
+   * The read was refused or lost and has not been made good: there is no
+   * record, and none is on its way until the car's records change or the
+   * page's connection comes back.
+   */
+  failed: boolean;
+}
+
+/**
+ * `useCarRaceRecord`, for a panel that tells a record that is being read
+ * from one that could not be.
+ */
+export const useCarRaceRead = (carIdx: number | null): CarRaceRead => {
   const cars = useMemo(
     () => (carIdx === null || carIdx < 0 ? NO_CARS : [carIdx]),
     [carIdx]
   );
-  const held = useRaceHistoryCars(cars, readRecord);
-  return carIdx === null ? undefined : held.get(carIdx);
+  const { held, failed } = useRaceHistoryCars(cars, readRecord);
+  const record = carIdx === null ? undefined : held.get(carIdx);
+  const lost = carIdx !== null && record === undefined && failed.has(carIdx);
+  return useMemo(() => ({ record, failed: lost }), [record, lost]);
 };
 
 /**
@@ -158,8 +232,21 @@ export const useCarRaceRecord = (
  */
 export const useCarRaceRecords = (
   carIdxs: readonly number[]
-): ReadonlyMap<number, CarRaceRecord> =>
-  useRaceHistoryCars(carIdxs, readRecord);
+): ReadonlyMap<number, CarRaceRecord> => useCarRaceReads(carIdxs).records;
+
+/**
+ * `useCarRaceRecords`, with the cars whose last read failed and that have
+ * no record since.
+ */
+export const useCarRaceReads = (
+  carIdxs: readonly number[]
+): {
+  records: ReadonlyMap<number, CarRaceRecord>;
+  failed: ReadonlySet<number>;
+} => {
+  const { held, failed } = useRaceHistoryCars(carIdxs, readRecord);
+  return useMemo(() => ({ records: held, failed }), [held, failed]);
+};
 
 /**
  * Whether this page can read the race history at all: a window of the app

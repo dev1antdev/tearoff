@@ -344,6 +344,23 @@ describe('Crew (staged)', () => {
       await settled();
     });
 
+    it('says the record could not be read where the read failed', async () => {
+      const { stage, history } = show();
+      await settled();
+      vi.mocked(history.getCarLaps).mockRejectedValueOnce(
+        new Error('The connection closed before the race history answered')
+      );
+      chooseCar(stage.slotOf('33'));
+
+      // It went on reading "Reading the race history." with nothing on its
+      // way.
+      await waitFor(() =>
+        expect(screen.getByTestId('crew-notice')).toHaveTextContent(
+          'The race history could not be read.'
+        )
+      );
+    });
+
     it('counts fuel a lap for a car that runs on fuel', async () => {
       const { stage } = show();
       await settled();

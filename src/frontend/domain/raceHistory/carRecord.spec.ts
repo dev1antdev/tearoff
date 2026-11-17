@@ -289,4 +289,24 @@ describe('carRecordNotice', () => {
       carRecordNotice({ readable: true, recording: true, read: true })
     ).toBeNull();
   });
+
+  it('says a read could not be made, instead of that it is being made', () => {
+    expect(
+      carRecordNotice({
+        readable: true,
+        recording: true,
+        read: false,
+        failed: true,
+      })
+    ).toBe('The race history could not be read.');
+    // A record that is held is shown, whatever became of a later read.
+    expect(
+      carRecordNotice({
+        readable: true,
+        recording: true,
+        read: true,
+        failed: true,
+      })
+    ).toBeNull();
+  });
 });
