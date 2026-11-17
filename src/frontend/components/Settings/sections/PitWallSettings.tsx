@@ -109,11 +109,27 @@ export const PitWallSettings = () => {
                   tab; a browser keeps its own.
                 </p>
                 <p>
+                  Custom is a page you arrange yourself. It starts as a copy of
+                  Race. Choose Custom, then press Edit layout, the pencil beside
+                  the layout switch in the header of the Pit Wall window: drag a
+                  panel by its title bar to move it and by its lower right
+                  corner to size it, take one off the page with the cross on its
+                  title bar, and put another on with Add panel, which also
+                  offers the overlay widgets the fixed layouts do not use, such
+                  as Standings, the Fuel Calculator and Pit Stop. With a panel
+                  in focus the arrow keys move it and Shift with an arrow key
+                  sizes it. Done saves the arrangement into this profile and
+                  Cancel drops it. A browser shows the arrangement as saved and
+                  cannot change it.
+                </p>
+                <p>
                   A panel whose widget the running simulator does not support is
                   left out and its neighbours take the room: under iRacing that
-                  is the Weather Forecast. While the Pit Wall is switched on the
-                  race is recorded for its panels from the start, whether or not
-                  the window is open.
+                  is the Weather Forecast. On the Custom page its place is left
+                  empty instead, since nothing there moves that you did not
+                  move. While the Pit Wall is switched on the race is recorded
+                  for its panels from the start, whether or not the window is
+                  open.
                 </p>
                 <p>
                   Nothing here has been seen in a live game yet. It has only
