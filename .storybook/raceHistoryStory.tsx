@@ -42,8 +42,10 @@ type CarPanelWidgetId = 'crew' | 'carlaps' | 'racecharts';
 /**
  * Puts a bridge to the race history on the window for a story, or takes it
  * away, to show what a panel says on a page that was given none.
+ *
+ * Exported for a story that stages a whole page of such panels.
  */
-const RaceHistoryBridgeDecorator = (
+export const RaceHistoryBridgeDecorator = (
   bridge: RaceHistoryBridge | undefined
 ): Decorator => {
   const DecoratorComponent: Decorator = (Story) => {
