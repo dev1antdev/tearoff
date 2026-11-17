@@ -153,14 +153,107 @@ export const Flags: Story = {
 
 /**
  * On a phone, 390 wide: the page is given the tabs whatever layout is
- * chosen, so the strip offers no choice of one, and wraps onto as many lines
- * as it needs.
+ * chosen, so the strip offers no choice of one. It is two rows: the clock
+ * and the flag, then our car, its place and who drives it. The words around
+ * them are left for a screen reader.
  */
 export const OnAPhone: Story = {
-  args: { layout: 'compact', onLayoutChange: undefined },
+  args: { layout: 'compact', onLayoutChange: undefined, phone: true },
   decorators: [
     (Story) => (
       <div className="w-[390px]">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+/**
+ * A phone during a team-mate's stint under a full-course yellow, in a
+ * browser: the longest flag there is, an eye for "You are watching", and a
+ * clock whose words give way to the flag.
+ */
+export const OnAPhoneTeamMateDriving: Story = {
+  args: {
+    layout: 'compact',
+    onLayoutChange: undefined,
+    onOpenSettings: undefined,
+    phone: true,
+    data: {
+      ...racing,
+      flag: { label: 'FULL COURSE YELLOW', tone: 'yellow' },
+      car: racing.car && { ...racing.car, driver: 'Nadia Volkova' },
+      watching: true,
+    },
+  },
+  decorators: [
+    (Story) => (
+      <div className="w-[390px]">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+/** A long name for the session and the track: the first thing to be cut. */
+const longSession: PitWallHeaderData = {
+  ...racing,
+  session: 'Race · Autodromo Internazionale Enzo e Dino Ferrari',
+};
+
+/**
+ * In a window 1280 wide: the strip keeps to one line. The session's name is
+ * cut at the room there is, with the whole of it for whoever points at it,
+ * and the simulator is its dot.
+ */
+export const In1280: Story = {
+  args: { data: longSession },
+  decorators: [
+    (Story) => (
+      <div className="w-[1280px]">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+/**
+ * The most a strip has to hold, at 1280: the Custom layout's Edit button, a
+ * team-mate at the wheel and a full-course yellow. Everything it can give
+ * up it has: the name of the session, the room between its items, the
+ * simulator's words, "Pit Wall", the words of "You are watching", and last
+ * the end of the driver's name.
+ */
+export const In1280AtItsFullest: Story = {
+  args: {
+    layout: 'custom',
+    onEditLayout: () => undefined,
+    data: {
+      ...longSession,
+      flag: { label: 'FULL COURSE YELLOW', tone: 'yellow' },
+      car: racing.car && { ...racing.car, driver: 'Nadia Volkova' },
+      watching: true,
+    },
+  },
+  decorators: [
+    (Story) => (
+      <div className="w-[1280px]">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
+/** The Custom layout at 1600, where the Edit button took the strip to two lines. */
+export const CustomLayoutIn1600: Story = {
+  args: {
+    layout: 'custom',
+    onEditLayout: () => undefined,
+    data: longSession,
+  },
+  decorators: [
+    (Story) => (
+      <div className="w-[1600px]">
         <Story />
       </div>
     ),

@@ -101,7 +101,7 @@ export default defineWidgetManifest({
       type: 'boolean',
       label: 'Legend',
       description:
-        'A line under the table that says what Net Gap, Pace 5 and the marks in Tyres are.',
+        'A line under the table that says what Net Gap, Pace 5 and the marks in Tyres are. It is drawn where the cars listed fit over it: a list that would have to scroll for it has its room instead.',
     },
     showOnlyWhenOnTrack: {
       type: 'boolean',

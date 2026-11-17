@@ -320,18 +320,25 @@ export const WeatherForecast = () => {
 
   return (
     <div
-      className="flex h-full w-full flex-col justify-center rounded bg-slate-800/(--bg-opacity) p-2 text-white"
+      // What it holds is centred by its own margins and not by this box:
+      // in a box too short for it, margins leave it at the top, from where
+      // a panel can scroll down it. Centred by the box it would be cut at
+      // both ends, with its top above where any scrolling reaches. The
+      // room above and below it is those margins and no padding of the
+      // box, which would push it out of a box it only just fits.
+      className="flex h-full w-full flex-col rounded bg-slate-800/(--bg-opacity) px-2 text-white"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}
     >
       {columns.length === 0 ? (
-        <div className="text-center text-xs text-white/60">
+        <div className="my-auto text-center text-xs text-white/60">
           {snapshot?.available ? 'No further forecast' : 'No forecast'}
         </div>
       ) : (
         <div
-          className="grid gap-1"
+          data-testid="weather-forecast-columns"
+          className="my-auto grid gap-1"
           style={{
             gridTemplateColumns: `repeat(${slots}, minmax(0, 1fr))`,
           }}
