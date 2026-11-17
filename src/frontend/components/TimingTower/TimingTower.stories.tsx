@@ -270,15 +270,31 @@ export const TyresWithoutRoomForTheTread: Story = {
 /**
  * A panel 700 wide: Stops, Int, Best and Sect are left out so that the
  * rest fit without scrolling sideways. The Tyres column gave up its laps
- * and tread before any of them went, and shows the compound alone.
+ * and tread before any of them went, and shows the compound alone. The
+ * header keeps to one row by writing "Avg" and "vs" and shorter choices.
  */
 export const Narrow: Story = { ...story({}, { width: 700 }) };
 
 /**
  * A panel 560 wide, as on the Compact page: the place, the number, the
  * driver, the gap, the last lap and the three pace columns are what stay.
+ * No one row holds the header, so it has two, written whole.
  */
 export const Compact: Story = { ...story({}, { width: 560 }) };
+
+/**
+ * A panel 430 wide, as the Watching page has: the header stays on two rows
+ * by shortening its switches.
+ */
+export const AtTheWidthOfTheWatchingPanel: Story = {
+  ...story({}, { width: 430 }),
+};
+
+/**
+ * 350 wide, as on a phone: the header is at its barest, "vs Stint" and "vs
+ * Driver" for the column headed vs stint, and still on two rows.
+ */
+export const AtTheWidthOfAPhone: Story = { ...story({}, { width: 350 }) };
 
 /**
  * A short panel on the tab of the whole field: the list scrolls under the
