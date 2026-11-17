@@ -39,10 +39,10 @@ describe('needsLapHistory', () => {
     expect(needsLapHistory(layout(widget('battle', false)))).toBe(false);
   });
 
-  it('is true for an enabled Pit Wall, which reads none itself', () => {
-    // A page for whole races: the crossings are kept while it is switched
-    // on, whether or not one of its panels shows them.
-    expect(needsLapHistory(layout(widget('pitwall', true)))).toBe(true);
+  it('is false for an enabled Pit Wall, which reads none', () => {
+    // Its panels read the history of races. Lap history kept for the page
+    // was kept for no reader.
+    expect(needsLapHistory(layout(widget('pitwall', true)))).toBe(false);
     expect(needsLapHistory(layout(widget('pitwall', false)))).toBe(false);
   });
 

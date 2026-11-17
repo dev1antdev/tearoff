@@ -5,10 +5,9 @@ export default defineWidgetManifest({
   name: 'Pit Wall',
   category: 'Standings',
   enabled: false,
-  // The page reads no lap history itself. It is a page for whole races:
-  // while it is switched on, the crossings of a race are kept from the
-  // start of it, for whichever of its panels comes to show them.
-  usesLapHistory: true,
+  // No lap history is kept for the page. Its panels that show laps, stints
+  // and stops read the history of races, which is recorded while the page is
+  // switched on (`raceHistoryDemand.ts`); none reads `lap-history.snapshot`.
   // Never drawn on the overlay: this is the size the settings preview shows
   // the page at, which is the window's own default size.
   layout: {
