@@ -9,8 +9,8 @@ import {
   type IrSdkSourceBridge,
   type DashboardBridge,
   type PitLaneBridge,
-  type RaceHistoryBridge,
 } from '@irdashies/types';
+import type { CheckedRaceHistoryBridge } from '../bridge/raceHistoryBridge';
 import logger from '../logger';
 import { currentDashboard } from './bridgeProxy';
 import { getGarageCoverImageAsDataUrl } from '../storage/dashboards';
@@ -439,7 +439,7 @@ export async function startComponentServer(
   dashboardBridge?: DashboardBridge,
   channelBus?: import('../bridge/channelBridge').ChannelBus,
   pitLaneBridge?: PitLaneBridge,
-  raceHistoryBridge?: RaceHistoryBridge
+  raceHistoryBridge?: CheckedRaceHistoryBridge
 ) {
   const { getDashboard, getCurrentProfileId } =
     await import('../storage/dashboards');

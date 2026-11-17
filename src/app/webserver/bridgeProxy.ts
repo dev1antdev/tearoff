@@ -10,7 +10,6 @@ import type {
   IrSdkSourceBridge,
   DashboardBridge,
   PitLaneBridge,
-  RaceHistoryBridge,
 } from '@irdashies/types';
 import {
   getActiveSimulator,
@@ -22,6 +21,7 @@ import { loadSimWidgetSupport } from '../storage/simWidgetSupport';
 import logger from '../logger';
 import { getHiddenWidgets, onWidgetHiddenChanged } from '../widgetVisibility';
 import type { ChannelBus } from '../bridge/channelBridge';
+import type { CheckedRaceHistoryBridge } from '../bridge/raceHistoryBridge';
 import { getRacePlanState, onRacePlanState } from '../services/racePlanSource';
 import {
   createRefusalLog,
@@ -87,7 +87,7 @@ export function createBridgeProxy(
   pitLaneBridge?: PitLaneBridge,
   accessPolicy?: AccessPolicy,
   deviceAccess?: DeviceAccess,
-  raceHistoryBridge?: RaceHistoryBridge
+  raceHistoryBridge?: CheckedRaceHistoryBridge
 ) {
   const visitorOf = (req: IncomingMessage): AccessRequest => ({
     host: req.headers.host,

@@ -87,6 +87,22 @@ const noMoreThan = (
   }
 };
 
+declare const checked: unique symbol;
+
+/**
+ * The bridge with its checks in front of the source.
+ *
+ * The source answers the same five questions and checks nothing: it is
+ * written for callers inside the main process. It has the bridge's shape,
+ * so wherever a plain `RaceHistoryBridge` is asked for, the source would be
+ * taken for one without a word from the compiler. What answers a window or
+ * a socket asks for this type instead, which only `createRaceHistoryBridge`
+ * makes. The mark is the compiler's alone: nothing is added to the object.
+ */
+export type CheckedRaceHistoryBridge = RaceHistoryBridge & {
+  readonly [checked]: true;
+};
+
 /**
  * One instance is shared by IPC and browser clients: every argument is
  * checked here, so that whichever road a request comes by it is the same
@@ -95,39 +111,43 @@ const noMoreThan = (
  */
 export const createRaceHistoryBridge = (
   source: RaceHistorySource
-): RaceHistoryBridge => ({
-  async getCarLaps(carIdx: unknown, raceId?: unknown, ...rest: unknown[]) {
-    noMoreThan(rest, 2, 'raceHistory:getCarLaps');
-    return source.getCarLaps(
-      carIdxOrThrow(carIdx, 'raceHistory:getCarLaps'),
-      raceIdOrThrow(raceId, 'raceHistory:getCarLaps')
-    );
-  },
-  async getCarStints(carIdx: unknown, raceId?: unknown, ...rest: unknown[]) {
-    noMoreThan(rest, 2, 'raceHistory:getCarStints');
-    return source.getCarStints(
-      carIdxOrThrow(carIdx, 'raceHistory:getCarStints'),
-      raceIdOrThrow(raceId, 'raceHistory:getCarStints')
-    );
-  },
-  async getDriverChanges(raceId?: unknown, ...rest: unknown[]) {
-    noMoreThan(rest, 1, 'raceHistory:getDriverChanges');
-    return source.getDriverChanges(
-      raceIdOrThrow(raceId, 'raceHistory:getDriverChanges')
-    );
-  },
-  async listRaces(...rest: unknown[]) {
-    noMoreThan(rest, 0, 'raceHistory:listRaces');
-    return source.listRaces();
-  },
-  async getEvents(raceId?: unknown, before?: unknown, ...rest: unknown[]) {
-    noMoreThan(rest, 2, 'raceHistory:getEvents');
-    return source.getEvents(
-      raceIdOrThrow(raceId, 'raceHistory:getEvents'),
-      beforeOrThrow(before, 'raceHistory:getEvents')
-    );
-  },
-});
+): CheckedRaceHistoryBridge => {
+  const bridge: RaceHistoryBridge = {
+    async getCarLaps(carIdx: unknown, raceId?: unknown, ...rest: unknown[]) {
+      noMoreThan(rest, 2, 'raceHistory:getCarLaps');
+      return source.getCarLaps(
+        carIdxOrThrow(carIdx, 'raceHistory:getCarLaps'),
+        raceIdOrThrow(raceId, 'raceHistory:getCarLaps')
+      );
+    },
+    async getCarStints(carIdx: unknown, raceId?: unknown, ...rest: unknown[]) {
+      noMoreThan(rest, 2, 'raceHistory:getCarStints');
+      return source.getCarStints(
+        carIdxOrThrow(carIdx, 'raceHistory:getCarStints'),
+        raceIdOrThrow(raceId, 'raceHistory:getCarStints')
+      );
+    },
+    async getDriverChanges(raceId?: unknown, ...rest: unknown[]) {
+      noMoreThan(rest, 1, 'raceHistory:getDriverChanges');
+      return source.getDriverChanges(
+        raceIdOrThrow(raceId, 'raceHistory:getDriverChanges')
+      );
+    },
+    async listRaces(...rest: unknown[]) {
+      noMoreThan(rest, 0, 'raceHistory:listRaces');
+      return source.listRaces();
+    },
+    async getEvents(raceId?: unknown, before?: unknown, ...rest: unknown[]) {
+      noMoreThan(rest, 2, 'raceHistory:getEvents');
+      return source.getEvents(
+        raceIdOrThrow(raceId, 'raceHistory:getEvents'),
+        beforeOrThrow(before, 'raceHistory:getEvents')
+      );
+    },
+  };
+  // Marked here and nowhere else: this is what the checks are in front of.
+  return bridge as CheckedRaceHistoryBridge;
+};
 
 const CHANNELS = [
   'raceHistory:getCarLaps',
@@ -146,7 +166,7 @@ const CHANNELS = [
  * the way to take the handlers down.
  */
 export function setupRaceHistoryBridge(source: RaceHistorySource): {
-  bridge: RaceHistoryBridge;
+  bridge: CheckedRaceHistoryBridge;
   dispose: () => void;
 } {
   const bridge = createRaceHistoryBridge(source);

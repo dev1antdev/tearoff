@@ -6,6 +6,7 @@ import {
   DEFAULT_SIM_WIDGET_SUPPORT,
   KEY_REPLACED_CLOSE_CODE,
   RACE_HISTORY_MAX_LAPS_PER_CAR,
+  channelRegistry,
   type DashboardBridge,
   type IrSdkSourceBridge,
   type RaceCarLaps,
@@ -68,6 +69,8 @@ import {
 } from '../processors/raceHistoryStoreFixture';
 import { createBridgeProxy } from './bridgeProxy';
 import { WebSocketBridge } from './componentRenderer';
+// For its type alone: the module itself wants Electron's app.
+import type { startComponentServer } from './componentServer';
 import {
   RACE_HISTORY_BUSY,
   RACE_HISTORY_MAX_WAITING,
@@ -81,8 +84,17 @@ const TABLET = '192.168.1.77';
 const KEY = 'the-key-0123456789abcdefghijklmn';
 const NEW_KEY = 'new-key-0123456789abcdefghijklmn';
 
-/** The channels whose readers are a reason to record the race. */
-const DEMAND_CHANNELS = ['race-history.summary', 'race-log.snapshot'] as const;
+/**
+ * The channels whose readers are a reason to record the race: the summary,
+ * the race's log, and the tyre ages worked out from the record. Named here
+ * and not taken from the app, so that one going missing there is noticed;
+ * a spec below finds out from the app itself that none is missing here.
+ */
+const DEMAND_CHANNELS = [
+  'race-history.summary',
+  'race-log.snapshot',
+  'class-tyres.snapshot',
+] as const;
 
 /** Every read the bridge has, with arguments it takes. */
 const READS = [
@@ -461,6 +473,26 @@ describe('the race history, read over a page’s socket', () => {
     expect(await page.ask('raceHistory:listRaces', [])).toMatchObject({
       error: RACE_HISTORY_UNAVAILABLE,
     });
+  });
+
+  it('cannot be handed what the bridge is answered from in place of the bridge', () => {
+    // The source has the bridge's five calls and none of its checks, so the
+    // two would pass for each other by shape. What the server takes is the
+    // checked type, and this is the compiler being held to it: each line
+    // marked below must not compile, or the type check of the specs fails.
+    const unchecked: RaceHistoryBridge = countingSource();
+    type ProxyTakes = Parameters<typeof createBridgeProxy>[7];
+    type ServerTakes = Parameters<typeof startComponentServer>[4];
+
+    // @ts-expect-error The unchecked source is not the checked bridge.
+    const toProxy: ProxyTakes = unchecked;
+    // @ts-expect-error Nor is it at the door the app starts the server by.
+    const toServer: ServerTakes = unchecked;
+    const checked = createRaceHistoryBridge(unchecked);
+    const taken: [ProxyTakes, ServerTakes] = [checked, checked];
+
+    expect([toProxy, toServer]).toEqual([unchecked, unchecked]);
+    expect(taken).toEqual([checked, checked]);
   });
 });
 
@@ -964,7 +996,7 @@ describe('a page’s subscription as a reason to record the race', () => {
     await settled(page);
     expect(
       DEMAND_CHANNELS.map((channel) => bus.subscriberCount(channel))
-    ).toEqual([1, 1]);
+    ).toEqual(DEMAND_CHANNELS.map(() => 1));
 
     page.socket.terminate();
 
@@ -973,6 +1005,30 @@ describe('a page’s subscription as a reason to record the race', () => {
     for (const channel of DEMAND_CHANNELS) {
       expect(bus.registeredSubscriberCount(channel)).toBe(0);
     }
+  });
+
+  it('covers every channel the app takes for a reason, and no other starts it', () => {
+    // Asked of the app's own rule, one channel of the registry at a time,
+    // so that a reason added there is a failure here until a socket
+    // reading it is counted above.
+    const reasons = Object.keys(channelRegistry).filter((channel) => {
+      const bus = new ChannelBus();
+      const needed = vi.fn<(needed: boolean) => void>();
+      const stop = watchRaceHistoryDemand({
+        bus,
+        initialLayout: undefined,
+        onDashboardUpdated: () => undefined,
+        getSimulator: () => 'lmu',
+        onSimulatorChanged: () => undefined,
+        getSupport: () => DEFAULT_SIM_WIDGET_SUPPORT,
+        onChange: needed,
+      });
+      bus.subscribe(windowTarget(1), channel);
+      stop();
+      return needed.mock.calls.some(([value]) => value);
+    });
+
+    expect(reasons.sort()).toEqual([...DEMAND_CHANNELS].sort());
   });
 
   it('goes on recording for the page that stays when another leaves', async () => {

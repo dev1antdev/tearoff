@@ -1,5 +1,8 @@
 import type { RaceHistoryBridge } from '@irdashies/types';
-import { RaceHistoryRequestError } from '../bridge/raceHistoryBridge';
+import {
+  RaceHistoryRequestError,
+  type CheckedRaceHistoryBridge,
+} from '../bridge/raceHistoryBridge';
 
 /**
  * The race history, read over one browser page's socket.
@@ -58,8 +61,12 @@ export type RaceHistoryAnswer =
   | { type: string; requestId: string | null; error: string };
 
 export interface RaceHistoryReadsOptions {
-  /** The one checked bridge; absent where the server was given none. */
-  bridge: RaceHistoryBridge | undefined;
+  /**
+   * The one checked bridge; absent where the server was given none. The
+   * type is the checked one on purpose: what the bridge is answered from
+   * has the same shape and no checks, and must not be taken for it.
+   */
+  bridge: CheckedRaceHistoryBridge | undefined;
   /**
    * Whether the socket still is one to answer. One that is being closed,
    * as a device's is when its key was replaced, is read for no further.

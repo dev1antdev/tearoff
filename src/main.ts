@@ -79,7 +79,10 @@ import { ClassTyresRuntime } from './app/processors/classTyresRuntime';
 import { liveOwnTyres, setLiveOwnTyresSource } from './app/processors/ownTyres';
 import { getClassTyresTuning } from './app/storage/classTyresTuning';
 import { watchRaceHistoryDemand } from './app/raceHistoryDemand';
-import { setupRaceHistoryBridge } from './app/bridge/raceHistoryBridge';
+import {
+  setupRaceHistoryBridge,
+  type CheckedRaceHistoryBridge,
+} from './app/bridge/raceHistoryBridge';
 import { isRecordedSource } from './app/tapeReplaySource';
 import { flushLapTracesOnShutdown } from './app/storage/lapTraces';
 import { flushPitLaneDataOnShutdown } from './app/storage/pitLaneData';
@@ -153,11 +156,7 @@ import {
   loadSimWidgetSupport,
 } from './app/storage/simWidgetSupport';
 import { simulatorHasUniqueSessionIds } from '@irdashies/types';
-import type {
-  DashboardLayout,
-  RaceHistoryBridge,
-  Session,
-} from '@irdashies/types';
+import type { DashboardLayout, Session } from '@irdashies/types';
 import { getActivePerfMetrics } from './app/perfMetrics';
 import {
   createPerfDashboard,
@@ -590,12 +589,13 @@ function setupPitStopRuntime(
  *
  * `runtime` is for what reads the records inside the main process, as the
  * tyre ages do. It answers the same questions unchecked, so it is never
- * what a window or a socket is answered from.
+ * what a window or a socket is answered from: the web server takes the
+ * checked type only, and handing it the runtime does not compile.
  */
 function setupRaceHistory(
   initialDashboard: DashboardLayout,
   replayContext: ReplayContextRuntime
-): { runtime: RaceHistoryRuntime; bridge: RaceHistoryBridge } {
+): { runtime: RaceHistoryRuntime; bridge: CheckedRaceHistoryBridge } {
   const lifecycle = getSessionLifecycle();
   const runtime = new RaceHistoryRuntime(
     channelBus,
