@@ -246,7 +246,7 @@ describe.skipIf(!lmuTapeAvailable())(
     });
 
     describe('against the lap the player drove', () => {
-      /** The recorded lap's samples, the first left out: see below. */
+      /** The recorded lap's samples, the first among them. */
       let driven: Point[];
       let bundled: Point[];
 
@@ -254,12 +254,24 @@ describe.skipIf(!lmuTapeAvailable())(
         const recorded = tape.recorded?.active.trackPathPoints;
         const points = tape.bundled?.active.trackPathPoints;
         if (!recorded || !points) throw new Error('No lap was recorded');
-        // The map the app records for a circuit with none bundled, made
-        // here of the lap from the rolling start. Its first sample is where
-        // the car stood on the grid when the recording began and not on the
-        // line, so it is not held against anything.
-        driven = recorded.slice(1);
+        // The map the app records for a circuit with none bundled. It is
+        // made of the second lap, the first the car begins at the line: the
+        // lap from the green flag begins on the grid, 139 m short of it,
+        // and the recorder takes nothing of that one.
+        driven = recorded;
         bundled = points;
+      });
+
+      it('begins at the line, not where the car stood on the grid', () => {
+        // The grid slot is 160 units back down the straight. Recorded as
+        // the lap's first sample it drew a spur from the line to the slot
+        // and put the start and finish mark there.
+        const start = driven[0];
+        const line = bundled[0];
+        expect(Math.hypot(start.x - line.x, start.y - line.y)).toBeLessThan(10);
+        expect(locate(bundled, start).off).toBeLessThan(5);
+        const mark = tape.recorded?.startFinish.point;
+        expect(mark).toMatchObject({ x: start.x, y: start.y });
       });
 
       it('is the same road: the driven line lies on the bundled outline', () => {
@@ -275,7 +287,7 @@ describe.skipIf(!lmuTapeAvailable())(
         const apart = (other: (index: number) => Point) =>
           median(
             driven.map((point, index) => {
-              const match = other(index + 1);
+              const match = other(index);
               return Math.hypot(match.x - point.x, match.y - point.y);
             })
           );

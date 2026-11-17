@@ -35,6 +35,17 @@ function frame(
   };
 }
 
+/**
+ * A recorder that has seen a lap begin: nothing is recorded before the car
+ * first crosses the line, so the frames a spec feeds next, from a later
+ * `lapStartET`, are a lap from its beginning.
+ */
+function recorderBeforeTheLine(): LmuTrackMapRecorder {
+  const recorder = new LmuTrackMapRecorder();
+  recorder.update(frame(0.99, { lapStartET: 50 }));
+  return recorder;
+}
+
 afterEach(() => {
   temporaryDirectories
     .splice(0)
@@ -109,7 +120,7 @@ describe('LMU track map', () => {
   });
 
   it('promotes one full valid lap', () => {
-    const recorder = new LmuTrackMapRecorder();
+    const recorder = recorderBeforeTheLine();
     for (let index = 0; index <= 100; index++) {
       expect(recorder.update(frame(index / 100))).toBeNull();
     }
@@ -124,7 +135,7 @@ describe('LMU track map', () => {
     // fraction is repeatedly identical -- and sample() drops any point whose
     // distance has not advanced. Pinning vehLapDistPct reproduces that: the
     // recorder collects a single point, far short of the twenty it needs.
-    const stalled = new LmuTrackMapRecorder();
+    const stalled = recorderBeforeTheLine();
     for (let index = 0; index <= 100; index++) {
       stalled.update(frame(index / 100, { vehLapDistPct: [0] }));
     }
@@ -133,7 +144,7 @@ describe('LMU track map', () => {
     ).toBeNull();
 
     // The same frames, with the reconstructed fraction supplied, promote a map.
-    const smoothed = new LmuTrackMapRecorder();
+    const smoothed = recorderBeforeTheLine();
     for (let index = 0; index <= 100; index++) {
       smoothed.update(frame(index / 100, { vehLapDistPct: [0] }), index / 100);
     }
@@ -149,7 +160,7 @@ describe('LMU track map', () => {
     // The bridge passes telemetry.LapDistPct, which is 0 with no player car
     // and could be NaN from a garbage frame. Either must fall back to scoring
     // rather than pinning progress.
-    const recorder = new LmuTrackMapRecorder();
+    const recorder = recorderBeforeTheLine();
     for (let index = 0; index <= 100; index++) {
       expect(recorder.update(frame(index / 100), NaN)).toBeNull();
     }
@@ -162,11 +173,75 @@ describe('LMU track map', () => {
   });
 
   it('accepts a timed lap even when LMU marks it invalidated', () => {
-    const recorder = new LmuTrackMapRecorder();
+    const recorder = recorderBeforeTheLine();
     for (let index = 0; index <= 100; index++) {
       recorder.update(frame(index / 100, { lapInvalidated: index === 50 }));
     }
     expect(recorder.update(frame(0, { lapStartET: 200 }))).not.toBeNull();
+  });
+
+  it('records nothing of the lap a race starts with, which begins behind the line', () => {
+    // As on the recorded race: the lap is timed from the green flag, the car
+    // is on the grid behind the line, and the game reads its distance as
+    // zero until it crosses. Where it stood was taken for the start of the
+    // lap, so the outline began well short of the line.
+    const fromTheGrid = new LmuTrackMapRecorder();
+    for (let step = 0; step < 10; step++) {
+      fromTheGrid.update(frame(0, { pos: [-139 + step * 13.9, 12, 0] }));
+    }
+    for (let index = 0; index <= 100; index++) {
+      fromTheGrid.update(frame(index / 100));
+    }
+    // The first lap is timed, and is not a lap from the line: no map of it.
+    expect(
+      fromTheGrid.update(frame(0, { lapStartET: 200, pos: [0, 12, 0] }))
+    ).toBeNull();
+
+    // The lap after it is, and is the map a lap from the line gives.
+    for (let index = 1; index <= 100; index++) {
+      fromTheGrid.update(frame(index / 100, { lapStartET: 200 }));
+    }
+    const map = fromTheGrid.update(
+      frame(0, { lapStartET: 300, pos: [0, 12, 0] })
+    );
+
+    const fromTheLine = recorderBeforeTheLine();
+    for (let index = 0; index <= 100; index++) {
+      fromTheLine.update(frame(index / 100));
+    }
+    const expected = fromTheLine.update(
+      frame(0, { lapStartET: 200, pos: [0, 12, 0] })
+    );
+    expect(map).not.toBeNull();
+    expect(map).toEqual(expected);
+  });
+
+  it('records a lap whose first frame still reads the end of the last one', () => {
+    // On the recorded race the lap's clock starts a few frames before the
+    // lap fraction goes back to nought. The first of those, 0.9996 of a
+    // lap, taken as the first sample, left every later sample behind it and
+    // the lap with one point.
+    const recorder = recorderBeforeTheLine();
+    recorder.update(frame(0.9996));
+    recorder.update(frame(0.9998));
+    for (let index = 1; index <= 100; index++) {
+      recorder.update(frame(index / 100));
+    }
+
+    const map = recorder.update(frame(0, { lapStartET: 200, pos: [0, 12, 0] }));
+
+    expect(map?.active.trackPathPoints).toHaveLength(512);
+  });
+
+  it('records nothing of a lap it did not see begin', () => {
+    const recorder = new LmuTrackMapRecorder();
+    // Joined two hundredths into a lap: its start was not seen.
+    for (let index = 2; index <= 100; index++) {
+      recorder.update(frame(index / 100));
+    }
+    expect(
+      recorder.update(frame(0, { lapStartET: 200, pos: [0, 12, 0] }))
+    ).toBeNull();
   });
 
   it('parses TinyPedal raw map coordinates', () => {
