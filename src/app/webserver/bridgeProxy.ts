@@ -40,6 +40,7 @@ import {
   type KeyDecision,
 } from './deviceKey';
 import { createRaceHistoryReads } from './raceHistoryReads';
+import { briefMessageType, createSocketLogLimit } from './socketLog';
 
 /** A whole dashboard is a few hundred kilobytes; nothing a page sends is more. */
 const MAX_MESSAGE_BYTES = 4 * 1024 * 1024;
@@ -332,6 +333,9 @@ export function createBridgeProxy(
       onFailure: (type, error) =>
         logger.warn(`Bridge proxy: ${type} failed`, error),
     });
+
+    // What this socket may write to the log about its own messages.
+    const logUnknown = createSocketLogLimit();
 
     if (unsubscribeFunctions.length === 0) {
       logger.info('No active subscriptions, subscribing to bridge...');
@@ -684,7 +688,13 @@ export function createBridgeProxy(
             break;
           }
           default:
-            logger.info('Bridge proxy: Unknown message type:', parsed.type);
+            // The type is the visitor's own text, megabytes of it if it
+            // likes: a short cleaned piece is written, a few times a minute.
+            logUnknown((leftOut) =>
+              logger.info(
+                `Bridge proxy: Unknown message type ${briefMessageType(parsed.type)}${leftOut}`
+              )
+            );
             break;
         }
       } catch (error) {

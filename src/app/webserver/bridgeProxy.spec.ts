@@ -14,6 +14,7 @@ import type {
 import { ChannelBus } from '../bridge/channelBus';
 import logger from '../logger';
 import { createBridgeProxy } from './bridgeProxy';
+import { SOCKET_LOG_LINES } from './socketLog';
 import { setRacePlanSource } from '../services/racePlanSource';
 
 // Exercise the real proxy handlers synchronously, without network timing.
@@ -438,6 +439,62 @@ describe('browser Inspector serialization demand', () => {
     bus.publish('session.lifecycle', { type: 'disconnect' });
     expect(ordinary.messages('channel')).toHaveLength(1);
     bus.dispose();
+  });
+});
+
+describe('what a browser connection may write to the log', () => {
+  beforeEach(() => vi.clearAllMocks());
+  afterEach(() => vi.restoreAllMocks());
+
+  const send = (client: Client, message: unknown) =>
+    client.emit('message', Buffer.from(JSON.stringify(message)));
+  const unknownLines = () =>
+    vi
+      .mocked(logger.info)
+      .mock.calls.map((args) => args.map(String).join(' '))
+      .filter((line) => line.includes('Unknown message type'));
+
+  it('is a short cleaned piece of an unknown message type, never the whole', () => {
+    const { connect } = setup();
+    const client = connect();
+    const megabytes = 'A'.repeat(3 * 1024 * 1024);
+
+    send(client, { type: megabytes });
+    send(client, {
+      type: 'forged' + String.fromCharCode(13, 10) + '[error] x',
+    });
+    send(client, { type: { nested: megabytes } });
+
+    expect(unknownLines()).toEqual([
+      `Bridge proxy: Unknown message type "${'A'.repeat(40)}" (cut from ${megabytes.length} characters)`,
+      'Bridge proxy: Unknown message type "forged??[error] x"',
+      'Bridge proxy: Unknown message type (not text: object)',
+    ]);
+    // Nothing of the message went to the log beside the line itself.
+    for (const args of vi.mocked(logger.info).mock.calls) {
+      expect(args.join(' ').length).toBeLessThan(200);
+    }
+  });
+
+  it('is a few such lines a minute for one connection, however many it sends', () => {
+    const { connect } = setup();
+    const noisy = connect();
+    const quiet = connect();
+    const time = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+
+    for (let i = 0; i < 500; i += 1) send(noisy, { type: `nonsense-${i}` });
+    expect(unknownLines()).toHaveLength(SOCKET_LOG_LINES);
+
+    // Another connection has its own few.
+    send(quiet, { type: 'mistyped' });
+    expect(unknownLines()).toHaveLength(SOCKET_LOG_LINES + 1);
+
+    // A minute on, the noisy one is heard again, with how many were left out.
+    time.mockReturnValue(1_000_000 + 60_000);
+    send(noisy, { type: 'later' });
+    expect(unknownLines().at(-1)).toBe(
+      `Bridge proxy: Unknown message type "later" (${500 - SOCKET_LOG_LINES} more not logged)`
+    );
   });
 });
 
