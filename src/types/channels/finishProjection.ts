@@ -26,8 +26,10 @@ export interface FinishCar {
   /** Laps completed plus the fraction of the lap under way. */
   progress: number;
   /**
-   * The pit lane time of the visit under way or the last one made, less
-   * what the same stretch takes on the racing line, s; 0 before the first.
+   * The pit lane time of the car's last stop, less what the same stretch
+   * takes on the racing line, s. 0 before the first, while the car is in
+   * the lane, and once a later pass down the lane that was not a stop (a
+   * drive-through) has replaced the time.
    */
   lastStopLossS: number;
 }

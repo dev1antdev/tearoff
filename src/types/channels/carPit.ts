@@ -23,11 +23,17 @@ export interface CarPitSnapshot {
   /** CAR_PIT_ON_TRACK, CAR_PIT_IN_LANE or CAR_PIT_IN_GARAGE. */
   where: readonly number[];
   /**
-   * Seconds in the pit lane on the current or most recent visit, to 0.1; 0
-   * before the first, and in the garage.
+   * Seconds in the pit lane on the current or most recent pass down it, to
+   * 0.1; 0 before the first, and in the garage.
+   *
+   * The last pass, not the last stop: a drive-through, or a brush with the
+   * entry line, replaces the time of the stop before it, and while a car is
+   * in the lane the figure is still growing. A reader that wants a stop's
+   * time asks `lastStopLaneTimeS` (`src/shared/pitStop/lastStopLaneTime.ts`),
+   * which says when this is one.
    */
   laneTimeS: readonly number[];
-  /** Seconds standing still on that visit, to 0.1. */
+  /** Seconds standing still on that pass, to 0.1. */
   standingS: readonly number[];
   /**
    * Stops made this session: the sim's count under LMU, the observed count

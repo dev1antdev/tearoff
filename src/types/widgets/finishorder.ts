@@ -77,7 +77,7 @@ export default defineWidgetManifest({
       type: 'boolean',
       label: 'Last Stop',
       description:
-        'A column for what your last stop and the leader’s last stop cost, once either has been through the pit lane.',
+        'A column for what your last stop and the leader’s last stop cost, once either has made one and is out of the pit lane again. A drive-through is not a stop: after one the car’s last stop is no longer known, and it is left out.',
     },
     extraTime: {
       type: 'number',

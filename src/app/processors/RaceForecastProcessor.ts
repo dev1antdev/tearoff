@@ -29,6 +29,7 @@ import {
   forecastDeciders,
   forecastOrder,
   isPitDriveMeasured,
+  lastStopLaneTimeS,
   pitLossS,
   pitWindow,
   PlaceMemory,
@@ -255,24 +256,15 @@ export class RaceForecastProcessor implements TelemetryProcessor<
 
     const pitFigures = (carIdx: number) => {
       const lastStopLap = carPit?.lastStopLap[carIdx] ?? -1;
-      const laneS = carPit?.laneTimeS[carIdx] ?? 0;
       const inLane = carPit?.where[carIdx] === CAR_PIT_IN_LANE;
       const since = carPit?.stintLaps[carIdx] ?? -1;
       return {
         inPit: inLane || standings?.carIdxOnPitRoad[carIdx] === true,
         stops: Math.max(0, carPit?.stops[carIdx] ?? 0),
         lastStopLap: lastStopLap >= 0 ? lastStopLap : null,
-        // The lane time is that of the last visit, which is the stop's
-        // until a later pass down the lane replaces it. A visit is noted
-        // as it enters the lane and a stop as the car comes to rest, which
-        // where the boxes are past the line is a lap later.
-        lastStopLaneS:
-          lastStopLap >= 0 &&
-          !inLane &&
-          laneS > 0 &&
-          (carPit?.lastPitLap[carIdx] ?? -1) <= lastStopLap
-            ? round(laneS, 1)
-            : null,
+        // The lane time is that of the last pass, which is the stop's
+        // until a later pass down the lane replaces it.
+        lastStopLaneS: rounded(lastStopLaneTimeS(carPit, carIdx), 1),
         sinceStopLaps: since >= 0 ? since : null,
         avg5S: rounded(
           averageOfLastLaps(lapTimes?.cleanLapTimeHistory?.[carIdx], PACE_LAPS),

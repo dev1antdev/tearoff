@@ -33,6 +33,7 @@ import {
   energyRefuelLines,
   flagTime,
   fuelRefuelLine,
+  lastStopLaneTimeS,
   leaderFinish,
   pitDriveTimeS,
   plannedStandingS,
@@ -429,8 +430,11 @@ export class FinishProjectionProcessor implements TelemetryProcessor<
       : null;
 
     const lastStopLossS = (carIdx: number, paceS: number): number => {
-      const laneS = carPit?.laneTimeS[carIdx] ?? 0;
-      if (!(laneS > 0) || pit.trackTimeS === null) return 0;
+      // The lane time of the car's last pass is its last stop's only while
+      // nothing has replaced it: a drive-through costed as "the last stop"
+      // would be a stop that never was.
+      const laneS = lastStopLaneTimeS(carPit, carIdx);
+      if (laneS === null || pit.trackTimeS === null) return 0;
       // The stretch on the racing line is the player's; a quicker car
       // covers it in its own share of that.
       return round(
