@@ -55,6 +55,7 @@ import {
 } from '@irdashies/types';
 import { Analytics } from '../../analytics';
 import logger from '../../logger';
+import { settingsTargetOf } from './settingsTarget';
 
 const PROFILE_TRIGGER_KEYS: ProfileTriggerKey[] = [
   ...SESSION_PROFILE_KEYS,
@@ -374,8 +375,19 @@ export async function publishDashboardUpdates(
     return overlayManager.toggleLockOverlays();
   });
 
-  ipcMain.handle('openWidgetSettings', (_, widgetType: string) => {
-    overlayManager.focusSettingsWindow(widgetType);
+  ipcMain.handle('openWidgetSettings', (_, widgetType: unknown) => {
+    // Any window may ask, and what it names becomes a route of the settings
+    // window: only a widget's page is opened. What was asked for is not
+    // logged, since it is whatever a renderer sent.
+    const target = settingsTargetOf(
+      widgetType,
+      getDashboard(getCurrentProfileId())
+    );
+    if (target === null) {
+      logger.warn('[openWidgetSettings] Refused: not a widget settings page');
+      return;
+    }
+    overlayManager.focusSettingsWindow(target);
   });
 
   ipcMain.handle('getAppVersion', () => {
