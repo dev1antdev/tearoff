@@ -25,6 +25,51 @@ export const isDrivenStint = (stint: RaceStint): boolean =>
   stint.laps > 0 || (stint.closedBy === null && stint.openedBy !== 'garage');
 
 /**
+ * The car's drivers in the order they first drove, as the session names
+ * them: what a driver is coloured by on every panel. A stint nobody was
+ * named for counts as one driver, ''.
+ */
+export const driverOrder = (stints: readonly RaceStint[]): string[] => {
+  const drivers: string[] = [];
+  for (const stint of stints) {
+    if (isDrivenStint(stint) && !drivers.includes(stint.driver)) {
+      drivers.push(stint.driver);
+    }
+  }
+  return drivers;
+};
+
+/** What a lap used of what the car runs on. */
+export interface LapEnergyUse {
+  /** Share of a full budget, 0..1; null where it cannot be told. */
+  used: number | null;
+  /** The car ended the lap with more than it began it with. */
+  refilled: boolean;
+}
+
+/**
+ * What a lap used, from what the car had left at this line and at the one
+ * before. Not told without the lap before under the number before, without
+ * a reading at both lines, or where the two are of different budgets.
+ */
+export const lapEnergyUse = (
+  lap: RaceLap,
+  before: RaceLap | undefined
+): LapEnergyUse => {
+  if (
+    !before ||
+    before.lap !== lap.lap - 1 ||
+    before.energy === null ||
+    lap.energy === null ||
+    before.energyIsVirtual !== lap.energyIsVirtual
+  ) {
+    return { used: null, refilled: false };
+  }
+  const used = before.energy - lap.energy;
+  return used < 0 ? { used: null, refilled: true } : { used, refilled: false };
+};
+
+/**
  * The laps held for each stint, in the stints' order: those from its first
  * lap to its last. Both lists are in the order driven, so one pass serves.
  */

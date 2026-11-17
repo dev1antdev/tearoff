@@ -17,12 +17,21 @@ import {
   type CarLapRow,
 } from '../frontend/domain/raceHistory/carLaps';
 import type { CarRaceRecord } from '../frontend/domain/raceHistory/carRecord';
+import {
+  chartBands,
+  gapLine,
+  paceAxis,
+  paceLine,
+  usageBudget,
+  usageLine,
+  type ChartLine,
+} from '../frontend/domain/raceHistory/chartSeries';
 import { crewView, stintEndText } from '../frontend/domain/raceHistory/crew';
 
 /**
- * Crew and Stints and Car Laps on records made by the real race history
- * recorder, which is why this spec lives here and not beside either panel:
- * a panel may not import the recorder.
+ * Crew and Stints, Car Laps and the Race Charts on records made by the real
+ * race history recorder, which is why this spec lives here and not beside
+ * any of the panels: a panel may not import the recorder.
  *
  * The frames are STAGED, every one: a small field lapping a circuit, with a
  * stop, a drive-through, a garage visit and an outage written into them. It
@@ -68,11 +77,11 @@ const laps = ({ field, sink }: Stage, count: number): void => {
   }
 };
 
-/** What the panels are handed of car 0. */
-const recordOf = ({ run }: Stage): CarRaceRecord => ({
-  laps: run.recorder.carLaps(0),
-  missingLaps: run.recorder.missingLaps(0),
-  stints: run.recorder.carStints(0),
+/** What the panels are handed of a car: car 0, unless another is asked for. */
+const recordOf = ({ run }: Stage, carIdx = 0): CarRaceRecord => ({
+  laps: run.recorder.carLaps(carIdx),
+  missingLaps: run.recorder.missingLaps(carIdx),
+  stints: run.recorder.carStints(carIdx),
 });
 
 /**
@@ -335,5 +344,111 @@ describe('the panels on the recorder’s own records (staged frames)', () => {
       energyUsed: null,
       note: 'from the grid',
     });
+  });
+});
+
+describe('the Race Charts on the recorder’s own records (staged frames)', () => {
+  /** The lap numbers of each run of a line. */
+  const runsOf = (line: ChartLine): number[][] =>
+    line.segments.map((segment) => segment.points.map((point) => point.lap));
+
+  /**
+   * Three laps, then a stop of thirty seconds with a service on the fourth,
+   * and two laps after it.
+   */
+  const withStop = (): Stage => {
+    const staged = stage();
+    const { field, sink } = staged;
+    const car = field.cars[0];
+    laps(staged, 3);
+    drive(field, sink, 48);
+    enterPits(car);
+    drive(field, sink, 10);
+    standInBox(car);
+    drive(field, sink, 15);
+    service(staged);
+    drive(field, sink, 15);
+    leaveBox(car);
+    drive(field, sink, 5);
+    leavePits(car);
+    laps(staged, 3);
+    return staged;
+  };
+
+  const SPAN = { from: 1, to: 40 };
+
+  it('keep the lap of a stop off the pace scale, and break the line at it', () => {
+    const record = recordOf(withStop());
+    const axis = paceAxis([record.laps], SPAN, 5);
+    if (!axis) throw new Error('no scale');
+    // The car laps in 100 s; the lap of its stop took a minute more.
+    expect(axis.min).toBeGreaterThan(99);
+    expect(axis.max).toBeLessThan(101);
+
+    const line = paceLine(record, SPAN, axis);
+    expect(runsOf(line)).toEqual([
+      [2, 3],
+      [5, 6],
+    ]);
+    // Who drove each run: the driver before the stop, and the one after.
+    expect(line.segments.map((segment) => segment.driverIndex)).toEqual([0, 1]);
+    expect(line.marks).toEqual([
+      // The lap from the grid began a tenth of the way round, and is
+      // quicker than any lap from line to line.
+      { lap: 1, edge: 'low', driverIndex: 0 },
+      { lap: 4, edge: 'high', driverIndex: 1 },
+    ]);
+  });
+
+  it('band the lap the car stood on, and say the driver change', () => {
+    expect(chartBands(recordOf(withStop()), SPAN)).toEqual([
+      { kind: 'stop', from: 4, to: 4, label: 'stop, driver change' },
+    ]);
+  });
+
+  it('draw what each lap used, with no figure for the lap of the refill', () => {
+    const record = recordOf(withStop());
+    expect(usageBudget(record)).toBe('energy');
+    const line = usageLine(record, SPAN);
+    expect(runsOf(line)).toEqual([
+      [2, 3],
+      [5, 6],
+    ]);
+    for (const segment of line.segments) {
+      for (const point of segment.points) expect(point.value).toBeCloseTo(3, 4);
+    }
+  });
+
+  it('band the laps that were not recorded, and break the line there', () => {
+    const staged = stage();
+    const { field, run } = staged;
+    laps(staged, 2);
+    // Nothing asked for the record for two and a half laps.
+    for (let frame = 0; frame < 2500; frame += 1) field.step();
+    run.recorder.rebaseline();
+    laps(staged, 2);
+
+    const record = recordOf(staged);
+    expect(chartBands(record, SPAN)).toEqual([
+      { kind: 'missing', from: 3, to: 4, label: 'not recorded' },
+    ]);
+    const axis = paceAxis([record.laps], SPAN, 5);
+    if (!axis) throw new Error('no scale');
+    expect(runsOf(paceLine(record, SPAN, axis))).toEqual([[2], [5, 6]]);
+  });
+
+  it('count the gap to another car lap number for lap number', () => {
+    const staged = stage();
+    laps(staged, 5);
+    // Car 1 began two hundredths of a lap behind car 0 and laps a second
+    // slower: it crosses the line later by a second more every lap.
+    const line = gapLine(recordOf(staged).laps, recordOf(staged, 1).laps, SPAN);
+    expect(runsOf(line)).toEqual([[1, 2, 3, 4]]);
+    const gaps = line.segments[0].points.map((point) => point.value);
+    expect(gaps[0]).toBeGreaterThan(2);
+    expect(gaps[0]).toBeLessThan(3.5);
+    for (let index = 1; index < gaps.length; index += 1) {
+      expect(gaps[index] - gaps[index - 1]).toBeCloseTo(1, 1);
+    }
   });
 });

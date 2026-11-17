@@ -31,7 +31,7 @@ import {
   CrewStintRow,
   crewStintMinWidth,
 } from './components/CrewStintRow';
-import { driverColour } from './crewColours';
+import { driverColour } from '../shared/DriverColour/driverColours';
 import { useCrewSettings } from './hooks/useCrewSettings';
 
 /** A driver as the panel names them: an initial and the surname. */

@@ -28,3 +28,4 @@ export * from './raceHistoryStory';
 export * from './ScrollToText';
 export * from './browserAccessStory';
 export * from './PressButtons';
+export * from './PointAt';

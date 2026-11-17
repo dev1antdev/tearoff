@@ -12,6 +12,8 @@ import {
   type ChannelPayloads,
   type RaceCarLaps,
   type RaceDriverChange,
+  type RaceForecastCar,
+  type RaceForecastSnapshot,
   type RaceHistoryBridge,
   type RaceHistorySummarySnapshot,
   type RaceLap,
@@ -29,8 +31,9 @@ import { trackStateStorySnapshot } from './trackStateSnapshot';
 
 /**
  * A staged eight-hour race as the race history would hold it, for the
- * stories and specs of the panels that read one car's records: Crew and
- * Stints, Car Laps, and whatever is built on the same records later.
+ * stories and specs of the panels that read a car's records: Crew and
+ * Stints, Car Laps, the Race Charts, and whatever is built on the same
+ * records later.
  *
  * Twenty-two cars in three classes, five and a quarter hours in. Every lap
  * of every car is written out as the recorder would have kept it: its time
@@ -358,7 +361,32 @@ export interface RaceHistoryStageOptions {
    * to have been carried on.
    */
   outage?: { afterOwnLap: number; untilOwnLap: number };
+  /**
+   * Laps of our car that were lost to traffic, and the seconds each lost.
+   * Nothing in a record says why a lap was slow, and these carry no flag.
+   */
+  traffic?: Readonly<Record<number, number>>;
+  /**
+   * A car that is catching us: quicker than its staged pace by `perLap`
+   * seconds on every lap of its own from `fromLap` on.
+   */
+  closing?: { car: string; fromLap: number; perLap: number };
 }
+
+/**
+ * The race as the Race Charts are shown on it: three laps of our car lost
+ * to traffic, the first by little enough to stay on the scale of the pace
+ * chart, and the car behind us, #23, catching us from its lap 136 on.
+ */
+export const RACE_HISTORY_STAGE_FOR_CHARTS: RaceHistoryStageOptions = {
+  traffic: { 131: 0.7, 132: 3.4, 150: 2.2 },
+  closing: { car: '23', fromLap: 136, perLap: 0.8 },
+};
+
+/** Seconds a lap is slower by than the car's staged lap, for one car. */
+type LapTweak = (lap: number) => number;
+
+const NO_TWEAK: LapTweak = () => 0;
 
 const newStint = (
   carIdx: number,
@@ -405,7 +433,8 @@ const driveCar = (
   staged: StagedCar,
   carIdx: number,
   until: { now: number } | { laps: number },
-  iracing: boolean
+  iracing: boolean,
+  tweak: LapTweak = NO_TWEAK
 ): StagedCarRecord & { lastLineAt: number } => {
   const virtual = !iracing && staged.carClass !== 'LMP2';
   // A stint uses three quarters of a full budget.
@@ -434,7 +463,8 @@ const driveCar = (
       staged.pace +
       noise +
       (lapsInStint / staged.stintLaps) * 0.5 -
-      (number === staged.flyingLap ? 0.4 : 0);
+      (number === staged.flyingLap ? 0.4 : 0) +
+      tweak(number);
     const stopLap = stops > 0 && lapsInStint === 0;
     const outLap = stops > 0 && lapsInStint === 1;
     const standing =
@@ -709,6 +739,82 @@ const summaryOf = (
 };
 
 /**
+ * The race forecast as far as the Race Charts read it: the cars of our
+ * class in the order of their places, each with what the staged records
+ * say of it. None of the forecast proper is staged -- the stops a car
+ * owes, the pit window, the finishing order -- and each of those reads as
+ * the snapshot writes a figure it does not have. Before our car has a lap
+ * there is no forecast at all, as before a pace has been measured.
+ */
+const forecastOf = (
+  records: readonly StagedCarRecord[],
+  standings: StandingsSnapshot,
+  now: number
+): RaceForecastSnapshot => {
+  const own = records[OWN_SLOT];
+  const started = own.laps.length > 0;
+  const lapTime = (value: number | undefined): number | null =>
+    value !== undefined && value > 0 ? value : null;
+  const cars: RaceForecastCar[] = started
+    ? CARS.map((staged, carIdx) => ({ staged, carIdx }))
+        .filter(({ staged }) => staged.carClass === CARS[OWN_SLOT].carClass)
+        .sort(
+          (a, b) =>
+            (standings.carIdxClassPosition[a.carIdx] ?? 0) -
+            (standings.carIdxClassPosition[b.carIdx] ?? 0)
+        )
+        .map(({ staged, carIdx }) => {
+          const record = records[carIdx];
+          const stops = record.stints.filter(
+            (stint) => stint.closedBy === 'stop'
+          );
+          return {
+            carIdx,
+            own: carIdx === OWN_SLOT,
+            classPosition: standings.carIdxClassPosition[carIdx] ?? 0,
+            gapS: thousandth((own.progress - record.progress) * staged.pace),
+            inPit: false,
+            paceS: staged.pace,
+            progress: record.progress,
+            lapsLeft: 0,
+            stopsOwed: null,
+            basis: null,
+            nextStopLap: null,
+            stintLaps: 0,
+            stopLossS: null,
+            netGapS: null,
+            finishGapS: null,
+            finishPosition: 0,
+            stops: stops.length,
+            lastStopLap: stops[stops.length - 1]?.lastLap ?? null,
+            lastStopLaneS: null,
+            sinceStopLaps: null,
+            avg5S: null,
+          };
+        })
+    : [];
+  return {
+    valid: started,
+    reason: started ? null : 'noPace',
+    raceType: 'time',
+    timeLeftS: started ? Math.max(0, Math.round(8 * 3600 - now)) : null,
+    lapLimit: null,
+    sessionTimeS: started ? Math.floor(now) : null,
+    flagInS: null,
+    ownCarIdx: started ? OWN_SLOT : null,
+    ownLap: started ? own.laps.length + 1 : null,
+    ownLastLapS: lapTime(standings.carIdxLastLapTime[OWN_SLOT]),
+    ownBestLapS: lapTime(standings.carIdxBestLapTime[OWN_SLOT]),
+    cars,
+    place: null,
+    stint: null,
+    rejoin: null,
+    sessionNum: 0,
+    version: 1,
+  };
+};
+
+/**
  * The race history's bridge, answering from records. They are read at the
  * time of asking, so a spec can change what a car holds and ask again.
  */
@@ -803,15 +909,33 @@ export const raceHistoryStage = ({
   ownLaps = OWN_LAPS,
   iracing = false,
   outage,
+  traffic,
+  closing,
 }: RaceHistoryStageOptions = {}): RaceHistoryStage => {
+  const closingSlot = closing
+    ? CARS.findIndex((entry) => entry.number === closing.car)
+    : -1;
+  const tweakOf = (carIdx: number): LapTweak => {
+    if (carIdx === OWN_SLOT && traffic) return (lap) => traffic[lap] ?? 0;
+    if (carIdx === closingSlot && closing) {
+      return (lap) => (lap >= closing.fromLap ? -closing.perLap : 0);
+    }
+    return NO_TWEAK;
+  };
   // Our car first, for as many laps as asked: the moment staged is the one
   // it has gone a little under half way round its next lap.
-  const ownRun = driveCar(CARS[OWN_SLOT], OWN_SLOT, { laps: ownLaps }, iracing);
+  const ownRun = driveCar(
+    CARS[OWN_SLOT],
+    OWN_SLOT,
+    { laps: ownLaps },
+    iracing,
+    tweakOf(OWN_SLOT)
+  );
   const now = thousandth(
     ownRun.lastLineAt + CARS[OWN_SLOT].pace * OWN_LAP_FRACTION
   );
   let driven: StagedCarRecord[] = CARS.map((staged, carIdx) =>
-    driveCar(staged, carIdx, { now }, iracing)
+    driveCar(staged, carIdx, { now }, iracing, tweakOf(carIdx))
   );
 
   // Places and gaps at the line, from who completed each lap when.
@@ -889,6 +1013,7 @@ export const raceHistoryStage = ({
     snapshots: {
       'standings.snapshot': standings,
       'race-history.summary': summaryOf(driven, outage !== undefined),
+      'race-forecast.snapshot': forecastOf(driven, standings, now),
       'track-state.snapshot': {
         ...trackStateStorySnapshot,
         focusCarIdx: OWN_SLOT,

@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   carRecordNotice,
+  driverOrder,
   isDrivenStint,
+  lapEnergyUse,
   lapsAroundStop,
   lapsByStint,
   stopSeen,
@@ -20,6 +22,73 @@ describe('isDrivenStint', () => {
     const parked = stintOf(3, { openedBy: 'garage', laps: 0 });
     expect(isDrivenStint(parked)).toBe(false);
     expect(isDrivenStint({ ...parked, laps: 1 })).toBe(true);
+  });
+});
+
+describe('driverOrder', () => {
+  it('lists the drivers in the order they first drove, each once', () => {
+    expect(
+      driverOrder([
+        stoppedStint(1, 1, 10, { driver: 'Ada' }),
+        stoppedStint(2, 11, 20, { driver: 'Ada' }),
+        stoppedStint(3, 21, 30, { driver: 'Ben' }),
+        stoppedStint(4, 31, 40, { driver: 'Ada' }),
+        stintOf(5, { driver: 'Cy' }),
+      ])
+    ).toEqual(['Ada', 'Ben', 'Cy']);
+  });
+
+  it('counts the stints nobody was named for as one driver', () => {
+    expect(
+      driverOrder([
+        stoppedStint(1, 1, 10, { driver: '' }),
+        stoppedStint(2, 11, 20, { driver: 'Ben' }),
+        stintOf(3, { driver: '' }),
+      ])
+    ).toEqual(['', 'Ben']);
+  });
+
+  it('leaves out who is named for a stint the car has not driven', () => {
+    expect(
+      driverOrder([
+        stoppedStint(1, 1, 10, { driver: 'Ada' }),
+        // In its garage, with another driver named for when it comes out.
+        stintOf(2, { driver: 'Ben', openedBy: 'garage' }),
+      ])
+    ).toEqual(['Ada']);
+    expect(driverOrder([])).toEqual([]);
+  });
+});
+
+describe('lapEnergyUse', () => {
+  const at = (lap: number, energy: number | null, virtual = true) =>
+    lapOf(lap, { energy, energyIsVirtual: virtual });
+
+  it('is what the car had at the line before, less what it has at this one', () => {
+    const use = lapEnergyUse(at(8, 0.6), at(7, 0.625));
+    expect(use.used).toBeCloseTo(0.025);
+    expect(use.refilled).toBe(false);
+  });
+
+  it('is a refill, with no figure, where the car ended the lap with more', () => {
+    expect(lapEnergyUse(at(8, 0.98), at(7, 0.2))).toEqual({
+      used: null,
+      refilled: true,
+    });
+  });
+
+  it('is not told without the lap before, or across a lap that is not held', () => {
+    expect(lapEnergyUse(at(8, 0.6), undefined).used).toBeNull();
+    expect(lapEnergyUse(at(8, 0.6), at(6, 0.65)).used).toBeNull();
+  });
+
+  it('is not told without a reading at both lines, or across two budgets', () => {
+    expect(lapEnergyUse(at(8, null), at(7, 0.6)).used).toBeNull();
+    expect(lapEnergyUse(at(8, 0.6), at(7, null)).used).toBeNull();
+    expect(lapEnergyUse(at(8, 0.6, false), at(7, 0.65, true))).toEqual({
+      used: null,
+      refilled: false,
+    });
   });
 });
 

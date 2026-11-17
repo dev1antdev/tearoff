@@ -36,8 +36,8 @@ import {
  * answering from its records, and a dashboard with the widget's config.
  */
 
-/** The widgets that read one car's records. */
-type CarPanelWidgetId = 'crew' | 'carlaps';
+/** The widgets that read a car's records. */
+type CarPanelWidgetId = 'crew' | 'carlaps' | 'racecharts';
 
 /**
  * Puts a bridge to the race history on the window for a story, or takes it
@@ -176,9 +176,9 @@ const PanelHost = ({ widgetId }: { widgetId: CarPanelWidgetId }) => {
 };
 
 /**
- * Everything a story of Crew and Stints or of Car Laps needs around it: the
- * staged session, its channels, the race history's bridge and a dashboard
- * with the widget's config. With `panel`, the story draws the widget inside
+ * Everything a story of Crew and Stints, of Car Laps or of the Race Charts
+ * needs around it: the staged session, its channels, the race history's
+ * bridge and a dashboard with the widget's config. With `panel`, the story draws the widget inside
  * a Pit Wall panel and needs no component of its own.
  */
 export const raceHistoryStory = <K extends CarPanelWidgetId>(

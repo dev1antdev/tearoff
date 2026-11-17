@@ -2846,6 +2846,45 @@ export interface CarLapsConfig {
   showOnlyWhenOnTrack: boolean;
 }
 
+/** The charts the Race Charts draw, one at a time. */
+export type RaceChartsTab = 'pace' | 'gap' | 'usage';
+
+/**
+ * How many of the own entry's laps a race chart is drawn over: the last
+ * 20, 40 or 80, or 0 for the whole race.
+ */
+export const RACE_CHARTS_LAPS = [20, 40, 80, 0] as const;
+export type RaceChartsLaps = (typeof RACE_CHARTS_LAPS)[number];
+
+/**
+ * Which other cars a race chart draws beside the own entry: the cars
+ * around it in class, or the ones named by number.
+ */
+export type RaceChartsOthers = 'around' | 'chosen';
+
+/**
+ * Race Charts: the own entry's lap times, the gap to a few other cars and
+ * what each lap used, drawn lap by lap from the race history.
+ *
+ * `tab` and `laps` are what the widget shows when it opens. The buttons
+ * over the chart change them for as long as it is on screen and are not
+ * saved: a copy hosted in a Pit Wall panel writes nothing to disk.
+ */
+export interface RaceChartsConfig {
+  background: { opacity: number };
+  tab: RaceChartsTab;
+  laps: RaceChartsLaps;
+  others: RaceChartsOthers;
+  /**
+   * Up to three car numbers as typed, "46, 91": the cars drawn while
+   * `others` is 'chosen'. A number no car of the session carries is left
+   * out.
+   */
+  carNumbers: string;
+  sessionVisibility: SessionVisibilitySettings;
+  showOnlyWhenOnTrack: boolean;
+}
+
 export interface WidgetConfigMap {
   standings: StandingsConfig;
   relative: RelativeConfig;
@@ -2876,6 +2915,7 @@ export interface WidgetConfigMap {
   stinttimeline: StintTimelineConfig;
   crew: CrewConfig;
   carlaps: CarLapsConfig;
+  racecharts: RaceChartsConfig;
   streamchat: StreamChatConfig;
   laptimelog: LapTimeLogConfig;
   stinthistory: StintHistoryConfig;
@@ -3036,6 +3076,7 @@ export type StintTimelineWidgetSettings =
   BaseWidgetSettings<StintTimelineConfig>;
 export type CrewWidgetSettings = BaseWidgetSettings<CrewConfig>;
 export type CarLapsWidgetSettings = BaseWidgetSettings<CarLapsConfig>;
+export type RaceChartsWidgetSettings = BaseWidgetSettings<RaceChartsConfig>;
 export type StreamChatWidgetSettings = BaseWidgetSettings<StreamChatConfig>;
 export type LapTimeLogWidgetSettings = BaseWidgetSettings<LapTimeLogConfig>;
 export type StintHistoryWidgetSettings = BaseWidgetSettings<StintHistoryConfig>;

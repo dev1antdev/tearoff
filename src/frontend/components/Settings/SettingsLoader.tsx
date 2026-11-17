@@ -26,6 +26,7 @@ import { ClassRivalsSettings } from './sections/ClassRivalsSettings';
 import { StintTimelineSettings } from './sections/StintTimelineSettings';
 import { CrewSettings } from './sections/CrewSettings';
 import { CarLapsSettings } from './sections/CarLapsSettings';
+import { RaceChartsSettings } from './sections/RaceChartsSettings';
 import { GeneralSettings } from './sections/GeneralSettings';
 import { BlindSpotMonitorSettings } from './sections/BlindSpotMonitorSettings';
 import { RadarSettings } from './sections/RadarSettings';
@@ -107,6 +108,7 @@ export const WIDGET_SETTINGS: Record<
   stinttimeline: StintTimelineSettings,
   crew: CrewSettings,
   carlaps: CarLapsSettings,
+  racecharts: RaceChartsSettings,
   rejoin: RejoinIndicatorSettings,
   fastercarsfrombehind: FasterCarsFromBehindSettings,
   blindspotmonitor: BlindSpotMonitorSettings,
