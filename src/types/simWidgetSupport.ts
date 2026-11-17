@@ -93,6 +93,10 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // no sector and no energy columns.
   'crew',
   'carlaps',
+  // Pace, gap and usage lap by lap, drawn from the same records. LMU alone
+  // gives what a car has left to run on, so under iRacing there is no
+  // Usage chart.
+  'racecharts',
   'flag',
   // The flag in force and the car a blue is for, from LMU's session phase,
   // sector flags and scoring. Each sim has states the other cannot report.
