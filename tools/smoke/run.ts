@@ -67,6 +67,7 @@ import {
   type WidgetCapture,
   type WidgetRow,
 } from './report.ts';
+import { widgetGroupMemberIds } from '../../src/types/widgetGroup.ts';
 
 const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -1331,6 +1332,7 @@ async function main(): Promise<number> {
     const logText = fs.existsSync(logFile)
       ? fs.readFileSync(logFile, 'utf8')
       : '';
+    const groupMembers = widgetGroupMemberIds(state.dashboard.widgets);
     result.widgets = state.dashboard.widgets
       .map((widget): WidgetRow => {
         const type = widget.type ?? widget.id;
@@ -1353,6 +1355,7 @@ async function main(): Promise<number> {
           enabled: widget.enabled,
           disabledForSim: disabled.has(type),
           ownWindow: isOwnWindowWidget(type) || widget.placement === 'gantry',
+          inGroup: groupMembers.has(widget.id),
           captures: shots,
           errors,
           hints: [

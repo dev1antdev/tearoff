@@ -93,6 +93,12 @@ describe('widgetStatus', () => {
     expect(widgetStatus(row({ captures: [] }))).toBe('missing');
   });
 
+  it('does not miss a widget drawn inside a group', () => {
+    expect(widgetStatus(row({ captures: [], inGroup: true }))).toBe(
+      'in a group'
+    );
+  });
+
   it('puts an error above a picture that looks fine', () => {
     expect(
       widgetStatus(row({ errors: ['[ErrorBoundary:widget:standings] boom'] }))

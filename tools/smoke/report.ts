@@ -23,7 +23,8 @@ export type WidgetStatus =
   | 'missing'
   | 'off'
   | 'not for this simulator'
-  | 'own window';
+  | 'own window'
+  | 'in a group';
 
 export interface WidgetRow {
   id: string;
@@ -31,6 +32,8 @@ export interface WidgetRow {
   enabled: boolean;
   disabledForSim: boolean;
   ownWindow: boolean;
+  /** Drawn inside a widget group, so with no box of its own. */
+  inGroup?: boolean;
   captures: WidgetCapture[];
   /** Messages the windows or the log attribute to this widget. */
   errors: string[];
@@ -48,6 +51,7 @@ export function widgetStatus(row: WidgetRow): WidgetStatus {
   if (!row.enabled) return 'off';
   if (row.errors.length > 0) return 'error';
   if (row.ownWindow) return 'own window';
+  if (row.inGroup) return 'in a group';
   if (row.captures.length === 0) return 'missing';
   return row.captures.some((capture) => capture.drawn) ? 'rendered' : 'empty';
 }
