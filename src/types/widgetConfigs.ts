@@ -627,6 +627,17 @@ export interface InputConfig {
   sessionVisibility: SessionVisibilitySettings;
 }
 
+/** Where one car's Tachometer LEDs come on, set by hand. */
+export interface TachometerLedRpmOverride {
+  carName: string;
+  /** RPM the first LED comes on at. */
+  firstRpm: number;
+  /** RPM every LED is on at, and they turn purple. */
+  fullRpm: number;
+  /** RPM the LEDs start flashing at. */
+  blinkRpm: number;
+}
+
 export interface TachometerConfig {
   showRpmText: boolean;
   rpmOrientation?: 'horizontal' | 'bottom' | 'top';
@@ -647,6 +658,8 @@ export interface TachometerConfig {
       }
     >;
   };
+  /** LED thresholds set by hand, under the same car keys as the shift points. */
+  ledRpmOverrides?: Record<string, TachometerLedRpmOverride>;
   oilTemp?: {
     enabled: boolean;
     position: 'top' | 'bottom';
