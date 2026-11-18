@@ -202,6 +202,15 @@ describe('WidgetGroupSettings', () => {
       ]);
     });
 
+    it('says where the browser source of the group is', () => {
+      withSecondGroup([], []);
+      render(<WidgetGroupSettings widgetId={SECOND} />);
+
+      expect(
+        screen.getByText(`Browser source: /widget/${SECOND}`)
+      ).toBeInTheDocument();
+    });
+
     it('goes to the group chosen', () => {
       withSecondGroup([], []);
       render(<WidgetGroupSettings />);

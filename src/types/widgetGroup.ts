@@ -31,6 +31,10 @@ const isNumber = (value: unknown): value is number =>
 export const isWidgetGroup = (widget: WidgetRef): boolean =>
   widgetType(widget) === WIDGET_GROUP_ID;
 
+/** The settings page of a widget: its type's, or a group's own. */
+export const widgetSettingsTarget = (widget: WidgetRef): string =>
+  isWidgetGroup(widget) ? widget.id : widgetType(widget);
+
 /** The groups of a dashboard, in its order. */
 export const widgetGroups = (
   widgets: readonly DashboardWidget[] | undefined
@@ -92,67 +96,59 @@ export const sanitizeWidgetGroupMembers = (
   return members;
 };
 
-const membersByWidgets = new WeakMap<
+interface GroupedWidgets {
+  /** Who is in each group, by the group's id. */
+  members: ReadonlyMap<string, WidgetGroupMember[]>;
+  /** The widgets drawn by a group and so not as blocks of their own. */
+  memberIds: ReadonlySet<string>;
+}
+
+const groupedByWidgets = new WeakMap<
   readonly DashboardWidget[],
-  ReadonlyMap<string, WidgetGroupMember[]>
+  GroupedWidgets
 >();
 
 /**
- * Who is in each group. A widget listed by several stays in the first of them.
- * Asked for every widget of a dashboard, so kept per list of widgets.
+ * What the groups of a dashboard hold. A widget listed by several stays in the
+ * first of them. Asked for every widget, so kept per list of widgets.
  */
-const membersByGroup = (widgets: readonly DashboardWidget[]) => {
-  const known = membersByWidgets.get(widgets);
+const groupedWidgets = (widgets: readonly DashboardWidget[]) => {
+  const known = groupedByWidgets.get(widgets);
   if (known) return known;
-  const taken = new Set<string>();
+  const listed = new Set<string>();
   const members = new Map(
     widgetGroups(widgets).map((group) => [
       group.id,
       sanitizeWidgetGroupMembers(group.config?.members).filter(
         ({ widgetId }) => {
-          if (taken.has(widgetId)) return false;
-          taken.add(widgetId);
+          if (listed.has(widgetId)) return false;
+          listed.add(widgetId);
           return true;
         }
       ),
     ])
   );
-  membersByWidgets.set(widgets, members);
-  return members;
+  const memberIds = new Set(
+    widgets
+      .filter((widget) => listed.has(widget.id) && canJoinWidgetGroup(widget))
+      .map((widget) => widget.id)
+  );
+  const grouped = { members, memberIds };
+  groupedByWidgets.set(widgets, grouped);
+  return grouped;
 };
 
 /** The saved members of one group, in drawing order. */
 export const widgetGroupMembers = (
   widgets: readonly DashboardWidget[],
   groupId: string
-): WidgetGroupMember[] => membersByGroup(widgets).get(groupId) ?? [];
+): WidgetGroupMember[] => groupedWidgets(widgets).members.get(groupId) ?? [];
 
-const memberIdsByWidgets = new WeakMap<
-  readonly DashboardWidget[],
-  ReadonlySet<string>
->();
-
-/**
- * The widgets drawn by a group and so not as blocks of their own. Asked for
- * every widget of a dashboard, so the answer is kept per list of widgets.
- */
+/** The widgets drawn by a group and so not as blocks of their own. */
 export const widgetGroupMemberIds = (
   widgets: readonly DashboardWidget[] | undefined
-): ReadonlySet<string> => {
-  if (!widgets) return new Set();
-  const known = memberIdsByWidgets.get(widgets);
-  if (known) return known;
-  const listed = new Set(
-    [...membersByGroup(widgets).values()].flat().map(({ widgetId }) => widgetId)
-  );
-  const ids = new Set(
-    widgets
-      .filter((widget) => listed.has(widget.id) && canJoinWidgetGroup(widget))
-      .map((widget) => widget.id)
-  );
-  memberIdsByWidgets.set(widgets, ids);
-  return ids;
-};
+): ReadonlySet<string> =>
+  widgets ? groupedWidgets(widgets).memberIds : new Set();
 
 /**
  * The widgets that are on only because a group switched them on. Whatever
@@ -162,7 +158,7 @@ export const widgetsSwitchedOnByGroup = (
   widgets: readonly DashboardWidget[]
 ): ReadonlySet<string> =>
   new Set(
-    [...membersByGroup(widgets).values()]
+    [...groupedWidgets(widgets).members.values()]
       .flat()
       .filter((member) => member.restoreDisabled)
       .map((member) => member.widgetId)

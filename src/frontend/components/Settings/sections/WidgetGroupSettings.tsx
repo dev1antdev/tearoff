@@ -222,6 +222,7 @@ const WidgetGroupPage = ({
             <SettingsSection title="Group" scaleWidgetId={group.id}>
               <SettingSelectRow
                 title="Editing group"
+                description={`Browser source: /widget/${group.id}`}
                 value={group.id}
                 options={widgetGroups(dashboard.widgets).map(({ id }) => ({
                   label: widgetGroupName(dashboard.widgets, id),

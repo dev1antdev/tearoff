@@ -2,9 +2,8 @@ import {
   WIDGET_GROUP_ID,
   WIDGET_GROUP_MAX_MEMBERS,
   canJoinWidgetGroup,
+  defaultDashboard,
   findWidgetGroup,
-  getWidgetDefaultConfig,
-  getWidgetManifest,
   normalizeWidgetScale,
   widgetGroupMemberIds,
   widgetGroupMembers,
@@ -44,49 +43,16 @@ export const addWidgetGroup = (
   dashboard: DashboardLayout,
   id: string
 ): DashboardLayout => {
-  const manifest = getWidgetManifest(WIDGET_GROUP_ID);
-  if (!manifest) return dashboard;
+  const defaults = defaultDashboard.widgets.find(
+    (widget) => widget.id === WIDGET_GROUP_ID
+  );
+  if (!defaults) return dashboard;
   return {
     ...dashboard,
     widgets: [
       ...dashboard.widgets,
-      {
-        id,
-        type: WIDGET_GROUP_ID,
-        enabled: false,
-        alwaysEnabled: manifest.alwaysEnabled,
-        layout: { ...manifest.layout },
-        config: getWidgetDefaultConfig(WIDGET_GROUP_ID) as unknown as Record<
-          string,
-          unknown
-        >,
-      },
+      { ...defaults, id, type: WIDGET_GROUP_ID },
     ],
-  };
-};
-
-/**
- * Deletes a group, which puts its widgets back on the overlay as they were.
- * The default group stays: it would come back with the next load.
- */
-export const deleteWidgetGroup = (
-  dashboard: DashboardLayout,
-  groupId: string
-): DashboardLayout => {
-  const group = findWidgetGroup(dashboard.widgets, groupId);
-  if (!group || groupId === WIDGET_GROUP_ID) return dashboard;
-  const switchedOn = new Set(
-    membersOf(dashboard, group)
-      .filter((member) => member.restoreDisabled)
-      .map((member) => member.widgetId)
-  );
-  return {
-    ...dashboard,
-    widgets: dashboard.widgets
-      .filter((widget) => widget.id !== groupId)
-      .map((widget) =>
-        switchedOn.has(widget.id) ? { ...widget, enabled: false } : widget
-      ),
   };
 };
 
@@ -216,6 +182,26 @@ export const removeWidgetGroupMember = (
   return member.restoreDisabled
     ? setEnabled(without, widgetId, false)
     : without;
+};
+
+/**
+ * Deletes a group, which puts its widgets back on the overlay as they were.
+ * The default group stays: it would come back with the next load.
+ */
+export const deleteWidgetGroup = (
+  dashboard: DashboardLayout,
+  groupId: string
+): DashboardLayout => {
+  const group = findWidgetGroup(dashboard.widgets, groupId);
+  if (!group || groupId === WIDGET_GROUP_ID) return dashboard;
+  const emptied = membersOf(dashboard, group).reduce(
+    (next, { widgetId }) => removeWidgetGroupMember(next, groupId, widgetId),
+    dashboard
+  );
+  return {
+    ...emptied,
+    widgets: emptied.widgets.filter((widget) => widget.id !== groupId),
+  };
 };
 
 /** The list with one member changed, and no other. */

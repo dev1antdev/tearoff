@@ -8,6 +8,7 @@ import {
   sanitizeWidgetGroupMembers,
   widgetGroupMemberIds,
   widgetGroupMembers,
+  widgetSettingsTarget,
   widgetsSwitchedOnByGroup,
   withWidgetGroupMembers,
 } from './widgetGroup';
@@ -180,6 +181,13 @@ describe('several groups', () => {
     resolveWidgetGroupMembers(layoutOfTwo, undefined, groupId).map(
       ({ widget: { id } }) => id
     );
+
+  it('opens the page of the group itself, and of a widget by its type', () => {
+    expect(widgetSettingsTarget(second([]))).toBe('widgetgroup-2');
+    expect(widgetSettingsTarget(widget('fuel-2', { type: 'fuel' }))).toBe(
+      'fuel'
+    );
+  });
 
   it('finds a group by id, and the first without one', () => {
     expect(findWidgetGroup(widgets, 'widgetgroup-2')?.id).toBe('widgetgroup-2');

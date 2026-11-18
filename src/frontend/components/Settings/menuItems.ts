@@ -11,7 +11,7 @@ import {
   FlagCheckeredIcon,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
-import { WIDGET_MANIFESTS } from '@irdashies/types';
+import { WIDGET_GROUP_ID, WIDGET_MANIFESTS } from '@irdashies/types';
 import type { WidgetCategory } from '@irdashies/types';
 import { compareMenuLabels } from './menuLabelOrder';
 
@@ -91,12 +91,14 @@ export const widgetItems: MenuItem[] = WIDGET_MANIFESTS.map(
 /**
  * Whether the settings menu offers a switch for this widget: it is listed
  * there on its own and exists in the dashboard. The widget's page leaves its
- * own switch out then, so there is one place to flip it.
+ * own switch out then, so there is one place to flip it. Widget groups have
+ * none: one switch for all of them would hide every widget of every group.
  */
 export const menuHasToggle = (
   widgetType: string,
   dashboardWidgetIds: readonly string[]
 ): boolean =>
+  widgetType !== WIDGET_GROUP_ID &&
   dashboardWidgetIds.includes(widgetType) &&
   widgetItems.some(
     (item) =>
