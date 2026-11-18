@@ -2,9 +2,11 @@ import { describe, it, expect } from 'vitest';
 import type { ShiftPointSettings } from '@irdashies/types';
 import {
   getCustomShiftRpm,
+  getLedRpmOverride,
   getRedlineFlashRpm,
   getShiftFlashRpm,
   isShiftFlashActive,
+  isValidLedRpmOverride,
 } from './shiftLight';
 
 const settings = (
@@ -87,6 +89,48 @@ describe('getShiftFlashRpm', () => {
 
   it('falls back to the redline when no shift point is set', () => {
     expect(getShiftFlashRpm('shiftPoints', undefined, 6900)).toBe(6900);
+  });
+});
+
+describe('isValidLedRpmOverride', () => {
+  const marks = { firstRpm: 6000, fullRpm: 7000, blinkRpm: 7000 };
+
+  it('accepts thresholds in order, with the flash at the full scale', () => {
+    expect(isValidLedRpmOverride(marks)).toBe(true);
+  });
+
+  it('rejects thresholds out of order', () => {
+    expect(isValidLedRpmOverride({ ...marks, firstRpm: 7000 })).toBe(false);
+    expect(isValidLedRpmOverride({ ...marks, blinkRpm: 6999 })).toBe(false);
+  });
+
+  it('rejects what is not a positive number', () => {
+    expect(isValidLedRpmOverride({ ...marks, firstRpm: 0 })).toBe(false);
+    expect(isValidLedRpmOverride({ ...marks, fullRpm: NaN })).toBe(false);
+  });
+});
+
+describe('getLedRpmOverride', () => {
+  const override = {
+    carName: 'Renault Clio',
+    firstRpm: 6000,
+    fullRpm: 6800,
+    blinkRpm: 6900,
+  };
+
+  it('returns the entry for the car', () => {
+    expect(getLedRpmOverride({ clio: override }, 'clio')).toBe(override);
+  });
+
+  it('returns nothing for another car or no car', () => {
+    expect(getLedRpmOverride({ clio: override }, 'mx5')).toBeUndefined();
+    expect(getLedRpmOverride({ clio: override }, undefined)).toBeUndefined();
+    expect(getLedRpmOverride(undefined, 'clio')).toBeUndefined();
+  });
+
+  it('ignores a saved entry that cannot be used', () => {
+    const broken = { ...override, firstRpm: 9000 };
+    expect(getLedRpmOverride({ clio: broken }, 'clio')).toBeUndefined();
   });
 });
 

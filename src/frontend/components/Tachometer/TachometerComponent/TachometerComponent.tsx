@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import type { CarData } from '../../../utils/carData';
-import type { ShiftPointSettings } from '@irdashies/types';
+import type { ShiftPointSettings, TachometerConfig } from '@irdashies/types';
 import { EngineWarnings } from '@irdashies/types';
+import { getLedRpmOverride } from '@irdashies/domain/shiftLight/shiftLight';
 
 export interface TachometerProps {
   rpm: number;
@@ -26,8 +27,12 @@ export interface TachometerProps {
   carData?: CarData | null;
   /** CarPath from iRacing session (for custom shift points) */
   carPath?: string;
+  /** CarModel, where the sim sets one: the key of this car's settings as-is. */
+  carModel?: string;
   /** Custom shift point settings */
   shiftPointSettings?: ShiftPointSettings;
+  /** LED thresholds set by hand, per car */
+  ledRpmOverrides?: TachometerConfig['ledRpmOverrides'];
   /** Background opacity */
   opacity?: number;
   oilTemp?: number;
@@ -54,11 +59,13 @@ export const Tachometer = ({
   numLights = 10,
   showRpmText = true,
   rpmOrientation = 'bottom',
-  gearRpmThresholds = null,
+  gearRpmThresholds: carRpmThresholds = null,
   ledColors = null,
   carData = null,
   carPath = undefined,
+  carModel = undefined,
   shiftPointSettings = undefined,
+  ledRpmOverrides = undefined,
   opacity = 100,
   oilTemp = 0,
   waterTemp = 0,
@@ -73,24 +80,35 @@ export const Tachometer = ({
   const [flash, setFlash] = useState(false);
   const [customShiftFlash, setCustomShiftFlash] = useState(false);
 
-  // Ensure RPM is within valid range
-  const clampedRpm = Math.max(0, Math.min(rpm || 0, maxRpm));
+  // Settings are keyed by the car's model where the sim sets one, otherwise by
+  // the canonical bundled car ID.
+  const carId = carModel || carData?.carId || carPath;
+  // Thresholds set by hand replace everything the car would use otherwise.
+  const ledOverride = getLedRpmOverride(ledRpmOverrides, carId);
+  const gearRpmThresholds = ledOverride ? null : carRpmThresholds;
+
+  // Ensure RPM is within valid range. A threshold set by hand may lie above
+  // the limit the sim reports, and has to stay reachable.
+  const clampedRpm = Math.max(
+    0,
+    Math.min(rpm || 0, Math.max(maxRpm, ledOverride?.blinkRpm ?? 0))
+  );
 
   // Calculate effective thresholds with fallbacks
-  const effectiveShiftRpm = gearRpmThresholds
+  const carShiftRpm = gearRpmThresholds
     ? gearRpmThresholds[0]
     : shiftRpm || maxRpm * 0.9; // Use redline from car data
-  const effectiveBlinkRpm = gearRpmThresholds
+  const carBlinkRpm = gearRpmThresholds
     ? gearRpmThresholds[0]
     : blinkRpm || maxRpm * 0.97; // Use redline from car data
+  const effectiveShiftRpm = ledOverride?.fullRpm ?? carShiftRpm;
+  const effectiveBlinkRpm = ledOverride?.blinkRpm ?? carBlinkRpm;
   const shouldBlink = clampedRpm >= effectiveBlinkRpm;
 
   // Use car-specific LED count if available
   const effectiveNumLights =
     carData?.ledNumber || (ledColors ? ledColors.length - 1 : numLights);
 
-  // Settings are keyed by the canonical bundled car ID.
-  const carId = carData?.carId ?? carPath;
   const carConfig = carId && shiftPointSettings?.carConfigs[carId];
   const customShiftPoint =
     carConfig && typeof carConfig !== 'string' && carConfig.enabled
@@ -107,6 +125,13 @@ export const Tachometer = ({
 
   // Calculate activation thresholds for each light with distinct values
   const getActivationThreshold = (ledIndex: number) => {
+    // Thresholds set by hand: evenly from the first LED to the last
+    if (ledOverride) {
+      const { firstRpm, fullRpm } = ledOverride;
+      const steps = Math.max(1, effectiveNumLights - 1);
+      return firstRpm + ((fullRpm - firstRpm) * ledIndex) / steps;
+    }
+
     // Use car-specific thresholds if available
     if (gearRpmThresholds && gearRpmThresholds[ledIndex + 1]) {
       return gearRpmThresholds[ledIndex + 1]; // Skip first element (redline), LEDs start at index 1

@@ -2,6 +2,7 @@ import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useCarTachometerData } from './useCarTachometerData';
 import * as Context from '@irdashies/context';
+import { loadCarData, type CarData } from '../../../utils/carData';
 
 // Mock the dependencies
 vi.mock('@irdashies/context', async (importOriginal) => {
@@ -74,5 +75,38 @@ describe('useCarTachometerData', () => {
     expect(result.current.carData).toBeNull();
     expect(result.current.hasCarData).toBe(false);
     expect(result.current.gearRpmThresholds).toBeNull();
+  });
+
+  describe('which cars are looked up in the bundled data', () => {
+    const bundledCar = { carId: 'ferrari296gt3', ledRpm: [{}] } as CarData;
+    const driving = (driver: { CarPath: string; CarModel?: string }) =>
+      mockUseSessionStore.mockImplementation(((
+        selector: (state: unknown) => unknown
+      ) =>
+        selector({
+          session: { DriverInfo: { Drivers: [{ CarIdx: 0, ...driver }] } },
+        })) as unknown as typeof Context.useSessionStore);
+
+    beforeEach(() => {
+      vi.mocked(loadCarData).mockReturnValue(bundledCar);
+    });
+
+    it('finds an iRacing car by its path', () => {
+      driving({ CarPath: 'ferrari296gt3' });
+
+      const { result } = renderHook(() => useCarTachometerData());
+
+      expect(loadCarData).toHaveBeenCalledWith('ferrari296gt3', 'iracing');
+      expect(result.current.carData).toBe(bundledCar);
+    });
+
+    it('leaves out an LMU car, whatever its file is called', () => {
+      driving({ CarPath: 'ferrari_296_gt3', CarModel: 'Ferrari 296 LMGT3' });
+
+      const { result } = renderHook(() => useCarTachometerData());
+
+      expect(loadCarData).not.toHaveBeenCalled();
+      expect(result.current.carData).toBeNull();
+    });
   });
 });

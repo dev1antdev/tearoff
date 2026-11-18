@@ -1,15 +1,21 @@
-import { CaretDownIcon, CaretRightIcon } from '@phosphor-icons/react';
+import {
+  CaretDownIcon,
+  CaretRightIcon,
+  TrashIcon,
+} from '@phosphor-icons/react';
 import { useState, useEffect, useId } from 'react';
 import { BaseSettingsSection } from '../components/BaseSettingsSection';
 import {
+  TachometerLedRpmOverride,
   TachometerWidgetSettings,
   getWidgetDefaultConfig,
   SettingsTabType,
 } from '@irdashies/types';
-import { useDashboard } from '@irdashies/context';
+import { useDashboard, useSessionStore } from '@irdashies/context';
+import { isValidLedRpmOverride } from '@irdashies/domain/shiftLight/shiftLight';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { SessionVisibility } from '../components/SessionVisibility';
-import { getAvailableCars } from '../../../utils/carData';
+import { getAvailableCars, loadCarData } from '../../../utils/carData';
 import { SettingsSection } from '../components/SettingSection';
 import { SettingToggleRow } from '../components/SettingToggleRow';
 import { SettingDivider } from '../components/SettingDivider';
@@ -18,13 +24,23 @@ import { SettingButtonGroupRow } from '../components/SettingButtonGroupRow';
 import { SettingSliderRow } from '../components/SettingSliderRow';
 import logger from '@irdashies/utils/logger';
 import { SettingProps, settingPropFor } from '../components/SettingProp';
+import {
+  DEFAULT_SHIFT_RPM_RATIO,
+  currentModelCarConfig,
+  useCurrentModelCar,
+} from '../hooks/useCurrentModelCar';
 
 const SETTING_ID = 'tachometer';
 const SettingProp = settingPropFor(SETTING_ID);
 
 // Constants for shift points
-const DEFAULT_SHIFT_RPM_RATIO = 0.9;
 const MIN_SHIFT_RPM = 1000;
+
+const LED_RPM_FIELDS = [
+  { key: 'firstRpm', label: 'First LED' },
+  { key: 'fullRpm', label: 'All LEDs' },
+  { key: 'blinkRpm', label: 'Flash' },
+] as const;
 
 // TypeScript interfaces for GitHub API responses
 interface CarListItem {
@@ -33,6 +49,167 @@ interface CarListItem {
   ledNumber: number;
   ledRpm: object[];
 }
+
+/**
+ * The car being driven, under the key the widget finds its LED thresholds by,
+ * with the thresholds the session holds for it as the starting point.
+ */
+const useCurrentCarLedRpm = ():
+  | (TachometerLedRpmOverride & { carId: string })
+  | undefined => {
+  const info = useSessionStore((state) => state.session?.DriverInfo);
+  const driver = info?.Drivers?.find((d) => d.CarIdx === info.DriverCarIdx);
+  const carModel = driver?.CarModel;
+  const carPath = driver?.CarPath;
+  const carData = !carModel && carPath ? loadCarData(carPath) : null;
+  const carId = carModel || carData?.carId || carPath;
+  if (!carId) return undefined;
+
+  const redline = info?.DriverCarRedLine || 8000;
+  const fullRpm =
+    info?.DriverCarSLShiftRPM || Math.round(redline * DEFAULT_SHIFT_RPM_RATIO);
+  const firstRpm = info?.DriverCarSLFirstRPM ?? 0;
+  return {
+    carId,
+    carName: carModel || carData?.carName || carId,
+    firstRpm:
+      firstRpm > 0 && firstRpm < fullRpm
+        ? firstRpm
+        : Math.round(fullRpm * 0.75),
+    fullRpm,
+    blinkRpm: Math.max(
+      info?.DriverCarSLBlinkRPM || Math.round(redline * 0.97),
+      fullRpm
+    ),
+  };
+};
+
+/**
+ * LED thresholds set by hand, for a car the automatic ones do not suit
+ */
+const LedThresholdsSection = ({
+  config,
+  handleConfigChange,
+}: {
+  config: TachometerWidgetSettings['config'];
+  handleConfigChange: (
+    changes: Partial<TachometerWidgetSettings['config']>
+  ) => void;
+}) => {
+  const hintId = useId();
+  const currentCar = useCurrentCarLedRpm();
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const overrides = config.ledRpmOverrides ?? {};
+
+  const withValue = (
+    carId: string,
+    key: (typeof LED_RPM_FIELDS)[number]['key'],
+    text: string
+  ): TachometerLedRpmOverride => ({
+    ...overrides[carId],
+    [key]: parseInt(text, 10),
+  });
+
+  const addCurrentCar = () => {
+    if (!currentCar) return;
+    const { carId, ...override } = currentCar;
+    handleConfigChange({
+      ledRpmOverrides: { ...overrides, [carId]: override },
+    });
+  };
+
+  const deleteCar = (carId: string) => {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { [carId]: _removed, ...rest } = overrides;
+    handleConfigChange({ ledRpmOverrides: rest });
+  };
+
+  return (
+    <div className="space-y-3">
+      <p id={hintId} className="text-sm text-slate-400">
+        For a car whose LEDs come on at the wrong revs. First LED must be below
+        All LEDs, and Flash at or above it. Delete a car to return it to the
+        automatic values.
+      </p>
+
+      {!currentCar && (
+        <p className="text-sm text-slate-400">
+          Start a session to add the car you are driving.
+        </p>
+      )}
+      {currentCar && !overrides[currentCar.carId] && (
+        <button
+          type="button"
+          onClick={addCurrentCar}
+          className="settings-button-primary"
+        >
+          Add {currentCar.carName}
+        </button>
+      )}
+
+      {Object.entries(overrides).map(([carId, car]) => (
+        <div
+          key={carId}
+          className="rounded-md border border-slate-700 p-3 space-y-3"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-sm text-white">{car.carName}</span>
+            <button
+              type="button"
+              aria-label={`Delete LED thresholds for ${car.carName}`}
+              onClick={() => deleteCar(carId)}
+              className="settings-button-danger inline-flex items-center gap-1"
+            >
+              <TrashIcon size={16} aria-hidden="true" />
+              Delete
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {LED_RPM_FIELDS.map(({ key, label }) => {
+              const draftKey = `${carId}-${key}`;
+              const draft = drafts[draftKey];
+              return (
+                <label
+                  key={key}
+                  className="flex flex-col gap-1 text-sm text-slate-300"
+                >
+                  {label}
+                  <input
+                    aria-label={`${car.carName}, ${label} RPM`}
+                    aria-describedby={hintId}
+                    aria-invalid={
+                      draft !== undefined &&
+                      !isValidLedRpmOverride(withValue(carId, key, draft))
+                    }
+                    type="number"
+                    min={1}
+                    value={draft ?? car[key]}
+                    onChange={(e) =>
+                      setDrafts({ ...drafts, [draftKey]: e.target.value })
+                    }
+                    onBlur={() => {
+                      if (draft === undefined) return;
+                      const next = withValue(carId, key, draft);
+                      if (isValidLedRpmOverride(next)) {
+                        handleConfigChange({
+                          ledRpmOverrides: { ...overrides, [carId]: next },
+                        });
+                      }
+                      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+                      const { [draftKey]: _committed, ...rest } = drafts;
+                      setDrafts(rest);
+                    }}
+                    className="settings-field"
+                  />
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
 
 /**
  * Custom shift points configuration section
@@ -57,6 +234,7 @@ const CustomShiftPointsSection = ({
   );
 
   const customShiftPoints = config.shiftPointSettings;
+  const currentModelCar = useCurrentModelCar();
 
   const updateCustomShiftPoints = (
     updates: Partial<typeof customShiftPoints>
@@ -100,6 +278,16 @@ const CustomShiftPointsSection = ({
   }, [customShiftPoints.enabled, availableCars.length]);
 
   const addCar = () => {
+    if (currentModelCar && selectedCarId === currentModelCar.carId) {
+      updateCustomShiftPoints({
+        carConfigs: {
+          ...customShiftPoints.carConfigs,
+          [currentModelCar.carId]: currentModelCarConfig(currentModelCar),
+        },
+      });
+      setSelectedCarId('');
+      return;
+    }
     const selectedCar = availableCars.find((c) => c.carId === selectedCarId);
     if (!selectedCar) return;
 
@@ -196,6 +384,8 @@ const CustomShiftPointsSection = ({
   const availableToAdd = availableCars.filter(
     (c) => !customShiftPoints.carConfigs[c.carId]
   );
+  const canAddCurrentModelCar =
+    !!currentModelCar && !customShiftPoints.carConfigs[currentModelCar.carId];
 
   return (
     <div className="space-y-3">
@@ -287,6 +477,11 @@ const CustomShiftPointsSection = ({
                 disabled={loading}
               >
                 <option value="">Select a car...</option>
+                {canAddCurrentModelCar && (
+                  <option value={currentModelCar.carId}>
+                    {currentModelCar.carId} (current car)
+                  </option>
+                )}
                 {availableToAdd.map((car) => (
                   <option key={car.carId} value={car.carId}>
                     {car.carName}
@@ -495,7 +690,7 @@ export const TachometerSettings = () => {
                   activeTab={activeTab}
                   setActiveTab={setActiveTab}
                 >
-                  Custom Shift Points
+                  Options
                 </TabButton>
                 <TabButton
                   id="visibility"
@@ -644,12 +839,20 @@ export const TachometerSettings = () => {
 
               {/* OPTIONS TAB */}
               {activeTab === 'options' && (
-                <SettingsSection title="Custom Shift Points">
-                  <CustomShiftPointsSection
-                    config={config}
-                    handleConfigChange={handleConfigChange}
-                  />
-                </SettingsSection>
+                <>
+                  <SettingsSection title="Custom Shift Points">
+                    <CustomShiftPointsSection
+                      config={config}
+                      handleConfigChange={handleConfigChange}
+                    />
+                  </SettingsSection>
+                  <SettingsSection title="LED Thresholds">
+                    <LedThresholdsSection
+                      config={config}
+                      handleConfigChange={handleConfigChange}
+                    />
+                  </SettingsSection>
+                </>
               )}
 
               {/* VISIBILITY TAB */}

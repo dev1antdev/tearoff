@@ -1,6 +1,37 @@
-import type { ShiftPointSettings } from '@irdashies/types';
+import type {
+  ShiftPointSettings,
+  TachometerLedRpmOverride,
+} from '@irdashies/types';
 
 export type ShiftFlashSource = 'redline' | 'shiftPoints';
+
+/** Whether hand-set LED thresholds are numbers in the order the LEDs use. */
+export const isValidLedRpmOverride = ({
+  firstRpm,
+  fullRpm,
+  blinkRpm,
+}: Pick<
+  TachometerLedRpmOverride,
+  'firstRpm' | 'fullRpm' | 'blinkRpm'
+>): boolean =>
+  Number.isFinite(firstRpm) &&
+  Number.isFinite(fullRpm) &&
+  Number.isFinite(blinkRpm) &&
+  firstRpm > 0 &&
+  firstRpm < fullRpm &&
+  fullRpm <= blinkRpm;
+
+/**
+ * The LED thresholds set by hand for this car. A saved entry that is not
+ * usable counts as none, so the car keeps its automatic thresholds.
+ */
+export const getLedRpmOverride = (
+  overrides: Record<string, TachometerLedRpmOverride> | undefined,
+  carId: string | undefined
+): TachometerLedRpmOverride | undefined => {
+  const override = carId ? overrides?.[carId] : undefined;
+  return override && isValidLedRpmOverride(override) ? override : undefined;
+};
 
 /**
  * RPM where the Tachometer LEDs start blinking. Same fallback order as the

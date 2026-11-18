@@ -6,7 +6,7 @@ import {
   getWidgetDefaultConfig,
   SettingsTabType,
 } from '@irdashies/types';
-import { useDashboard, useSessionStore } from '@irdashies/context';
+import { useDashboard } from '@irdashies/context';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { SessionVisibility } from '../components/SessionVisibility';
 import { getAvailableCars } from '../../../utils/carData';
@@ -16,12 +16,16 @@ import { SettingDivider } from '../components/SettingDivider';
 import { TabButton } from '../components/TabButton';
 import logger from '@irdashies/utils/logger';
 import { SettingProps, settingPropFor } from '../components/SettingProp';
+import {
+  DEFAULT_SHIFT_RPM_RATIO,
+  currentModelCarConfig,
+  useCurrentModelCar,
+} from '../hooks/useCurrentModelCar';
 
 const SETTING_ID = 'shiftlight';
 const SettingProp = settingPropFor(SETTING_ID);
 
 // Constants for shift points
-const DEFAULT_SHIFT_RPM_RATIO = 0.9;
 const MIN_SHIFT_RPM = 1000;
 
 // TypeScript interfaces for GitHub API responses
@@ -31,46 +35,6 @@ interface CarListItem {
   ledNumber: number;
   ledRpm: object[];
 }
-
-interface CurrentModelCar {
-  carId: string;
-  redlineRpm: number;
-  gearCount: number;
-  shiftRpm: number;
-}
-
-/**
- * The car being driven, when the sim names it by model.
- *
- * The car list comes from the bundled iRacing car data, so an LMU car can
- * never be picked from it. LMU sets CarModel, which is also the key the widget
- * looks custom shift points up by there (see useTachometerData), and the
- * session already holds what a new entry needs: the rev limit, the gear count
- * and the shift point the bridge settled on for that car.
- */
-const useCurrentModelCar = (): CurrentModelCar | undefined => {
-  const carId = useSessionStore((state) => {
-    const info = state.session?.DriverInfo;
-    return info?.Drivers?.find((d) => d.CarIdx === info.DriverCarIdx)?.CarModel;
-  });
-  const redlineRpm = useSessionStore(
-    (state) => state.session?.DriverInfo?.DriverCarRedLine
-  );
-  const gearCount = useSessionStore(
-    (state) => state.session?.DriverInfo?.DriverCarGearNumForward
-  );
-  const shiftRpm = useSessionStore(
-    (state) => state.session?.DriverInfo?.DriverCarSLShiftRPM
-  );
-  if (!carId) return undefined;
-  const redline = redlineRpm || 8000;
-  return {
-    carId,
-    redlineRpm: redline,
-    gearCount: gearCount || 6,
-    shiftRpm: shiftRpm || Math.round(redline * DEFAULT_SHIFT_RPM_RATIO),
-  };
-};
 
 /**
  * Custom shift points configuration section
@@ -138,30 +102,15 @@ const CustomShiftPointsSection = ({
     loadAvailableCars();
   }, [customShiftPoints.enabled, availableCars.length]);
 
-  const addCurrentModelCar = (car: CurrentModelCar) => {
-    const gearShiftPoints: Record<string, { shiftRpm: number }> = {};
-    for (let i = 1; i <= car.gearCount; i++) {
-      gearShiftPoints[i.toString()] = { shiftRpm: car.shiftRpm };
-    }
-    updateCustomShiftPoints({
-      carConfigs: {
-        ...customShiftPoints.carConfigs,
-        [car.carId]: {
-          enabled: true,
-          carId: car.carId,
-          carName: car.carId,
-          gearCount: car.gearCount,
-          redlineRpm: car.redlineRpm,
-          gearShiftPoints,
-        },
-      },
-    });
-    setSelectedCarId('');
-  };
-
   const addCar = () => {
     if (currentModelCar && selectedCarId === currentModelCar.carId) {
-      addCurrentModelCar(currentModelCar);
+      updateCustomShiftPoints({
+        carConfigs: {
+          ...customShiftPoints.carConfigs,
+          [currentModelCar.carId]: currentModelCarConfig(currentModelCar),
+        },
+      });
+      setSelectedCarId('');
       return;
     }
     const selectedCar = availableCars.find((c) => c.carId === selectedCarId);

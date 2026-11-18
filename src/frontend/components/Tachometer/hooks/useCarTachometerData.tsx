@@ -11,9 +11,12 @@ export const useCarTachometerData = (gear = 0) => {
   const driverCarIdx = useDriverCarIdx();
   const session = useSessionStore((state) => state.session);
   // Get current car path and game
-  const carPath = session?.DriverInfo?.Drivers?.find(
-    (driver) => driver.CarIdx === driverCarIdx
-  )?.CarPath;
+  const driver = session?.DriverInfo?.Drivers?.find(
+    (candidate) => candidate.CarIdx === driverCarIdx
+  );
+  // The bundled data is iRacing's. A car the sim names by model (LMU) is not
+  // in it, even where the name of its file reads like one that is.
+  const carPath = driver?.CarModel ? undefined : driver?.CarPath;
 
   // Extract game ID from session (this would need to be added to session data)
   // For now, default to 'iracing' since that's what Tearoff primarily supports

@@ -46,10 +46,30 @@ const sessionState = {
     DriverInfo: {
       DriverCarIdx: 0,
       DriverCarRedLine: 7000,
-      Drivers: [{ CarIdx: 0, CarPath: 'renaultclio' }],
+      Drivers: [
+        {
+          CarIdx: 0,
+          CarPath: 'renaultclio',
+          CarModel: undefined as string | undefined,
+        },
+      ],
     },
   },
 };
+
+const setTachometerConfig = (config: object) =>
+  mockDashboard.mockReturnValue({
+    currentDashboard: {
+      widgets: [
+        {
+          id: 'tachometer',
+          enabled: true,
+          layout: { x: 0, y: 0, width: 1, height: 1 },
+          config,
+        },
+      ],
+    },
+  } as unknown as ReturnType<typeof Context.useDashboard>);
 
 const setRpm = (rpm: number, gear = 2) =>
   mockSelector.mockImplementation((_channel, selector, options) =>
@@ -61,18 +81,8 @@ const setRpm = (rpm: number, gear = 2) =>
 describe('useShiftFlashActive', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockDashboard.mockReturnValue({
-      currentDashboard: {
-        widgets: [
-          {
-            id: 'tachometer',
-            enabled: true,
-            layout: { x: 0, y: 0, width: 1, height: 1 },
-            config: { shiftPointSettings },
-          },
-        ],
-      },
-    } as unknown as ReturnType<typeof Context.useDashboard>);
+    sessionState.session.DriverInfo.Drivers[0].CarModel = undefined;
+    setTachometerConfig({ shiftPointSettings });
     mockSessionStore.mockImplementation(((
       selector: (s: typeof sessionState) => unknown
     ) => selector(sessionState)) as unknown as typeof Context.useSessionStore);
@@ -134,6 +144,49 @@ describe('useShiftFlashActive', () => {
     );
     expect(result.current).toBe(true);
     sessionState.session.DriverInfo.Drivers[0].CarPath = 'renaultclio';
+  });
+
+  it('matches an LMU car by its model, without the iRacing car data', () => {
+    sessionState.session.DriverInfo.Drivers[0].CarModel = 'Ferrari 296 LMGT3';
+    setTachometerConfig({
+      shiftPointSettings: {
+        ...shiftPointSettings,
+        carConfigs: {
+          'Ferrari 296 LMGT3': {
+            ...shiftPointSettings.carConfigs.renaultclio,
+            gearShiftPoints: { '2': { shiftRpm: 6100 } },
+          },
+        },
+      },
+    });
+    setRpm(6100);
+    const { result } = renderHook(() =>
+      useShiftFlashActive(true, 'shiftPoints')
+    );
+    expect(result.current).toBe(true);
+    expect(mockLoadCarData).not.toHaveBeenCalled();
+  });
+
+  it('flashes at the Tachometer flash point set by hand for this car', () => {
+    setTachometerConfig({
+      ledRpmOverrides: {
+        renaultclio: {
+          carName: 'Renault Clio',
+          firstRpm: 6000,
+          fullRpm: 6800,
+          blinkRpm: 6900,
+        },
+      },
+    });
+    setRpm(6899);
+    const { result, rerender } = renderHook(() =>
+      useShiftFlashActive(true, 'redline')
+    );
+    expect(result.current).toBe(false);
+
+    setRpm(6900);
+    rerender();
+    expect(result.current).toBe(true);
   });
 });
 

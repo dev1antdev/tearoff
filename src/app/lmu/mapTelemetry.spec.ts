@@ -1542,6 +1542,16 @@ describe('the session clock, the length of a race and the pit limiter', () => {
     // EngineWarnings.PitSpeedLimiter.
     expect(on.EngineWarnings?.value?.[0]).toBe(0x10);
   });
+
+  it('reports overheating as both temperature warnings', () => {
+    const hot = mapLmuTelemetry({
+      ...fixture(),
+      overheating: true,
+      speedLimiter: 1,
+    });
+    // WaterTempWarning, OilTempWarning and the limiter beside them.
+    expect(hot.EngineWarnings?.value?.[0]).toBe(0x01 | 0x40 | 0x10);
+  });
 });
 
 describe('the last lap of a car whose lap did not count', () => {

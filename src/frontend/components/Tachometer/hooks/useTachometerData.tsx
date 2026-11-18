@@ -10,8 +10,9 @@ export const useTachometerData = () => {
   const rpm = snapshot?.rpm ?? 0;
   const gear = snapshot?.gear ?? 1;
   const shiftGrindRpm = snapshot?.shiftGrindRpm ?? 0;
-  const oilTemp = snapshot?.oilTemp ?? 0;
-  const waterTemp = snapshot?.waterTemp ?? 0;
+  // Absent, not 0, where the sim sends none: a car the user is not in.
+  const oilTemp = snapshot?.oilTemp;
+  const waterTemp = snapshot?.waterTemp;
   const engineWarnings = snapshot?.engineWarnings ?? 0;
   const { carData, gearRpmThresholds, hasCarData } = useCarTachometerData(gear);
 
@@ -27,6 +28,13 @@ export const useTachometerData = () => {
     if (!drivers || driverCarIdx === undefined) return undefined;
     const driver = drivers.find((d) => d.CarIdx === driverCarIdx);
     return driver?.CarPath;
+  });
+  // The key this car's settings are saved under where the sim sets it. LMU's
+  // CarPath names the livery rather than the car, so the model stands in.
+  const carModel = useSessionStore((state) => {
+    const drivers = state.session?.DriverInfo?.Drivers;
+    if (!drivers || driverCarIdx === undefined) return undefined;
+    return drivers.find((d) => d.CarIdx === driverCarIdx)?.CarModel;
   });
 
   // Use car-specific maximum RPM from multiple sources in order of preference
@@ -53,5 +61,6 @@ export const useTachometerData = () => {
     gearRpmThresholds,
     hasCarData,
     carPath, // CarPath for custom shift points (matches lovely-car-data)
+    carModel,
   };
 };
