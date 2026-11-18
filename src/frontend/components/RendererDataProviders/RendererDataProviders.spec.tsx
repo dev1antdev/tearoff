@@ -16,6 +16,7 @@ vi.mock('@irdashies/context', () => ({
   ),
   PitLaneProvider: () => <div data-testid="pitlane-provider" />,
   ReferenceStoreProvider: () => <div data-testid="reference-provider" />,
+  SectorTimingUpdater: () => <div data-testid="sector-timing" />,
 }));
 
 import { RendererDataProviders } from './RendererDataProviders';
@@ -89,6 +90,34 @@ describe('RendererDataProviders', () => {
     render(<RendererDataProviders />);
 
     expect(screen.getByTestId('session-provider')).toBeInTheDocument();
+  });
+
+  it('feeds sector timing on a browser page, for a widget in the group too', () => {
+    dashboard.widgets = [
+      {
+        id: 'widgetgroup',
+        enabled: false,
+        layout,
+        config: {
+          members: [
+            { widgetId: 'sectordelta', x: 0, y: 0, width: 9, height: 9 },
+          ],
+        },
+      },
+      { id: 'sectordelta', enabled: true, layout },
+    ];
+
+    render(<RendererDataProviders browser widgetId="widgetgroup" />);
+
+    expect(screen.getByTestId('sector-timing')).toBeInTheDocument();
+  });
+
+  it('leaves sector timing to the overlay window around it', () => {
+    dashboard.widgets = [{ id: 'sectordelta', enabled: true, layout }];
+
+    render(<RendererDataProviders />);
+
+    expect(screen.queryByTestId('sector-timing')).not.toBeInTheDocument();
   });
 
   it('mounts for the widgets inside the group on its own page', () => {

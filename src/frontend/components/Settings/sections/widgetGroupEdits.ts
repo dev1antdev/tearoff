@@ -1,4 +1,5 @@
 import {
+  WIDGET_GROUP_MAX_MEMBERS,
   canJoinWidgetGroup,
   findWidgetGroup,
   normalizeWidgetScale,
@@ -49,6 +50,8 @@ const setEnabled = (
 export const widgetGroupCandidates = (
   dashboard: DashboardLayout
 ): DashboardWidget[] => {
+  const group = findWidgetGroup(dashboard.widgets);
+  if (!group || membersOf(group).length >= WIDGET_GROUP_MAX_MEMBERS) return [];
   const members = widgetGroupMemberIds(dashboard.widgets);
   return dashboard.widgets.filter(
     (widget) => canJoinWidgetGroup(widget) && !members.has(widget.id)
@@ -68,7 +71,12 @@ export const addWidgetGroupMember = (
   const widget = dashboard.widgets.find(({ id }) => id === widgetId);
   if (!group || !widget || !canJoinWidgetGroup(widget)) return dashboard;
   const members = membersOf(group);
-  if (members.some((member) => member.widgetId === widgetId)) return dashboard;
+  if (
+    members.length >= WIDGET_GROUP_MAX_MEMBERS ||
+    members.some((member) => member.widgetId === widgetId)
+  ) {
+    return dashboard;
+  }
 
   const y = Math.max(0, ...members.map((m) => m.y + m.height));
   const member: WidgetGroupMember = {

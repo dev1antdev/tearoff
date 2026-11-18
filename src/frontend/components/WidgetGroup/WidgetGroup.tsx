@@ -24,9 +24,9 @@ import { HostedWidget } from '../WidgetPanelHost/HostedWidget';
  * in the group's own pixels, so the group's scale carries the whole
  * arrangement, and a member's scale comes on top of it.
  *
- * The group's own rules hide it without unmounting it, as HideUIWrapper hides
- * the overlay: a widget in it goes on recording, as it does on the overlay
- * while its own rule hides it.
+ * The group's own rules and hide shortcut hide it without unmounting it, as
+ * HideUIWrapper hides the overlay: the widgets in it go on recording. So the
+ * windows that draw it leave its shortcut to it.
  */
 export const WidgetGroup = memo(() => {
   const { currentDashboard } = useDashboard();
@@ -37,7 +37,8 @@ export const WidgetGroup = memo(() => {
   const overlayHidden = useOverlayHidden();
   const groupScale = useWidgetScale();
   const { isDriving, isWatching } = useDrivingState();
-  const config = findWidgetGroup(currentDashboard?.widgets)?.config as
+  const group = findWidgetGroup(currentDashboard?.widgets);
+  const config = group?.config as
     WidgetGroupWidgetSettings['config'] | undefined;
   const sessionVisible = useSessionVisibility(config?.sessionVisibility);
   const members = useMemo(
@@ -45,6 +46,7 @@ export const WidgetGroup = memo(() => {
     [currentDashboard, support, simulator]
   );
   const hiddenByRules =
+    (!!group && hidden.has(group.id)) ||
     !sessionVisible ||
     (!!config?.showOnlyWhenOnTrack && !(isDriving || isWatching));
 

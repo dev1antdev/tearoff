@@ -108,6 +108,25 @@ describe('addWidgetGroupMember', () => {
   });
 });
 
+describe('a full group', () => {
+  const full = () =>
+    dashboard(
+      Array.from({ length: 64 }, (_, index) => ({
+        widgetId: `member-${index}`,
+        ...place,
+      }))
+    );
+
+  it('offers nothing more', () => {
+    expect(widgetGroupCandidates(full())).toEqual([]);
+  });
+
+  it('changes nothing when asked to take one more', () => {
+    const layout = full();
+    expect(addWidgetGroupMember(layout, 'flag')).toBe(layout);
+  });
+});
+
 describe('removeWidgetGroupMember', () => {
   it('takes the widget out and leaves it switched on', () => {
     const next = removeWidgetGroupMember(

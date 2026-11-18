@@ -55,6 +55,7 @@ vi.mock('../../WidgetIndex', () => ({
     ({
       carsystems: () => <div>car systems widget</div>,
       standings: () => <div>standings widget</div>,
+      widgetgroup: () => <div>group widget</div>,
       weather: () => <div>weather widget</div>,
     })[id],
 }));
@@ -71,6 +72,14 @@ describe('DashboardView solo widget mode', () => {
 
     expect(screen.getByText('car systems widget')).toBeInTheDocument();
     expect(screen.getByText('standings widget')).toBeInTheDocument();
+  });
+
+  it('leaves the hide shortcut of the group to the group', () => {
+    hidden.ids.add('widgetgroup');
+    render(<DashboardView soloWidgetId="widgetgroup" />);
+    hidden.ids.delete('widgetgroup');
+
+    expect(screen.getByText('group widget')).toBeInTheDocument();
   });
 
   it('leaves a widget in the group to the group', () => {

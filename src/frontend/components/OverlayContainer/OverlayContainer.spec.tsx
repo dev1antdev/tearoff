@@ -30,6 +30,7 @@ vi.mock('@irdashies/domain', () => ({
 
 import {
   useDashboard,
+  useHiddenWidgetIds,
   useRunningState,
   SectorTimingUpdater,
   useWidgetsForThisDisplay,
@@ -82,6 +83,24 @@ describe('OverlayContainer', () => {
     render(<OverlayContainer />);
 
     expect(screen.queryByTestId('widget-body')).toBeNull();
+  });
+
+  it('leaves the hide shortcut of the widget group to the group', () => {
+    vi.mocked(getWidget).mockImplementation(
+      () => (() => <div data-testid="widget-body" />) as never
+    );
+    vi.mocked(useHiddenWidgetIds).mockReturnValue(new Set(['widgetgroup']));
+    mockDashboard([
+      {
+        id: 'widgetgroup',
+        enabled: true,
+        layout: { x: 0, y: 0, width: 100, height: 100 },
+      },
+    ]);
+
+    render(<OverlayContainer />);
+
+    expect(screen.getByTestId('widget-body')).toBeInTheDocument();
   });
 
   it('subscribes for Sector Delta inside the widget group', () => {

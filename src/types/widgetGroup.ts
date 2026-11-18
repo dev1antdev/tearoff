@@ -14,8 +14,8 @@ import { normalizeWidgetScale } from './widgetScale';
 
 export const WIDGET_GROUP_ID = 'widgetgroup';
 
-/** A saved list is read this far and no further. */
-const MAX_MEMBERS = 64;
+/** The most widgets a group holds. A saved list is read no further. */
+export const WIDGET_GROUP_MAX_MEMBERS = 64;
 
 type WidgetRef = Pick<DashboardWidget, 'id' | 'type'>;
 
@@ -38,9 +38,8 @@ export const findWidgetGroup = (
  * Whether a widget can be placed in the group: anything the overlay draws,
  * other than the group itself.
  */
-export const canJoinWidgetGroup = (
-  widget: Pick<DashboardWidget, 'id' | 'type' | 'placement'>
-): boolean => !isWidgetGroup(widget) && !rendersInOwnWindow(widget);
+export const canJoinWidgetGroup = (widget: DashboardWidget): boolean =>
+  !isWidgetGroup(widget) && !rendersInOwnWindow(widget);
 
 /**
  * Reads the saved list, which is untrusted. Drops what is not a usable entry
@@ -52,7 +51,7 @@ export const sanitizeWidgetGroupMembers = (
   if (!Array.isArray(value)) return [];
   const members: WidgetGroupMember[] = [];
   const seen = new Set<string>();
-  for (const raw of value.slice(0, MAX_MEMBERS)) {
+  for (const raw of value.slice(0, WIDGET_GROUP_MAX_MEMBERS)) {
     if (!isRecord(raw)) continue;
     const { widgetId, x, y, width, height, scale, restoreDisabled } = raw;
     if (typeof widgetId !== 'string' || !widgetId || seen.has(widgetId)) {

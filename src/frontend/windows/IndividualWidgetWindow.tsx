@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import type { DashboardWidget } from '@irdashies/types';
+import { isWidgetGroup, type DashboardWidget } from '@irdashies/types';
 import {
   DashboardProvider,
   RunningStateProvider,
@@ -54,7 +54,8 @@ export const IndividualWidgetView = ({
   const type = widget.type ?? widget.id;
   const Widget = getWidget(type);
   const needs = dataWidgets.map(widgetUpdaterNeeds);
-  if (!Widget || hidden.has(widget.id)) return null;
+  // The widget group hides itself, to keep the widgets in it running.
+  if (!Widget || (hidden.has(widget.id) && !isWidgetGroup(widget))) return null;
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none">
       <WidgetRuntimeProvider widgetType={type}>

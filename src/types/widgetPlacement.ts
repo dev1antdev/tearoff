@@ -1,10 +1,8 @@
 import type { DashboardWidget } from './dashboardLayout';
 import { PIT_WALL_WIDGET_ID } from './pitWall';
 
-type PlacedWidget = Pick<DashboardWidget, 'id' | 'type' | 'placement'>;
-
 /** Shown only docked in the Gantry, never on an overlay or browser source. */
-export const isGantryOnly = (widget: PlacedWidget): boolean =>
+export const isGantryOnly = (widget: DashboardWidget): boolean =>
   widget.placement === 'gantry';
 
 /**
@@ -12,7 +10,7 @@ export const isGantryOnly = (widget: PlacedWidget): boolean =>
  * needs. No overlay window or browser source draws it, so none subscribes to
  * data on its behalf either.
  */
-export const isPitWallPage = (widget: PlacedWidget): boolean =>
+export const isPitWallPage = (widget: DashboardWidget): boolean =>
   (widget.type || widget.id) === PIT_WALL_WIDGET_ID;
 
 /**
@@ -20,7 +18,7 @@ export const isPitWallPage = (widget: PlacedWidget): boolean =>
  * hash routes in App.tsx)? Such a widget still lives in the dashboard and
  * still subscribes to data, so only the overlay's renderer excludes it.
  */
-export const rendersInOwnWindow = (widget: PlacedWidget): boolean =>
+export const rendersInOwnWindow = (widget: DashboardWidget): boolean =>
   (widget.type || widget.id) === 'gantry' ||
   isPitWallPage(widget) ||
   isGantryOnly(widget);

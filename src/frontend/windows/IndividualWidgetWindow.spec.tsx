@@ -63,6 +63,11 @@ describe('individual widget presentation', () => {
     expect(mocks.sector).not.toHaveBeenCalled();
     expect(mocks.timing).toHaveBeenCalledWith({ soloWidgetType: 'flag' });
   });
+  it('leaves the hide shortcut of the widget group to the group', () => {
+    mocks.hidden.add('instance-2');
+    render(<IndividualWidgetView widget={widget('widgetgroup')} running />);
+    expect(screen.getByText('Second instance')).toBeInTheDocument();
+  });
   it('runs what the widgets inside the group need', () => {
     render(
       <IndividualWidgetView

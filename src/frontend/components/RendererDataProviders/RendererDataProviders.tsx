@@ -3,12 +3,15 @@ import { withWidgetGroupMembers, type DashboardWidget } from '@irdashies/types';
 import {
   PitLaneProvider,
   ReferenceStoreProvider,
+  SectorTimingUpdater,
   SessionProvider,
   TelemetryInspectorProvider,
   useDashboard,
   useWidgetsForThisDisplay,
 } from '@irdashies/context';
+import { widgetUpdaterNeeds } from '@irdashies/domain/widgetUpdaterNeeds';
 import {
+  WidgetRuntimeProvider,
   rendererNeedsChannel,
   rendererNeedsTelemetryInspector,
   rendererNeedsPitLaneData,
@@ -62,8 +65,14 @@ export const RendererDataProviders = ({
       referenceLaps: rendererNeedsChannel(scoped, 'reference-laps.snapshot'),
       sessionData: !sessionAlreadyMounted && rendererNeedsSessionData(scoped),
       pitLaneData: rendererNeedsPitLaneData(scoped),
+      // An overlay window mounts this beside its widgets; a browser page,
+      // which has nothing else to do it, mounts it here.
+      sectorTimingFor: browser
+        ? scoped.find((widget) => widgetUpdaterNeeds(widget).sectorTiming)
+        : undefined,
     };
   }, [
+    browser,
     widgets,
     widgetId,
     scopedType,
@@ -75,7 +84,8 @@ export const RendererDataProviders = ({
     !runtimeNeeds.telemetryInspector &&
     !runtimeNeeds.referenceLaps &&
     !runtimeNeeds.sessionData &&
-    !runtimeNeeds.pitLaneData
+    !runtimeNeeds.pitLaneData &&
+    !runtimeNeeds.sectorTimingFor
   )
     return null;
 
@@ -92,6 +102,16 @@ export const RendererDataProviders = ({
       ) : null}
       {runtimeNeeds.referenceLaps ? (
         <ReferenceStoreProvider bridge={window.channelBridge} />
+      ) : null}
+      {runtimeNeeds.sectorTimingFor ? (
+        <WidgetRuntimeProvider
+          widgetType={
+            runtimeNeeds.sectorTimingFor.type ||
+            runtimeNeeds.sectorTimingFor.id
+          }
+        >
+          <SectorTimingUpdater />
+        </WidgetRuntimeProvider>
       ) : null}
     </>
   );

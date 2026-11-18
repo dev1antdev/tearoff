@@ -62,19 +62,19 @@ describe('sanitizeWidgetGroupMembers', () => {
 
 describe('canJoinWidgetGroup', () => {
   it('takes overlay widgets and second instances', () => {
-    expect(canJoinWidgetGroup({ id: 'input' })).toBe(true);
-    expect(canJoinWidgetGroup({ id: 'fuel-2', type: 'fuel' })).toBe(true);
+    expect(canJoinWidgetGroup(widget('input'))).toBe(true);
+    expect(canJoinWidgetGroup(widget('fuel-2', { type: 'fuel' }))).toBe(true);
   });
 
   it.each(['widgetgroup', 'gantry', 'pitwall'])(
     'refuses %s',
-    (id) => expect(canJoinWidgetGroup({ id })).toBe(false)
+    (id) => expect(canJoinWidgetGroup(widget(id))).toBe(false)
   );
 
   it('refuses a widget docked in the Gantry', () => {
-    expect(canJoinWidgetGroup({ id: 'fuel-3', placement: 'gantry' })).toBe(
-      false
-    );
+    expect(
+      canJoinWidgetGroup(widget('fuel-3', { placement: 'gantry' }))
+    ).toBe(false);
   });
 });
 

@@ -167,6 +167,12 @@ describe('WidgetGroup', () => {
     expectHiddenButMounted(render(<WidgetGroup />).container);
   });
 
+  it('keeps its members running while its hide shortcut hides it', () => {
+    state.hidden = new Set(['widgetgroup']);
+
+    expectHiddenButMounted(render(<WidgetGroup />).container);
+  });
+
   it('follows its only-on-track setting without unmounting anything', () => {
     state.dashboard = dashboard(true);
     const { container, unmount } = render(<WidgetGroup />);
