@@ -34,6 +34,14 @@ The 2026 architecture review and phased implementation plan are preserved under 
 
 ---
 
+## Design Book (read first for visual changes)
+
+Before changing anything the user sees, read [`docs/DESIGN_BOOK.md`](docs/DESIGN_BOOK.md): the two surfaces (overlays and app chrome), colour roles and meanings, the overlay type scale, controls and states, the logo, icons, and how to check a change in Storybook.
+
+A PR that changes a colour role, a type step, a radius or a design rule updates the design book in the same PR. The 2026 settings redesign log is kept under [`docs/archive/settings-design-2026/`](docs/archive/settings-design-2026/) as history only.
+
+---
+
 ## Git Workflow
 
 **Never commit directly to `main`** - always use feature branches and PRs.
@@ -261,6 +269,18 @@ import { Icon } from '@phosphor-icons/react';
 ```typescript
 import { getTailwindStyle, getColor } from '@irdashies/utils/colors';
 ```
+
+### Overlay widgets: one look
+
+Every overlay widget follows the driver's Font size and Palette settings (Settings > General). Keep it that way:
+
+- **Text size**: the overlay scale only, `text-2xs` (smallest labels) to `text-9xl`. Never `text-[11px]` or a rem size: those ignore the Font size setting. Relative `em` sizes inside a widget are fine. Fixed-size by design: the Timing Tower (fixed columns) and the Broadcast graphics.
+- **Neutrals**: `slate-*` only. The palette remaps `slate`; `gray`, `zinc`, `black` or a hex do not follow it. Scrims are `bg-slate-950/NN`.
+- **Panel**: `bg-slate-800/(--bg-opacity) rounded-sm`, rows `odd:bg-slate-800/… even:bg-slate-900/…`.
+- **Meanings**: the player `text-amber-300`; session fastest `text-purple-400`; personal best and gains `text-green-400`; losses, warnings and urgent countdowns `text-red-400`; lapped cars `text-blue-400`. Flags and traffic-light readouts (pit speed) use the flag colours from `getFlagColor`.
+- **Sim colours stay exact**: flags, licence badges, class colours and LMU rank colours.
+
+To check a widget, use the **Overlay size** and **Palette** toolbar in Storybook. The full rules are in [`docs/DESIGN_BOOK.md`](docs/DESIGN_BOOK.md).
 
 ---
 
