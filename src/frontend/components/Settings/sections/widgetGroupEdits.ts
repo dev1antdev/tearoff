@@ -126,36 +126,47 @@ export const removeWidgetGroupMember = (
     : without;
 };
 
-/** Changes one member, and no other. */
-export const updateWidgetGroupMember = (
-  dashboard: DashboardLayout,
+/** The list with one member changed, and no other. */
+export const changeWidgetGroupMember = (
+  members: WidgetGroupMember[],
   widgetId: string,
   change: WidgetGroupMemberChange
-): DashboardLayout => {
-  const group = findWidgetGroup(dashboard.widgets);
-  if (!group) return dashboard;
-  return withGroup(
-    dashboard,
-    group,
-    membersOf(group).map((member) => {
-      if (member.widgetId !== widgetId) return member;
-      const next = { ...member, ...change };
-      return {
-        ...next,
-        x: Math.round(next.x),
-        y: Math.round(next.y),
-        width: toSize(next.width),
-        height: toSize(next.height),
-        ...(next.scale !== undefined && {
-          scale: normalizeWidgetScale(next.scale),
-        }),
-      };
-    })
-  );
+): WidgetGroupMember[] =>
+  members.map((member) => {
+    if (member.widgetId !== widgetId) return member;
+    const next = { ...member, ...change };
+    return {
+      ...next,
+      x: Math.round(next.x),
+      y: Math.round(next.y),
+      width: toSize(next.width),
+      height: toSize(next.height),
+      ...(next.scale !== undefined && {
+        scale: normalizeWidgetScale(next.scale),
+      }),
+    };
+  });
+
+/** The members one under the other, each at its widget's own size. */
+export const stackWidgetGroupMembers = (
+  dashboard: DashboardLayout,
+  members: WidgetGroupMember[]
+): WidgetGroupMember[] => {
+  let y = 0;
+  return members.map((member) => {
+    const layout = dashboard.widgets.find(
+      ({ id }) => id === member.widgetId
+    )?.layout;
+    const width = toSize(layout?.width ?? member.width);
+    const height = toSize(layout?.height ?? member.height);
+    const placed = { ...member, x: 0, y, width, height };
+    y += height;
+    return placed;
+  });
 };
 
-/** Saves the members in a new order, which is the order of drawing. */
-export const reorderWidgetGroupMembers = (
+/** The dashboard with this arrangement of the group's members. */
+export const setWidgetGroupMembers = (
   dashboard: DashboardLayout,
   members: WidgetGroupMember[]
 ): DashboardLayout => {

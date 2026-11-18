@@ -21,6 +21,37 @@ const startResize = (layout: WidgetLayout, direction: ResizeDirection) => {
 };
 
 describe('useResizeWidget', () => {
+  it('converts the pointer where the layout is drawn scaled', () => {
+    const onLayoutChange = vi.fn();
+    const { result } = renderHook(() =>
+      useResizeWidget({
+        layout: { x: 0, y: 0, width: 300, height: 100 },
+        onLayoutChange,
+        enabled: true,
+        pointerScale: 0.5,
+      })
+    );
+    act(() =>
+      result.current.getResizeHandleProps('e').onPointerDown({
+        clientX: 0,
+        clientY: 0,
+        preventDefault: () => undefined,
+        stopPropagation: () => undefined,
+      } as unknown as PointerEvent<HTMLElement>)
+    );
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent('pointermove', { clientX: 40, clientY: 0 })
+      );
+    });
+    expect(onLayoutChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ width: 380 })
+    );
+    act(() => {
+      window.dispatchEvent(new MouseEvent('pointerup'));
+    });
+  });
+
   it('saves a resized layout in whole pixels', () => {
     const onLayoutChange = startResize(
       { x: 0, y: 0, width: 300, height: 100 },

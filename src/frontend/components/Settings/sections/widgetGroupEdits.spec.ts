@@ -6,10 +6,11 @@ import type {
 } from '@irdashies/types';
 import {
   addWidgetGroupMember,
+  changeWidgetGroupMember,
   removeWidgetGroupMember,
-  reorderWidgetGroupMembers,
   resizeWidgetGroup,
-  updateWidgetGroupMember,
+  setWidgetGroupMembers,
+  stackWidgetGroupMembers,
   widgetGroupCandidates,
 } from './widgetGroupEdits';
 
@@ -145,38 +146,53 @@ describe('removeWidgetGroupMember', () => {
   });
 });
 
-describe('updateWidgetGroupMember', () => {
-  const two = () =>
-    dashboard([
-      { widgetId: 'input', ...place },
-      { widgetId: 'radar', ...place, x: 7 },
-    ]);
+describe('changeWidgetGroupMember', () => {
+  const two = (): WidgetGroupMember[] => [
+    { widgetId: 'input', ...place },
+    { widgetId: 'radar', ...place, x: 7 },
+  ];
 
   it('changes one member and no other', () => {
-    const next = updateWidgetGroupMember(two(), 'input', {
-      x: 12.4,
-      width: 300,
-      scale: 120,
-    });
-    expect(membersOf(next)).toEqual([
+    expect(
+      changeWidgetGroupMember(two(), 'input', {
+        x: 12.4,
+        width: 300,
+        scale: 120,
+      })
+    ).toEqual([
       { widgetId: 'input', ...place, x: 12, width: 300, scale: 120 },
       { widgetId: 'radar', ...place, x: 7 },
     ]);
   });
 
   it('keeps the member at least a pixel in size', () => {
-    const [member] = membersOf(
-      updateWidgetGroupMember(two(), 'input', { width: 0, height: -5 })
-    );
+    const [member] = changeWidgetGroupMember(two(), 'input', {
+      width: 0,
+      height: -5,
+    });
     expect(member).toMatchObject({ width: 1, height: 1 });
   });
 });
 
-describe('reorderWidgetGroupMembers', () => {
-  it('saves the members in the order given', () => {
+describe('stackWidgetGroupMembers', () => {
+  it('puts the members in a column at their own sizes, keeping their scale', () => {
+    expect(
+      stackWidgetGroupMembers(dashboard(), [
+        { widgetId: 'input', ...place, x: 40, scale: 120 },
+        { widgetId: 'radar', ...place },
+      ])
+    ).toEqual([
+      { widgetId: 'input', x: 0, y: 0, width: 200, height: 80, scale: 120 },
+      { widgetId: 'radar', x: 0, y: 80, width: 200, height: 80 },
+    ]);
+  });
+});
+
+describe('setWidgetGroupMembers', () => {
+  it('saves the members as given', () => {
     const input = { widgetId: 'input', ...place };
     const radar = { widgetId: 'radar', ...place };
-    const next = reorderWidgetGroupMembers(dashboard([input, radar]), [
+    const next = setWidgetGroupMembers(dashboard([input, radar]), [
       radar,
       input,
     ]);

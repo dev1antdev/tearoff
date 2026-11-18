@@ -20,6 +20,8 @@ interface UseResizeWidgetOptions {
   minWidth?: number;
   minHeight?: number;
   snapOptions?: ViewportGridSnapOptions;
+  /** Screen pixels to a layout pixel, where the layout is drawn scaled. */
+  pointerScale?: number;
 }
 
 interface ResizeState {
@@ -40,6 +42,7 @@ export function useResizeWidget({
   minWidth = MIN_WIDTH,
   minHeight = MIN_HEIGHT,
   snapOptions,
+  pointerScale = 1,
 }: UseResizeWidgetOptions) {
   const [isResizing, setIsResizing] = useState(false);
   const [activeDirection, setActiveDirection] =
@@ -81,8 +84,8 @@ export function useResizeWidget({
       if (!resizeStateRef.current) return;
 
       const { direction, startX, startY, startLayout } = resizeStateRef.current;
-      const deltaX = e.clientX - startX;
-      const deltaY = e.clientY - startY;
+      const deltaX = (e.clientX - startX) / pointerScale;
+      const deltaY = (e.clientY - startY) / pointerScale;
 
       const newLayout = resizeWidgetLayout(
         startLayout,
@@ -120,7 +123,14 @@ export function useResizeWidget({
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
     };
-  }, [isResizing, minWidth, minHeight, onLayoutChange, snapOptions]);
+  }, [
+    isResizing,
+    minWidth,
+    minHeight,
+    onLayoutChange,
+    snapOptions,
+    pointerScale,
+  ]);
 
   const getResizeHandleProps = useCallback(
     (direction: ResizeDirection) => ({
