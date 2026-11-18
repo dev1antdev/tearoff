@@ -1,4 +1,5 @@
 import { useDriverControlsSnapshot, useSessionStore } from '@irdashies/context';
+import { usePlayerCar } from '@irdashies/domain/shiftLight/usePlayerCar';
 import { useCarTachometerData } from './useCarTachometerData';
 
 /**
@@ -20,22 +21,7 @@ export const useTachometerData = () => {
   const driverCarRedLine = useSessionStore(
     (state) => state.session?.DriverInfo?.DriverCarRedLine
   );
-  const driverCarIdx = useSessionStore(
-    (state) => state.session?.DriverInfo?.DriverCarIdx
-  );
-  const carPath = useSessionStore((state) => {
-    const drivers = state.session?.DriverInfo?.Drivers;
-    if (!drivers || driverCarIdx === undefined) return undefined;
-    const driver = drivers.find((d) => d.CarIdx === driverCarIdx);
-    return driver?.CarPath;
-  });
-  // The key this car's settings are saved under where the sim sets it. LMU's
-  // CarPath names the livery rather than the car, so the model stands in.
-  const carModel = useSessionStore((state) => {
-    const drivers = state.session?.DriverInfo?.Drivers;
-    if (!drivers || driverCarIdx === undefined) return undefined;
-    return drivers.find((d) => d.CarIdx === driverCarIdx)?.CarModel;
-  });
+  const { carPath, carModel } = usePlayerCar();
 
   // Use car-specific maximum RPM from multiple sources in order of preference
   const maxRpm =

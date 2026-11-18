@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import {
   useDashboard,
   useChannelSelector,
   useSessionStore,
 } from '@irdashies/context';
-import { getGearKey, loadCarData } from '@irdashies/utils/carData';
+import { getGearKey } from '@irdashies/utils/carData';
 import type {
   DriverControlsSnapshot,
   TachometerConfig,
@@ -17,6 +17,7 @@ import {
   isShiftFlashActive,
   type ShiftFlashSource,
 } from './shiftLight';
+import { usePlayerCar } from './usePlayerCar';
 
 const FALLBACK_REDLINE_RPM = 7500;
 
@@ -42,20 +43,7 @@ export const useShiftFlashActive = (
   const driverCarRedLine = useSessionStore(
     (state) => state.session?.DriverInfo?.DriverCarRedLine
   );
-  const driver = useSessionStore((state) => {
-    const idx = state.session?.DriverInfo?.DriverCarIdx;
-    if (idx === undefined) return undefined;
-    return state.session?.DriverInfo?.Drivers?.find((d) => d.CarIdx === idx);
-  });
-  const carPath = driver?.CarPath;
-  // Where the sim names the car by model (LMU) that is its key, and the
-  // bundled car data, which is iRacing's, does not describe it.
-  const carModel = driver?.CarModel;
-  const carData = useMemo(
-    () => (enabled && carPath && !carModel ? loadCarData(carPath) : null),
-    [enabled, carPath, carModel]
-  );
-  const carId = carModel || carData?.carId || carPath;
+  const { carData, carId } = usePlayerCar(enabled);
 
   const selectActive = useCallback(
     (snapshot: DriverControlsSnapshot) => {

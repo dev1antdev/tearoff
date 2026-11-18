@@ -54,7 +54,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
 - Lap Trace does not yet check LMU lap validity, so laps invalidated by track limits may still become saved references. Imports support iRacing `.ibt` files and Garage 61 CSV laps, with no native LMU telemetry-file import.
 - Input and Lap Trace need your own car's telemetry, which can be unavailable while spectating or in the garage.
-- Tachometer uses the standard 10-LED scale, because the car-specific LED data covers iRacing cars only. Its thresholds come from the rev limit and, for LMGT3 and LMP2, the known shift point; **LED Thresholds** in its settings corrects them for a car. LMU reports one overheating warning for the engine, so it turns both the oil and the water box red.
+- Tachometer uses the standard 10-LED scale, because the car-specific LED data covers iRacing cars only. Its thresholds come from the rev limit and, for LMGT3 and LMP2, the known shift point; **LED thresholds** in its settings corrects them for a car. LMU reports one overheating warning for the engine, so it turns both the oil and the water box red.
 - The steering wheel is drawn at the range of the driver's own wheel when LMU knows it, otherwise at the steering lock of the car setup, and at the cockpit animation's range only until the setup has been read. The animation's range turned the drawn wheel about half as far again as the real one on an LMGT3.
 - Lap positions are estimated between updates; cars without full telemetry may update in larger steps. Automatic units are metric, and Pitlane Helper currently uses a fixed 60 km/h pit limit.
 - Virtual energy: Hypercar, LMDh and LMGT3 cars run on virtual energy, LMP2 and LMP3 on fuel. The optional **VE** column in Standings and Relative shows what each car has left to run on, with a pump icon marking a figure that is fuel. The Fuel Level item shows your virtual energy ahead of the litres, and Pitlane Helper shows what the next stop is set to put in. Fuel Calculator counts a car on virtual energy in percent of its energy and a fuel-limited car in litres; see [Fuel Calculator](#fuel-calculator).
@@ -97,7 +97,7 @@ Displays the throttle, clutch, and brake input traces, as well as the current ge
 - Customizable display order for all components
 - Drag-and-drop layout editor to arrange traces, bars, steering, the steering meter, gear, and ABS indicators
 - Multiple Input widgets with independent layouts, including a gear-only layout for a detached gear indicator
-- Optional background shift flash at redline or custom Tachometer shift points, with a configurable colour
+- Optional background shift flash at redline or custom Tachometer shift points, with a configurable colour. A Flash value in the Tachometer's LED thresholds takes the place of the redline for that car
 - Adjustable background opacity
 - Option to show only when on track
 - Session visibility settings (Race, Lone Qualify, Open Qualify, Practice, Offline Testing)
@@ -127,7 +127,7 @@ Displays a real-time tachometer with optional RPM text display.
 - Tachometer with optional RPM text display
   - Car-specific LED color and RPM thresholds (powered by [lovely-car-data](https://github.com/Lovely-Sim-Racing/lovely-car-data))
   - Custom shift points configuration per car and gear
-  - LED Thresholds: set by hand, per car, the revs where the first LED comes on, where all of them are lit and where they flash
+  - LED thresholds: set by hand, per car, the revs where the first LED comes on, where all of them are lit and where they flash
   - Multiple indicator styles (glow, pulse, border) with customizable colors
   - Horizontal or vertical orientation
   - Consistent sizing across different cars

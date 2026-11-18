@@ -83,9 +83,6 @@ const PHASE_TO_SESSION_STATE: Record<number, number> = {
   9: SessionState.Racing,
 };
 
-/** EngineWarnings.PitSpeedLimiter, the bit the pit lane helper reads. */
-const ENGINE_WARNING_PIT_LIMITER = 0x10;
-
 /** LMU's overheating flag covers the engine and names no fluid: both bits. */
 const ENGINE_WARNING_OVERHEATING =
   EngineWarnings.WaterTempWarning | EngineWarnings.OilTempWarning;
@@ -998,8 +995,12 @@ export function mapLmuTelemetry(
   t.WeatherDeclaredWet = bool(raw.raining > 0);
 
   // Car condition
-  t.WaterTemp = num(raw.engineWaterTemp);
-  t.OilTemp = num(raw.engineOilTemp);
+  // Absent rather than 0 without a telemetry block for the car: 0 was drawn
+  // as an engine at 0°C.
+  if (raw.engineWaterTemp !== undefined) {
+    t.WaterTemp = num(raw.engineWaterTemp);
+  }
+  if (raw.engineOilTemp !== undefined) t.OilTemp = num(raw.engineOilTemp);
   // Absent rather than 0 when the player has no car: at the monitor or
   // spectating the sim writes no fuel at all, and a 0 was drawn as an empty
   // tank.
@@ -1021,7 +1022,7 @@ export function mapLmuTelemetry(
   // a state. Left at 0 the pit lane helper told a driver sitting on the
   // limiter to switch it on, for the whole length of every stop.
   t.EngineWarnings = num(
-    (raw.speedLimiter ? ENGINE_WARNING_PIT_LIMITER : 0) |
+    (raw.speedLimiter ? EngineWarnings.PitSpeedLimiter : 0) |
       (raw.overheating ? ENGINE_WARNING_OVERHEATING : 0)
   );
   t.ShiftGrindRPM = num(raw.engineMaxRPM ?? 0);

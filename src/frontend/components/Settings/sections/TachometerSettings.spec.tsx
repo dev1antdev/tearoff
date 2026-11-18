@@ -6,6 +6,7 @@ import { TachometerSettings } from './TachometerSettings';
 const mocks = vi.hoisted(() => ({
   onDashboardUpdated: vi.fn(),
   session: undefined as unknown,
+  simulator: 'lmu',
 }));
 
 vi.mock('@irdashies/context', async () => {
@@ -15,7 +16,7 @@ vi.mock('@irdashies/context', async () => {
       currentDashboard: dashboard,
       onDashboardUpdated: mocks.onDashboardUpdated,
     }),
-    useActiveSimulator: () => 'lmu',
+    useActiveSimulator: () => mocks.simulator,
     useSimWidgetSupport: () => DEFAULT_SIM_WIDGET_SUPPORT,
     useSessionStore: (selector: (state: { session: unknown }) => unknown) =>
       selector({ session: mocks.session }),
@@ -85,6 +86,7 @@ const edit = (name: string, value: string) => {
 
 beforeEach(() => {
   mocks.onDashboardUpdated.mockClear();
+  mocks.simulator = 'lmu';
   mocks.session = session({ CarPath: 'livery.veh', CarModel: FERRARI });
   config.ledRpmOverrides = {};
   localStorage.setItem('tachometerTab', 'options');
@@ -107,6 +109,7 @@ describe('TachometerSettings custom shift points', () => {
   });
 
   it('offers no current car where the sim names none by model', () => {
+    mocks.simulator = 'iracing';
     mocks.session = session({ CarPath: 'ferrari296gt3' });
     render(<TachometerSettings />);
 
@@ -131,6 +134,7 @@ describe('TachometerSettings LED thresholds', () => {
   });
 
   it('keys an iRacing car by its bundled id', () => {
+    mocks.simulator = 'iracing';
     mocks.session = session({ CarPath: 'Ferrari 296 GT3' });
     render(<TachometerSettings />);
 
@@ -139,6 +143,15 @@ describe('TachometerSettings LED thresholds', () => {
     expect(Object.keys(lastConfig().ledRpmOverrides ?? {})).toEqual([
       'ferrari296gt3',
     ]);
+  });
+
+  it('waits for the model of an LMU car before offering it', () => {
+    mocks.session = session({ CarPath: 'ferrari_296_gt3' });
+    render(<TachometerSettings />);
+
+    expect(
+      screen.queryByRole('button', { name: /^Add .+/ })
+    ).not.toBeInTheDocument();
   });
 
   it('asks for a session when no car is being driven', () => {
@@ -182,6 +195,20 @@ describe('TachometerSettings LED thresholds', () => {
 
     expect(mocks.onDashboardUpdated).not.toHaveBeenCalled();
     expect(input).toHaveValue(saved[key]);
+  });
+
+  it('says why a value will not be saved while it is typed', () => {
+    config.ledRpmOverrides = { [FERRARI]: saved };
+    render(<TachometerSettings />);
+    const input = screen.getByRole('spinbutton', {
+      name: `${FERRARI}, Flash RPM`,
+    });
+
+    fireEvent.change(input, { target: { value: '6000' } });
+
+    expect(input).toBeInvalid();
+    expect(input).toHaveAccessibleDescription(/Will not be saved/);
+    expect(screen.getByRole('alert')).toHaveTextContent(/Will not be saved/);
   });
 
   it('returns a deleted car to the automatic thresholds', () => {

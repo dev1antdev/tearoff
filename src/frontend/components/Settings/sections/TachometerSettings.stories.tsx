@@ -27,7 +27,7 @@ export const LedThresholds: Story = {
     (Story) => {
       localStorage.setItem('tachometerTab', 'options');
       return (
-        <ShowSection title="LED Thresholds">
+        <ShowSection title="LED thresholds">
           <Story />
         </ShowSection>
       );

@@ -1543,6 +1543,16 @@ describe('the session clock, the length of a race and the pit limiter', () => {
     expect(on.EngineWarnings?.value?.[0]).toBe(0x10);
   });
 
+  it('leaves the engine temperatures out without a telemetry block', () => {
+    const frame = mapLmuTelemetry({
+      ...fixture(),
+      engineWaterTemp: undefined,
+      engineOilTemp: undefined,
+    });
+    expect(frame.WaterTemp).toBeUndefined();
+    expect(frame.OilTemp).toBeUndefined();
+  });
+
   it('reports overheating as both temperature warnings', () => {
     const hot = mapLmuTelemetry({
       ...fixture(),

@@ -1,43 +1,11 @@
-import { useEffect, useState, useCallback } from 'react';
-import { useSessionStore, useDriverCarIdx } from '@irdashies/context';
-import { loadCarData, getGearKey, type CarData } from '../../../utils/carData';
+import { usePlayerCar } from '@irdashies/domain/shiftLight/usePlayerCar';
+import { getGearKey } from '../../../utils/carData';
 
 /**
  * Hook for car-specific tachometer data from lovely-car-data
  */
 export const useCarTachometerData = (gear = 0) => {
-  const [carData, setCarData] = useState<CarData | null>(null);
-
-  const driverCarIdx = useDriverCarIdx();
-  const session = useSessionStore((state) => state.session);
-  // Get current car path and game
-  const driver = session?.DriverInfo?.Drivers?.find(
-    (candidate) => candidate.CarIdx === driverCarIdx
-  );
-  // The bundled data is iRacing's. A car the sim names by model (LMU) is not
-  // in it, even where the name of its file reads like one that is.
-  const carPath = driver?.CarModel ? undefined : driver?.CarPath;
-
-  // Extract game ID from session (this would need to be added to session data)
-  // For now, default to 'iracing' since that's what Tearoff primarily supports
-  const gameId = 'iracing'; // TODO: Get from session data when available
-
-  // Memoized load function
-  const loadData = useCallback((path: string, game: string) => {
-    const data = loadCarData(path, game);
-    return data;
-  }, []);
-
-  // Load car data when car path changes
-  useEffect(() => {
-    if (!carPath) {
-      setCarData(null);
-      return;
-    }
-
-    const data = loadData(carPath, gameId);
-    setCarData(data);
-  }, [carPath, gameId, loadData]);
+  const { carData } = usePlayerCar();
 
   // Get gear-specific RPM thresholds
   const getGearRpmThresholds = (): number[] | null => {

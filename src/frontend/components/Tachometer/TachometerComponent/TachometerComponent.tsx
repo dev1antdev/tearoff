@@ -95,14 +95,12 @@ export const Tachometer = ({
   );
 
   // Calculate effective thresholds with fallbacks
-  const carShiftRpm = gearRpmThresholds
-    ? gearRpmThresholds[0]
-    : shiftRpm || maxRpm * 0.9; // Use redline from car data
-  const carBlinkRpm = gearRpmThresholds
-    ? gearRpmThresholds[0]
-    : blinkRpm || maxRpm * 0.97; // Use redline from car data
-  const effectiveShiftRpm = ledOverride?.fullRpm ?? carShiftRpm;
-  const effectiveBlinkRpm = ledOverride?.blinkRpm ?? carBlinkRpm;
+  const effectiveShiftRpm =
+    ledOverride?.fullRpm ??
+    (gearRpmThresholds ? gearRpmThresholds[0] : shiftRpm || maxRpm * 0.9); // Use redline from car data
+  const effectiveBlinkRpm =
+    ledOverride?.blinkRpm ??
+    (gearRpmThresholds ? gearRpmThresholds[0] : blinkRpm || maxRpm * 0.97); // Use redline from car data
   const shouldBlink = clampedRpm >= effectiveBlinkRpm;
 
   // Use car-specific LED count if available

@@ -14,9 +14,7 @@ export const isValidLedRpmOverride = ({
   TachometerLedRpmOverride,
   'firstRpm' | 'fullRpm' | 'blinkRpm'
 >): boolean =>
-  Number.isFinite(firstRpm) &&
-  Number.isFinite(fullRpm) &&
-  Number.isFinite(blinkRpm) &&
+  [firstRpm, fullRpm, blinkRpm].every(Number.isFinite) &&
   firstRpm > 0 &&
   firstRpm < fullRpm &&
   fullRpm <= blinkRpm;

@@ -364,7 +364,7 @@ const SingleInputWidgetSettings = ({ widgetId }: { widgetId: string }) => {
                         <SettingsSection>
                           <SettingButtonGroupRow<'redline' | 'shiftPoints'>
                             title="Flash At"
-                            description="Shift Points uses the custom shift points set for this car in the Tachometer settings. Gears without one use the redline."
+                            description="Shift Points uses the custom shift points set for this car in the Tachometer settings. Gears without one use the redline. A Flash value in the Tachometer's LED thresholds takes the place of the redline for that car."
                             value={shiftFlash.source}
                             options={[
                               { label: 'Redline', value: 'redline' },

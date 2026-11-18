@@ -9,6 +9,7 @@ vi.mock('@irdashies/context', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@irdashies/context')>();
   return {
     ...actual,
+    useActiveSimulator: vi.fn(),
     useSessionStore: vi.fn(),
     useDriverCarIdx: vi.fn(),
     useDriverControlsSnapshot: vi.fn(),
@@ -84,10 +85,16 @@ describe('useCarTachometerData', () => {
         selector: (state: unknown) => unknown
       ) =>
         selector({
-          session: { DriverInfo: { Drivers: [{ CarIdx: 0, ...driver }] } },
+          session: {
+            DriverInfo: {
+              DriverCarIdx: 0,
+              Drivers: [{ CarIdx: 0, ...driver }],
+            },
+          },
         })) as unknown as typeof Context.useSessionStore);
 
     beforeEach(() => {
+      vi.mocked(Context.useActiveSimulator).mockReturnValue('iracing');
       vi.mocked(loadCarData).mockReturnValue(bundledCar);
     });
 
@@ -96,12 +103,13 @@ describe('useCarTachometerData', () => {
 
       const { result } = renderHook(() => useCarTachometerData());
 
-      expect(loadCarData).toHaveBeenCalledWith('ferrari296gt3', 'iracing');
+      expect(loadCarData).toHaveBeenCalledWith('ferrari296gt3');
       expect(result.current.carData).toBe(bundledCar);
     });
 
     it('leaves out an LMU car, whatever its file is called', () => {
-      driving({ CarPath: 'ferrari_296_gt3', CarModel: 'Ferrari 296 LMGT3' });
+      vi.mocked(Context.useActiveSimulator).mockReturnValue('lmu');
+      driving({ CarPath: 'ferrari_296_gt3' });
 
       const { result } = renderHook(() => useCarTachometerData());
 
