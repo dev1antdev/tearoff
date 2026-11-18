@@ -159,7 +159,8 @@ Places several widgets in one frame and shows them on the overlay as one widget.
 - One scale for the whole group, and a scale of its own for each widget in it
 - Position, size and drawing order of each widget, set one at a time in any order, with a preview of the saved layout
 - Layout editor in the settings: drag widgets and their edges, with snapping to the grid, the frame and each other, then save, revert or reset the layout
-- One set of session visibility rules, one hide shortcut and one browser source for the group, while each widget inside keeps its own settings
+- Several groups, each with its own frame, scale, widgets and layout. A widget is in one group at most, and deleting a group returns its widgets to the overlay
+- Each group has its own session visibility rules, hide shortcut and browser source, while each widget inside keeps its own settings
 - A widget in the group leaves its own place on the overlay and returns to it, as it was, when removed. Switching the group off hides the widgets in it
 
 ### Car Systems

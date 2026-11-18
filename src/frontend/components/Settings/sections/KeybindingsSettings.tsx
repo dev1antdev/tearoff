@@ -14,7 +14,9 @@ import {
 } from '@irdashies/shared';
 import { useDashboard } from '@irdashies/context';
 import logger from '@irdashies/utils/logger';
+import { isWidgetGroup } from '@irdashies/types';
 import { widgetItems, widgetLabel } from '../menuItems';
+import { widgetGroupName } from './widgetGroupEdits';
 
 const HAT_DIRECTION_LABELS: Record<string, string> = {
   up: 'Up',
@@ -444,12 +446,16 @@ export const KeybindingsSettings = () => {
             <div className="flex flex-col gap-1">
               {widgets.map((widget) => {
                 const actionId = widgetToggleActionId(widget.id);
-                const label = widgetLabel(widget.type ?? widget.id);
-                const entry: KeybindingEntry = bindings[actionId] ?? {
+                const label = isWidgetGroup(widget)
+                  ? widgetGroupName(widgets, widget.id)
+                  : widgetLabel(widget.type ?? widget.id);
+                // Named as now: a group's number changes as others go.
+                const entry: KeybindingEntry = {
                   accelerator: '',
+                  isDefault: true,
+                  ...bindings[actionId],
                   label,
                   description: `Show / hide the ${label} widget`,
-                  isDefault: true,
                 };
                 return (
                   <BindingRow

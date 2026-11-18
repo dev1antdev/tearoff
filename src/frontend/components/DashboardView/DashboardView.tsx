@@ -179,7 +179,10 @@ const DashboardWidgetItem = memo(
               }
             `}</style>
             <div className="widget-content w-full h-full">
-              <WidgetRuntimeProvider widgetType={widget.type || widget.id}>
+              <WidgetRuntimeProvider
+                widgetType={widget.type || widget.id}
+                widgetId={widget.id}
+              >
                 <WidgetScale scale={widget.scale}>
                   <WidgetComponent {...widget.config} />
                 </WidgetScale>
@@ -243,7 +246,10 @@ const SoloWidgetView = ({ widgetId, widgets }: SoloWidgetViewProps) => {
       <div className="w-full h-full overflow-hidden text-white">
         {/* Hidden by its hotkey; the page stays up so the source keeps its slot. */}
         {(!hiddenWidgetIds.has(widget.id) || isWidgetGroup(widget)) && (
-          <WidgetRuntimeProvider widgetType={widget.type || widget.id}>
+          <WidgetRuntimeProvider
+            widgetType={widget.type || widget.id}
+            widgetId={widget.id}
+          >
             <WidgetScale scale={widget.scale}>
               <WidgetComponent {...widget.config} />
             </WidgetScale>

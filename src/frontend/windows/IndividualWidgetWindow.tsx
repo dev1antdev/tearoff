@@ -58,7 +58,7 @@ export const IndividualWidgetView = ({
   if (!Widget || (hidden.has(widget.id) && !isWidgetGroup(widget))) return null;
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none">
-      <WidgetRuntimeProvider widgetType={type}>
+      <WidgetRuntimeProvider widgetType={type} widgetId={widget.id}>
         {needs.some((need) => need.sectorTiming) && <SectorTimingUpdater />}
         {needs.some((need) => need.pushToPass) && <PushToPassUpdater />}
         {needs.some((need) => need.pitLap) && <PitLapUpdater />}

@@ -154,7 +154,10 @@ export const OverlayContainer = memo(() => {
                 label={`widget:${widget.type || widget.id}`}
                 resetAfterMs={2000}
               >
-                <WidgetRuntimeProvider widgetType={widget.type || widget.id}>
+                <WidgetRuntimeProvider
+                  widgetType={widget.type || widget.id}
+                  widgetId={widget.id}
+                >
                   <WidgetComponent {...widget.config} />
                 </WidgetRuntimeProvider>
               </ErrorBoundary>

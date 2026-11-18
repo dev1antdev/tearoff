@@ -1,15 +1,20 @@
 import {
+  WIDGET_GROUP_ID,
   WIDGET_GROUP_MAX_MEMBERS,
   canJoinWidgetGroup,
   findWidgetGroup,
+  getWidgetDefaultConfig,
+  getWidgetManifest,
   normalizeWidgetScale,
-  sanitizeWidgetGroupMembers,
   widgetGroupMemberIds,
+  widgetGroupMembers,
+  widgetGroups,
   type DashboardLayout,
   type DashboardWidget,
   type WidgetGroupMember,
   type WidgetLayout,
 } from '@irdashies/types';
+import { widgetLabel } from '../menuItems';
 
 /** What the settings page changes about one member. */
 export interface WidgetGroupFrameSize {
@@ -21,8 +26,69 @@ export type WidgetGroupMemberChange = Partial<
   Pick<WidgetGroupMember, 'x' | 'y' | 'width' | 'height' | 'scale'>
 >;
 
-const membersOf = (group: DashboardWidget) =>
-  sanitizeWidgetGroupMembers(group.config?.members);
+const membersOf = (dashboard: DashboardLayout, group: DashboardWidget) =>
+  widgetGroupMembers(dashboard.widgets, group.id);
+
+/** What a group is called: groups have no names, so they go by their order. */
+export const widgetGroupName = (
+  widgets: readonly DashboardWidget[],
+  groupId: string
+) => {
+  const index = widgetGroups(widgets).findIndex(({ id }) => id === groupId);
+  const name = widgetLabel(WIDGET_GROUP_ID);
+  return index > 0 ? `${name} ${index + 1}` : name;
+};
+
+/** A new empty group, off until a widget is put in it. */
+export const addWidgetGroup = (
+  dashboard: DashboardLayout,
+  id: string
+): DashboardLayout => {
+  const manifest = getWidgetManifest(WIDGET_GROUP_ID);
+  if (!manifest) return dashboard;
+  return {
+    ...dashboard,
+    widgets: [
+      ...dashboard.widgets,
+      {
+        id,
+        type: WIDGET_GROUP_ID,
+        enabled: false,
+        alwaysEnabled: manifest.alwaysEnabled,
+        layout: { ...manifest.layout },
+        config: getWidgetDefaultConfig(WIDGET_GROUP_ID) as unknown as Record<
+          string,
+          unknown
+        >,
+      },
+    ],
+  };
+};
+
+/**
+ * Deletes a group, which puts its widgets back on the overlay as they were.
+ * The default group stays: it would come back with the next load.
+ */
+export const deleteWidgetGroup = (
+  dashboard: DashboardLayout,
+  groupId: string
+): DashboardLayout => {
+  const group = findWidgetGroup(dashboard.widgets, groupId);
+  if (!group || groupId === WIDGET_GROUP_ID) return dashboard;
+  const switchedOn = new Set(
+    membersOf(dashboard, group)
+      .filter((member) => member.restoreDisabled)
+      .map((member) => member.widgetId)
+  );
+  return {
+    ...dashboard,
+    widgets: dashboard.widgets
+      .filter((widget) => widget.id !== groupId)
+      .map((widget) =>
+        switchedOn.has(widget.id) ? { ...widget, enabled: false } : widget
+      ),
+  };
+};
 
 /** Screen pixels per pixel of the group, which is what members are placed in. */
 export const widgetGroupScale = (group: DashboardWidget) =>
@@ -73,10 +139,16 @@ const setEnabled = (
 
 /** The widgets that can still be added, in the dashboard's order. */
 export const widgetGroupCandidates = (
-  dashboard: DashboardLayout
+  dashboard: DashboardLayout,
+  groupId: string
 ): DashboardWidget[] => {
-  const group = findWidgetGroup(dashboard.widgets);
-  if (!group || membersOf(group).length >= WIDGET_GROUP_MAX_MEMBERS) return [];
+  const group = findWidgetGroup(dashboard.widgets, groupId);
+  if (
+    !group ||
+    membersOf(dashboard, group).length >= WIDGET_GROUP_MAX_MEMBERS
+  ) {
+    return [];
+  }
   const members = widgetGroupMemberIds(dashboard.widgets);
   return dashboard.widgets.filter(
     (widget) => canJoinWidgetGroup(widget) && !members.has(widget.id)
@@ -90,15 +162,17 @@ export const widgetGroupCandidates = (
  */
 export const addWidgetGroupMember = (
   dashboard: DashboardLayout,
+  groupId: string,
   widgetId: string
 ): DashboardLayout => {
-  const group = findWidgetGroup(dashboard.widgets);
+  const group = findWidgetGroup(dashboard.widgets, groupId);
   const widget = dashboard.widgets.find(({ id }) => id === widgetId);
   if (!group || !widget || !canJoinWidgetGroup(widget)) return dashboard;
-  const members = membersOf(group);
+  const members = membersOf(dashboard, group);
   if (
     members.length >= WIDGET_GROUP_MAX_MEMBERS ||
-    members.some((member) => member.widgetId === widgetId)
+    // A widget is in one group at most.
+    widgetGroupMemberIds(dashboard.widgets).has(widgetId)
   ) {
     return dashboard;
   }
@@ -126,11 +200,12 @@ export const addWidgetGroupMember = (
 /** Takes a widget out, which puts it back on the overlay as it was. */
 export const removeWidgetGroupMember = (
   dashboard: DashboardLayout,
+  groupId: string,
   widgetId: string
 ): DashboardLayout => {
-  const group = findWidgetGroup(dashboard.widgets);
+  const group = findWidgetGroup(dashboard.widgets, groupId);
   if (!group) return dashboard;
-  const members = membersOf(group);
+  const members = membersOf(dashboard, group);
   const member = members.find((m) => m.widgetId === widgetId);
   if (!member) return dashboard;
   const without = withGroup(
@@ -185,10 +260,11 @@ export const stackWidgetGroupMembers = (
 /** The dashboard with this arrangement of the group, in this frame. */
 export const setWidgetGroupMembers = (
   dashboard: DashboardLayout,
+  groupId: string,
   members: WidgetGroupMember[],
   frame: WidgetLayout
 ): DashboardLayout => {
-  const group = findWidgetGroup(dashboard.widgets);
+  const group = findWidgetGroup(dashboard.widgets, groupId);
   return group
     ? withGroup(dashboard, group, members, { layout: frame })
     : dashboard;
@@ -206,11 +282,12 @@ export const sizedWidgetGroupFrame = (
 /** Sets the size of the group's frame on the overlay. */
 export const resizeWidgetGroup = (
   dashboard: DashboardLayout,
+  groupId: string,
   size: WidgetGroupFrameSize
 ): DashboardLayout => {
-  const group = findWidgetGroup(dashboard.widgets);
+  const group = findWidgetGroup(dashboard.widgets, groupId);
   if (!group) return dashboard;
-  return withGroup(dashboard, group, membersOf(group), {
+  return withGroup(dashboard, group, membersOf(dashboard, group), {
     layout: sizedWidgetGroupFrame(group.layout, size),
   });
 };

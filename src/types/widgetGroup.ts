@@ -9,7 +9,8 @@ import { normalizeWidgetScale } from './widgetScale';
  * The widget group: one block on the overlay with other widgets placed inside
  * it. Who is in it is kept in the group's own config and nowhere else, so
  * taking a widget out of the list is all it takes to put it back on the
- * overlay, where its own layout and settings have stayed as they were.
+ * overlay, where its own layout and settings have stayed as they were. A
+ * dashboard can hold several groups, and a widget is in one of them at most.
  */
 
 export const WIDGET_GROUP_ID = 'widgetgroup';
@@ -30,9 +31,19 @@ const isNumber = (value: unknown): value is number =>
 export const isWidgetGroup = (widget: WidgetRef): boolean =>
   widgetType(widget) === WIDGET_GROUP_ID;
 
-export const findWidgetGroup = (
+/** The groups of a dashboard, in its order. */
+export const widgetGroups = (
   widgets: readonly DashboardWidget[] | undefined
-): DashboardWidget | undefined => widgets?.find(isWidgetGroup);
+): DashboardWidget[] => widgets?.filter(isWidgetGroup) ?? [];
+
+/** The group with this id or, without one, the dashboard's first. */
+export const findWidgetGroup = (
+  widgets: readonly DashboardWidget[] | undefined,
+  id?: string
+): DashboardWidget | undefined =>
+  widgets?.find(
+    (widget) => isWidgetGroup(widget) && (id === undefined || widget.id === id)
+  );
 
 /**
  * Whether a widget can be placed in the group: anything the overlay draws,
@@ -81,13 +92,48 @@ export const sanitizeWidgetGroupMembers = (
   return members;
 };
 
+const membersByWidgets = new WeakMap<
+  readonly DashboardWidget[],
+  ReadonlyMap<string, WidgetGroupMember[]>
+>();
+
+/**
+ * Who is in each group. A widget listed by several stays in the first of them.
+ * Asked for every widget of a dashboard, so kept per list of widgets.
+ */
+const membersByGroup = (widgets: readonly DashboardWidget[]) => {
+  const known = membersByWidgets.get(widgets);
+  if (known) return known;
+  const taken = new Set<string>();
+  const members = new Map(
+    widgetGroups(widgets).map((group) => [
+      group.id,
+      sanitizeWidgetGroupMembers(group.config?.members).filter(
+        ({ widgetId }) => {
+          if (taken.has(widgetId)) return false;
+          taken.add(widgetId);
+          return true;
+        }
+      ),
+    ])
+  );
+  membersByWidgets.set(widgets, members);
+  return members;
+};
+
+/** The saved members of one group, in drawing order. */
+export const widgetGroupMembers = (
+  widgets: readonly DashboardWidget[],
+  groupId: string
+): WidgetGroupMember[] => membersByGroup(widgets).get(groupId) ?? [];
+
 const memberIdsByWidgets = new WeakMap<
   readonly DashboardWidget[],
   ReadonlySet<string>
 >();
 
 /**
- * The widgets drawn by the group and so not as blocks of their own. Asked for
+ * The widgets drawn by a group and so not as blocks of their own. Asked for
  * every widget of a dashboard, so the answer is kept per list of widgets.
  */
 export const widgetGroupMemberIds = (
@@ -97,9 +143,7 @@ export const widgetGroupMemberIds = (
   const known = memberIdsByWidgets.get(widgets);
   if (known) return known;
   const listed = new Set(
-    sanitizeWidgetGroupMembers(findWidgetGroup(widgets)?.config?.members).map(
-      (member) => member.widgetId
-    )
+    [...membersByGroup(widgets).values()].flat().map(({ widgetId }) => widgetId)
   );
   const ids = new Set(
     widgets
@@ -111,14 +155,15 @@ export const widgetGroupMemberIds = (
 };
 
 /**
- * The widgets that are on only because the group switched them on. Whatever
- * empties the group other than removing them one by one has to put them back.
+ * The widgets that are on only because a group switched them on. Whatever
+ * empties the groups other than removing them one by one has to put them back.
  */
 export const widgetsSwitchedOnByGroup = (
   widgets: readonly DashboardWidget[]
 ): ReadonlySet<string> =>
   new Set(
-    sanitizeWidgetGroupMembers(findWidgetGroup(widgets)?.config?.members)
+    [...membersByGroup(widgets).values()]
+      .flat()
       .filter((member) => member.restoreDisabled)
       .map((member) => member.widgetId)
   );
@@ -129,17 +174,19 @@ export interface ResolvedWidgetGroupMember {
 }
 
 /**
- * What the group draws, in order: the listed widgets that exist, are switched
- * on and, with `sim`, can work under the running simulator.
+ * What a group draws, in order: the listed widgets that exist, are switched
+ * on and, with `sim`, can work under the running simulator. Without `groupId`,
+ * for the dashboard's first group.
  */
 export const resolveWidgetGroupMembers = (
   dashboard: DashboardLayout | null | undefined,
-  sim?: DockSimFilter
+  sim?: DockSimFilter,
+  groupId?: string
 ): ResolvedWidgetGroupMember[] => {
   const widgets = dashboard?.widgets ?? [];
-  const group = findWidgetGroup(widgets);
+  const group = findWidgetGroup(widgets, groupId);
   if (!group) return [];
-  return sanitizeWidgetGroupMembers(group.config?.members).flatMap((member) => {
+  return widgetGroupMembers(widgets, group.id).flatMap((member) => {
     const widget = widgets.find((other) => other.id === member.widgetId);
     if (!widget?.enabled || !canJoinWidgetGroup(widget)) return [];
     if (
@@ -153,19 +200,23 @@ export const resolveWidgetGroupMembers = (
 };
 
 /**
- * These widgets, and what the group draws if the group is among them: what a
- * window has to fetch data for, which is more than the blocks it positions.
+ * These widgets, and what the groups among them draw: what a window has to
+ * fetch data for, which is more than the blocks it positions.
  */
 export const withWidgetGroupMembers = <T extends WidgetRef>(
   widgets: T[],
   dashboard: DashboardLayout | null | undefined,
   sim?: DockSimFilter
-): (T | DashboardWidget)[] =>
-  widgets.some(isWidgetGroup)
-    ? [
+): (T | DashboardWidget)[] => {
+  const groups = widgets.filter(isWidgetGroup);
+  return groups.length === 0
+    ? widgets
+    : [
         ...widgets,
-        ...resolveWidgetGroupMembers(dashboard, sim).map(
-          ({ widget }) => widget
+        ...groups.flatMap((group) =>
+          resolveWidgetGroupMembers(dashboard, sim, group.id).map(
+            ({ widget }) => widget
+          )
         ),
-      ]
-    : widgets;
+      ];
+};

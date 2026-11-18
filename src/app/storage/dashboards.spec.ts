@@ -786,6 +786,44 @@ describe('dashboards', () => {
       expect(enabled('radar')).toBe(true);
       expect(enabled('widgetgroup')).toBe(true);
     });
+
+    it('empties every widget group when resetting config', () => {
+      const layout = { x: 1, y: 2, width: 30, height: 40 };
+      const dashboard = withDashboardDefaults({
+        widgets: [
+          {
+            id: 'widgetgroup-2',
+            type: 'widgetgroup',
+            enabled: true,
+            layout,
+            config: {
+              members: [
+                {
+                  widgetId: 'flag',
+                  x: 0,
+                  y: 0,
+                  width: 9,
+                  height: 9,
+                  restoreDisabled: true,
+                },
+              ],
+            },
+          },
+          { id: 'flag', enabled: true, layout, config: {} },
+        ],
+      });
+      mockReadData.mockImplementation((key: string) => {
+        if (key === 'currentProfile') return 'race';
+        if (key === 'dashboards') return { race: dashboard };
+        return null;
+      });
+
+      const { widgets } = resetDashboard(false, 'race');
+      const widget = (id: string) => widgets.find((item) => item.id === id);
+
+      expect(widget('widgetgroup-2')?.config?.members).toEqual([]);
+      expect(widget('flag')?.enabled).toBe(false);
+    });
   });
 
   describe('widget scale migration', () => {

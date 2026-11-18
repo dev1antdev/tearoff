@@ -6,6 +6,7 @@ import {
   type DashboardLayout,
 } from '@irdashies/types';
 import { OverlayHiddenContext, useOverlayHidden } from '@irdashies/context';
+import { WidgetRuntimeProvider } from '../../widgetRuntime';
 import { WidgetGroup } from './WidgetGroup';
 
 const state = vi.hoisted(() => ({
@@ -96,6 +97,52 @@ const expectHiddenButMounted = (container: HTMLElement) => {
     'true'
   );
 };
+
+describe('WidgetGroup among several', () => {
+  const renderSecond = () =>
+    render(
+      <WidgetRuntimeProvider widgetType="widgetgroup" widgetId="widgetgroup-2">
+        <WidgetGroup />
+      </WidgetRuntimeProvider>
+    );
+
+  beforeEach(() => {
+    const { widgets } = dashboard();
+    state.running = true;
+    state.sessionVisible = true;
+    state.hidden = new Set();
+    state.dashboard = {
+      widgets: [
+        ...widgets,
+        { id: 'weather', enabled: true, layout },
+        {
+          id: 'widgetgroup-2',
+          type: 'widgetgroup',
+          enabled: true,
+          layout,
+          config: {
+            members: [{ widgetId: 'weather', x: 0, y: 0, width: 9, height: 9 }],
+          },
+        },
+      ],
+    };
+  });
+
+  it('draws the widgets of its own group', () => {
+    renderSecond();
+    expect(drawn()).toEqual(['weather']);
+  });
+
+  it('is hidden by its own shortcut and not by another group\'s', () => {
+    state.hidden = new Set(['widgetgroup']);
+    const { container, unmount } = renderSecond();
+    expect(container.firstChild).not.toHaveClass('invisible');
+    unmount();
+
+    state.hidden = new Set(['widgetgroup-2']);
+    expect(renderSecond().container.firstChild).toHaveClass('invisible');
+  });
+});
 
 describe('WidgetGroup', () => {
   beforeEach(() => {
