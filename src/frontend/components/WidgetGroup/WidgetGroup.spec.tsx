@@ -154,11 +154,12 @@ describe('WidgetGroup', () => {
 
   it('follows its only-on-track setting', () => {
     state.dashboard = dashboard(true);
-    const { container, rerender } = render(<WidgetGroup />);
+    const { container, unmount } = render(<WidgetGroup />);
     expect(container).toBeEmptyDOMElement();
+    unmount();
 
     state.watching = true;
-    rerender(<WidgetGroup />);
+    render(<WidgetGroup />);
     expect(drawn()).toHaveLength(3);
   });
 });
