@@ -2,11 +2,19 @@ import { Meta, StoryObj } from '@storybook/react-vite';
 import { DashboardProvider } from '@irdashies/context';
 import { mockDashboardBridge, TelemetryDecorator } from '@irdashies/storybook';
 import { DEFAULT_KEYBINDINGS, KEYBINDING_MESSAGES } from '@irdashies/types';
-import type { KeybindingsBridge, KeybindingsMap } from '@irdashies/types';
+import type {
+  KeybindingEntry,
+  KeybindingsBridge,
+  KeybindingsMap,
+  WidgetToggleActionId,
+} from '@irdashies/types';
 import { KeybindingsSettings } from './KeybindingsSettings';
 
 const mockKeybindings =
-  (unavailable = false, more: Partial<KeybindingsMap> = {}) =>
+  (
+    unavailable = false,
+    more: Record<WidgetToggleActionId, KeybindingEntry> = {}
+  ) =>
   () => {
     const original = window.keybindingsBridge;
     let bindings: KeybindingsMap = {
