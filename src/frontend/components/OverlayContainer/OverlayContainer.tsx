@@ -9,7 +9,11 @@ import {
   SectorTimingUpdater,
   useHiddenWidgetIds,
 } from '@irdashies/context';
-import { isWidgetGroup, type WidgetLayout } from '@irdashies/types';
+import {
+  isWidgetGroup,
+  widgetSettingsTarget,
+  type WidgetLayout,
+} from '@irdashies/types';
 import { WidgetContainer } from '../WidgetContainer';
 import { getWidget } from '../../WidgetIndex';
 import { XIcon } from '@phosphor-icons/react';
@@ -57,8 +61,9 @@ export const OverlayContainer = memo(() => {
     (widgetId: string) => {
       const dashboard = dashboardRef.current;
       const widget = dashboard?.widgets.find((w) => w.id === widgetId);
-      const widgetType = widget?.type || widgetId;
-      bridge.openWidgetSettings?.(widgetType);
+      bridge.openWidgetSettings?.(
+        widget ? widgetSettingsTarget(widget) : widgetId
+      );
     },
     [bridge]
   );
@@ -154,7 +159,10 @@ export const OverlayContainer = memo(() => {
                 label={`widget:${widget.type || widget.id}`}
                 resetAfterMs={2000}
               >
-                <WidgetRuntimeProvider widgetType={widget.type || widget.id}>
+                <WidgetRuntimeProvider
+                  widgetType={widget.type || widget.id}
+                  widgetId={widget.id}
+                >
                   <WidgetComponent {...widget.config} />
                 </WidgetRuntimeProvider>
               </ErrorBoundary>

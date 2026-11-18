@@ -3,6 +3,7 @@ import { mockDashboardBridge } from '@irdashies/storybook';
 import {
   defaultDashboard,
   type DashboardBridge,
+  type DashboardWidget,
   type WidgetConfigMap,
   type WidgetId,
 } from '@irdashies/types';
@@ -16,15 +17,19 @@ import {
 /** The mock dashboard bridge, with one widget's saved config overridden. */
 export const dashboardBridgeWith = <K extends WidgetId>(
   widgetId: K,
-  config: Partial<WidgetConfigMap[K]>
+  config: Partial<WidgetConfigMap[K]>,
+  moreWidgets: DashboardWidget[] = []
 ): DashboardBridge => {
   const dashboard = {
     ...defaultDashboard,
-    widgets: defaultDashboard.widgets.map((widget) =>
-      widget.id === widgetId
-        ? { ...widget, config: { ...widget.config, ...config } }
-        : widget
-    ),
+    widgets: [
+      ...defaultDashboard.widgets.map((widget) =>
+        widget.id === widgetId
+          ? { ...widget, config: { ...widget.config, ...config } }
+          : widget
+      ),
+      ...moreWidgets,
+    ],
   };
   return {
     ...mockDashboardBridge,

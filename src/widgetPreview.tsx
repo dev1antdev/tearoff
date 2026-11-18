@@ -132,7 +132,7 @@ function renderPreview(config: WidgetPreviewConfig, session?: Session) {
   currentType = type;
   const value = previewDashboard(config.dashboard, widget);
   // The widget group is previewed with what the widgets in it need.
-  const shown = withWidgetGroupMembers([widget], value);
+  const shown = withWidgetGroupMembers([value.widgets[0]], value);
   const shownType = (id: string) =>
     shown.find((item) => (item.type ?? item.id) === id);
   const lapTrace = shownType('laptrace');

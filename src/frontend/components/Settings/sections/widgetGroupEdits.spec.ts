@@ -3,17 +3,38 @@ import type {
   DashboardLayout,
   DashboardWidget,
   WidgetGroupMember,
+  WidgetLayout,
 } from '@irdashies/types';
 import {
-  addWidgetGroupMember,
+  addWidgetGroup,
+  addWidgetGroupMember as addMemberTo,
   changeWidgetGroupMember,
-  removeWidgetGroupMember,
-  resizeWidgetGroup,
-  setWidgetGroupMembers,
+  deleteWidgetGroup,
+  removeWidgetGroupMember as removeMemberFrom,
+  resizeWidgetGroup as resizeGroup,
+  setWidgetGroupMembers as setMembersOf,
   stackWidgetGroupMembers,
-  widgetGroupCandidates,
+  widgetGroupCandidates as candidatesFor,
   widgetGroupFrameFor,
+  widgetGroupName,
 } from './widgetGroupEdits';
+
+const GROUP = 'widgetgroup';
+const addWidgetGroupMember = (layout: DashboardLayout, id: string) =>
+  addMemberTo(layout, GROUP, id);
+const removeWidgetGroupMember = (layout: DashboardLayout, id: string) =>
+  removeMemberFrom(layout, GROUP, id);
+const widgetGroupCandidates = (layout: DashboardLayout) =>
+  candidatesFor(layout, GROUP);
+const resizeWidgetGroup = (
+  layout: DashboardLayout,
+  size: { width?: number; height?: number }
+) => resizeGroup(layout, GROUP, size);
+const setWidgetGroupMembers = (
+  layout: DashboardLayout,
+  members: WidgetGroupMember[],
+  frame: WidgetLayout
+) => setMembersOf(layout, GROUP, members, frame);
 
 const place = { x: 0, y: 0, width: 100, height: 50 };
 const widget = (
@@ -231,5 +252,83 @@ describe('resizeWidgetGroup', () => {
       width: 321,
       height: 1,
     });
+  });
+});
+
+describe('several groups', () => {
+  const SECOND = 'widgetgroup-2';
+  const input = { widgetId: 'input', ...place };
+  const flag = { widgetId: 'flag', ...place, restoreDisabled: true };
+  const two = (
+    first: WidgetGroupMember[],
+    second: WidgetGroupMember[]
+  ): DashboardLayout => {
+    const layout = dashboard(first);
+    return {
+      ...layout,
+      widgets: [
+        ...layout.widgets,
+        widget(SECOND, { type: GROUP, config: { members: second } }),
+      ],
+    };
+  };
+  const membersIn = (layout: DashboardLayout, id: string) =>
+    find(layout, id)?.config?.members as WidgetGroupMember[];
+
+  it('adds to the group named and leaves the other as it was', () => {
+    const next = addMemberTo(two([input], []), SECOND, 'radar');
+    expect(membersIn(next, SECOND).map((m) => m.widgetId)).toEqual(['radar']);
+    expect(membersIn(next, GROUP)).toEqual([input]);
+  });
+
+  it('offers only widgets that no group holds', () => {
+    const candidates = candidatesFor(two([input], [flag]), SECOND);
+    expect(candidates.map(({ id }) => id)).toEqual(['radar']);
+  });
+
+  it('will not put a widget in a second group', () => {
+    const layout = two([input], []);
+    expect(addMemberTo(layout, SECOND, 'input')).toBe(layout);
+  });
+
+  it('takes a removed widget out of a group that repeats it', () => {
+    const next = removeMemberFrom(two([input], [input]), GROUP, 'input');
+    expect(membersIn(next, GROUP)).toEqual([]);
+    expect(membersIn(next, SECOND)).toEqual([]);
+  });
+
+  it('creates an empty group that is off', () => {
+    const created = find(addWidgetGroup(dashboard(), SECOND), SECOND);
+    expect(created).toMatchObject({
+      type: GROUP,
+      enabled: false,
+      alwaysEnabled: true,
+      config: { members: [] },
+    });
+  });
+
+  it('deletes a group and switches off what it had switched on', () => {
+    const layout = two([input], [flag]);
+    const switchedOn = {
+      ...layout,
+      widgets: layout.widgets.map((item) =>
+        item.id === 'flag' ? { ...item, enabled: true } : item
+      ),
+    };
+    const next = deleteWidgetGroup(switchedOn, SECOND);
+    expect(find(next, SECOND)).toBeUndefined();
+    expect(find(next, 'flag')?.enabled).toBe(false);
+    expect(find(next, 'input')?.enabled).toBe(true);
+  });
+
+  it('keeps the default group', () => {
+    const layout = two([input], []);
+    expect(deleteWidgetGroup(layout, GROUP)).toBe(layout);
+  });
+
+  it('names the groups by their order', () => {
+    const { widgets } = two([], []);
+    expect(widgetGroupName(widgets, GROUP)).toBe('Widget Group');
+    expect(widgetGroupName(widgets, SECOND)).toBe('Widget Group 2');
   });
 });

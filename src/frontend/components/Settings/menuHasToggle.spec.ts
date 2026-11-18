@@ -10,6 +10,10 @@ describe('menuHasToggle', () => {
     expect(menuHasToggle('fuel', ['relative'])).toBe(false);
   });
 
+  it('is false for the widget group, each of which has its own switch', () => {
+    expect(menuHasToggle('widgetgroup', ['widgetgroup'])).toBe(false);
+  });
+
   it('is false for widgets hidden from the menu or sharing a page', () => {
     const noSwitch = widgetItems.filter(
       (item) => item.hideInMenu || item.groupTypes

@@ -10,11 +10,14 @@ import {
   isWidgetToggleActionId,
   parseGamepadToken,
   parseGamepadTokens,
+  unplacedWidgetToggleIds,
   widgetToggleActionId,
 } from '@irdashies/shared';
 import { useDashboard } from '@irdashies/context';
 import logger from '@irdashies/utils/logger';
+import { isWidgetGroup } from '@irdashies/types';
 import { widgetItems, widgetLabel } from '../menuItems';
+import { widgetGroupName } from './widgetGroupEdits';
 
 const HAT_DIRECTION_LABELS: Record<string, string> = {
   up: 'Up',
@@ -395,6 +398,10 @@ export const KeybindingsSettings = () => {
   const widgets = [...(currentDashboard?.widgets ?? [])].sort(
     (a, b) => menuOrder(a) - menuOrder(b)
   );
+  const unplacedActionIds = unplacedWidgetToggleIds(
+    bindings,
+    widgets.map((widget) => widget.id)
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -444,12 +451,17 @@ export const KeybindingsSettings = () => {
             <div className="flex flex-col gap-1">
               {widgets.map((widget) => {
                 const actionId = widgetToggleActionId(widget.id);
-                const label = widgetLabel(widget.type ?? widget.id);
-                const entry: KeybindingEntry = bindings[actionId] ?? {
-                  accelerator: '',
+                const label = isWidgetGroup(widget)
+                  ? widgetGroupName(widgets, widget.id)
+                  : widgetLabel(widget.type ?? widget.id);
+                // Named as now: a group's number changes as others go.
+                const entry: KeybindingEntry = {
+                  ...(bindings[actionId] ?? {
+                    accelerator: '',
+                    isDefault: true,
+                  }),
                   label,
                   description: `Show / hide the ${label} widget`,
-                  isDefault: true,
                 };
                 return (
                   <BindingRow
@@ -460,6 +472,28 @@ export const KeybindingsSettings = () => {
                   />
                 );
               })}
+            </div>
+          </>
+        )}
+
+        {unplacedActionIds.length > 0 && (
+          <>
+            <h3 className="text-sm font-semibold text-slate-300 mt-6 mb-2 px-1">
+              Widgets Not in This Profile
+            </h3>
+            <p className="text-xs text-slate-400 mb-2 px-1">
+              These keys belong to widgets that were deleted or are in another
+              profile. Reset one to free its key.
+            </p>
+            <div className="flex flex-col gap-1">
+              {unplacedActionIds.map((actionId) => (
+                <BindingRow
+                  key={actionId}
+                  actionId={actionId}
+                  entry={bindings[actionId]}
+                  onUpdated={setBindings}
+                />
+              ))}
             </div>
           </>
         )}

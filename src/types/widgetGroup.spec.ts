@@ -3,9 +3,12 @@ import type { DashboardLayout, DashboardWidget } from './dashboardLayout';
 import type { SimWidgetSupportConfig } from './simWidgetSupport';
 import {
   canJoinWidgetGroup,
+  findWidgetGroup,
   resolveWidgetGroupMembers,
   sanitizeWidgetGroupMembers,
   widgetGroupMemberIds,
+  widgetGroupMembers,
+  widgetSettingsTarget,
   widgetsSwitchedOnByGroup,
   withWidgetGroupMembers,
 } from './widgetGroup';
@@ -152,5 +155,73 @@ describe('resolveWidgetGroupMembers', () => {
         layoutWithMembers
       ).map(({ id }) => id)
     ).toEqual(['widgetgroup', 'radar', 'input']);
+  });
+});
+
+describe('several groups', () => {
+  const second = (members: unknown[]) =>
+    widget('widgetgroup-2', { type: 'widgetgroup', config: { members } });
+  const { widgets } = dashboard(
+    [
+      { widgetId: 'input', ...place },
+      { widgetId: 'flag', ...place, restoreDisabled: true },
+    ],
+    [
+      widget('input'),
+      widget('flag'),
+      widget('radar'),
+      second([
+        { widgetId: 'input', ...place, x: 50 },
+        { widgetId: 'radar', ...place, restoreDisabled: true },
+      ]),
+    ]
+  );
+  const layoutOfTwo: DashboardLayout = { widgets };
+  const ids = (groupId: string) =>
+    resolveWidgetGroupMembers(layoutOfTwo, undefined, groupId).map(
+      ({ widget: { id } }) => id
+    );
+
+  it('opens the page of the group itself, and of a widget by its type', () => {
+    expect(widgetSettingsTarget(second([]))).toBe('widgetgroup-2');
+    expect(widgetSettingsTarget(widget('fuel-2', { type: 'fuel' }))).toBe(
+      'fuel'
+    );
+  });
+
+  it('finds a group by id, and the first without one', () => {
+    expect(findWidgetGroup(widgets, 'widgetgroup-2')?.id).toBe('widgetgroup-2');
+    expect(findWidgetGroup(widgets)?.id).toBe('widgetgroup');
+    expect(findWidgetGroup(widgets, 'input')).toBeUndefined();
+  });
+
+  it('draws in each group only its own widgets', () => {
+    expect(ids('widgetgroup')).toEqual(['input', 'flag']);
+    expect(ids('widgetgroup-2')).toEqual(['radar']);
+    expect(ids('deleted')).toEqual([]);
+  });
+
+  it('leaves a widget listed twice in the first group', () => {
+    expect(
+      widgetGroupMembers(widgets, 'widgetgroup-2').map((m) => m.widgetId)
+    ).toEqual(['radar']);
+  });
+
+  it('counts the widgets of every group', () => {
+    expect([...widgetGroupMemberIds(widgets)].sort()).toEqual([
+      'flag',
+      'input',
+      'radar',
+    ]);
+    expect([...widgetsSwitchedOnByGroup(widgets)].sort()).toEqual([
+      'flag',
+      'radar',
+    ]);
+  });
+
+  it('adds what each group among the widgets draws', () => {
+    expect(
+      withWidgetGroupMembers([second([])], layoutOfTwo).map(({ id }) => id)
+    ).toEqual(['widgetgroup-2', 'radar']);
   });
 });

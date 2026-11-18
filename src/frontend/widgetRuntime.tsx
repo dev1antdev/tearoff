@@ -100,17 +100,26 @@ const WidgetRuntimeContext = createContext<WidgetRuntimeDefinition | undefined>(
   undefined
 );
 
+const WidgetIdContext = createContext<string | undefined>(undefined);
+
+/** The id of the widget being drawn, for a type with several instances. */
+export const useWidgetId = () => useContext(WidgetIdContext);
+
 export const WidgetRuntimeProvider = ({
   widgetType,
+  widgetId,
   children,
 }: {
   widgetType: string;
+  widgetId?: string;
   children: ReactNode;
 }) => {
   const definition = getWidgetRuntimeDefinition(widgetType);
   return (
     <WidgetRuntimeContext.Provider value={definition}>
-      {children}
+      <WidgetIdContext.Provider value={widgetId}>
+        {children}
+      </WidgetIdContext.Provider>
     </WidgetRuntimeContext.Provider>
   );
 };

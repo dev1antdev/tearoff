@@ -101,7 +101,7 @@ export const HostedWidget = memo(
         resetAfterMs={2000}
         fallback={onOverlay ? undefined : PANEL_ERROR}
       >
-        <WidgetRuntimeProvider widgetType={type}>
+        <WidgetRuntimeProvider widgetType={type} widgetId={widget.id}>
           <WidgetScale scale={scale ?? widget.scale} exact={onOverlay}>
             {scroll ? (
               // Inside the scale, so the scrolling is in the widget's own

@@ -8,7 +8,9 @@ import {
   defaultDashboard,
   deepMergeConfig,
   normalizeWidgetScale,
+  WIDGET_GROUP_ID,
   WIDGET_SCALE,
+  isWidgetGroup,
   widgetsSwitchedOnByGroup,
 } from '@irdashies/types';
 import { readData, writeData } from './storage';
@@ -436,14 +438,15 @@ export const resetDashboard = (
     return defaultDashboard;
   } else {
     // Reset only widget configurations while preserving positions and enabled
-    // states. This empties the widget group, so a widget that is on only
-    // because the group switched it on goes back to off.
+    // states. This empties every widget group, so a widget that is on only
+    // because a group switched it on goes back to off.
     const switchedOnByGroup = widgetsSwitchedOnByGroup(dashboard.widgets);
     const resetDashboard: DashboardLayout = {
       ...dashboard,
       widgets: dashboard.widgets.map((widget) => {
+        const defaultId = isWidgetGroup(widget) ? WIDGET_GROUP_ID : widget.id;
         const defaultWidget = defaultDashboard.widgets.find(
-          (w) => w.id === widget.id
+          (w) => w.id === defaultId
         );
         return {
           ...widget,

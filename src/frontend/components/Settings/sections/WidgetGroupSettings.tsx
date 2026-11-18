@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { TrashIcon } from '@phosphor-icons/react';
+import { useNavigate } from 'react-router-dom';
+import { PlusIcon, TrashIcon } from '@phosphor-icons/react';
 import { useDashboard } from '@irdashies/context';
 import {
   WIDGET_GROUP_ID,
   findWidgetGroup,
   getWidgetDefaultConfig,
   normalizeWidgetScale,
-  sanitizeWidgetGroupMembers,
+  widgetGroupMembers,
+  widgetGroups,
   WIDGET_SCALE,
   type DashboardLayout,
   type DashboardWidget,
@@ -17,6 +19,7 @@ import {
 import { getWidgetName } from '../../../constants/widgetNames';
 import { SortableList } from '../../SortableList';
 import { BaseSettingsSection } from '../components/BaseSettingsSection';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 import { DraggableSettingItem } from '../components/DraggableSettingItem';
 import { SessionVisibility } from '../components/SessionVisibility';
 import { SettingDivider } from '../components/SettingDivider';
@@ -26,9 +29,12 @@ import { SettingSelectRow } from '../components/SettingSelectRow';
 import { SettingsSection } from '../components/SettingSection';
 import { WidgetGroupLayoutEditor } from '../components/WidgetGroupLayoutEditor';
 import { widgetLabel } from '../menuItems';
+import { generateId } from './FuelSettings/utils';
 import {
+  addWidgetGroup,
   addWidgetGroupMember,
   changeWidgetGroupMember,
+  deleteWidgetGroup,
   removeWidgetGroupMember,
   resizeWidgetGroup,
   setWidgetGroupMembers,
@@ -36,6 +42,7 @@ import {
   stackWidgetGroupMembers,
   widgetGroupCandidates,
   widgetGroupFrameFor,
+  widgetGroupName,
   widgetGroupScale,
   type WidgetGroupFrameSize,
   type WidgetGroupMemberChange,
@@ -123,17 +130,21 @@ const WidgetGroupPage = ({
   dashboard,
   group,
   save,
+  open,
 }: {
   dashboard: DashboardLayout;
   group: DashboardWidget;
   save: (dashboard: DashboardLayout) => void;
+  /** Goes to the settings page of a group. */
+  open: (groupId: string) => void;
 }) => {
   const config = {
     ...defaultConfig,
     ...group.config,
   } as WidgetGroupWidgetSettings['config'];
-  const savedMembers = sanitizeWidgetGroupMembers(group.config?.members);
+  const savedMembers = widgetGroupMembers(dashboard.widgets, group.id);
   const [draft, setDraft] = useState<LayoutDraft | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const members = draft?.members ?? savedMembers;
   const frame = draft?.fitTo
     ? sizedWidgetGroupFrame(
@@ -141,7 +152,7 @@ const WidgetGroupPage = ({
         draft.frameSize ?? {}
       )
     : group.layout;
-  const edited = setWidgetGroupMembers(dashboard, members, frame);
+  const edited = setWidgetGroupMembers(dashboard, group.id, members, frame);
 
   const changeMember = (widgetId: string, change: WidgetGroupMemberChange) =>
     setDraft((current) => ({
@@ -173,23 +184,33 @@ const WidgetGroupPage = ({
     if (draft?.fitTo) {
       setDraft({ ...draft, frameSize: { ...draft.frameSize, ...size } });
     } else {
-      save(resizeWidgetGroup(dashboard, size));
+      save(resizeWidgetGroup(dashboard, group.id, size));
     }
   };
   const resetLayout = () => {
     const stacked = stackWidgetGroupMembers(dashboard, members);
     setDraft({ members: stacked, fitTo: stacked });
   };
+  const createGroup = () => {
+    const id = `${WIDGET_GROUP_ID}-${generateId()}`;
+    save(addWidgetGroup(dashboard, id));
+    open(id);
+  };
+  const deleteGroup = () => {
+    save(deleteWidgetGroup(dashboard, group.id));
+    open(WIDGET_GROUP_ID);
+  };
   const scale = widgetGroupScale(group);
+  const name = widgetGroupName(dashboard.widgets, group.id);
 
   return (
     <BaseSettingsSection
-      title="Widget Group"
+      title={name}
       description="Place several widgets in one frame and show them on the overlay as one widget."
       settings={{ enabled: group.enabled, config }}
       // The page reads the saved dashboard, so it has no copy to keep.
       onSettingsChange={() => undefined}
-      widgetId={WIDGET_GROUP_ID}
+      widgetId={group.id}
     >
       {(handleConfigChange) => (
         <SettingProps
@@ -198,7 +219,45 @@ const WidgetGroupPage = ({
           onChange={handleConfigChange}
         >
           <div className="space-y-6">
-            <SettingsSection title="Group" scaleWidgetId={WIDGET_GROUP_ID}>
+            <SettingsSection title="Group" scaleWidgetId={group.id}>
+              <SettingSelectRow
+                title="Editing group"
+                description={`Browser source: /widget/${group.id}`}
+                value={group.id}
+                options={widgetGroups(dashboard.widgets).map(({ id }) => ({
+                  label: widgetGroupName(dashboard.widgets, id),
+                  value: id,
+                }))}
+                onChange={open}
+              />
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={createGroup}
+                  className="settings-button inline-flex items-center gap-1"
+                >
+                  <PlusIcon size={16} aria-hidden="true" />
+                  New group
+                </button>
+                {group.id !== WIDGET_GROUP_ID && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingDelete(true)}
+                    className="settings-button-danger inline-flex items-center gap-1"
+                  >
+                    <TrashIcon size={16} aria-hidden="true" />
+                    Delete group
+                  </button>
+                )}
+              </div>
+              <ConfirmDialog
+                isOpen={confirmingDelete}
+                title="Delete group"
+                message={`Delete ${name}? Its widgets go back to their own places on the overlay.`}
+                confirmText="Delete group"
+                onConfirm={deleteGroup}
+                onCancel={() => setConfirmingDelete(false)}
+              />
               <SettingNumberRow
                 title="Group width"
                 units="px"
@@ -281,13 +340,17 @@ const WidgetGroupPage = ({
                 value=""
                 options={[
                   { label: 'Select a widget...', value: '' },
-                  ...widgetGroupCandidates(dashboard).map((widget) => ({
-                    label: memberName(widget),
-                    value: widget.id,
-                  })),
+                  ...widgetGroupCandidates(dashboard, group.id).map(
+                    (widget) => ({
+                      label: memberName(widget),
+                      value: widget.id,
+                    })
+                  ),
                 ]}
                 onChange={(widgetId) => {
-                  if (widgetId) saveNow(addWidgetGroupMember(edited, widgetId));
+                  if (widgetId) {
+                    saveNow(addWidgetGroupMember(edited, group.id, widgetId));
+                  }
                 }}
               />
               {members.length === 0 ? (
@@ -319,7 +382,9 @@ const WidgetGroupPage = ({
                         widget={widgetOf(id)}
                         onChange={(change) => changeMember(id, change)}
                         onRemove={() =>
-                          saveNow(removeWidgetGroupMember(edited, id))
+                          saveNow(
+                            removeWidgetGroupMember(edited, group.id, id)
+                          )
                         }
                       />
                     </DraggableSettingItem>
@@ -343,18 +408,21 @@ const WidgetGroupPage = ({
   );
 };
 
-export const WidgetGroupSettings = () => {
+export const WidgetGroupSettings = ({ widgetId }: { widgetId?: string }) => {
   const { currentDashboard, currentProfile, onDashboardUpdated } =
     useDashboard();
-  const group = findWidgetGroup(currentDashboard?.widgets);
+  const navigate = useNavigate();
+  const widgets = currentDashboard?.widgets;
+  const group = findWidgetGroup(widgets, widgetId) ?? findWidgetGroup(widgets);
   if (!currentDashboard || !group) return <>Loading...</>;
   return (
     <WidgetGroupPage
-      // An arrangement being edited belongs to the profile it was made in.
-      key={currentProfile?.id}
+      // An arrangement being edited belongs to its group, in its profile.
+      key={`${currentProfile?.id}:${group.id}`}
       dashboard={currentDashboard}
       group={group}
       save={(dashboard) => onDashboardUpdated?.(dashboard)}
+      open={(id) => navigate(`/settings/${id}`)}
     />
   );
 };

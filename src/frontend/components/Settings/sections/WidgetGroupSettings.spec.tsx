@@ -7,6 +7,12 @@ const mocks = vi.hoisted(() => ({
   dashboard: undefined as unknown,
   profile: 'default',
   onDashboardUpdated: vi.fn(),
+  navigate: vi.fn(),
+}));
+
+vi.mock('react-router-dom', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  useNavigate: () => mocks.navigate,
 }));
 
 vi.mock('@irdashies/context', async () => {
@@ -65,6 +71,7 @@ const dragBy = (from: Element, clientX: number, clientY: number) => {
 describe('WidgetGroupSettings', () => {
   beforeEach(() => {
     mocks.onDashboardUpdated.mockClear();
+    mocks.navigate.mockClear();
     mocks.profile = 'default';
     mocks.dashboard = dashboard([
       { widgetId: 'input', ...place },
@@ -142,6 +149,113 @@ describe('WidgetGroupSettings', () => {
     );
 
     expect(saved().members.map(({ widgetId }) => widgetId)).toEqual(['input']);
+  });
+
+  describe('several groups', () => {
+    const SECOND = 'widgetgroup-2';
+    const withSecondGroup = (
+      first: WidgetGroupMember[],
+      second: WidgetGroupMember[]
+    ) => {
+      const { widgets } = dashboard(first);
+      mocks.dashboard = {
+        widgets: [
+          ...widgets,
+          {
+            ...widgets[0],
+            id: SECOND,
+            type: 'widgetgroup',
+            config: { members: second },
+          },
+        ],
+      };
+    };
+    const lastSaved = () =>
+      mocks.onDashboardUpdated.mock.lastCall?.[0] as DashboardLayout;
+    const savedWidget = (id: string) =>
+      lastSaved().widgets.find((widget) => widget.id === id);
+
+    it('edits the group it is opened for', () => {
+      withSecondGroup([{ widgetId: 'input', ...place }], []);
+      render(<WidgetGroupSettings widgetId={SECOND} />);
+
+      fireEvent.change(screen.getByRole('combobox', { name: 'Add widget' }), {
+        target: { value: 'flag' },
+      });
+
+      const members = savedWidget(SECOND)?.config
+        ?.members as WidgetGroupMember[];
+      expect(members.map(({ widgetId }) => widgetId)).toEqual(['flag']);
+      expect(saved().members).toEqual([{ widgetId: 'input', ...place }]);
+    });
+
+    it('does not offer a widget another group holds', () => {
+      withSecondGroup([{ widgetId: 'input', ...place }], []);
+      render(<WidgetGroupSettings widgetId={SECOND} />);
+
+      const options = within(
+        screen.getByRole('combobox', { name: 'Add widget' })
+      ).getAllByRole('option');
+      expect(options.map((option) => option.textContent)).toEqual([
+        'Select a widget...',
+        'Flag',
+      ]);
+    });
+
+    it('says where the browser source of the group is', () => {
+      withSecondGroup([], []);
+      render(<WidgetGroupSettings widgetId={SECOND} />);
+
+      expect(
+        screen.getByText(`Browser source: /widget/${SECOND}`)
+      ).toBeInTheDocument();
+    });
+
+    it('goes to the group chosen', () => {
+      withSecondGroup([], []);
+      render(<WidgetGroupSettings />);
+
+      fireEvent.change(
+        screen.getByRole('combobox', { name: 'Editing group' }),
+        { target: { value: SECOND } }
+      );
+
+      expect(mocks.navigate).toHaveBeenCalledWith(`/settings/${SECOND}`);
+    });
+
+    it('creates a group and opens it', () => {
+      render(<WidgetGroupSettings />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'New group' }));
+
+      const created = lastSaved().widgets.at(-1);
+      expect(created?.type).toBe('widgetgroup');
+      expect(mocks.navigate).toHaveBeenCalledWith(`/settings/${created?.id}`);
+    });
+
+    it('deletes a group once confirmed and returns to the first', () => {
+      withSecondGroup([], [{ widgetId: 'flag', ...place }]);
+      render(<WidgetGroupSettings widgetId={SECOND} />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Delete group' }));
+      expect(mocks.onDashboardUpdated).not.toHaveBeenCalled();
+      fireEvent.click(
+        within(screen.getByRole('dialog')).getByRole('button', {
+          name: 'Delete group',
+        })
+      );
+
+      expect(savedWidget(SECOND)).toBeUndefined();
+      expect(mocks.navigate).toHaveBeenCalledWith('/settings/widgetgroup');
+    });
+
+    it('cannot delete the default group', () => {
+      render(<WidgetGroupSettings />);
+
+      expect(
+        screen.queryByRole('button', { name: 'Delete group' })
+      ).not.toBeInTheDocument();
+    });
   });
 
   describe('the layout editor', () => {

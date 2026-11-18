@@ -6,6 +6,7 @@ import {
   widgetToggleActionId,
   widgetIdFromToggleActionId,
   nextProfileIndex,
+  unplacedWidgetToggleIds,
 } from './keybindingActions';
 
 describe('widget toggle action id helpers', () => {
@@ -37,6 +38,22 @@ describe('widget toggle action id helpers', () => {
     expect(isValidWidgetToggleActionId('toggle-widget:fuel')).toBe(true);
     expect(isValidWidgetToggleActionId('toggle-widget:')).toBe(false);
     expect(isValidWidgetToggleActionId('toggle-hide-ui')).toBe(false);
+  });
+});
+
+describe('unplacedWidgetToggleIds', () => {
+  it('names the bound toggles of widgets that are not here', () => {
+    expect(
+      unplacedWidgetToggleIds(
+        {
+          'toggle-hide-ui': { accelerator: 'Alt+H' },
+          'toggle-widget:fuel': { accelerator: 'Alt+F' },
+          'toggle-widget:widgetgroup-2': { accelerator: 'Alt+G' },
+          'toggle-widget:deleted': { accelerator: '' },
+        },
+        ['fuel']
+      )
+    ).toEqual(['toggle-widget:widgetgroup-2']);
   });
 });
 

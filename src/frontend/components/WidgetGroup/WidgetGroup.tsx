@@ -17,6 +17,7 @@ import {
   resolveWidgetGroupMembers,
   type WidgetGroupWidgetSettings,
 } from '@irdashies/types';
+import { useWidgetId } from '../../widgetRuntime';
 import { HostedWidget } from '../WidgetPanelHost/HostedWidget';
 
 /**
@@ -37,13 +38,20 @@ export const WidgetGroup = memo(() => {
   const overlayHidden = useOverlayHidden();
   const groupScale = useWidgetScale();
   const { isDriving, isWatching } = useDrivingState();
-  const group = findWidgetGroup(currentDashboard?.widgets);
+  const widgetId = useWidgetId();
+  const group = findWidgetGroup(currentDashboard?.widgets, widgetId);
+  const groupId = group?.id;
   const config = group?.config as
     WidgetGroupWidgetSettings['config'] | undefined;
   const sessionVisible = useSessionVisibility(config?.sessionVisibility);
   const members = useMemo(
-    () => resolveWidgetGroupMembers(currentDashboard, { support, simulator }),
-    [currentDashboard, support, simulator]
+    () =>
+      resolveWidgetGroupMembers(
+        currentDashboard,
+        { support, simulator },
+        groupId
+      ),
+    [currentDashboard, support, simulator, groupId]
   );
   const hiddenByRules =
     (!!group && hidden.has(group.id)) ||
