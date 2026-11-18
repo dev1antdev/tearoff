@@ -5,6 +5,7 @@ import { WidgetGroupSettings } from './WidgetGroupSettings';
 
 const mocks = vi.hoisted(() => ({
   dashboard: undefined as unknown,
+  profile: 'default',
   onDashboardUpdated: vi.fn(),
 }));
 
@@ -13,6 +14,7 @@ vi.mock('@irdashies/context', async () => {
   return {
     useDashboard: () => ({
       currentDashboard: mocks.dashboard,
+      currentProfile: { id: mocks.profile },
       onDashboardUpdated: mocks.onDashboardUpdated,
     }),
     useActiveSimulator: () => null,
@@ -63,6 +65,7 @@ const dragBy = (from: Element, clientX: number, clientY: number) => {
 describe('WidgetGroupSettings', () => {
   beforeEach(() => {
     mocks.onDashboardUpdated.mockClear();
+    mocks.profile = 'default';
     mocks.dashboard = dashboard([
       { widgetId: 'input', ...place },
       { widgetId: 'flag', ...place },
@@ -200,6 +203,48 @@ describe('WidgetGroupSettings', () => {
 
       expect(tile('input')).toHaveStyle({ left: '0px', top: '0px' });
       expect(tile('flag')).toHaveStyle({ top: '80px', width: '200px' });
+    });
+
+    it('grows the frame for a stack that needs it, once saved', () => {
+      (mocks.dashboard as DashboardLayout).widgets[0].layout.height = 100;
+      render(<WidgetGroupSettings />);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Reset layout' }));
+      expect(
+        screen.getByRole('spinbutton', { name: 'Group height' })
+      ).toHaveValue(160);
+      expect(mocks.onDashboardUpdated).not.toHaveBeenCalled();
+      saveLayout();
+
+      expect(saved().group.layout.height).toBe(160);
+    });
+
+    it('says when there is something to save', () => {
+      render(<WidgetGroupSettings />);
+      expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
+
+      dragBy(tile('flag'), 40, 20);
+
+      expect(screen.getByText('Unsaved changes')).toBeInTheDocument();
+    });
+
+    it('does not carry what was arranged into another profile', () => {
+      const { rerender } = render(<WidgetGroupSettings />);
+      dragBy(tile('flag'), 40, 20);
+
+      mocks.profile = 'race';
+      rerender(<WidgetGroupSettings />);
+
+      expect(tile('flag')).toHaveStyle({ left: '5px', top: '6px' });
+    });
+
+    it('is left out while the group is empty', () => {
+      mocks.dashboard = dashboard([]);
+      render(<WidgetGroupSettings />);
+
+      expect(
+        screen.queryByRole('button', { name: 'Save layout' })
+      ).not.toBeInTheDocument();
     });
 
     it('keeps what was arranged when a widget is removed', () => {

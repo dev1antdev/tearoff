@@ -12,6 +12,7 @@ import {
   setWidgetGroupMembers,
   stackWidgetGroupMembers,
   widgetGroupCandidates,
+  widgetGroupFrameFor,
 } from './widgetGroupEdits';
 
 const place = { x: 0, y: 0, width: 100, height: 50 };
@@ -185,6 +186,24 @@ describe('stackWidgetGroupMembers', () => {
       { widgetId: 'input', x: 0, y: 0, width: 200, height: 80, scale: 120 },
       { widgetId: 'radar', x: 0, y: 80, width: 200, height: 80 },
     ]);
+  });
+});
+
+describe('widgetGroupFrameFor', () => {
+  const group = groupOf(dashboard([], { scale: 200 }));
+
+  it('grows the frame to reach the members, at the scale of the group', () => {
+    expect(
+      widgetGroupFrameFor(group, [{ widgetId: 'input', ...place, y: 40 }])
+    ).toMatchObject({ width: 200, height: 180 });
+  });
+
+  it('leaves a frame that is large enough', () => {
+    expect(
+      widgetGroupFrameFor(group, [
+        { widgetId: 'input', ...place, width: 10, height: 10 },
+      ])
+    ).toMatchObject({ width: 150, height: 60 });
   });
 });
 

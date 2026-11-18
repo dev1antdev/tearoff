@@ -157,7 +157,7 @@ Places several widgets in one frame and shows them on the overlay as one widget.
 
 - Move and resize the group in edit mode like any widget, or set its width and height in its settings
 - One scale for the whole group, and a scale of its own for each widget in it
-- Position, size and drawing order of each widget, set one at a time in any order, with a live preview
+- Position, size and drawing order of each widget, set one at a time in any order, with a preview of the saved layout
 - Layout editor in the settings: drag widgets and their edges, with snapping to the grid, the frame and each other, then save, revert or reset the layout
 - One set of session visibility rules, one hide shortcut and one browser source for the group, while each widget inside keeps its own settings
 - A widget in the group leaves its own place on the overlay and returns to it, as it was, when removed. Switching the group off hides the widgets in it

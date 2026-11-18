@@ -1,7 +1,11 @@
-import { memo, useCallback, useMemo, useRef } from 'react';
+import { useRef } from 'react';
 import { useElementSize } from '@irdashies/context';
-import { ResizeHandles } from '@irdashies/domain/widgetPresentation/ResizeHandle';
+import {
+  RESIZE_HANDLE_SIZE,
+  ResizeHandles,
+} from '@irdashies/domain/widgetPresentation/ResizeHandle';
 import type { ResizeDirection } from '@irdashies/domain/widgetPresentation/resizeWidget';
+import { previewFitScale } from '@irdashies/domain/widgetPreview/presentation';
 import type { WidgetLayout } from '@irdashies/types';
 import { useDragWidget } from '../../WidgetContainer/useDragWidget';
 import { useResizeWidget } from '../../WidgetContainer/useResizeWidget';
@@ -23,24 +27,18 @@ interface TileProps {
   onChange: (id: string, layout: WidgetLayout) => void;
 }
 
-const Tile = memo(({ tile, scale, bounds, siblings, onChange }: TileProps) => {
+const Tile = ({ tile, scale, bounds, siblings, onChange }: TileProps) => {
   const { id, name, layout } = tile;
-  const onLayoutChange = useCallback(
-    (next: WidgetLayout) => onChange(id, next),
-    [id, onChange]
-  );
-  const snapOptions = useMemo(
-    () => ({ bounds, siblingLayouts: siblings }),
-    [bounds, siblings]
-  );
-  const { dragHandleProps } = useDragWidget({
+  const onLayoutChange = (next: WidgetLayout) => onChange(id, next);
+  const snapOptions = { bounds, siblingLayouts: siblings };
+  const { isDragging, dragHandleProps } = useDragWidget({
     layout,
     onLayoutChange,
     enabled: true,
     snapOptions,
     pointerScale: scale,
   });
-  const { getResizeHandleProps } = useResizeWidget({
+  const { isResizing, getResizeHandleProps } = useResizeWidget({
     layout,
     onLayoutChange,
     enabled: true,
@@ -49,19 +47,16 @@ const Tile = memo(({ tile, scale, bounds, siblings, onChange }: TileProps) => {
     snapOptions,
     pointerScale: scale,
   });
-  const handleProps = useCallback(
-    (direction: ResizeDirection) => ({
-      ...getResizeHandleProps(direction),
-      'data-resize-handle': direction,
-    }),
-    [getResizeHandleProps]
-  );
 
   return (
     <div
       {...dragHandleProps}
       data-member-tile={id}
-      className="absolute touch-none select-none overflow-hidden rounded-sm border border-accent-400 bg-slate-800 p-1 text-slate-200"
+      className={`absolute touch-none select-none rounded-md border bg-slate-800 text-slate-200 hover:border-accent-400 ${
+        isDragging || isResizing
+          ? 'border-accent-400'
+          : 'border-settings-boundary'
+      }`}
       style={{
         ...dragHandleProps.style,
         left: layout.x,
@@ -70,15 +65,24 @@ const Tile = memo(({ tile, scale, bounds, siblings, onChange }: TileProps) => {
         height: layout.height,
       }}
     >
-      <p className="truncate text-sm">{name}</p>
-      <p className="truncate text-xs tabular-nums text-slate-400">
-        {layout.width} × {layout.height}
-      </p>
-      <ResizeHandles getResizeHandleProps={handleProps} visible />
+      <div className="h-full overflow-hidden p-1">
+        <p className="truncate text-sm">{name}</p>
+        <p className="truncate text-xs tabular-nums text-slate-400">
+          {layout.width} × {layout.height}
+        </p>
+      </div>
+      <ResizeHandles
+        getResizeHandleProps={(direction: ResizeDirection) => ({
+          ...getResizeHandleProps(direction),
+          'data-resize-handle': direction,
+        })}
+        // As thick on screen as on the overlay, at any canvas scale.
+        size={RESIZE_HANDLE_SIZE / scale}
+        visible
+      />
     </div>
   );
-});
-Tile.displayName = 'Tile';
+};
 
 interface WidgetGroupLayoutEditorProps {
   /** The group's frame, in the group's own pixels. */
@@ -102,26 +106,13 @@ export const WidgetGroupLayoutEditor = ({
 }: WidgetGroupLayoutEditorProps) => {
   const box = useRef<HTMLDivElement>(null);
   const { width: available } = useElementSize(box);
-  const scale = available > 0 ? Math.min(1, available / width) : 1;
-  const bounds = useMemo(
-    () => ({ x: 0, y: 0, width, height }),
-    [width, height]
-  );
-  const siblingsOf = useMemo(
-    () =>
-      new Map(
-        tiles.map(({ id }) => [
-          id,
-          tiles.filter((tile) => tile.id !== id).map((tile) => tile.layout),
-        ])
-      ),
-    [tiles]
-  );
+  const scale = previewFitScale(width, height, available, height);
+  const bounds = { x: 0, y: 0, width, height };
 
   return (
     <div ref={box} className="w-full">
       <div
-        className="relative overflow-hidden rounded-sm border border-slate-700 bg-slate-900"
+        className="relative overflow-hidden rounded-md border border-slate-700 bg-slate-900"
         style={{ width: width * scale, height: height * scale }}
       >
         <div
@@ -134,7 +125,9 @@ export const WidgetGroupLayoutEditor = ({
               tile={tile}
               scale={scale}
               bounds={bounds}
-              siblings={siblingsOf.get(tile.id) ?? []}
+              siblings={tiles
+                .filter((other) => other.id !== tile.id)
+                .map((other) => other.layout)}
               onChange={onChange}
             />
           ))}

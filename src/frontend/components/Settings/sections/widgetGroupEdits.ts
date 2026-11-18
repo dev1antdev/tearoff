@@ -8,6 +8,7 @@ import {
   type DashboardLayout,
   type DashboardWidget,
   type WidgetGroupMember,
+  type WidgetLayout,
 } from '@irdashies/types';
 
 /** What the settings page changes about one member. */
@@ -17,6 +18,25 @@ export type WidgetGroupMemberChange = Partial<
 
 const membersOf = (group: DashboardWidget) =>
   sanitizeWidgetGroupMembers(group.config?.members);
+
+/** Screen pixels per pixel of the group, which is what members are placed in. */
+export const widgetGroupScale = (group: DashboardWidget) =>
+  normalizeWidgetScale(group.scale) / 100;
+
+/** The group's frame, grown where it is too small to show these members. */
+export const widgetGroupFrameFor = (
+  group: DashboardWidget,
+  members: WidgetGroupMember[]
+): WidgetLayout => {
+  const scale = widgetGroupScale(group);
+  const reach = (edge: (member: WidgetGroupMember) => number) =>
+    Math.ceil(Math.max(0, ...members.map(edge)) * scale);
+  return {
+    ...group.layout,
+    width: Math.max(group.layout.width, reach((m) => m.x + m.width)),
+    height: Math.max(group.layout.height, reach((m) => m.y + m.height)),
+  };
+};
 
 /** A width or height: whole pixels, and at least one of them. */
 const toSize = (value: number) => Math.max(1, Math.round(value));
@@ -87,19 +107,11 @@ export const addWidgetGroupMember = (
     height: toSize(widget.layout.height),
     ...(!widget.enabled && { restoreDisabled: true }),
   };
-  // Members are placed in the group's own pixels, its frame in the screen's.
-  const scale = normalizeWidgetScale(group.scale) / 100;
+  const next = [...members, member];
   return setEnabled(
-    withGroup(dashboard, group, [...members, member], {
+    withGroup(dashboard, group, next, {
       enabled: true,
-      layout: {
-        ...group.layout,
-        width: Math.max(group.layout.width, Math.ceil(member.width * scale)),
-        height: Math.max(
-          group.layout.height,
-          Math.ceil((y + member.height) * scale)
-        ),
-      },
+      layout: widgetGroupFrameFor(group, next),
     }),
     widgetId,
     true
@@ -165,13 +177,16 @@ export const stackWidgetGroupMembers = (
   });
 };
 
-/** The dashboard with this arrangement of the group's members. */
+/** The dashboard with this arrangement of the group, and frame if given. */
 export const setWidgetGroupMembers = (
   dashboard: DashboardLayout,
-  members: WidgetGroupMember[]
+  members: WidgetGroupMember[],
+  frame?: WidgetLayout
 ): DashboardLayout => {
   const group = findWidgetGroup(dashboard.widgets);
-  return group ? withGroup(dashboard, group, members) : dashboard;
+  return group
+    ? withGroup(dashboard, group, members, frame && { layout: frame })
+    : dashboard;
 };
 
 /** Sets the size of the group's frame on the overlay. */
