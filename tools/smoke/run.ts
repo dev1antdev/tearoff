@@ -67,6 +67,7 @@ import {
   type WidgetCapture,
   type WidgetRow,
 } from './report.ts';
+import type { DashboardWidget } from '../../src/types/dashboardLayout.ts';
 import { widgetGroupMemberIds } from '../../src/types/widgetGroup.ts';
 
 const REPO = path.resolve(
@@ -1332,7 +1333,9 @@ async function main(): Promise<number> {
     const logText = fs.existsSync(logFile)
       ? fs.readFileSync(logFile, 'utf8')
       : '';
-    const groupMembers = widgetGroupMemberIds(state.dashboard.widgets);
+    const groupMembers = widgetGroupMemberIds(
+      state.dashboard.widgets as DashboardWidget[]
+    );
     result.widgets = state.dashboard.widgets
       .map((widget): WidgetRow => {
         const type = widget.type ?? widget.id;
