@@ -6,7 +6,9 @@ const SECTOR_WIDGETS = new Set(['sectordelta', 'map', 'flatmap', 'timing']);
 const TABLE_WIDGETS = new Set(['standings', 'relative']);
 
 /** Supporting renderer state belongs to the widget in this window, not the profile. */
-export function widgetUpdaterNeeds(widget: DashboardWidget) {
+export function widgetUpdaterNeeds(
+  widget: Pick<DashboardWidget, 'id' | 'type' | 'config'>
+) {
   const type = widget.type ?? widget.id;
   const enabled = (property: string) => {
     const value = widget.config?.[property];

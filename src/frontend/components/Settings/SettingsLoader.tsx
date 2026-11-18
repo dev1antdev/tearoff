@@ -12,6 +12,7 @@ import { FlatTrackMapSettings } from './sections/FlatTrackMapSettings';
 import { AdvancedSettings } from './sections/AdvancedSettings';
 import { InputSettings } from './sections/InputSettings';
 import { TachometerSettings } from './sections/TachometerSettings';
+import { WidgetGroupSettings } from './sections/WidgetGroupSettings';
 import { ShiftLightSettings } from './sections/ShiftLightSettings';
 import { AboutSettings } from './sections/AboutSettings';
 import { FasterCarsFromBehindSettings } from './sections/FasterCarsFromBehindSettings';
@@ -99,6 +100,7 @@ export const WIDGET_SETTINGS: Record<
   input: InputSettings,
   tachometer: TachometerSettings,
   shiftlight: ShiftLightSettings,
+  widgetgroup: WidgetGroupSettings,
   pitlanehelper: PitlaneHelperSettings,
   pitstop: PitStopSettings,
   fuelsaver: FuelSaverSettings,

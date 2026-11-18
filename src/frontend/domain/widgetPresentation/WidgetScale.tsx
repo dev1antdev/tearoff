@@ -8,6 +8,11 @@ export const useWidgetScale = () => useContext(WidgetScaleContext);
 
 interface WidgetScaleProps {
   scale?: number;
+  /**
+   * Take `scale` as it is, for a scale worked out from two others: held to
+   * the range of one setting, their product would lose one of them.
+   */
+  exact?: boolean;
   children: ReactNode;
 }
 
@@ -16,9 +21,12 @@ interface WidgetScaleProps {
  * pixels. Nested widgets (Gantry panels) use their own absolute scale, rather
  * than multiplying it by their host widget's scale.
  */
-export const WidgetScale = ({ scale, children }: WidgetScaleProps) => {
+export const WidgetScale = ({ scale, exact, children }: WidgetScaleProps) => {
   const parentScale = useWidgetScale();
-  const percent = normalizeWidgetScale(scale);
+  const percent =
+    exact && scale !== undefined && scale > 0
+      ? scale
+      : normalizeWidgetScale(scale);
   const contentScale = percent / 100;
   const relativeScale = contentScale / parentScale;
 

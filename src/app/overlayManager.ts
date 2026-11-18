@@ -13,6 +13,7 @@ import type {
 } from '@irdashies/types';
 import {
   PIT_WALL_WIDGET_ID,
+  widgetGroupMemberIds,
   fitLayoutToDisplay,
   isLayoutOnDisplay,
   isWidgetDisabledForSim,
@@ -162,12 +163,14 @@ export class OverlayManager {
    * window of its own: their layout is the size of a preview, not a place on
    * a display. Counted as an overlay widget, the Gantry's 1920x1080 at the
    * origin stretched the overlay window of that display over all of it,
-   * whatever the widgets on it needed.
+   * whatever the widgets on it needed. A widget in the widget group is drawn
+   * inside the group's block, so its own layout claims no room either.
    */
   private isOnOverlay(widget: DashboardWidget): boolean {
     const type = widget.type ?? widget.id;
     return (
       widget.placement !== 'gantry' &&
+      !widgetGroupMemberIds(this.currentDashboard?.widgets).has(widget.id) &&
       type !== 'gantry' &&
       type !== PIT_WALL_WIDGET_ID &&
       this.isWidgetVisible(widget)

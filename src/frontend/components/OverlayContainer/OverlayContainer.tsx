@@ -9,7 +9,7 @@ import {
   SectorTimingUpdater,
   useHiddenWidgetIds,
 } from '@irdashies/context';
-import type { WidgetLayout } from '@irdashies/types';
+import { isWidgetGroup, type WidgetLayout } from '@irdashies/types';
 import { WidgetContainer } from '../WidgetContainer';
 import { getWidget } from '../../WidgetIndex';
 import { XIcon } from '@phosphor-icons/react';
@@ -82,6 +82,10 @@ export const OverlayContainer = memo(() => {
   );
 
   const enabledForThisDisplay = useWidgetsForThisDisplay();
+  // What this window fetches data for, widgets inside the group included.
+  const widgetsWithData = useWidgetsForThisDisplay(false, {
+    includeGroupMembers: true,
+  });
 
   // Gantry has a window of its own (see the #/gantry route in App.tsx), so
   // rendering it here too would put a second copy inside the overlay.
@@ -113,7 +117,7 @@ export const OverlayContainer = memo(() => {
       ].join(' ')}
     >
       <SectorTimingUpdater
-        enabled={widgetsForThisDisplay.some((widget) =>
+        enabled={widgetsWithData.some((widget) =>
           ['sectordelta', 'map', 'flatmap', 'timing'].includes(
             widget.type || widget.id
           )
@@ -123,8 +127,9 @@ export const OverlayContainer = memo(() => {
       <PitLapUpdater />
       <SessionTimingUpdater />
       {widgetsForThisDisplay.map((widget, index) => {
-        // Transiently hidden via a per-widget hotkey — skip rendering.
-        if (hiddenWidgetIds.has(widget.id)) {
+        // Transiently hidden via a per-widget hotkey — skip rendering. The
+        // widget group hides itself, to keep the widgets in it running.
+        if (hiddenWidgetIds.has(widget.id) && !isWidgetGroup(widget)) {
           return null;
         }
 

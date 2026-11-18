@@ -1,14 +1,17 @@
 import { useMemo } from 'react';
-import type { DashboardWidget } from '@irdashies/types';
+import { withWidgetGroupMembers, type DashboardWidget } from '@irdashies/types';
 import {
   PitLaneProvider,
   ReferenceStoreProvider,
+  SectorTimingUpdater,
   SessionProvider,
   TelemetryInspectorProvider,
   useDashboard,
   useWidgetsForThisDisplay,
 } from '@irdashies/context';
+import { widgetUpdaterNeeds } from '@irdashies/domain/widgetUpdaterNeeds';
 import {
+  WidgetRuntimeProvider,
   rendererNeedsChannel,
   rendererNeedsTelemetryInspector,
   rendererNeedsPitLaneData,
@@ -38,7 +41,9 @@ export const RendererDataProviders = ({
   /** The window already mounts a SessionProvider of its own. */
   sessionAlreadyMounted?: boolean;
 }) => {
-  const displayWidgets = useWidgetsForThisDisplay(browser);
+  const displayWidgets = useWidgetsForThisDisplay(browser, {
+    includeGroupMembers: true,
+  });
   const widgets = widgetsOverride ?? displayWidgets;
   const { currentDashboard } = useDashboard();
   // Looked up in the whole profile, not the enabled list above, so a disabled
@@ -48,20 +53,39 @@ export const RendererDataProviders = ({
     ? currentDashboard?.widgets.find((widget) => widget.id === widgetId)?.type
     : undefined;
   const runtimeNeeds = useMemo(() => {
-    const scoped = widgetId ? [{ id: widgetId, type: scopedType }] : widgets;
+    // The group's own page needs what the widgets inside it need.
+    const scoped = widgetId
+      ? withWidgetGroupMembers(
+          [{ id: widgetId, type: scopedType }],
+          currentDashboard
+        )
+      : widgets;
     return {
       telemetryInspector: rendererNeedsTelemetryInspector(scoped),
       referenceLaps: rendererNeedsChannel(scoped, 'reference-laps.snapshot'),
       sessionData: !sessionAlreadyMounted && rendererNeedsSessionData(scoped),
       pitLaneData: rendererNeedsPitLaneData(scoped),
+      // An overlay window mounts this beside its widgets; a browser page,
+      // which has nothing else to do it, mounts it here.
+      sectorTimingFor: browser
+        ? scoped.find((widget) => widgetUpdaterNeeds(widget).sectorTiming)
+        : undefined,
     };
-  }, [widgets, widgetId, scopedType, sessionAlreadyMounted]);
+  }, [
+    browser,
+    widgets,
+    widgetId,
+    scopedType,
+    currentDashboard,
+    sessionAlreadyMounted,
+  ]);
 
   if (
     !runtimeNeeds.telemetryInspector &&
     !runtimeNeeds.referenceLaps &&
     !runtimeNeeds.sessionData &&
-    !runtimeNeeds.pitLaneData
+    !runtimeNeeds.pitLaneData &&
+    !runtimeNeeds.sectorTimingFor
   )
     return null;
 
@@ -78,6 +102,16 @@ export const RendererDataProviders = ({
       ) : null}
       {runtimeNeeds.referenceLaps ? (
         <ReferenceStoreProvider bridge={window.channelBridge} />
+      ) : null}
+      {runtimeNeeds.sectorTimingFor ? (
+        <WidgetRuntimeProvider
+          widgetType={
+            runtimeNeeds.sectorTimingFor.type ||
+            runtimeNeeds.sectorTimingFor.id
+          }
+        >
+          <SectorTimingUpdater />
+        </WidgetRuntimeProvider>
       ) : null}
     </>
   );

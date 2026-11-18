@@ -28,7 +28,9 @@ import {
 const RECORDER_OFF: LapTraceSource | null = null;
 
 export const LapTraceUpdater = ({ browser = false }: { browser?: boolean }) => {
-  const widgets = useWidgetsForThisDisplay(browser);
+  const widgets = useWidgetsForThisDisplay(browser, {
+    includeGroupMembers: true,
+  });
 
   const referenceSource = useMemo<LapTraceSource | null>(() => {
     const widget = widgets.find((w) => w.id === 'laptrace');

@@ -42,13 +42,20 @@ export interface HostedWidgetProps {
   running: boolean;
   /** Names the host in the error log, as in `gantry-dock:fuel`. */
   host: string;
-  /** Said in place of the widget while no sim is feeding it. */
-  waitingMessage: string;
+  /** Said in place of the widget while no sim is feeding it, if anything. */
+  waitingMessage?: string;
   /**
    * The content scale in percent, absolute like the widget's own. Left out,
    * the widget is drawn at the scale saved for it on the overlay.
    */
   scale?: number;
+  /**
+   * This is the widget itself on the overlay, not a copy in a panel: it does
+   * the saving a copy leaves to the original and, as on the overlay, says
+   * nothing when it fails. `scale` may be a product of two scales, which is
+   * not held to the range of one.
+   */
+  onOverlay?: boolean;
   /**
    * Let content larger than the panel scroll inside it, and say
    * `emptyMessage` when the widget draws nothing, which a widget does at
@@ -70,6 +77,7 @@ export const HostedWidget = memo(
     host,
     waitingMessage,
     scale,
+    onOverlay = false,
     scroll,
   }: HostedWidgetProps) => {
     const type = widget.type || widget.id;
@@ -77,20 +85,24 @@ export const HostedWidget = memo(
     if (!Widget) return null;
 
     if (!running && !widget.alwaysEnabled) {
-      return <HostedPanelMessage message={waitingMessage} />;
+      return waitingMessage ? (
+        <HostedPanelMessage message={waitingMessage} />
+      ) : null;
     }
 
     // embedded: this copy must never write to disk.
-    const content = <Widget {...widget.config} embedded />;
+    const content = (
+      <Widget {...widget.config} {...(!onOverlay && { embedded: true })} />
+    );
 
     return (
       <ErrorBoundary
         label={`${host}:${type}`}
         resetAfterMs={2000}
-        fallback={PANEL_ERROR}
+        fallback={onOverlay ? undefined : PANEL_ERROR}
       >
         <WidgetRuntimeProvider widgetType={type}>
-          <WidgetScale scale={scale ?? widget.scale}>
+          <WidgetScale scale={scale ?? widget.scale} exact={onOverlay}>
             {scroll ? (
               // Inside the scale, so the scrolling is in the widget's own
               // pixels and the scrollbar is not scaled away from the edge.

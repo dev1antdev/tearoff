@@ -14,6 +14,7 @@ vi.mock('@irdashies/context', () => ({
   usePitLapStoreUpdater: vi.fn(),
   useWidgetsForThisDisplay: vi.fn(() => []),
   useHiddenWidgetIds: vi.fn(() => new Set()),
+  useContainerOffset: () => ({ x: 0, y: 0 }),
   rendersInOwnWindow: (widget: { id: string; type?: string }) =>
     (widget.type || widget.id) === 'gantry',
   TopSpeedStoreUpdater: vi.fn(),
@@ -30,6 +31,7 @@ vi.mock('@irdashies/domain', () => ({
 
 import {
   useDashboard,
+  useHiddenWidgetIds,
   useRunningState,
   SectorTimingUpdater,
   useWidgetsForThisDisplay,
@@ -82,6 +84,39 @@ describe('OverlayContainer', () => {
     render(<OverlayContainer />);
 
     expect(screen.queryByTestId('widget-body')).toBeNull();
+  });
+
+  it('leaves the hide shortcut of the widget group to the group', () => {
+    vi.mocked(getWidget).mockImplementation(
+      () => (() => <div data-testid="widget-body" />) as never
+    );
+    vi.mocked(useHiddenWidgetIds).mockReturnValue(new Set(['widgetgroup']));
+    mockDashboard([
+      {
+        id: 'widgetgroup',
+        enabled: true,
+        layout: { x: 0, y: 0, width: 100, height: 100 },
+      },
+    ]);
+
+    render(<OverlayContainer />);
+
+    expect(screen.getByTestId('widget-body')).toBeInTheDocument();
+  });
+
+  it('subscribes for Sector Delta inside the widget group', () => {
+    const layout = { x: 0, y: 0, width: 100, height: 100 };
+    const group = { id: 'widgetgroup', enabled: true, layout };
+    const member = { id: 'sectordelta', enabled: true, layout };
+    mockDashboard([group]);
+    vi.mocked(useWidgetsForThisDisplay).mockImplementation(
+      (_browser, options) =>
+        options?.includeGroupMembers ? [group, member] : [group]
+    );
+
+    render(<OverlayContainer />);
+
+    expect(sectorTimingEnabled()).toBe(true);
   });
 
   it('subscribes when Sector Delta is enabled', () => {

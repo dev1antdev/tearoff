@@ -97,6 +97,18 @@ describe('SessionTimingUpdater', () => {
       expect(lastEnabledArg()).toBe(true);
     });
 
+    it('goes by the enabled widgets on the page of the widget group', () => {
+      vi.mocked(useDashboard).mockReturnValue({
+        currentDashboard: {
+          widgets: [{ id: 'standings', enabled: true }],
+        },
+      } as unknown as ReturnType<typeof useDashboard>);
+
+      render(<SessionTimingUpdater soloWidgetType="widgetgroup" />);
+
+      expect(lastEnabledArg()).toBe(true);
+    });
+
     it('does not mount for a widget with no session bar, whatever else is enabled', () => {
       vi.mocked(useDashboard).mockReturnValue({
         currentDashboard: {

@@ -11,6 +11,8 @@ import { useWidgetPreviewSession } from './useWidgetPreviewSession';
 
 const save = vi.fn();
 const toggleDemo = vi.fn();
+const readPlayerIcon = vi.fn(async () => 'data:image/png;base64,');
+const assetBridge = { getPlayerIconImageAsDataUrl: readPlayerIcon };
 /** A dashboard to preview instead of the default one. */
 let dashboard: DashboardLayout | undefined;
 vi.mock('@irdashies/context', () => ({
@@ -18,6 +20,7 @@ vi.mock('@irdashies/context', () => ({
     currentDashboard: dashboard ?? defaultDashboard,
     onDashboardUpdated: save,
     toggleDemoMode: toggleDemo,
+    bridge: assetBridge,
   }),
   useElementSize: () => ({ width: 800, height: 240 }),
 }));
@@ -103,6 +106,63 @@ describe('settings widget preview', () => {
       'preview:init must use the committed dashboard'
     ).toBe(true);
     unmount();
+  });
+
+  it('serves the widgets in a previewed group', async () => {
+    const getTelemetry = vi.fn(async () => null);
+    window.widgetPreviewBridge = {
+      connect,
+      disconnect,
+      subscribe,
+      getTelemetry,
+    };
+    const place = { x: 0, y: 0, width: 100, height: 100 };
+    dashboard = {
+      ...defaultDashboard,
+      widgets: defaultDashboard.widgets.map((widget) => {
+        if (widget.id === 'widgetgroup') {
+          const members = [
+            { widgetId: 'telemetryinspector', ...place },
+            { widgetId: 'map', ...place },
+          ];
+          return { ...widget, config: { ...widget.config, members } };
+        }
+        if (widget.id === 'telemetryinspector') {
+          return { ...widget, enabled: true };
+        }
+        if (widget.id === 'map') {
+          const playerIcon = { fileName: 'car.png' };
+          return {
+            ...widget,
+            enabled: true,
+            config: { ...widget.config, playerIcon },
+          };
+        }
+        return widget;
+      }),
+    } as DashboardLayout;
+    render(<WidgetPreview widgetId="widgetgroup" />);
+    const frame = screen.getByTitle('Widget Group demo') as HTMLIFrameElement;
+    const fromFrame = (data: object) =>
+      window.dispatchEvent(
+        new MessageEvent('message', { data, source: frame.contentWindow })
+      );
+    await act(async () => {
+      fromFrame({ type: 'preview:ready' });
+    });
+    expect(getTelemetry).toHaveBeenCalled();
+
+    const asset = (filename: string, requestId: number) => ({
+      type: 'preview:asset',
+      kind: 'playerIcon',
+      filename,
+      requestId,
+    });
+    await act(async () => {
+      fromFrame(asset('other.png', 1));
+      fromFrame(asset('car.png', 2));
+    });
+    expect(readPlayerIcon.mock.calls).toEqual([['car.png']]);
   });
 
   it('keeps the initial iframe paint hidden until its document styles have loaded', () => {

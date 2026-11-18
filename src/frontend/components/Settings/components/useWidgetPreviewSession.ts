@@ -6,10 +6,12 @@ import {
   useState,
 } from 'react';
 import { useDashboard } from '@irdashies/context';
-import type {
-  ChannelName,
-  DashboardLayout,
-  WidgetPreviewMessage,
+import {
+  isWidgetGroup,
+  withWidgetGroupMembers,
+  type ChannelName,
+  type DashboardLayout,
+  type WidgetPreviewMessage,
 } from '@irdashies/types';
 import { parsePreviewRequest } from '@irdashies/domain/widgetPreview/protocol';
 import { resolvePreviewWidget } from '@irdashies/domain/widgetPreview/presentation';
@@ -55,6 +57,13 @@ export function useWidgetPreviewSession(
     let connected = false;
     let timeout: ReturnType<typeof setTimeout> | undefined;
     let telemetryTimer: ReturnType<typeof setInterval> | undefined;
+    // The previewed widget and, for the widget group, those in it as they
+    // are now: the group can change while the preview is open.
+    const shownWidgets = () => {
+      const { dashboard: current, widgetId: id } = latest.current;
+      const selected = current && resolvePreviewWidget(current, id);
+      return selected ? withWidgetGroupMembers([selected], current) : [];
+    };
     const subscriptions = new Map<
       ChannelName,
       { unsubscribe(): void; rate?: number }
@@ -119,8 +128,17 @@ export function useWidgetPreviewSession(
               config.dashboard,
               config.widgetId
             );
-            if (selected?.type === 'telemetryinspector') {
+            if (
+              selected &&
+              (selected.type === 'telemetryinspector' ||
+                isWidgetGroup(selected))
+            ) {
               const poll = () => {
+                const inspected = shownWidgets().some(
+                  (widget) =>
+                    (widget.type || widget.id) === 'telemetryinspector'
+                );
+                if (!inspected) return;
                 void bridge
                   .getTelemetry()
                   .then((telemetry) => {
@@ -146,25 +164,24 @@ export function useWidgetPreviewSession(
           });
       } else if (request.type === 'preview:asset') {
         if (!connected) return;
-        const config =
-          latest.current.dashboard &&
-          resolvePreviewWidget(
-            latest.current.dashboard,
-            latest.current.widgetId
-          )?.config;
-        const playerIcon = config?.playerIcon as
-          { fileName?: unknown } | undefined;
-        const expected =
-          request.kind === 'garageCover'
-            ? config?.imageFilename
-            : playerIcon?.fileName;
+        // Only a file a widget in this preview is set to show.
+        const allowed = shownWidgets().some(({ config }) => {
+          const playerIcon = config?.playerIcon as
+            { fileName?: unknown } | undefined;
+          return (
+            request.filename ===
+            (request.kind === 'garageCover'
+              ? config?.imageFilename
+              : playerIcon?.fileName)
+          );
+        });
         const assets = latest.current.dashboardBridge;
         const read =
           request.kind === 'garageCover'
             ? assets?.getGarageCoverImageAsDataUrl
             : assets?.getPlayerIconImageAsDataUrl;
         void (
-          expected === request.filename && read
+          allowed && read
             ? read(request.filename)
             : Promise.resolve(null)
         )

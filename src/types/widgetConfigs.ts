@@ -2952,6 +2952,26 @@ export interface RaceChartsConfig {
   showOnlyWhenOnTrack: boolean;
 }
 
+/** One widget placed in the widget group, in the group's own pixels. */
+export interface WidgetGroupMember {
+  widgetId: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** Content scale in percent. Unset uses the scale saved for the widget. */
+  scale?: number;
+  /** The widget was off when added, and goes back to off when removed. */
+  restoreDisabled?: boolean;
+}
+
+export interface WidgetGroupConfig {
+  /** The widgets in the group, in drawing order: later ones on top. */
+  members: WidgetGroupMember[];
+  showOnlyWhenOnTrack: boolean;
+  sessionVisibility: SessionVisibilitySettings;
+}
+
 export interface WidgetConfigMap {
   standings: StandingsConfig;
   relative: RelativeConfig;
@@ -2963,6 +2983,7 @@ export interface WidgetConfigMap {
   input: InputConfig;
   tachometer: TachometerConfig;
   shiftlight: ShiftLightConfig;
+  widgetgroup: WidgetGroupConfig;
   fuel: FuelConfig;
   blindspotmonitor: BlindSpotMonitorConfig;
   radar: RadarConfig;
@@ -3113,6 +3134,7 @@ export type SteerWidgetSettings = BaseWidgetSettings<SteerConfig>;
 export type InputWidgetSettings = BaseWidgetSettings<InputConfig>;
 export type TachometerWidgetSettings = BaseWidgetSettings<TachometerConfig>;
 export type ShiftLightWidgetSettings = BaseWidgetSettings<ShiftLightConfig>;
+export type WidgetGroupWidgetSettings = BaseWidgetSettings<WidgetGroupConfig>;
 export type FuelWidgetSettings = BaseWidgetSettings<FuelConfig>;
 export type BlindSpotMonitorWidgetSettings =
   BaseWidgetSettings<BlindSpotMonitorConfig>;

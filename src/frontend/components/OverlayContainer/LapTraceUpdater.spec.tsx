@@ -54,7 +54,9 @@ describe('LapTraceUpdater', () => {
 
     render(<LapTraceUpdater browser />);
 
-    expect(useWidgetsForThisDisplay).toHaveBeenCalledWith(true);
+    expect(useWidgetsForThisDisplay).toHaveBeenCalledWith(true, {
+      includeGroupMembers: true,
+    });
     expect(useLapTraceRecorder).toHaveBeenCalledWith('best');
   });
 
