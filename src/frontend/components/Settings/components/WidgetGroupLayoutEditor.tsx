@@ -13,38 +13,67 @@ import { useResizeWidget } from '../../WidgetContainer/useResizeWidget';
 /** Small enough for a badge, large enough to keep hold of. */
 const MIN_TILE_SIZE = 20;
 
+const clamp = (value: number, min: number, max: number) =>
+  Math.max(min, Math.min(value, max));
+
 /** Moved inside the frame, where it can still be seen and picked up. */
 const movedIntoFrame = (
   layout: WidgetLayout,
   frame: WidgetLayout
 ): WidgetLayout => ({
   ...layout,
-  x: Math.max(0, Math.min(layout.x, frame.width - layout.width)),
-  y: Math.max(0, Math.min(layout.y, frame.height - layout.height)),
+  x: clamp(layout.x, 0, frame.width - layout.width),
+  y: clamp(layout.y, 0, frame.height - layout.height),
 });
 
-/** Sized up to the frame: only the edges being moved are stopped by it. */
+/**
+ * One axis of a tile being sized. An edge that moves stops where a piece of the
+ * tile still shows in the frame; an edge that stays is left as it is.
+ */
+const sizedAxis = (
+  start: number,
+  size: number,
+  currentStart: number,
+  currentSize: number,
+  frameSize: number
+) => {
+  const end = start + size;
+  const nextStart =
+    start === currentStart
+      ? start
+      : clamp(start, 0, frameSize - MIN_TILE_SIZE);
+  const nextEnd =
+    end === currentStart + currentSize
+      ? end
+      : clamp(end, MIN_TILE_SIZE, frameSize);
+  return { start: nextStart, size: nextEnd - nextStart };
+};
+
 const sizedWithinFrame = (
   next: WidgetLayout,
   current: WidgetLayout,
   frame: WidgetLayout
 ): WidgetLayout => {
-  const x = next.x === current.x ? next.x : Math.max(0, next.x);
-  const y = next.y === current.y ? next.y : Math.max(0, next.y);
-  const right = next.x + next.width;
-  const bottom = next.y + next.height;
+  const across = sizedAxis(
+    next.x,
+    next.width,
+    current.x,
+    current.width,
+    frame.width
+  );
+  const down = sizedAxis(
+    next.y,
+    next.height,
+    current.y,
+    current.height,
+    frame.height
+  );
   return {
     ...next,
-    x,
-    y,
-    width:
-      (right === current.x + current.width
-        ? right
-        : Math.min(right, frame.width)) - x,
-    height:
-      (bottom === current.y + current.height
-        ? bottom
-        : Math.min(bottom, frame.height)) - y,
+    x: across.start,
+    width: across.size,
+    y: down.start,
+    height: down.size,
   };
 };
 

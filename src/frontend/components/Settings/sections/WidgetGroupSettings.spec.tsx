@@ -265,6 +265,22 @@ describe('WidgetGroupSettings', () => {
       });
     });
 
+    it('keeps part of a clipped widget in the frame while sizing it', () => {
+      render(<WidgetGroupSettings />);
+      const input = card('Input');
+      fireEvent.change(input.getByRole('spinbutton', { name: 'X' }), {
+        target: { value: '-80' },
+      });
+      fireEvent.change(input.getByRole('spinbutton', { name: 'Width' }), {
+        target: { value: '120' },
+      });
+
+      const edge = tile('input').querySelector('[data-resize-handle="e"]');
+      dragBy(edge as Element, -25, 0);
+
+      expect(tile('input')).toHaveStyle({ left: '-80px', width: '100px' });
+    });
+
     describe('a frame size typed after Reset layout', () => {
       const typeHeight = () => {
         fireEvent.click(screen.getByRole('button', { name: 'Reset layout' }));
