@@ -22,6 +22,8 @@ interface UseResizeWidgetOptions {
   snapOptions?: ViewportGridSnapOptions;
   /** Screen pixels to a layout pixel, where the layout is drawn scaled. */
   pointerScale?: number;
+  /** Limits a size the pointer asks for, given where the gesture started. */
+  constrain?: (layout: WidgetLayout, startLayout: WidgetLayout) => WidgetLayout;
 }
 
 interface ResizeState {
@@ -43,6 +45,7 @@ export function useResizeWidget({
   minHeight = MIN_HEIGHT,
   snapOptions,
   pointerScale = 1,
+  constrain,
 }: UseResizeWidgetOptions) {
   const [isResizing, setIsResizing] = useState(false);
   const [activeDirection, setActiveDirection] =
@@ -106,7 +109,11 @@ export function useResizeWidget({
       );
 
       snapStateRef.current = snapped.state;
-      onLayoutChange(roundLayout(snapped.layout));
+      onLayoutChange(
+        roundLayout(
+          constrain ? constrain(snapped.layout, startLayout) : snapped.layout
+        )
+      );
     };
 
     const handlePointerUp = () => {
@@ -130,6 +137,7 @@ export function useResizeWidget({
     onLayoutChange,
     snapOptions,
     pointerScale,
+    constrain,
   ]);
 
   const getResizeHandleProps = useCallback(

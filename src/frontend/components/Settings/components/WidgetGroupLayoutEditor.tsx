@@ -27,62 +27,55 @@ const movedIntoFrame = (
 });
 
 /**
- * One axis of a tile being sized. An edge that moves stops where a piece of the
- * tile still shows in the frame, or where it already is if it is past that, so
- * it never jumps against the pointer. An edge that stays is left as it is.
+ * One axis of a tile being sized, from where the gesture started. Its edges stop
+ * where a piece of the tile still shows in the frame, or where they started if
+ * that is already past it, so an edge never jumps against the pointer.
  */
 const sizedAxis = (
-  start: number,
+  position: number,
   size: number,
-  currentStart: number,
-  currentSize: number,
+  startPosition: number,
+  startSize: number,
   frameSize: number
 ) => {
-  const end = start + size;
-  const currentEnd = currentStart + currentSize;
-  const nextStart =
-    start === currentStart
-      ? start
-      : clamp(
-          start,
-          Math.min(0, currentStart),
-          Math.max(frameSize - MIN_TILE_SIZE, currentStart)
-        );
-  const nextEnd =
-    end === currentEnd
-      ? end
-      : clamp(
-          end,
-          Math.min(MIN_TILE_SIZE, currentEnd),
-          Math.max(frameSize, currentEnd)
-        );
-  return { start: nextStart, size: nextEnd - nextStart };
+  const startEnd = startPosition + startSize;
+  const nextPosition = clamp(
+    position,
+    Math.min(0, startPosition),
+    Math.max(frameSize - MIN_TILE_SIZE, startPosition)
+  );
+  const nextEnd = clamp(
+    position + size,
+    Math.min(MIN_TILE_SIZE, startEnd),
+    Math.max(frameSize, startEnd)
+  );
+  return { position: nextPosition, size: nextEnd - nextPosition };
 };
 
 const sizedWithinFrame = (
   next: WidgetLayout,
-  current: WidgetLayout,
+  start: WidgetLayout,
   frame: WidgetLayout
 ): WidgetLayout => {
   const across = sizedAxis(
     next.x,
     next.width,
-    current.x,
-    current.width,
+    start.x,
+    start.width,
     frame.width
   );
   const down = sizedAxis(
     next.y,
     next.height,
-    current.y,
-    current.height,
+    start.y,
+    start.height,
     frame.height
   );
   return {
     ...next,
-    x: across.start,
+    x: across.position,
     width: across.size,
-    y: down.start,
+    y: down.position,
     height: down.size,
   };
 };
@@ -113,8 +106,8 @@ const Tile = ({ tile, scale, bounds, siblings, onChange }: TileProps) => {
   });
   const { isResizing, getResizeHandleProps } = useResizeWidget({
     layout,
-    onLayoutChange: (next) =>
-      onChange(id, sizedWithinFrame(next, layout, bounds)),
+    onLayoutChange: (next) => onChange(id, next),
+    constrain: (next, start) => sizedWithinFrame(next, start, bounds),
     enabled: true,
     minWidth: MIN_TILE_SIZE,
     minHeight: MIN_TILE_SIZE,

@@ -305,6 +305,18 @@ describe('WidgetGroupSettings', () => {
         expect(tile('input')).toHaveStyle({ left: '-80px', width: '90px' });
       });
 
+      it('goes back to its size when the pointer returns', () => {
+        render(<WidgetGroupSettings />);
+        clipInput('90');
+
+        fireEvent.pointerDown(edge('e'), { clientX: 0, clientY: 0 });
+        fireEvent.pointerMove(window, { clientX: 10, shiftKey: true });
+        fireEvent.pointerMove(window, { clientX: 0, shiftKey: true });
+        fireEvent.pointerUp(window);
+
+        expect(tile('input')).toHaveStyle({ width: '90px' });
+      });
+
       it('does not jump when its outer edge is dragged further out', () => {
         render(<WidgetGroupSettings />);
         clipInput('100');
