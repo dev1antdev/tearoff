@@ -77,7 +77,6 @@ describe('WidgetGroupSettings', () => {
     fireEvent.change(screen.getByRole('combobox', { name: 'Add widget' }), {
       target: { value: 'flag' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     expect(saved().members.map(({ widgetId }) => widgetId)).toEqual(['flag']);
   });

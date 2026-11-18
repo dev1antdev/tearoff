@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import {
-  PIT_WALL_WIDGET_ID,
   fitLayoutToDisplay,
+  isGantryOnly,
   isLayoutOnDisplay,
+  isPitWallPage,
   isWidgetDisabledForSim,
+  rendersInOwnWindow,
   widgetGroupMemberIds,
   withWidgetGroupMembers,
   type DashboardWidget,
@@ -12,28 +14,7 @@ import { useDashboard } from '../DashboardContext/DashboardContext';
 import { useActiveSimulator } from './useActiveSimulator';
 import { useSimWidgetSupport } from './useSimWidgetSupport';
 
-/**
- * Widget types that are rendered by a window of their own rather than by the
- * overlay (see the hash routes in App.tsx). They still live in the dashboard
- * and still subscribe to data, so only the overlay's renderer excludes them.
- */
-const OWN_WINDOW_WIDGET_TYPES = new Set(['gantry', PIT_WALL_WIDGET_ID]);
-
-/** Shown only docked in the Gantry, never on an overlay or browser source. */
-export const isGantryOnly = (widget: DashboardWidget): boolean =>
-  widget.placement === 'gantry';
-
-/**
- * The Pit Wall is a page in a window of its own, which mounts what the page
- * needs. No overlay window or browser source draws it, so none subscribes to
- * data on its behalf either.
- */
-export const isPitWallPage = (widget: DashboardWidget): boolean =>
-  (widget.type || widget.id) === PIT_WALL_WIDGET_ID;
-
-/** Does this widget render in its own window instead of the overlay? */
-export const rendersInOwnWindow = (widget: DashboardWidget): boolean =>
-  OWN_WINDOW_WIDGET_TYPES.has(widget.type || widget.id) || isGantryOnly(widget);
+export { isGantryOnly, isPitWallPage, rendersInOwnWindow };
 
 /**
  * The enabled widgets this overlay window is responsible for.

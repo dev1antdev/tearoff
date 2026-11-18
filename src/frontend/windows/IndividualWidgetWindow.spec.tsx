@@ -72,7 +72,9 @@ describe('individual widget presentation', () => {
       />
     );
     expect(mocks.sector).toHaveBeenCalled();
-    expect(mocks.timing).toHaveBeenCalledWith({ soloWidgetType: undefined });
+    expect(mocks.timing).toHaveBeenCalledWith({
+      soloWidgetType: 'widgetgroup',
+    });
   });
   it('honours simulator disconnect and always-visible widgets', () => {
     const { rerender } = render(

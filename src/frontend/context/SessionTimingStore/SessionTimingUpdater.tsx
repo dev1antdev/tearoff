@@ -1,3 +1,4 @@
+import { WIDGET_GROUP_ID } from '@irdashies/types';
 import { useDashboard } from '../DashboardContext/DashboardContext';
 import { SessionTimingStoreUpdater } from './SessionTimingStoreUpdater';
 
@@ -28,14 +29,16 @@ export const SessionTimingUpdater = ({
   // sessionLaps defaults to enabled in both header/footer bars, so a
   // per-item settings check isn't meaningful — gate on whether any widget
   // that can render a SessionBar is present at all. A second instance of a
-  // widget has its own id, so match on the type it names.
-  const enabled = soloWidgetType
-    ? SESSION_TIMING_WIDGET_TYPES.has(soloWidgetType)
-    : !!currentDashboard?.widgets.some(
-        (widget) =>
-          widget.enabled &&
-          SESSION_TIMING_WIDGET_TYPES.has(widget.type || widget.id)
-      );
+  // widget has its own id, so match on the type it names. The widget group
+  // is no such type: it answers for the widgets in it, which are enabled ones.
+  const enabled =
+    soloWidgetType && soloWidgetType !== WIDGET_GROUP_ID
+      ? SESSION_TIMING_WIDGET_TYPES.has(soloWidgetType)
+      : !!currentDashboard?.widgets.some(
+          (widget) =>
+            widget.enabled &&
+            SESSION_TIMING_WIDGET_TYPES.has(widget.type || widget.id)
+        );
 
   // Only mount the channel subscriber when a widget needs session timing.
   if (!enabled) return null;

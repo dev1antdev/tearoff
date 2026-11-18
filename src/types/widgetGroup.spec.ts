@@ -6,6 +6,7 @@ import {
   resolveWidgetGroupMembers,
   sanitizeWidgetGroupMembers,
   widgetGroupMemberIds,
+  widgetsSwitchedOnByGroup,
   withWidgetGroupMembers,
 } from './widgetGroup';
 
@@ -65,7 +66,7 @@ describe('canJoinWidgetGroup', () => {
     expect(canJoinWidgetGroup({ id: 'fuel-2', type: 'fuel' })).toBe(true);
   });
 
-  it.each(['widgetgroup', 'gantry', 'pitwall', 'telemetryinspector'])(
+  it.each(['widgetgroup', 'gantry', 'pitwall'])(
     'refuses %s',
     (id) => expect(canJoinWidgetGroup({ id })).toBe(false)
   );
@@ -100,6 +101,19 @@ describe('widgetGroupMemberIds', () => {
 
   it('is empty without a dashboard', () => {
     expect(widgetGroupMemberIds(undefined).size).toBe(0);
+  });
+});
+
+describe('widgetsSwitchedOnByGroup', () => {
+  it('names the members that were off when added', () => {
+    const { widgets } = dashboard(
+      [
+        { widgetId: 'input', ...place, restoreDisabled: true },
+        { widgetId: 'flag', ...place },
+      ],
+      [widget('input'), widget('flag')]
+    );
+    expect([...widgetsSwitchedOnByGroup(widgets)]).toEqual(['input']);
   });
 });
 

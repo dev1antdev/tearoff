@@ -17,6 +17,9 @@ export type WidgetGroupMemberChange = Partial<
 const membersOf = (group: DashboardWidget) =>
   sanitizeWidgetGroupMembers(group.config?.members);
 
+/** A width or height: whole pixels, and at least one of them. */
+const toSize = (value: number) => Math.max(1, Math.round(value));
+
 const withGroup = (
   dashboard: DashboardLayout,
   group: DashboardWidget,
@@ -72,8 +75,8 @@ export const addWidgetGroupMember = (
     widgetId,
     x: 0,
     y,
-    width: Math.max(1, Math.round(widget.layout.width)),
-    height: Math.max(1, Math.round(widget.layout.height)),
+    width: toSize(widget.layout.width),
+    height: toSize(widget.layout.height),
     ...(!widget.enabled && { restoreDisabled: true }),
   };
   // Members are placed in the group's own pixels, its frame in the screen's.
@@ -133,8 +136,8 @@ export const updateWidgetGroupMember = (
         ...next,
         x: Math.round(next.x),
         y: Math.round(next.y),
-        width: Math.max(1, Math.round(next.width)),
-        height: Math.max(1, Math.round(next.height)),
+        width: toSize(next.width),
+        height: toSize(next.height),
         ...(next.scale !== undefined && {
           scale: normalizeWidgetScale(next.scale),
         }),
@@ -143,20 +146,13 @@ export const updateWidgetGroupMember = (
   );
 };
 
-/** Moves a member one place in the list, which is the order of drawing. */
-export const moveWidgetGroupMember = (
+/** Saves the members in a new order, which is the order of drawing. */
+export const reorderWidgetGroupMembers = (
   dashboard: DashboardLayout,
-  widgetId: string,
-  offset: -1 | 1
+  members: WidgetGroupMember[]
 ): DashboardLayout => {
   const group = findWidgetGroup(dashboard.widgets);
-  if (!group) return dashboard;
-  const members = membersOf(group);
-  const from = members.findIndex((member) => member.widgetId === widgetId);
-  const to = from + offset;
-  if (from < 0 || to < 0 || to >= members.length) return dashboard;
-  [members[from], members[to]] = [members[to], members[from]];
-  return withGroup(dashboard, group, members);
+  return group ? withGroup(dashboard, group, members) : dashboard;
 };
 
 /** Sets the size of the group's frame on the overlay. */
@@ -170,8 +166,8 @@ export const resizeWidgetGroup = (
   return withGroup(dashboard, group, membersOf(group), {
     layout: {
       ...next,
-      width: Math.max(1, Math.round(next.width)),
-      height: Math.max(1, Math.round(next.height)),
+      width: toSize(next.width),
+      height: toSize(next.height),
     },
   });
 };

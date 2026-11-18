@@ -1,8 +1,8 @@
 import type { DashboardLayout, DashboardWidget } from './dashboardLayout';
 import type { DockSimFilter } from './gantryDock';
-import { PIT_WALL_WIDGET_ID } from './pitWall';
 import { isWidgetDisabledForSim } from './simWidgetSupport';
 import type { WidgetGroupMember } from './widgetConfigs';
+import { rendersInOwnWindow } from './widgetPlacement';
 import { normalizeWidgetScale } from './widgetScale';
 
 /*
@@ -35,22 +35,12 @@ export const findWidgetGroup = (
 ): DashboardWidget | undefined => widgets?.find(isWidgetGroup);
 
 /**
- * Whether a widget can be placed in the group. Not the group itself, nor what
- * is drawn in a window of its own or only docked in one, nor the diagnostic
- * inspector, which has no place in the settings menu either.
+ * Whether a widget can be placed in the group: anything the overlay draws,
+ * other than the group itself.
  */
 export const canJoinWidgetGroup = (
   widget: Pick<DashboardWidget, 'id' | 'type' | 'placement'>
-): boolean => {
-  const type = widgetType(widget);
-  return (
-    type !== WIDGET_GROUP_ID &&
-    type !== 'gantry' &&
-    type !== 'telemetryinspector' &&
-    type !== PIT_WALL_WIDGET_ID &&
-    widget.placement !== 'gantry'
-  );
-};
+): boolean => !isWidgetGroup(widget) && !rendersInOwnWindow(widget);
 
 /**
  * Reads the saved list, which is untrusted. Drops what is not a usable entry
@@ -121,6 +111,19 @@ export const widgetGroupMemberIds = (
   return ids;
 };
 
+/**
+ * The widgets that are on only because the group switched them on. Whatever
+ * empties the group other than removing them one by one has to put them back.
+ */
+export const widgetsSwitchedOnByGroup = (
+  widgets: readonly DashboardWidget[]
+): ReadonlySet<string> =>
+  new Set(
+    sanitizeWidgetGroupMembers(findWidgetGroup(widgets)?.config?.members)
+      .filter((member) => member.restoreDisabled)
+      .map((member) => member.widgetId)
+  );
+
 export interface ResolvedWidgetGroupMember {
   member: WidgetGroupMember;
   widget: DashboardWidget;
@@ -154,11 +157,11 @@ export const resolveWidgetGroupMembers = (
  * These widgets, and what the group draws if the group is among them: what a
  * window has to fetch data for, which is more than the blocks it positions.
  */
-export const withWidgetGroupMembers = (
-  widgets: DashboardWidget[],
+export const withWidgetGroupMembers = <T extends WidgetRef>(
+  widgets: T[],
   dashboard: DashboardLayout | null | undefined,
   sim?: DockSimFilter
-): DashboardWidget[] =>
+): (T | DashboardWidget)[] =>
   widgets.some(isWidgetGroup)
     ? [
         ...widgets,

@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { isWidgetGroup, type DashboardWidget } from '@irdashies/types';
+import type { DashboardWidget } from '@irdashies/types';
 import {
   DashboardProvider,
   RunningStateProvider,
@@ -61,10 +61,7 @@ export const IndividualWidgetView = ({
         {needs.some((need) => need.sectorTiming) && <SectorTimingUpdater />}
         {needs.some((need) => need.pushToPass) && <PushToPassUpdater />}
         {needs.some((need) => need.pitLap) && <PitLapUpdater />}
-        {/* The group answers for what is in it, not for a type of its own. */}
-        <SessionTimingUpdater
-          soloWidgetType={isWidgetGroup(widget) ? undefined : type}
-        />
+        <SessionTimingUpdater soloWidgetType={type} />
         <div
           data-widget-id={widget.id}
           className="absolute pointer-events-none [contain:layout_style_paint]"

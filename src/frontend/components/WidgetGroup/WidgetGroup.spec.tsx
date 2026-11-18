@@ -5,6 +5,7 @@ import {
   DEFAULT_SIM_WIDGET_SUPPORT,
   type DashboardLayout,
 } from '@irdashies/types';
+import { OverlayHiddenContext, useOverlayHidden } from '@irdashies/context';
 import { WidgetGroup } from './WidgetGroup';
 
 const state = vi.hoisted(() => ({
@@ -17,34 +18,46 @@ const state = vi.hoisted(() => ({
   hidden: new Set<string>(),
 }));
 
-vi.mock('@irdashies/context', () => ({
-  useDashboard: () => ({ currentDashboard: state.dashboard }),
-  useActiveSimulator: () => state.simulator,
-  useSimWidgetSupport: () => DEFAULT_SIM_WIDGET_SUPPORT,
-  useRunningState: () => ({ running: state.running }),
-  useHiddenWidgetIds: () => state.hidden,
-  useDrivingState: () => ({
-    isDriving: state.driving,
-    isWatching: state.watching,
-  }),
-  useSessionVisibility: () => state.sessionVisible,
-}));
+vi.mock('@irdashies/context', async () => {
+  const { createContext, useContext } = await import('react');
+  const OverlayHiddenContext = createContext(false);
+  return {
+    OverlayHiddenContext,
+    useOverlayHidden: () => useContext(OverlayHiddenContext),
+    useDashboard: () => ({ currentDashboard: state.dashboard }),
+    useActiveSimulator: () => state.simulator,
+    useSimWidgetSupport: () => DEFAULT_SIM_WIDGET_SUPPORT,
+    useRunningState: () => ({ running: state.running }),
+    useHiddenWidgetIds: () => state.hidden,
+    useDrivingState: () => ({
+      isDriving: state.driving,
+      isWatching: state.watching,
+    }),
+    useSessionVisibility: () => state.sessionVisible,
+  };
+});
 vi.mock('../WidgetPanelHost/HostedWidget', () => ({
-  HostedWidget: ({
+  HostedWidget: function HostedWidget({
     widget,
     scale,
-    embedded,
+    running,
+    onOverlay,
   }: {
     widget: { id: string };
     scale: number;
-    embedded: boolean;
-  }) => (
-    <div
-      data-testid={`hosted-${widget.id}`}
-      data-scale={scale}
-      data-embedded={String(embedded)}
-    />
-  ),
+    running: boolean;
+    onOverlay: boolean;
+  }) {
+    return (
+      <div
+        data-testid={`hosted-${widget.id}`}
+        data-scale={scale}
+        data-running={String(running)}
+        data-on-overlay={String(onOverlay)}
+        data-hidden={String(useOverlayHidden())}
+      />
+    );
+  },
 }));
 
 const layout = { x: 0, y: 0, width: 100, height: 100 };
@@ -65,7 +78,7 @@ const dashboard = (showOnlyWhenOnTrack = false): DashboardLayout => ({
       },
     },
     { id: 'input', enabled: true, layout, scale: 80 },
-    { id: 'flag', enabled: true, layout, alwaysEnabled: true },
+    { id: 'flag', enabled: true, layout },
     { id: 'radar', enabled: true, layout },
   ],
 });
@@ -74,6 +87,15 @@ const drawn = () =>
   [...document.querySelectorAll('[data-group-member]')].map((element) =>
     element.getAttribute('data-group-member')
   );
+
+const expectHiddenButMounted = (container: HTMLElement) => {
+  expect(container.firstChild).toHaveClass('invisible');
+  expect(drawn()).toHaveLength(3);
+  expect(screen.getByTestId('hosted-input')).toHaveAttribute(
+    'data-hidden',
+    'true'
+  );
+};
 
 describe('WidgetGroup', () => {
   beforeEach(() => {
@@ -116,13 +138,13 @@ describe('WidgetGroup', () => {
     );
   });
 
-  it('lets members write their data, being the only copy of them', () => {
+  it('hosts its members as the overlay copy of each widget', () => {
+    state.running = false;
     render(<WidgetGroup />);
 
-    expect(screen.getByTestId('hosted-input')).toHaveAttribute(
-      'data-embedded',
-      'false'
-    );
+    const member = screen.getByTestId('hosted-input');
+    expect(member).toHaveAttribute('data-on-overlay', 'true');
+    expect(member).toHaveAttribute('data-running', 'false');
   });
 
   it('holds back a member the running sim cannot show', () => {
@@ -139,27 +161,37 @@ describe('WidgetGroup', () => {
     expect(drawn()).toEqual(['flag', 'radar']);
   });
 
-  it('keeps only always-on members with no sim running', () => {
-    state.running = false;
-    render(<WidgetGroup />);
-
-    expect(drawn()).toEqual(['flag']);
-  });
-
-  it('is hidden in a session it is switched off for', () => {
+  it('keeps its members running in a session it is hidden in', () => {
     state.sessionVisible = false;
 
-    expect(render(<WidgetGroup />).container).toBeEmptyDOMElement();
+    expectHiddenButMounted(render(<WidgetGroup />).container);
   });
 
-  it('follows its only-on-track setting', () => {
+  it('follows its only-on-track setting without unmounting anything', () => {
     state.dashboard = dashboard(true);
     const { container, unmount } = render(<WidgetGroup />);
-    expect(container).toBeEmptyDOMElement();
+    expectHiddenButMounted(container);
     unmount();
 
     state.watching = true;
-    render(<WidgetGroup />);
-    expect(drawn()).toHaveLength(3);
+    const shown = render(<WidgetGroup />).container;
+    expect(shown.firstChild).not.toHaveClass('invisible');
+    expect(screen.getByTestId('hosted-input')).toHaveAttribute(
+      'data-hidden',
+      'false'
+    );
+  });
+
+  it('stays hidden with the overlay around it', () => {
+    render(
+      <OverlayHiddenContext.Provider value>
+        <WidgetGroup />
+      </OverlayHiddenContext.Provider>
+    );
+
+    expect(screen.getByTestId('hosted-input')).toHaveAttribute(
+      'data-hidden',
+      'true'
+    );
   });
 });

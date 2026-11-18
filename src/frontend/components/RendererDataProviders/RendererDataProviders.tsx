@@ -1,9 +1,5 @@
 import { useMemo } from 'react';
-import {
-  isWidgetGroup,
-  resolveWidgetGroupMembers,
-  type DashboardWidget,
-} from '@irdashies/types';
+import { withWidgetGroupMembers, type DashboardWidget } from '@irdashies/types';
 import {
   PitLaneProvider,
   ReferenceStoreProvider,
@@ -54,17 +50,12 @@ export const RendererDataProviders = ({
     ? currentDashboard?.widgets.find((widget) => widget.id === widgetId)?.type
     : undefined;
   const runtimeNeeds = useMemo(() => {
-    const solo = widgetId ? { id: widgetId, type: scopedType } : undefined;
-    const scoped = solo
-      ? [
-          solo,
-          // The group's page needs what the widgets inside it need.
-          ...(isWidgetGroup(solo)
-            ? resolveWidgetGroupMembers(currentDashboard).map(
-                ({ widget }) => widget
-              )
-            : []),
-        ]
+    // The group's own page needs what the widgets inside it need.
+    const scoped = widgetId
+      ? withWidgetGroupMembers(
+          [{ id: widgetId, type: scopedType }],
+          currentDashboard
+        )
       : widgets;
     return {
       telemetryInspector: rendererNeedsTelemetryInspector(scoped),

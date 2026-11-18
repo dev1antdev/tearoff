@@ -55,19 +55,37 @@ describe('HostedWidget', () => {
     expect(mocks.widgetProps[0]).toEqual({ safetyMargin: 1, embedded: true });
   });
 
-  it('does not mark a widget embedded when it is the only copy', () => {
-    render(<HostedWidget {...host} widget={widget('fuel')} embedded={false} />);
-    expect(mocks.widgetProps[0]).toEqual({});
-  });
+  describe('on the overlay', () => {
+    const overlay = { running: true, host: 'test-host', onOverlay: true };
 
-  it('keeps a scale worked out from two others as it is', () => {
-    const { container } = render(
-      <HostedWidget {...host} widget={widget('fuel')} scale={300} exactScale />
-    );
-    expect(container.querySelector('[data-widget-scale]')).toHaveAttribute(
-      'data-widget-scale',
-      '300'
-    );
+    it('is not marked embedded, being the only copy', () => {
+      render(<HostedWidget {...overlay} widget={widget('fuel')} />);
+      expect(mocks.widgetProps[0]).toEqual({});
+    });
+
+    it('keeps a scale worked out from two others as it is', () => {
+      const { container } = render(
+        <HostedWidget {...overlay} widget={widget('fuel')} scale={300} />
+      );
+      expect(container.querySelector('[data-widget-scale]')).toHaveAttribute(
+        'data-widget-scale',
+        '300'
+      );
+    });
+
+    it('says nothing while no sim is running', () => {
+      const { container } = render(
+        <HostedWidget {...overlay} running={false} widget={widget('fuel')} />
+      );
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it('says nothing when the widget fails', () => {
+      const { container } = render(
+        <HostedWidget {...overlay} widget={widget('broken')} />
+      );
+      expect(container).not.toHaveTextContent('problem');
+    });
   });
 
   it('finds a copy of a widget by its type', () => {

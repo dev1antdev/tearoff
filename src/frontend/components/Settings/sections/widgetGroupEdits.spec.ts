@@ -6,8 +6,8 @@ import type {
 } from '@irdashies/types';
 import {
   addWidgetGroupMember,
-  moveWidgetGroupMember,
   removeWidgetGroupMember,
+  reorderWidgetGroupMembers,
   resizeWidgetGroup,
   updateWidgetGroupMember,
   widgetGroupCandidates,
@@ -153,25 +153,15 @@ describe('updateWidgetGroupMember', () => {
   });
 });
 
-describe('moveWidgetGroupMember', () => {
-  const two = () =>
-    dashboard([
-      { widgetId: 'input', ...place },
-      { widgetId: 'radar', ...place },
+describe('reorderWidgetGroupMembers', () => {
+  it('saves the members in the order given', () => {
+    const input = { widgetId: 'input', ...place };
+    const radar = { widgetId: 'radar', ...place };
+    const next = reorderWidgetGroupMembers(dashboard([input, radar]), [
+      radar,
+      input,
     ]);
-
-  it('swaps a member with its neighbour', () => {
-    const next = moveWidgetGroupMember(two(), 'radar', -1);
-    expect(membersOf(next).map(({ widgetId }) => widgetId)).toEqual([
-      'radar',
-      'input',
-    ]);
-  });
-
-  it('stops at the ends of the list', () => {
-    const layout = two();
-    expect(moveWidgetGroupMember(layout, 'input', -1)).toBe(layout);
-    expect(moveWidgetGroupMember(layout, 'radar', 1)).toBe(layout);
+    expect(membersOf(next)).toEqual([radar, input]);
   });
 });
 
