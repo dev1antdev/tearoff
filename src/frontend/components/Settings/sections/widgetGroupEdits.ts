@@ -12,6 +12,11 @@ import {
 } from '@irdashies/types';
 
 /** What the settings page changes about one member. */
+export interface WidgetGroupFrameSize {
+  width?: number;
+  height?: number;
+}
+
 export type WidgetGroupMemberChange = Partial<
   Pick<WidgetGroupMember, 'x' | 'y' | 'width' | 'height' | 'scale'>
 >;
@@ -189,19 +194,23 @@ export const setWidgetGroupMembers = (
     : dashboard;
 };
 
+/** The frame at this size. */
+export const sizedWidgetGroupFrame = (
+  frame: WidgetLayout,
+  size: WidgetGroupFrameSize
+): WidgetLayout => {
+  const next = { ...frame, ...size };
+  return { ...next, width: toSize(next.width), height: toSize(next.height) };
+};
+
 /** Sets the size of the group's frame on the overlay. */
 export const resizeWidgetGroup = (
   dashboard: DashboardLayout,
-  size: { width?: number; height?: number }
+  size: WidgetGroupFrameSize
 ): DashboardLayout => {
   const group = findWidgetGroup(dashboard.widgets);
   if (!group) return dashboard;
-  const next = { ...group.layout, ...size };
   return withGroup(dashboard, group, membersOf(group), {
-    layout: {
-      ...next,
-      width: toSize(next.width),
-      height: toSize(next.height),
-    },
+    layout: sizedWidgetGroupFrame(group.layout, size),
   });
 };

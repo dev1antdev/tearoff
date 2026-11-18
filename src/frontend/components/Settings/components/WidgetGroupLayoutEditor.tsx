@@ -23,19 +23,28 @@ const movedIntoFrame = (
   y: Math.max(0, Math.min(layout.y, frame.height - layout.height)),
 });
 
-/** Cut at the frame, for a tile being sized past it. */
-const cutToFrame = (
-  layout: WidgetLayout,
+/** Sized up to the frame: only the edges being moved are stopped by it. */
+const sizedWithinFrame = (
+  next: WidgetLayout,
+  current: WidgetLayout,
   frame: WidgetLayout
 ): WidgetLayout => {
-  const x = Math.max(0, layout.x);
-  const y = Math.max(0, layout.y);
+  const x = next.x === current.x ? next.x : Math.max(0, next.x);
+  const y = next.y === current.y ? next.y : Math.max(0, next.y);
+  const right = next.x + next.width;
+  const bottom = next.y + next.height;
   return {
-    ...layout,
+    ...next,
     x,
     y,
-    width: Math.min(layout.x + layout.width, frame.width) - x,
-    height: Math.min(layout.y + layout.height, frame.height) - y,
+    width:
+      (right === current.x + current.width
+        ? right
+        : Math.min(right, frame.width)) - x,
+    height:
+      (bottom === current.y + current.height
+        ? bottom
+        : Math.min(bottom, frame.height)) - y,
   };
 };
 
@@ -65,7 +74,8 @@ const Tile = ({ tile, scale, bounds, siblings, onChange }: TileProps) => {
   });
   const { isResizing, getResizeHandleProps } = useResizeWidget({
     layout,
-    onLayoutChange: (next) => onChange(id, cutToFrame(next, bounds)),
+    onLayoutChange: (next) =>
+      onChange(id, sizedWithinFrame(next, layout, bounds)),
     enabled: true,
     minWidth: MIN_TILE_SIZE,
     minHeight: MIN_TILE_SIZE,

@@ -249,6 +249,57 @@ describe('WidgetGroupSettings', () => {
       expect(tile('input')).toHaveStyle({ left: '5px', width: '595px' });
     });
 
+    it('sizes a widget by one edge without touching the other axis', () => {
+      render(<WidgetGroupSettings />);
+      fireEvent.change(card('Input').getByRole('spinbutton', { name: 'Y' }), {
+        target: { value: '-20' },
+      });
+
+      const edge = tile('input').querySelector('[data-resize-handle="e"]');
+      dragBy(edge as Element, 20, 0);
+
+      expect(tile('input')).toHaveStyle({
+        top: '-20px',
+        width: '140px',
+        height: '50px',
+      });
+    });
+
+    describe('a frame size typed after Reset layout', () => {
+      const typeHeight = () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Reset layout' }));
+        fireEvent.change(
+          screen.getByRole('spinbutton', { name: 'Group height' }),
+          { target: { value: '240' } }
+        );
+      };
+
+      it('waits for Save layout', () => {
+        render(<WidgetGroupSettings />);
+
+        typeHeight();
+        expect(
+          screen.getByRole('spinbutton', { name: 'Group height' })
+        ).toHaveValue(240);
+        expect(mocks.onDashboardUpdated).not.toHaveBeenCalled();
+        saveLayout();
+
+        expect(saved().group.layout.height).toBe(240);
+      });
+
+      it('goes with Revert', () => {
+        render(<WidgetGroupSettings />);
+
+        typeHeight();
+        fireEvent.click(screen.getByRole('button', { name: 'Revert' }));
+
+        expect(
+          screen.getByRole('spinbutton', { name: 'Group height' })
+        ).toHaveValue(300);
+        expect(mocks.onDashboardUpdated).not.toHaveBeenCalled();
+      });
+    });
+
     it('leaves the middle of a small widget free to drag', () => {
       render(<WidgetGroupSettings />);
       const size = { target: { value: '20' } };

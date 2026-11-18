@@ -32,10 +32,12 @@ import {
   removeWidgetGroupMember,
   resizeWidgetGroup,
   setWidgetGroupMembers,
+  sizedWidgetGroupFrame,
   stackWidgetGroupMembers,
   widgetGroupCandidates,
   widgetGroupFrameFor,
   widgetGroupScale,
+  type WidgetGroupFrameSize,
   type WidgetGroupMemberChange,
 } from './widgetGroupEdits';
 
@@ -113,6 +115,8 @@ interface LayoutDraft {
    * than the frame itself, so the frame follows the group's scale and size.
    */
   fitTo?: WidgetGroupMember[];
+  /** A size typed for that frame, which waits to be saved along with it. */
+  frameSize?: WidgetGroupFrameSize;
 }
 
 const WidgetGroupPage = ({
@@ -132,7 +136,10 @@ const WidgetGroupPage = ({
   const [draft, setDraft] = useState<LayoutDraft | null>(null);
   const members = draft?.members ?? savedMembers;
   const frame = draft?.fitTo
-    ? widgetGroupFrameFor(group, draft.fitTo)
+    ? sizedWidgetGroupFrame(
+        widgetGroupFrameFor(group, draft.fitTo),
+        draft.frameSize ?? {}
+      )
     : group.layout;
   const edited = setWidgetGroupMembers(dashboard, members, frame);
 
@@ -162,8 +169,13 @@ const WidgetGroupPage = ({
     const widget = widgetOf(id);
     return widget ? memberName(widget) : id;
   };
-  const resizeFrame = (size: { width?: number; height?: number }) =>
-    save(resizeWidgetGroup(dashboard, size));
+  const resizeFrame = (size: WidgetGroupFrameSize) => {
+    if (draft?.fitTo) {
+      setDraft({ ...draft, frameSize: { ...draft.frameSize, ...size } });
+    } else {
+      save(resizeWidgetGroup(dashboard, size));
+    }
+  };
   const resetLayout = () => {
     const stacked = stackWidgetGroupMembers(dashboard, members);
     setDraft({ members: stacked, fitTo: stacked });
