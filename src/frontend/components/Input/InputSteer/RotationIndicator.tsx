@@ -75,7 +75,7 @@ export function RotationIndicator({
       )}
 
       {showReadout && (
-        <div className="absolute top-1/8 text-xs text-white min-w-[2.5rem] text-center font-medium tabular-nums bg-black/40 rounded-md">
+        <div className="absolute top-1/8 text-xs text-white min-w-[2.5rem] text-center font-medium tabular-nums bg-slate-950/40 rounded-md">
           {angleText}
         </div>
       )}

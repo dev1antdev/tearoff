@@ -102,7 +102,7 @@ const Bar = memo(
           y={y + TIMELINE_BAR_PX / 2}
           textAnchor="middle"
           dominantBaseline="central"
-          className={`pointer-events-none text-[11px] ${
+          className={`pointer-events-none text-xs ${
             forecast
               ? // The text colour of the driver, taken as the letters' fill.
                 `fill-current ${driverTextClass(ownDriver(driverIndex))}`
@@ -202,7 +202,7 @@ export const TimelineChart = memo(
             className="stroke-white"
           />
         </svg>
-        <div className="relative mt-1 h-3.5 text-[0.6875rem] leading-none text-slate-400">
+        <div className="relative mt-1 h-3.5 text-xs leading-none text-slate-400">
           <span className="absolute left-0">start</span>
           {axis.ticks
             .filter(

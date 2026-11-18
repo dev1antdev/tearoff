@@ -54,7 +54,7 @@ export const PitSpeedBar = memo(
             />
           </div>
 
-          <div className="flex justify-center items-center text-[11px] w-full">
+          <div className="flex justify-center items-center text-xs w-full">
             <span className="text-slate-400">Speed</span>
           </div>
         </div>

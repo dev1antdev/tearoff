@@ -24,7 +24,7 @@ export const CarPanelHeader = memo(
       {carIdx !== null && (
         <CarChoiceSelect choices={choices} value={carIdx} onChange={onChoose} />
       )}
-      <span className="text-[11px] leading-5 whitespace-nowrap text-slate-400 tabular-nums">
+      <span className="text-xs leading-5 whitespace-nowrap text-slate-400 tabular-nums">
         {children}
       </span>
     </div>

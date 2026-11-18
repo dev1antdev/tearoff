@@ -56,7 +56,7 @@ export const CompassDial = memo(
               className="absolute inset-[14%] h-[72%] w-[72%] text-white/40"
             />
             {/* Inside the square at any turn: a little in from the edge. */}
-            <span className="absolute left-1/2 top-0 -translate-x-1/2 text-[0.6rem] font-bold leading-none text-white">
+            <span className="absolute left-1/2 top-0 -translate-x-1/2 text-2xs font-bold leading-none text-white">
               N
             </span>
           </div>

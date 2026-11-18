@@ -171,7 +171,7 @@ export const MirrorRow = memo(
         {relation === 'lapping' && (
           <span
             data-testid="traffic-laps"
-            className="flex-none rounded bg-sky-700 px-1 py-0.5 text-[10px] leading-none font-bold uppercase"
+            className="flex-none rounded bg-sky-700 px-1 py-0.5 text-2xs leading-none font-bold uppercase"
           >
             +{Math.max(1, lapsAhead)} lap{lapsAhead > 1 ? 's' : ''}
           </span>
@@ -179,7 +179,7 @@ export const MirrorRow = memo(
         {tag && (
           <span
             data-testid="traffic-tag"
-            className={`flex-none rounded px-1 py-0.5 text-[10px] leading-none font-bold uppercase ${tag.className}`}
+            className={`flex-none rounded px-1 py-0.5 text-2xs leading-none font-bold uppercase ${tag.className}`}
           >
             {tag.text}
           </span>
@@ -187,7 +187,7 @@ export const MirrorRow = memo(
         {more > 0 && (
           <span
             data-testid="traffic-more"
-            className="flex-none rounded bg-white/15 px-1 py-0.5 text-[10px] leading-none font-bold"
+            className="flex-none rounded bg-white/15 px-1 py-0.5 text-2xs leading-none font-bold"
           >
             +{more}
           </span>
@@ -205,7 +205,7 @@ export const MirrorRow = memo(
           data-testid="traffic-gap"
           className={`min-w-[3.2ch] flex-none text-right leading-none font-bold tabular-nums ${
             isHead ? 'text-xl' : 'text-base'
-          } ${urgent ? 'text-red-300' : ''}`}
+          } ${urgent ? 'text-red-400' : ''}`}
         >
           {gap}
           <span className="text-[0.6em] font-semibold text-slate-400"> s</span>
@@ -253,7 +253,9 @@ export const ContactTile = memo(
       data-testid="traffic-contact"
       className="flex min-w-0 flex-col gap-1 rounded bg-slate-900/70 px-1.5 py-1"
     >
-      <div className="flex min-w-0 items-baseline justify-between gap-1 text-[10px] leading-none">
+      {/* Wraps rather than cutting the caption short when a large font
+          size leaves the tile too narrow for both on one line. */}
+      <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-1 gap-y-0.5 text-2xs leading-none">
         <span className="truncate tracking-wide text-slate-400 uppercase">
           {caption}
         </span>

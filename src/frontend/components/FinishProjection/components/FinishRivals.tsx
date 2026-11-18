@@ -22,7 +22,7 @@ const FIGURE = {
 
 /** The captions over those columns. */
 export const FinishRivalsCaption = () => (
-  <div className="flex items-center gap-2 text-[0.65rem] font-medium uppercase leading-none tracking-wide text-slate-400">
+  <div className="flex items-center gap-2 text-2xs font-medium uppercase leading-none tracking-wide text-slate-400">
     <span className="min-w-0 flex-1 truncate">Class rivals</span>
     <span className={FIGURE.gap}>Now</span>
     <span className={FIGURE.stops}>Stops</span>

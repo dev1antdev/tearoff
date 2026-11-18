@@ -117,7 +117,7 @@ export const LapTimeRow = memo(
 
     const getLapColor = () => {
       if (live) return 'text-slate-300';
-      if (isDirty) return 'text-zinc-400';
+      if (isDirty) return 'text-slate-400';
       if (isYellow) return 'text-yellow-400';
       if (isPurple) return 'text-purple-400';
       if (isGreen) return 'text-green-400';
@@ -162,7 +162,7 @@ export const LapTimeRow = memo(
                   <GarageIcon data-mark="pit" className="text-slate-300" />
                 )}
                 {voided && (
-                  <XCircleIcon data-mark="void" className="text-zinc-400" />
+                  <XCircleIcon data-mark="void" className="text-slate-400" />
                 )}
                 {(yellow || caution) && (
                   <FlagIcon
@@ -201,7 +201,7 @@ export const LapTimeRow = memo(
                   ? 'text-green-400'
                   : deltaIsRed
                     ? 'text-red-400'
-                    : 'text-zinc-500'
+                    : 'text-slate-500'
               }`}
             >
               {formatDelta(time !== undefined && time > 0 ? delta : 0)}

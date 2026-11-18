@@ -115,7 +115,7 @@ const FlagPair = memo(
         <div
           data-testid="flag-distance"
           className={`flex items-center gap-1 text-2xl font-bold leading-none ${
-            distance ? (urgent ? 'text-red-300' : '') : 'text-slate-500'
+            distance ? (urgent ? 'text-red-400' : '') : 'text-slate-500'
           }`}
         >
           {closing && (

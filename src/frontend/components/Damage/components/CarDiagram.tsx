@@ -205,7 +205,7 @@ export const CarDiagram = memo(
             aria-label={`${readingLabel} ${readingValue}`}
             data-testid="damage-reading"
             data-tone={readingTone}
-            className={`text-[10px] font-bold tabular-nums ${READING_CLASS[readingTone]}`}
+            className={`text-2xs font-bold tabular-nums ${READING_CLASS[readingTone]}`}
           >
             {readingValue}
           </text>

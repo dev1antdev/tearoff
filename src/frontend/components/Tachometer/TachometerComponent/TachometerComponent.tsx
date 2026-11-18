@@ -305,7 +305,7 @@ export const Tachometer = ({
   // Match the RPM readout box exactly (text-2xl / 1.5em tall / px-4) so the
   // oil & water boxes are the same visual size.
   const tempBoxClass =
-    'bg-slate-800/(--bg-opacity) text-2xl flex min-w-[5em] font-mono font-bold px-4 rounded-lg whitespace-nowrap justify-center items-center gap-1';
+    'bg-slate-800/(--bg-opacity) text-2xl flex min-w-[5em] font-mono font-bold px-4 rounded-sm whitespace-nowrap justify-center items-center gap-1';
   const tempBoxStyle = {
     height: '1.5em',
     ['--bg-opacity' as string]: `${opacity ?? 80}%`,
@@ -325,10 +325,10 @@ export const Tachometer = ({
 
   const renderTemp = (label: string, value: number, warning: boolean) => (
     <div
-      className={`${tempBoxClass} ${warning ? 'text-red-500' : 'text-white'}`}
+      className={`${tempBoxClass} ${warning ? 'text-red-400' : 'text-white'}`}
       style={tempBoxStyle}
     >
-      <span className="text-[0.7em] text-gray-400">{label}</span>
+      <span className="text-[0.7em] text-slate-400">{label}</span>
       <span>{Math.round(value)}°C</span>
     </div>
   );
@@ -403,7 +403,7 @@ export const Tachometer = ({
             }}
           >
             <div
-              className="rounded-full w-full h-full border border-gray-600 transition-all duration-300"
+              className="rounded-full w-full h-full border border-slate-600 transition-all duration-300"
               style={{
                 backgroundColor: getLedColor(i),
                 boxShadow: isLedActive(i)
@@ -419,7 +419,7 @@ export const Tachometer = ({
         {shouldShowRpmBox && rpmOrientation === 'horizontal' && (
           <div
             id="rpm-text"
-            className={`bg-slate-800/(--bg-opacity) text-2xl absolute right-[-8em] flex min-w-[6em] font-mono font-bold text-white px-4 mx-2 rounded-lg transition-colors duration-200 whitespace-nowrap justify-center items-center`}
+            className={`bg-slate-800/(--bg-opacity) text-2xl absolute right-[-8em] flex min-w-[6em] font-mono font-bold text-white px-4 mx-2 rounded-sm transition-colors duration-200 whitespace-nowrap justify-center items-center`}
             style={{
               ...getRpmBoxStyle(),
               height: '2em',
@@ -449,7 +449,7 @@ export const Tachometer = ({
       {shouldShowRpmBox && rpmOrientation !== 'horizontal' && (
         <div
           id="rpm-text"
-          className={`bg-slate-800/(--bg-opacity) text-2xl flex min-w-[6em] font-mono font-bold text-white px-4 mx-2 rounded-lg transition-colors duration-200 whitespace-nowrap justify-center items-center`}
+          className={`bg-slate-800/(--bg-opacity) text-2xl flex min-w-[6em] font-mono font-bold text-white px-4 mx-2 rounded-sm transition-colors duration-200 whitespace-nowrap justify-center items-center`}
           style={{
             ...getRpmBoxStyle(),
             height: '1.5em',

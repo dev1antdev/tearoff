@@ -75,7 +75,7 @@ interface CellProps {
 const Cell = memo(({ caption, value, unit, toneClass }: CellProps) => (
   <div className="flex min-w-0 flex-auto flex-col items-center">
     {/* Cut short rather than run into its neighbour in a box too narrow. */}
-    <span className="max-w-full truncate text-[10px] uppercase leading-tight text-white/50">
+    <span className="max-w-full truncate text-2xs uppercase leading-tight text-white/50">
       {caption}
     </span>
     <span
@@ -85,7 +85,7 @@ const Cell = memo(({ caption, value, unit, toneClass }: CellProps) => (
     >
       {value}
       {unit !== undefined && value !== NO_READING && (
-        <span className="ml-0.5 text-[10px] font-normal text-white/50">
+        <span className="ml-0.5 text-2xs font-normal text-white/50">
           {unit}
         </span>
       )}

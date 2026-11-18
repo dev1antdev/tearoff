@@ -41,7 +41,7 @@ export const PitCountdownBar = memo(
               style={{ top: '0%' }}
             />
           </div>
-          <div className="flex justify-center items-center text-[11px] w-full">
+          <div className="flex justify-center items-center text-xs w-full">
             <span className="text-slate-400">{targetName}</span>
           </div>
         </div>

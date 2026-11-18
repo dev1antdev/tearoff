@@ -63,7 +63,7 @@ export const CarLapCaptions = memo(
     <div
       data-testid="car-laps-captions"
       // Stays put while the laps scroll under it, so it is opaque.
-      className={`${ROW} sticky top-0 z-10 border-b border-slate-600 bg-slate-800 py-1.5 text-[0.6875rem] leading-none font-medium tracking-wide text-slate-400 uppercase`}
+      className={`${ROW} sticky top-0 z-10 border-b border-slate-600 bg-slate-800 py-1.5 text-xs leading-none font-medium tracking-wide text-slate-400 uppercase`}
       style={carLapGrid({ sectors, energy })}
     >
       <span>Lap</span>
@@ -168,7 +168,7 @@ CarLapRow.displayName = 'CarLapRow';
 export const MissingLapsLine = memo(({ text }: { text: string }) => (
   <div
     data-testid="car-laps-missing"
-    className="border-b border-slate-700/60 px-3 py-1 text-[0.75rem] text-slate-500 italic"
+    className="border-b border-slate-700/60 px-3 py-1 text-sm text-slate-500 italic"
   >
     {text}
   </div>

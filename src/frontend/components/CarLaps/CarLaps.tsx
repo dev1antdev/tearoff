@@ -85,7 +85,7 @@ const CarLapsPanel = ({ settings }: { settings: CarLapsConfig }) => {
     <div
       data-testid="car-laps"
       data-car={car.carIdx}
-      className="flex h-full w-full flex-col overflow-hidden rounded bg-slate-800/(--bg-opacity) text-[0.8125rem] text-slate-200 tabular-nums"
+      className="flex h-full w-full flex-col overflow-hidden rounded bg-slate-800/(--bg-opacity) text-base text-slate-200 tabular-nums"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}
@@ -146,7 +146,7 @@ const CarLapsPanel = ({ settings }: { settings: CarLapsConfig }) => {
               )
             )}
             {rows.length < all.length && (
-              <div className="flex items-center justify-between gap-2 px-3 py-1.5 text-[0.75rem] text-slate-400">
+              <div className="flex items-center justify-between gap-2 px-3 py-1.5 text-sm text-slate-400">
                 <span data-testid="car-laps-older">
                   The {count(all.length - rows.length, 'older row')} are not
                   drawn.

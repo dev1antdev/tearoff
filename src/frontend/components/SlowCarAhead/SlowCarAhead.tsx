@@ -63,7 +63,9 @@ export const SlowCarAheadDisplay = ({
         className="w-full grid"
         style={{ height: `${settings.barThickness}px` }}
       >
-        <div className={`col-start-1 row-start-1 bg-black/20 rounded-full`} />
+        <div
+          className={`col-start-1 row-start-1 bg-slate-950/20 rounded-full`}
+        />
         <div
           id="left-line"
           className={`col-start-1 row-start-1 ${lineColor} rounded-full`}
@@ -71,7 +73,7 @@ export const SlowCarAheadDisplay = ({
         />
       </div>
       {/*Distance in the middle*/}
-      <div className="bg-black px-2 rounded-full">
+      <div className="bg-slate-950 px-2 rounded-full">
         <div className="text-base tabular-nums text-center min-w-[3ch]">
           {Math.round(distance)}
         </div>
@@ -81,7 +83,9 @@ export const SlowCarAheadDisplay = ({
         className="w-full grid"
         style={{ height: `${settings.barThickness}px` }}
       >
-        <div className={`col-start-1 row-start-1 bg-black/20 rounded-full`} />
+        <div
+          className={`col-start-1 row-start-1 bg-slate-950/20 rounded-full`}
+        />
         <div
           id="right-line"
           className={`col-start-1 row-start-1 ${lineColor} justify-self-end rounded-full`}

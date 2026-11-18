@@ -92,7 +92,7 @@ export const BlindSpotMonitorIndicator = ({
           <div
             className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${
               side === 'left' ? 'rotate-180' : ''
-            } bg-black/70 px-2 py-0.5 rounded-full text-amber-500 text-xs font-semibold whitespace-nowrap animate-blink text-shadow-md`}
+            } bg-slate-950/70 px-2 py-0.5 rounded-full text-amber-500 text-xs font-semibold whitespace-nowrap animate-blink text-shadow-md`}
             style={{
               writingMode: 'vertical-rl',
               textOrientation: 'mixed',

@@ -100,7 +100,7 @@ export const CrewDriverRow = memo(
           <span
             data-testid="crew-driver-status"
             data-tone={statusTone}
-            className={`w-32 flex-none text-right text-[0.6875rem] leading-none ${TONE_CLASS[statusTone]}`}
+            className={`w-32 flex-none text-right text-xs leading-none ${TONE_CLASS[statusTone]}`}
           >
             {status}
           </span>
@@ -114,7 +114,7 @@ CrewDriverRow.displayName = 'CrewDriverRow';
 /** The captions over the drivers. */
 export const CrewDriverCaptions = memo(() => (
   <div
-    className={`${CREW_DRIVER_GRID} py-1.5 text-[0.6875rem] leading-none font-medium tracking-wide text-slate-400 uppercase`}
+    className={`${CREW_DRIVER_GRID} py-1.5 text-xs leading-none font-medium tracking-wide text-slate-400 uppercase`}
   >
     <span>Driver</span>
     <span className="text-right">Stints</span>

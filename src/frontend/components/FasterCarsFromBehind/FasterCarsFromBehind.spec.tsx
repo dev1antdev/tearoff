@@ -159,7 +159,7 @@ describe('FasterCarsFromBehind', () => {
     vi.mocked(useCarBehind).mockReturnValue([{ ...car, distance: -0.3 }]);
     render(<FasterCarsFromBehind />);
     expect(screen.getByLabelText('0.3 seconds behind')).toHaveClass(
-      'text-red-300'
+      'text-red-400'
     );
     expect(screen.getByRole('listitem')).not.toHaveClass('animate-pulse');
   });
@@ -179,7 +179,7 @@ describe('FasterCarsFromBehind', () => {
     const cards = screen.getAllByRole('listitem');
     expect(within(cards[0]).getByText('Further Driver')).toBeInTheDocument();
     expect(within(cards[1]).getByText(car.name)).toBeInTheDocument();
-    expect(cards[1]).toHaveClass('bg-settings-control');
+    expect(cards[1]).toHaveClass('bg-slate-800');
   });
 
   it('respects name cleanup and optional badge and gap visibility', () => {

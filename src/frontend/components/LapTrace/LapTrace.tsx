@@ -69,7 +69,7 @@ const RecordingProgress = () => {
           style={{ width: `${percent}%` }}
         />
       </div>
-      <span className="text-slate-500 text-[10px] tabular-nums">
+      <span className="text-slate-500 text-2xs tabular-nums">
         Recording {percent}%
       </span>
     </>
@@ -252,12 +252,12 @@ export const LapTrace = (props: LapTraceProps) => {
         backgroundColor: `rgba(15, 23, 42, ${config.background.opacity})`,
       }}
     >
-      <div className="flex-none flex items-baseline gap-2 text-[11px] leading-none mb-1">
+      <div className="flex-none flex items-baseline gap-2 text-xs leading-none mb-1">
         {/* An imported lap (Garage 61 or .ibt) is labelled with its driver - car - track
             info, which can be longer than the widget. Use a smaller font size and cap
             width so lap time stays readable. */}
         <span
-          className="text-slate-400 uppercase tracking-wide max-w-[65%] truncate text-[9px]"
+          className="text-slate-400 uppercase tracking-wide max-w-[65%] truncate text-2xs"
           title={referenceLap?.source.label ?? undefined}
         >
           {referenceLap?.source.label ?? 'Lap Trace'}
@@ -293,11 +293,11 @@ export const LapTrace = (props: LapTraceProps) => {
             (isWatchingOwnCarTelemetry ? (
               // A team-mate's lap is never the reference, whatever else
               // could be said of it.
-              <span className="text-slate-500 text-[10px]">
+              <span className="text-slate-500 text-2xs">
                 {WATCHED_LAP_MESSAGE}
               </span>
             ) : invalidReason ? (
-              <span className="text-slate-500 text-[10px]">
+              <span className="text-slate-500 text-2xs">
                 {invalidLapMessage(invalidReason)}
               </span>
             ) : (

@@ -161,7 +161,7 @@ export const ChartLegend = memo(({ entries, roomy }: ChartLegendProps) => {
   return (
     // The room around the list is here and not on it: a list cut at its
     // second line would show the top of a third in its own padding.
-    <div className="flex-none px-2 pb-1.5 text-[11px] leading-4 text-slate-300">
+    <div className="flex-none px-2 pb-1.5 text-xs leading-4 text-slate-300">
       <ul
         ref={fit.target}
         data-testid="race-charts-legend"

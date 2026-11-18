@@ -13,7 +13,7 @@ export const RatingChange = ({
 }: RatingChangeProps) => {
   if (value === undefined || isNaN(value)) {
     return (
-      <span className="text-gray-400">
+      <span className="text-slate-400">
         <MinusIcon size={10} />
       </span>
     );
@@ -21,7 +21,7 @@ export const RatingChange = ({
 
   const roundedChange = Math.round(value);
   let text: string;
-  let color = 'text-gray-400';
+  let color = 'text-slate-400';
   let icon: React.ReactNode;
 
   if (roundedChange > 0) {

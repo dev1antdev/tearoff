@@ -219,7 +219,7 @@ export const FuelCalculatorDisplay = ({
   const hasSettings = !!settings;
 
   // Safety fallback
-  if (!hasSettings) return <div className="text-red-500">Missing Settings</div>;
+  if (!hasSettings) return <div className="text-red-400">Missing Settings</div>;
 
   if (
     !editMode &&
@@ -369,7 +369,7 @@ export const FuelCalculatorDisplay = ({
       {layoutTree ? (
         <RecursiveWidgetRenderer node={layoutTree} />
       ) : (
-        <div className="text-red-500">Layout Error</div>
+        <div className="text-red-400">Layout Error</div>
       )}
     </div>
   );

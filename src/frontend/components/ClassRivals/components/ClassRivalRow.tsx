@@ -90,7 +90,7 @@ export const ClassRivalCaptions = memo(
     <div
       data-testid="class-rivals-captions"
       // Stays put while the cars scroll under it, so it is opaque.
-      className={`${ROW} sticky top-0 z-10 border-b border-slate-600 bg-slate-800 py-1.5 text-[0.6875rem] font-medium uppercase leading-none tracking-wide text-slate-400`}
+      className={`${ROW} sticky top-0 z-10 border-b border-slate-600 bg-slate-800 py-1.5 text-xs font-medium uppercase leading-none tracking-wide text-slate-400`}
       style={classRivalGrid(columns)}
     >
       <span>P</span>

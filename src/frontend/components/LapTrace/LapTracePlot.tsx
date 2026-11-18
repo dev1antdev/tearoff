@@ -420,7 +420,7 @@ export const LapTracePlot = memo(
 
         {/* "0" sits above the car marker, which is only centred when
             metersBehind equals metersAhead — not fixed at the midpoint. */}
-        <div className="flex-none relative h-3 text-[10px] leading-none text-slate-500 tabular-nums px-0.5 pt-0.5">
+        <div className="flex-none relative h-3 text-2xs leading-none text-slate-500 tabular-nums px-0.5 pt-0.5">
           <span className="absolute left-0.5">
             -{Math.round(metersBehind)}m
           </span>

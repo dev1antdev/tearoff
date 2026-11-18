@@ -1,5 +1,5 @@
 import type { Decorator } from '@storybook/react-vite';
-import { useEffect, useRef, type ComponentType } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   getWidgetManifest,
   pitWallHostedDashboard,
@@ -142,32 +142,36 @@ export const strategyStory = <K extends StrategyWidgetId>(
     height: layout?.height ?? 300,
   };
   const decorators: Decorator[] = [
-    (Story: ComponentType) => (
-      <DashboardProvider bridge={bridge}>
-        {panel ? (
-          // A grid, as the page is: the panel takes the size of its cell,
-          // inside the page's own margin.
-          <div
-            className="grid bg-settings-page p-3"
-            style={{
-              width: panel.width + PAGE_MARGIN_PX * 2,
-              height: panel.height + PAGE_MARGIN_PX * 2,
-            }}
-          >
-            <PanelHost widgetId={widgetId} />
-          </div>
-        ) : (
-          // The widget fills its overlay window, so the story supplies one
-          // with the overlay's own type scale.
-          <div
-            className="overlay-window overlay-theme-sm overlay-theme-font-face-lato overlay-theme-font-weight-normal"
-            style={box}
-          >
-            <Story />
-          </div>
-        )}
-      </DashboardProvider>
-    ),
+    (Story, context) => {
+      // The overlay's type scale at the default size, or at the size chosen
+      // in the toolbar's Overlay size.
+      const chosen = String(context.globals.overlaySize ?? 'off');
+      const theme = `overlay-window overlay-theme-${chosen === 'off' ? 'sm' : chosen} overlay-theme-font-face-lato overlay-theme-font-weight-normal`;
+      return (
+        <DashboardProvider bridge={bridge}>
+          {panel ? (
+            // A grid, as the page is: the panel takes the size of its cell,
+            // inside the page's own margin. The Pit Wall window sits in the
+            // overlay theme, as the overlays do.
+            <div
+              className={`grid bg-settings-page p-3 ${theme}`}
+              style={{
+                width: panel.width + PAGE_MARGIN_PX * 2,
+                height: panel.height + PAGE_MARGIN_PX * 2,
+              }}
+            >
+              <PanelHost widgetId={widgetId} />
+            </div>
+          ) : (
+            // The widget fills its overlay window, so the story supplies one
+            // with the overlay's own type scale.
+            <div className={theme} style={box}>
+              <Story />
+            </div>
+          )}
+        </DashboardProvider>
+      );
+    },
     RaceHistoryBridgeDecorator(stints),
     ChannelSnapshotDecorator(snapshots),
   ];

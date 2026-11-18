@@ -101,7 +101,7 @@ export const StintTimeline = () => {
           {settings.showLegend && (
             <p
               data-testid="stint-timeline-legend"
-              className="mt-2 flex-none text-[0.6875rem] leading-snug text-slate-400"
+              className="mt-2 flex-none text-xs leading-snug text-slate-400"
             >
               Filled: driven. Dashed: forecast from each car’s next stop and
               stint length; none where that is not known. White line: now.
@@ -112,7 +112,7 @@ export const StintTimeline = () => {
       ) : (
         <p
           data-testid="stint-timeline-reason"
-          className="flex min-h-0 flex-1 items-center justify-center text-center text-[0.75rem] text-slate-400"
+          className="flex min-h-0 flex-1 items-center justify-center text-center text-sm text-slate-400"
         >
           {forecast?.valid
             ? 'Waiting for the end of the race to be known.'

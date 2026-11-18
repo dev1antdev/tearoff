@@ -135,7 +135,7 @@ export const BrakeCueBars = ({
     <span
       ref={distanceRef}
       data-testid="brake-cue-distance"
-      className={`text-[9px] ${distanceTextClassName}`}
+      className={`text-2xs ${distanceTextClassName}`}
     />
   );
 

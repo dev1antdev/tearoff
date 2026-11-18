@@ -50,7 +50,10 @@ const TowerPanel = ({ width, height }: TowerPanelProps) => {
   if (!widget) return null;
   return (
     // The page behind a panel, and a grid cell of the size asked for.
-    <div className="grid bg-settings-page p-3" style={{ width, height }}>
+    <div
+      className="grid bg-settings-page p-3 overlay-window overlay-theme-sm overlay-theme-font-face-lato overlay-theme-font-weight-normal"
+      style={{ width, height }}
+    >
       <PitWallPanel title="Timing Tower" onOpenSettings={() => undefined}>
         <PanelContent
           widget={widget}
