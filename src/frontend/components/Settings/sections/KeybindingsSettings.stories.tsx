@@ -2,14 +2,17 @@ import { Meta, StoryObj } from '@storybook/react-vite';
 import { DashboardProvider } from '@irdashies/context';
 import { mockDashboardBridge, TelemetryDecorator } from '@irdashies/storybook';
 import { DEFAULT_KEYBINDINGS, KEYBINDING_MESSAGES } from '@irdashies/types';
-import type { KeybindingsBridge } from '@irdashies/types';
+import type { KeybindingsBridge, KeybindingsMap } from '@irdashies/types';
 import { KeybindingsSettings } from './KeybindingsSettings';
 
 const mockKeybindings =
-  (unavailable = false) =>
+  (unavailable = false, more: Partial<KeybindingsMap> = {}) =>
   () => {
     const original = window.keybindingsBridge;
-    let bindings = structuredClone(DEFAULT_KEYBINDINGS);
+    let bindings: KeybindingsMap = {
+      ...structuredClone(DEFAULT_KEYBINDINGS),
+      ...more,
+    };
     window.keybindingsBridge = {
       getKeybindings: async () => bindings,
       getRegistrationErrors: async () =>
@@ -60,4 +63,16 @@ type Story = StoryObj<typeof KeybindingsSettings>;
 export const Default: Story = { beforeEach: mockKeybindings() };
 export const PersistedUnavailable: Story = {
   beforeEach: mockKeybindings(true),
+};
+
+/** A key still held by a widget group that has been deleted. */
+export const WidgetNotInThisProfile: Story = {
+  beforeEach: mockKeybindings(false, {
+    'toggle-widget:widgetgroup-2': {
+      accelerator: 'Alt+G',
+      label: 'Widget Group 2',
+      description: 'Show / hide the Widget Group 2 widget',
+      isDefault: false,
+    },
+  }),
 };
