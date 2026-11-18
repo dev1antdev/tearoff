@@ -9,7 +9,7 @@ vi.mock('@irdashies/context', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@irdashies/context')>();
   return {
     ...actual,
-    useActiveSimulator: vi.fn(),
+    useActiveSimulatorStatus: vi.fn(),
     useSessionStore: vi.fn(),
     useDriverCarIdx: vi.fn(),
     useDriverControlsSnapshot: vi.fn(),
@@ -22,10 +22,15 @@ const mockUseDriverCarIdx = vi.mocked(Context.useDriverCarIdx);
 const mockUseDriverControlsSnapshot = vi.mocked(
   Context.useDriverControlsSnapshot
 );
+const mockUseSimulatorStatus = vi.mocked(Context.useActiveSimulatorStatus);
 
 describe('useCarTachometerData', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseSimulatorStatus.mockReturnValue({
+      simulator: 'iracing',
+      loaded: true,
+    });
 
     // Default mocks
     mockUseDriverCarIdx.mockReturnValue(0);
@@ -94,7 +99,6 @@ describe('useCarTachometerData', () => {
         })) as unknown as typeof Context.useSessionStore);
 
     beforeEach(() => {
-      vi.mocked(Context.useActiveSimulator).mockReturnValue('iracing');
       vi.mocked(loadCarData).mockReturnValue(bundledCar);
     });
 
@@ -108,7 +112,10 @@ describe('useCarTachometerData', () => {
     });
 
     it('leaves out an LMU car, whatever its file is called', () => {
-      vi.mocked(Context.useActiveSimulator).mockReturnValue('lmu');
+      mockUseSimulatorStatus.mockReturnValue({
+        simulator: 'lmu',
+        loaded: true,
+      });
       driving({ CarPath: 'ferrari_296_gt3' });
 
       const { result } = renderHook(() => useCarTachometerData());

@@ -6,11 +6,15 @@ import { usePlayerCar } from './usePlayerCar';
 
 const state = vi.hoisted(() => ({
   simulator: null as string | null,
+  loaded: true,
   driver: undefined as { CarPath?: string; CarModel?: string } | undefined,
 }));
 
 vi.mock('@irdashies/context', () => ({
-  useActiveSimulator: () => state.simulator,
+  useActiveSimulatorStatus: () => ({
+    simulator: state.simulator,
+    loaded: state.loaded,
+  }),
   useSessionStore: (selector: (store: unknown) => unknown) =>
     selector({
       session: {
@@ -33,6 +37,7 @@ describe('usePlayerCar', () => {
     vi.clearAllMocks();
     vi.mocked(loadCarData).mockReturnValue(bundledCar);
     state.simulator = 'iracing';
+    state.loaded = true;
     state.driver = { CarPath: 'Ferrari 296 GT3' };
   });
 
@@ -88,8 +93,20 @@ describe('usePlayerCar', () => {
     expect(result.current.carId).toBeUndefined();
   });
 
-  it('trusts a model before the simulator has been detected', () => {
+  it('does not trust a path before the simulator is known', () => {
     state.simulator = null;
+    state.loaded = false;
+    state.driver = { CarPath: 'ferrari_296_gt3' };
+
+    const { result } = renderHook(() => usePlayerCar());
+
+    expect(loadCarData).not.toHaveBeenCalled();
+    expect(result.current.carId).toBeUndefined();
+  });
+
+  it('trusts a model before the simulator is known', () => {
+    state.simulator = null;
+    state.loaded = false;
     state.driver = { CarPath: 'ferrari_296_gt3', CarModel: 'Ferrari 296 LMGT3' };
 
     const { result } = renderHook(() => usePlayerCar());

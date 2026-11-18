@@ -17,6 +17,10 @@ vi.mock('@irdashies/context', async () => {
       onDashboardUpdated: mocks.onDashboardUpdated,
     }),
     useActiveSimulator: () => mocks.simulator,
+    useActiveSimulatorStatus: () => ({
+      simulator: mocks.simulator,
+      loaded: true,
+    }),
     useSimWidgetSupport: () => DEFAULT_SIM_WIDGET_SUPPORT,
     useSessionStore: (selector: (state: { session: unknown }) => unknown) =>
       selector({ session: mocks.session }),

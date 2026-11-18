@@ -9,7 +9,7 @@ vi.mock('@irdashies/context', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@irdashies/context')>();
   return {
     ...actual,
-    useActiveSimulator: vi.fn(),
+    useActiveSimulatorStatus: vi.fn(),
     useChannelSelector: vi.fn(),
     useDashboard: vi.fn(),
     useSessionStore: vi.fn(),
@@ -21,7 +21,7 @@ vi.mock('@irdashies/utils/carData', async (importOriginal) => {
   return { ...actual, loadCarData: vi.fn() };
 });
 
-const mockSimulator = vi.mocked(Context.useActiveSimulator);
+const mockSimulator = vi.mocked(Context.useActiveSimulatorStatus);
 const mockSelector = vi.mocked(Context.useChannelSelector);
 const mockDashboard = vi.mocked(Context.useDashboard);
 const mockSessionStore = vi.mocked(Context.useSessionStore);
@@ -83,7 +83,7 @@ const setRpm = (rpm: number, gear = 2) =>
 describe('useShiftFlashActive', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockSimulator.mockReturnValue(null);
+    mockSimulator.mockReturnValue({ simulator: null, loaded: true });
     sessionState.session.DriverInfo.Drivers[0].CarModel = undefined;
     setTachometerConfig({ shiftPointSettings });
     mockSessionStore.mockImplementation(((
@@ -171,7 +171,7 @@ describe('useShiftFlashActive', () => {
   });
 
   it('finds nothing for an LMU car whose model has not arrived', () => {
-    mockSimulator.mockReturnValue('lmu');
+    mockSimulator.mockReturnValue({ simulator: 'lmu', loaded: true });
     setRpm(6200);
     const { result } = renderHook(() =>
       useShiftFlashActive(true, 'shiftPoints')

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useActiveSimulator, useSessionStore } from '@irdashies/context';
+import { useActiveSimulatorStatus, useSessionStore } from '@irdashies/context';
 import { loadCarData } from '@irdashies/utils/carData';
 
 /**
@@ -9,17 +9,17 @@ import { loadCarData } from '@irdashies/utils/carData';
  * `carId` is the key its settings are saved under: the model where the sim
  * names one, otherwise the bundled id, otherwise the path. The bundled data is
  * iRacing's, and LMU's CarPath is a livery's file, which can read like an
- * iRacing car. So under LMU the path counts for nothing, and a car whose model
- * has not arrived yet has no key at all.
+ * iRacing car. So the path counts only once the running sim is known not to be
+ * LMU, and an LMU car whose model has not arrived yet has no key at all.
  */
 export const usePlayerCar = (enabled = true) => {
-  const isLmu = useActiveSimulator() === 'lmu';
+  const { simulator, loaded } = useActiveSimulatorStatus();
   const driver = useSessionStore((state) => {
     const info = state.session?.DriverInfo;
     return info?.Drivers?.find((d) => d.CarIdx === info.DriverCarIdx);
   });
   const carModel = driver?.CarModel || undefined;
-  const carPath = isLmu ? undefined : driver?.CarPath;
+  const carPath = loaded && simulator !== 'lmu' ? driver?.CarPath : undefined;
   const carData = useMemo(
     () => (enabled && carPath && !carModel ? loadCarData(carPath) : null),
     [enabled, carPath, carModel]
