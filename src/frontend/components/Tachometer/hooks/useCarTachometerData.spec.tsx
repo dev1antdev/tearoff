@@ -2,12 +2,14 @@ import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useCarTachometerData } from './useCarTachometerData';
 import * as Context from '@irdashies/context';
+import { loadCarData, type CarData } from '../../../utils/carData';
 
 // Mock the dependencies
 vi.mock('@irdashies/context', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@irdashies/context')>();
   return {
     ...actual,
+    useActiveSimulatorStatus: vi.fn(),
     useSessionStore: vi.fn(),
     useDriverCarIdx: vi.fn(),
     useDriverControlsSnapshot: vi.fn(),
@@ -20,10 +22,15 @@ const mockUseDriverCarIdx = vi.mocked(Context.useDriverCarIdx);
 const mockUseDriverControlsSnapshot = vi.mocked(
   Context.useDriverControlsSnapshot
 );
+const mockUseSimulatorStatus = vi.mocked(Context.useActiveSimulatorStatus);
 
 describe('useCarTachometerData', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseSimulatorStatus.mockReturnValue({
+      simulator: 'iracing',
+      loaded: true,
+    });
 
     // Default mocks
     mockUseDriverCarIdx.mockReturnValue(0);
@@ -74,5 +81,47 @@ describe('useCarTachometerData', () => {
     expect(result.current.carData).toBeNull();
     expect(result.current.hasCarData).toBe(false);
     expect(result.current.gearRpmThresholds).toBeNull();
+  });
+
+  describe('which cars are looked up in the bundled data', () => {
+    const bundledCar = { carId: 'ferrari296gt3', ledRpm: [{}] } as CarData;
+    const driving = (driver: { CarPath: string; CarModel?: string }) =>
+      mockUseSessionStore.mockImplementation(((
+        selector: (state: unknown) => unknown
+      ) =>
+        selector({
+          session: {
+            DriverInfo: {
+              DriverCarIdx: 0,
+              Drivers: [{ CarIdx: 0, ...driver }],
+            },
+          },
+        })) as unknown as typeof Context.useSessionStore);
+
+    beforeEach(() => {
+      vi.mocked(loadCarData).mockReturnValue(bundledCar);
+    });
+
+    it('finds an iRacing car by its path', () => {
+      driving({ CarPath: 'ferrari296gt3' });
+
+      const { result } = renderHook(() => useCarTachometerData());
+
+      expect(loadCarData).toHaveBeenCalledWith('ferrari296gt3');
+      expect(result.current.carData).toBe(bundledCar);
+    });
+
+    it('leaves out an LMU car, whatever its file is called', () => {
+      mockUseSimulatorStatus.mockReturnValue({
+        simulator: 'lmu',
+        loaded: true,
+      });
+      driving({ CarPath: 'ferrari_296_gt3' });
+
+      const { result } = renderHook(() => useCarTachometerData());
+
+      expect(loadCarData).not.toHaveBeenCalled();
+      expect(result.current.carData).toBeNull();
+    });
   });
 });
