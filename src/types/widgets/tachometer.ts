@@ -23,6 +23,7 @@ export default defineWidgetManifest({
       indicatorColor: '#00ff00',
       carConfigs: {},
     },
+    ledRpmOverrides: {},
     background: { opacity: 80 },
     showOnlyWhenOnTrack: true,
     sessionVisibility: {
@@ -55,7 +56,8 @@ export default defineWidgetManifest({
     showOnlyWhenOnTrack: {
       type: 'boolean',
       label: 'Show only when on track',
-      description: 'If enabled, tachometer will only be shown when driving',
+      description:
+        "Hidden in the garage and in the menus. Shown while you drive, and while you watch your own car with a team-mate driving it, where the sim sends that car's revs.",
     },
   },
 });

@@ -174,6 +174,10 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // operating system. LMU publishes no frame rate and no CPU or GPU meters,
   // so the widget leaves its Sim row out here.
   'systemperformance',
+  // Revs and the rev limit from LMU's telemetry block, with the thresholds
+  // the Shift Light uses. The car-specific LEDs are bundled for iRacing only,
+  // so LMU cars get the standard scale, which can be set by hand per car.
+  'tachometer',
   // Not a sim-specific widget: it reports whatever channels the running sim
   // publishes, which is how LMU's own mapping gets checked. It is also the
   // one widget absent from the settings menu, so there would be no toggle to
@@ -255,7 +259,6 @@ export const LMU_DISABLED_WIDGETS: readonly string[] = [
   // Race plans name drivers by iRacing customer id.
   'stintplan',
   'strategytimeline',
-  'tachometer',
   'streamchat',
   // LMU simulates no wind: its wind vector is always zero.
   'wind',
@@ -289,7 +292,7 @@ export const DEFAULT_SIM_WIDGET_SUPPORT: SimWidgetSupportConfig = {
  * it did, which costs a user their hand edits once per change and is why the
  * number is bumped only for a real one.
  */
-export const SIM_WIDGET_SUPPORT_VERSION = 16;
+export const SIM_WIDGET_SUPPORT_VERSION = 17;
 
 /**
  * Whether a widget is unavailable under the running sim.

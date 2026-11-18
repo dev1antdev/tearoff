@@ -6,6 +6,16 @@ import {
   trackStateStorySnapshot,
 } from '@irdashies/storybook';
 
+const driverControls = {
+  gear: 4,
+  rpm: 6200,
+  shiftGrindRpm: 7600,
+  shiftRpm: 6900,
+  blinkRpm: 7400,
+  engineWarnings: 0,
+  version: 1,
+};
+
 const meta: Meta<typeof Tachometer> = {
   component: Tachometer,
   title: 'widgets/Tachometer/components/Widget',
@@ -14,15 +24,9 @@ const meta: Meta<typeof Tachometer> = {
     ChannelSnapshotDecorator({
       'track-state.snapshot': trackStateStorySnapshot,
       'driver-controls.snapshot': {
-        gear: 4,
-        rpm: 6200,
-        shiftGrindRpm: 7600,
-        shiftRpm: 6900,
-        blinkRpm: 7400,
+        ...driverControls,
         oilTemp: 105,
         waterTemp: 92,
-        engineWarnings: 0,
-        version: 1,
       },
     }),
   ],
@@ -38,4 +42,15 @@ export const Primary: Story = {
     </div>
   ),
   args: {},
+};
+
+/** A team-mate's stint under LMU: the revs arrive, the temperatures do not. */
+export const WithoutTemperatures: Story = {
+  ...Primary,
+  decorators: [
+    ChannelSnapshotDecorator({
+      'track-state.snapshot': trackStateStorySnapshot,
+      'driver-controls.snapshot': driverControls,
+    }),
+  ],
 };
