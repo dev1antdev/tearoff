@@ -346,4 +346,103 @@ describe('Tachometer', () => {
     );
     expect(screen.queryByText('SHIFT')).not.toBeInTheDocument();
   });
+
+  it('finds custom shift points by the car model where the sim sets one', () => {
+    render(
+      <Tachometer
+        rpm={7100}
+        maxRpm={8000}
+        gear={1}
+        carPath="ferrari_296_gt3_livery"
+        carModel="Ferrari 296 LMGT3"
+        shiftPointSettings={{
+          ...mockShiftSettings,
+          carConfigs: {
+            'Ferrari 296 LMGT3': mockShiftSettings.carConfigs.ferrari296gt3,
+          },
+        }}
+      />
+    );
+    expect(screen.getByText('SHIFT')).toBeInTheDocument();
+  });
+
+  describe('with LED thresholds set by hand', () => {
+    const DARK = 'rgb(31, 41, 55)';
+    const PURPLE = 'rgb(168, 85, 247)';
+    const FLASH_PURPLE = 'rgb(147, 51, 234)';
+    const override = {
+      carName: 'Ferrari 296 LMGT3',
+      firstRpm: 6000,
+      fullRpm: 6900,
+      blinkRpm: 7500,
+    };
+    const ledRpmOverrides = { 'Ferrari 296 LMGT3': override };
+
+    const ledColors = (container: HTMLElement) =>
+      Array.from(
+        container.querySelectorAll<HTMLElement>('.rounded-full.border')
+      ).map((led) => led.style.backgroundColor);
+    const litCount = (container: HTMLElement) =>
+      ledColors(container).filter((color) => color !== DARK).length;
+    const renderAt = (rpm: number, maxRpm = 8500) =>
+      render(
+        <Tachometer
+          rpm={rpm}
+          maxRpm={maxRpm}
+          shiftRpm={8000}
+          blinkRpm={8200}
+          carModel="Ferrari 296 LMGT3"
+          ledRpmOverrides={ledRpmOverrides}
+        />
+      ).container;
+
+    it('keeps every LED dark below the first threshold', () => {
+      expect(litCount(renderAt(5999))).toBe(0);
+    });
+
+    it('spreads the LEDs evenly up to the full scale', () => {
+      // One LED every 100 RPM from 6000: 6000 to 6400 are lit at 6450.
+      expect(litCount(renderAt(6450))).toBe(5);
+    });
+
+    it('turns every LED purple at the full scale', () => {
+      expect(ledColors(renderAt(6900))).toEqual(Array(10).fill(PURPLE));
+    });
+
+    it('flashes at its own threshold', () => {
+      expect(ledColors(renderAt(7500))).toEqual(Array(10).fill(FLASH_PURPLE));
+    });
+
+    it('takes the place of the thresholds of the car data', () => {
+      const { container } = render(
+        <Tachometer
+          rpm={5000}
+          maxRpm={8500}
+          carData={mockCarData}
+          gearRpmThresholds={[7500, 4500, 4600, 4700, 4800, 4900, 5000]}
+          ledRpmOverrides={{ ferrari296gt3: override }}
+        />
+      );
+      expect(litCount(container)).toBe(0);
+    });
+
+    it('reaches a threshold above the limit the sim reports', () => {
+      expect(ledColors(renderAt(7500, 6500))).toEqual(
+        Array(10).fill(FLASH_PURPLE)
+      );
+    });
+
+    it('leaves other cars on their automatic thresholds', () => {
+      const { container } = render(
+        <Tachometer
+          rpm={5000}
+          maxRpm={8500}
+          shiftRpm={7650}
+          carModel="BMW M4 LMGT3"
+          ledRpmOverrides={ledRpmOverrides}
+        />
+      );
+      expect(litCount(container)).toBeGreaterThan(0);
+    });
+  });
 });

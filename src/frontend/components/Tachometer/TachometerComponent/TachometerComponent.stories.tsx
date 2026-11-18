@@ -255,6 +255,31 @@ export const Temperatures: Story = {
   render: () => <TemperatureDemo />,
 };
 
+/** The scale between thresholds set by hand in the settings. */
+export const LedThresholds: Story = {
+  args: {
+    rpm: 6500,
+    maxRpm: 8500,
+    showRpmText: true,
+    showOilTemp: false,
+    showWaterTemp: false,
+    carModel: 'Ferrari 296 LMGT3',
+    ledRpmOverrides: {
+      'Ferrari 296 LMGT3': {
+        carName: 'Ferrari 296 LMGT3',
+        firstRpm: 6000,
+        fullRpm: 7000,
+        blinkRpm: 7200,
+      },
+    },
+  },
+  render: (args) => (
+    <div className="h-30 w-150">
+      <Tachometer {...args} />
+    </div>
+  ),
+};
+
 export const CustomShiftPointDemo: Story = {
   render: () => <CustomShiftPointDemos />,
 };

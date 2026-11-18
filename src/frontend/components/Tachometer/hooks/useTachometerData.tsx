@@ -1,4 +1,5 @@
 import { useDriverControlsSnapshot, useSessionStore } from '@irdashies/context';
+import { usePlayerCar } from '@irdashies/domain/shiftLight/usePlayerCar';
 import { useCarTachometerData } from './useCarTachometerData';
 
 /**
@@ -10,8 +11,9 @@ export const useTachometerData = () => {
   const rpm = snapshot?.rpm ?? 0;
   const gear = snapshot?.gear ?? 1;
   const shiftGrindRpm = snapshot?.shiftGrindRpm ?? 0;
-  const oilTemp = snapshot?.oilTemp ?? 0;
-  const waterTemp = snapshot?.waterTemp ?? 0;
+  // Absent, not 0, where the sim sends none: a car the user is not in.
+  const oilTemp = snapshot?.oilTemp;
+  const waterTemp = snapshot?.waterTemp;
   const engineWarnings = snapshot?.engineWarnings ?? 0;
   const { carData, gearRpmThresholds, hasCarData } = useCarTachometerData(gear);
 
@@ -19,15 +21,7 @@ export const useTachometerData = () => {
   const driverCarRedLine = useSessionStore(
     (state) => state.session?.DriverInfo?.DriverCarRedLine
   );
-  const driverCarIdx = useSessionStore(
-    (state) => state.session?.DriverInfo?.DriverCarIdx
-  );
-  const carPath = useSessionStore((state) => {
-    const drivers = state.session?.DriverInfo?.Drivers;
-    if (!drivers || driverCarIdx === undefined) return undefined;
-    const driver = drivers.find((d) => d.CarIdx === driverCarIdx);
-    return driver?.CarPath;
-  });
+  const { carPath, carModel } = usePlayerCar();
 
   // Use car-specific maximum RPM from multiple sources in order of preference
   const maxRpm =
@@ -53,5 +47,6 @@ export const useTachometerData = () => {
     gearRpmThresholds,
     hasCarData,
     carPath, // CarPath for custom shift points (matches lovely-car-data)
+    carModel,
   };
 };

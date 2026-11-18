@@ -145,6 +145,10 @@ describe('per-simulator widget support', () => {
     });
   });
 
+  it('offers the Tachometer under LMU', () => {
+    expect(isWidgetDisabledForSim(config, 'tachometer', 'lmu')).toBe(false);
+  });
+
   it('accounts for every widget in the build under LMU', () => {
     // The guard that makes two hand-kept lists safe. A widget added to the app
     // and to neither list would quietly appear under LMU unverified; one added
