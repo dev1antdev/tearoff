@@ -14,6 +14,7 @@ vi.mock('@irdashies/context', () => ({
   usePitLapStoreUpdater: vi.fn(),
   useWidgetsForThisDisplay: vi.fn(() => []),
   useHiddenWidgetIds: vi.fn(() => new Set()),
+  useContainerOffset: () => ({ x: 0, y: 0 }),
   rendersInOwnWindow: (widget: { id: string; type?: string }) =>
     (widget.type || widget.id) === 'gantry',
   TopSpeedStoreUpdater: vi.fn(),
