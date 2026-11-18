@@ -4,7 +4,9 @@ import {
   canJoinWidgetGroup,
   defaultDashboard,
   findWidgetGroup,
+  isWidgetGroup,
   normalizeWidgetScale,
+  sanitizeWidgetGroupMembers,
   widgetGroupMemberIds,
   widgetGroupMembers,
   widgetGroups,
@@ -174,11 +176,24 @@ export const removeWidgetGroupMember = (
   const members = membersOf(dashboard, group);
   const member = members.find((m) => m.widgetId === widgetId);
   if (!member) return dashboard;
-  const without = withGroup(
-    dashboard,
-    group,
-    members.filter((m) => m !== member)
-  );
+  // Out of every group: a repeat saved in another would otherwise take it over
+  // instead of it going back to the overlay.
+  const without: DashboardLayout = {
+    ...dashboard,
+    widgets: dashboard.widgets.map((widget) =>
+      isWidgetGroup(widget)
+        ? {
+            ...widget,
+            config: {
+              ...widget.config,
+              members: sanitizeWidgetGroupMembers(
+                widget.config?.members
+              ).filter((m) => m.widgetId !== widgetId),
+            },
+          }
+        : widget
+    ),
+  };
   return member.restoreDisabled
     ? setEnabled(without, widgetId, false)
     : without;

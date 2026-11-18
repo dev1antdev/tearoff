@@ -37,6 +37,22 @@ export function isValidWidgetToggleActionId(actionId: string): boolean {
 }
 
 /**
+ * The widget toggles holding a key with no widget here to show them under: the
+ * widget was deleted or is in another profile. Bindings are shared by all
+ * profiles, so they cannot simply go with the widget.
+ */
+export function unplacedWidgetToggleIds(
+  bindings: Readonly<Record<string, { accelerator: string }>>,
+  widgetIds: readonly string[]
+): WidgetToggleActionId[] {
+  const placed = new Set(widgetIds.map(widgetToggleActionId));
+  return Object.keys(bindings).filter(
+    (id): id is WidgetToggleActionId =>
+      isWidgetToggleActionId(id) && !placed.has(id) && !!bindings[id].accelerator
+  );
+}
+
+/**
  * Target index when cycling profiles. Returns -1 when at an edge and cycle is
  * off (i.e. no switch should happen).
  */

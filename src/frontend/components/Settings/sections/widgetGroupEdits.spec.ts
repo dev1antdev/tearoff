@@ -291,6 +291,12 @@ describe('several groups', () => {
     expect(addMemberTo(layout, SECOND, 'input')).toBe(layout);
   });
 
+  it('takes a removed widget out of a group that repeats it', () => {
+    const next = removeMemberFrom(two([input], [input]), GROUP, 'input');
+    expect(membersIn(next, GROUP)).toEqual([]);
+    expect(membersIn(next, SECOND)).toEqual([]);
+  });
+
   it('creates an empty group that is off', () => {
     const created = find(addWidgetGroup(dashboard(), SECOND), SECOND);
     expect(created).toMatchObject({

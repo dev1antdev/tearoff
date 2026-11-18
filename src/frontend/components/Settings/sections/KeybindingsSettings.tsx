@@ -10,6 +10,7 @@ import {
   isWidgetToggleActionId,
   parseGamepadToken,
   parseGamepadTokens,
+  unplacedWidgetToggleIds,
   widgetToggleActionId,
 } from '@irdashies/shared';
 import { useDashboard } from '@irdashies/context';
@@ -397,6 +398,10 @@ export const KeybindingsSettings = () => {
   const widgets = [...(currentDashboard?.widgets ?? [])].sort(
     (a, b) => menuOrder(a) - menuOrder(b)
   );
+  const unplacedActionIds = unplacedWidgetToggleIds(
+    bindings,
+    widgets.map((widget) => widget.id)
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -467,6 +472,28 @@ export const KeybindingsSettings = () => {
                   />
                 );
               })}
+            </div>
+          </>
+        )}
+
+        {unplacedActionIds.length > 0 && (
+          <>
+            <h3 className="text-sm font-semibold text-slate-300 mt-6 mb-2 px-1">
+              Widgets Not in This Profile
+            </h3>
+            <p className="text-xs text-slate-400 mb-2 px-1">
+              These keys belong to widgets that were deleted or are in another
+              profile. Reset one to free its key.
+            </p>
+            <div className="flex flex-col gap-1">
+              {unplacedActionIds.map((actionId) => (
+                <BindingRow
+                  key={actionId}
+                  actionId={actionId}
+                  entry={bindings[actionId]}
+                  onUpdated={setBindings}
+                />
+              ))}
             </div>
           </>
         )}
