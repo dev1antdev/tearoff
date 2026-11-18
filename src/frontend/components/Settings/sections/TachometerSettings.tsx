@@ -1,5 +1,5 @@
 import { TrashIcon } from '@phosphor-icons/react';
-import { useState, useEffect, useId } from 'react';
+import { useState, useEffect } from 'react';
 import { BaseSettingsSection } from '../components/BaseSettingsSection';
 import {
   TachometerLedRpmOverride,
