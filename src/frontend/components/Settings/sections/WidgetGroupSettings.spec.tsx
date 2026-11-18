@@ -281,6 +281,40 @@ describe('WidgetGroupSettings', () => {
       expect(tile('input')).toHaveStyle({ left: '-80px', width: '100px' });
     });
 
+    describe('a widget with little of it in the frame', () => {
+      const clipInput = (width: string) => {
+        const input = card('Input');
+        fireEvent.change(input.getByRole('spinbutton', { name: 'X' }), {
+          target: { value: '-80' },
+        });
+        fireEvent.change(input.getByRole('spinbutton', { name: 'Width' }), {
+          target: { value: width },
+        });
+      };
+      const edge = (direction: string) =>
+        tile('input').querySelector(
+          `[data-resize-handle="${direction}"]`
+        ) as Element;
+
+      it('does not grow when its edge is dragged inward', () => {
+        render(<WidgetGroupSettings />);
+        clipInput('90');
+
+        dragBy(edge('e'), -1, 0);
+
+        expect(tile('input')).toHaveStyle({ left: '-80px', width: '90px' });
+      });
+
+      it('does not jump when its outer edge is dragged further out', () => {
+        render(<WidgetGroupSettings />);
+        clipInput('100');
+
+        dragBy(edge('w'), -10, 0);
+
+        expect(tile('input')).toHaveStyle({ left: '-80px', width: '100px' });
+      });
+    });
+
     describe('a frame size typed after Reset layout', () => {
       const typeHeight = () => {
         fireEvent.click(screen.getByRole('button', { name: 'Reset layout' }));

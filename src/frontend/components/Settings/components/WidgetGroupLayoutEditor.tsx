@@ -28,7 +28,8 @@ const movedIntoFrame = (
 
 /**
  * One axis of a tile being sized. An edge that moves stops where a piece of the
- * tile still shows in the frame; an edge that stays is left as it is.
+ * tile still shows in the frame, or where it already is if it is past that, so
+ * it never jumps against the pointer. An edge that stays is left as it is.
  */
 const sizedAxis = (
   start: number,
@@ -38,14 +39,23 @@ const sizedAxis = (
   frameSize: number
 ) => {
   const end = start + size;
+  const currentEnd = currentStart + currentSize;
   const nextStart =
     start === currentStart
       ? start
-      : clamp(start, 0, frameSize - MIN_TILE_SIZE);
+      : clamp(
+          start,
+          Math.min(0, currentStart),
+          Math.max(frameSize - MIN_TILE_SIZE, currentStart)
+        );
   const nextEnd =
-    end === currentStart + currentSize
+    end === currentEnd
       ? end
-      : clamp(end, MIN_TILE_SIZE, frameSize);
+      : clamp(
+          end,
+          Math.min(MIN_TILE_SIZE, currentEnd),
+          Math.max(frameSize, currentEnd)
+        );
   return { start: nextStart, size: nextEnd - nextStart };
 };
 
