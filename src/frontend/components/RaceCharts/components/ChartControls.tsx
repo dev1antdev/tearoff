@@ -63,7 +63,7 @@ export const ChartControls = memo(
       data-testid="race-charts-controls"
       // Asked for its own width by the row inside it. Sized in pixels: the
       // page's own type scale is not the overlay's.
-      className="@container flex-none border-b border-slate-700 text-[12px]"
+      className="@container flex-none border-b border-slate-700 text-sm"
     >
       <div className="flex items-center gap-x-3 gap-y-0.5 px-2 py-1 @max-[399px]:flex-wrap">
         <div role="group" aria-label="Chart" className={GROUP}>
@@ -82,7 +82,7 @@ export const ChartControls = memo(
         </div>
         {/* Always there, so that the laps stay at the right of a bar that
             has no caption to say. */}
-        <div className="flex min-w-0 flex-1 items-baseline gap-x-3 overflow-hidden text-[11px] leading-4 text-slate-400 @max-[399px]:order-last @max-[399px]:basis-full @max-[399px]:justify-between">
+        <div className="flex min-w-0 flex-1 items-baseline gap-x-3 overflow-hidden text-xs leading-4 text-slate-400 @max-[399px]:order-last @max-[399px]:basis-full @max-[399px]:justify-between">
           {caption && (
             <span
               data-testid="race-charts-caption"
@@ -103,7 +103,7 @@ export const ChartControls = memo(
           )}
         </div>
         <div className="flex flex-none items-center gap-1.5 @max-[399px]:ml-auto">
-          <span className="text-[11px] text-slate-400">Laps</span>
+          <span className="text-xs text-slate-400">Laps</span>
           <div role="group" aria-label="Laps drawn" className={GROUP}>
             {RACE_CHARTS_LAPS.map((count) => (
               <button

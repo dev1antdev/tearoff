@@ -211,7 +211,7 @@ export const PitStop = () => {
           {snapshot?.requested && (
             <span
               data-testid="pit-stop-requested"
-              className="rounded bg-amber-500/20 px-1 py-0.5 text-[0.65rem] font-bold text-amber-300"
+              className="rounded bg-amber-500/20 px-1 py-0.5 text-2xs font-bold text-amber-300"
             >
               Requested
             </span>

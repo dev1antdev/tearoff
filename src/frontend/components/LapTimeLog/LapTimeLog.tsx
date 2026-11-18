@@ -238,7 +238,7 @@ export const LapTimeLogDisplay = ({
   return (
     <div className={`h-full flex ${alignment}`}>
       <div
-        className={`w-full text-sm bg-slate-800/[var(--bg-opacity)] rounded-md text-white ${!isCompact ? 'p-2' : 'p-0.5'}`}
+        className={`w-full text-sm bg-slate-800/(--bg-opacity) rounded-sm text-white ${!isCompact ? 'p-2' : 'p-0.5'}`}
         style={
           {
             '--bg-opacity': `${settings.background.opacity}%`,
@@ -279,7 +279,7 @@ export const LapTimeLogDisplay = ({
           {settings.showPredictedLap && (
             <div
               id="predicted-lap"
-              className={`text-[1.3em] min-h-[2em] w-full p-1 ${dirty ? 'text-zinc-400' : 'text-white'} bg-slate-900/[var(--fg-alpha)] flex relative items-center justify-center rounded-sm`}
+              className={`text-[1.3em] min-h-[2em] w-full p-1 ${dirty ? 'text-slate-400' : 'text-white'} bg-slate-900/[var(--fg-alpha)] flex relative items-center justify-center rounded-sm`}
               style={
                 {
                   '--fg-alpha': `${settings.foreground.opacity / 2}%`,
@@ -309,7 +309,7 @@ export const LapTimeLogDisplay = ({
                       ? 'text-green-400'
                       : !dirty && delta && deltaIsRed
                         ? 'text-red-400'
-                        : 'text-zinc-400'
+                        : 'text-slate-400'
                   }`}
                 >
                   {formatDelta(hasPredictedDelta ? delta : 0)}

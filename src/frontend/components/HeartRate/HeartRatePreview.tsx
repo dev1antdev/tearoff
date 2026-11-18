@@ -14,7 +14,7 @@ export const HeartRatePreview = () => {
     return () => clearInterval(timer);
   }, []);
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-2 rounded-md bg-slate-800/80 px-3 text-center text-white">
+    <div className="flex h-full flex-col items-center justify-center gap-2 rounded-sm bg-slate-800/80 px-3 text-center text-white">
       <div className="flex items-center gap-3">
         <HeartIcon size={32} weight="fill" className="text-rose-500" />
         <span className="text-3xl tabular-nums">

@@ -218,7 +218,7 @@ export const InputContainer = memo(
 
     return (
       <div
-        className="w-full h-full flex p-2 rounded-md bg-slate-800/(--bg-opacity)"
+        className="w-full h-full flex p-2 rounded-sm bg-slate-800/(--bg-opacity)"
         style={{
           ['--bg-opacity' as string]: `${settings.background?.opacity ?? 80}%`,
           backgroundColor: flashColor,

@@ -77,7 +77,7 @@ export const SectorTargetView = memo(
     >
       <span className="inline-flex min-w-0 items-center gap-1">
         <TargetIcon size={12} className="shrink-0 text-slate-400" />
-        <span className="text-[10px] font-semibold uppercase text-slate-400">
+        <span className="text-2xs font-semibold uppercase text-slate-400">
           {label}
         </span>
         <span

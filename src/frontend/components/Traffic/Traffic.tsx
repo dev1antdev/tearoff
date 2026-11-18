@@ -220,7 +220,7 @@ export const Traffic = () => {
           </span>
           <span
             data-testid="traffic-rejoin-state"
-            className="rounded bg-black/25 px-1.5 py-0.5 text-xs font-bold uppercase"
+            className="rounded bg-slate-950/25 px-1.5 py-0.5 text-xs font-bold uppercase"
           >
             {REJOIN_WORD[rejoin.state]}
           </span>
@@ -254,7 +254,7 @@ export const Traffic = () => {
                 key={row.carIdx}
                 data-testid="traffic-rejoin-row"
                 data-side={ahead ? 'ahead' : 'behind'}
-                className={`flex min-w-0 items-center gap-2 rounded bg-black/25 px-1.5 py-0.5 ${
+                className={`flex min-w-0 items-center gap-2 rounded bg-slate-950/25 px-1.5 py-0.5 ${
                   ahead ? 'text-white/75' : ''
                 }`}
               >
@@ -268,7 +268,7 @@ export const Traffic = () => {
                 <span className="min-w-0 flex-1 truncate text-sm">
                   {car.label}
                 </span>
-                <span className="flex-none text-[10px] font-bold uppercase">
+                <span className="flex-none text-2xs font-bold uppercase">
                   {ahead ? 'goes by first' : 'arrives behind'}
                 </span>
                 <span className="min-w-[4.5ch] flex-none text-right text-lg leading-none font-bold tabular-nums">

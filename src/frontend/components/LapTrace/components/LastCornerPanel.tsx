@@ -153,7 +153,7 @@ const labelClassFor = (labelLines: number) =>
  * the sign and unit are there for when they have time to look properly.
  */
 const deltaColour = (value: number | null, goodIsNegative: boolean): string => {
-  if (value === null) return 'text-zinc-500';
+  if (value === null) return 'text-slate-500';
   if (value === 0) return 'text-green-400';
   const isGood = goodIsNegative ? value < 0 : value > 0;
   return isGood ? 'text-green-400' : 'text-red-400';

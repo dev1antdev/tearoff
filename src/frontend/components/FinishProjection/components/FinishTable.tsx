@@ -89,7 +89,7 @@ const FinishColumnCell = ({
     >
       <span
         data-testid="finish-column-label"
-        className={`${ROW.caption} text-[0.65rem] font-medium tracking-wide text-slate-400`}
+        className={`${ROW.caption} text-2xs font-medium tracking-wide text-slate-400`}
       >
         {finishColumnLabel(column)}
       </span>
@@ -202,7 +202,7 @@ export const FinishTable = ({
       data-testid="finish-table"
       className="flex flex-none items-start gap-1"
     >
-      <div className="flex flex-none flex-col gap-0.5 py-0.5 pr-1 text-[0.65rem] font-medium uppercase tracking-wide text-slate-400">
+      <div className="flex flex-none flex-col gap-0.5 py-0.5 pr-1 text-2xs font-medium uppercase tracking-wide text-slate-400">
         <span className={ROW.caption} />
         <span className={ROW.leader}>Leader</span>
         <span className={ROW.laps}>Laps</span>

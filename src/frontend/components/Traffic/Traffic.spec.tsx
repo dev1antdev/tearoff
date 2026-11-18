@@ -281,7 +281,7 @@ describe('Traffic', () => {
     it('turns the gap of traffic red under a second', () => {
       const container = show(traffic({ behind: [car({ gapS: 0.6 })] }));
       expect(one(container, 'traffic-gap')?.className).toContain(
-        'text-red-300'
+        'text-red-400'
       );
     });
 

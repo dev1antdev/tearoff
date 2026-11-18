@@ -72,7 +72,7 @@ export const RivalRow = ({
   );
   const rowClasses = [
     outOfIt ? 'text-white/60' : '',
-    isFocus ? 'text-amber-300 bg-yellow-500/20' : '',
+    isFocus ? 'text-amber-300 bg-amber-500/20' : '',
     !isFocus
       ? rowIndex % 2 === 0
         ? 'bg-slate-800/70'

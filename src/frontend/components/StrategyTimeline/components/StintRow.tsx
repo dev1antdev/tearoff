@@ -97,7 +97,7 @@ export const StintRow = memo(
       </td>
       <td className="hidden px-1 py-0.5 @2xs:table-cell">
         <span
-          className={`whitespace-nowrap rounded-sm px-1 text-[11px] font-normal ${STATUS_CHIP[status]}`}
+          className={`whitespace-nowrap rounded-sm px-1 text-xs font-normal ${STATUS_CHIP[status]}`}
         >
           {STATUS_LABEL[status]}
         </span>

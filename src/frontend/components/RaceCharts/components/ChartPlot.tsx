@@ -196,7 +196,7 @@ const Readout = ({ model, lap, anchor }: ReadoutProps) => {
   return (
     <div
       data-testid="race-charts-readout"
-      className="pointer-events-none absolute z-10 max-w-[17rem] rounded-sm border border-slate-600 bg-slate-900/95 px-2 py-1.5 text-[11px] leading-snug shadow-lg"
+      className="pointer-events-none absolute z-10 max-w-[17rem] rounded-sm border border-slate-600 bg-slate-900/95 px-2 py-1.5 text-xs leading-snug shadow-lg"
       style={anchor}
     >
       <div className="mb-0.5 font-bold tracking-wide text-slate-400">
@@ -226,7 +226,7 @@ const Readout = ({ model, lap, anchor }: ReadoutProps) => {
               {driver && <span className="text-slate-400">{driver}</span>}
             </div>
             {reading?.note && (
-              <div className="pl-[22px] text-[10px] text-slate-400">
+              <div className="pl-[22px] text-2xs text-slate-400">
                 {reading.note}
               </div>
             )}
@@ -474,7 +474,7 @@ export const ChartPlot = memo(({ model, width, height }: ChartPlotProps) => {
                 y={y}
                 textAnchor="end"
                 dominantBaseline="central"
-                className="fill-slate-400 text-[10px]"
+                className="fill-slate-400 text-2xs"
               >
                 {model.tick(value)}
               </text>
@@ -503,7 +503,7 @@ export const ChartPlot = memo(({ model, width, height }: ChartPlotProps) => {
               x={lapX(lap)}
               y={y1 + 13}
               textAnchor="middle"
-              className="fill-slate-400 text-[10px]"
+              className="fill-slate-400 text-2xs"
             >
               {lap}
             </text>
@@ -515,7 +515,7 @@ export const ChartPlot = memo(({ model, width, height }: ChartPlotProps) => {
         <g
           strokeWidth={3}
           strokeLinejoin="round"
-          className="fill-slate-400 stroke-slate-800 text-[10px] [paint-order:stroke]"
+          className="fill-slate-400 stroke-slate-800 text-2xs [paint-order:stroke]"
         >
           {geometry.bandLabels.map((label) => (
             <text

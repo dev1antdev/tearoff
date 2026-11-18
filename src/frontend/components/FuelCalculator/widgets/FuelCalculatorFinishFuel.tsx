@@ -54,7 +54,7 @@ export const FuelCalculatorFinishFuel: React.FC<
         {fuelUnits === '%' ? 'Energy at end' : 'Fuel at end'}
       </span>
       <span
-        className={`font-bold tabular-nums ${isShort ? 'text-red-400' : 'text-emerald-400'}`}
+        className={`font-bold tabular-nums ${isShort ? 'text-red-400' : 'text-green-400'}`}
         style={{ fontSize: valueFontSize }}
       >
         {isShort ? `-${value}` : `+${value}`}

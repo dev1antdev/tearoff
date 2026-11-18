@@ -24,7 +24,13 @@ const isSameLapTime = (left?: number, right?: number) =>
   Math.abs(left - right) < 0.001;
 
 export const LapHistoryChart = memo(
-  ({ history, best, overall, alltime, foregroundOpacity }: LapHistoryChartProps) => {
+  ({
+    history,
+    best,
+    overall,
+    alltime,
+    foregroundOpacity,
+  }: LapHistoryChartProps) => {
     // chronological order: oldest lap on the left, newest on the right
     const laps = useMemo(
       () => [...history].sort((a, b) => a.lap - b.lap),
@@ -119,16 +125,23 @@ export const LapHistoryChart = memo(
             strokeWidth={1.5}
           />
           {chart.points.map(({ x, y, entry }) => (
-            <circle key={entry.lap} cx={x} cy={y} r={2.5} fill={pointColor(entry)} />
+            <circle
+              key={entry.lap}
+              cx={x}
+              cy={y}
+              r={2.5}
+              fill={pointColor(entry)}
+            />
           ))}
         </svg>
-        <div className="flex justify-between text-[0.65em] text-zinc-400 tabular-nums px-1">
+        <div className="flex justify-between text-[0.65em] text-slate-400 tabular-nums px-1">
           <span>
             L{laps[0].lap} · {formatTime(laps[0].time)}
           </span>
           <span className="text-sky-400">AVG {formatTime(chart.average)}</span>
           <span>
-            L{laps[laps.length - 1].lap} · {formatTime(laps[laps.length - 1].time)}
+            L{laps[laps.length - 1].lap} ·{' '}
+            {formatTime(laps[laps.length - 1].time)}
           </span>
         </div>
       </div>

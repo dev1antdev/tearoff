@@ -153,7 +153,7 @@ export const ClassRivals = () => {
       ref={fitPanel}
       data-testid="class-rivals"
       data-valid={hasRows}
-      className="flex h-full w-full flex-col overflow-hidden rounded bg-slate-800/(--bg-opacity) text-[0.8125rem] text-slate-200 tabular-nums"
+      className="flex h-full w-full flex-col overflow-hidden rounded bg-slate-800/(--bg-opacity) text-base text-slate-200 tabular-nums"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}
@@ -231,7 +231,7 @@ export const ClassRivals = () => {
           {settings.showLegend && footnoteLeftOut === 0 && (
             <p
               data-testid="class-rivals-legend"
-              className="flex-none px-3 py-1.5 text-[0.6875rem] leading-snug text-slate-400"
+              className="flex-none px-3 py-1.5 text-xs leading-snug text-slate-400"
             >
               {[
                 settings.showNetGap &&
@@ -252,7 +252,7 @@ export const ClassRivals = () => {
       ) : (
         <p
           data-testid="class-rivals-reason"
-          className="flex min-h-0 flex-1 items-center justify-center p-3 text-center text-[0.75rem] text-slate-400"
+          className="flex min-h-0 flex-1 items-center justify-center p-3 text-center text-sm text-slate-400"
         >
           {forecast?.valid
             ? 'No other car of the class is running.'

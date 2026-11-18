@@ -134,7 +134,7 @@ const CrewPanel = ({ settings }: { settings: CrewConfig }) => {
     <div
       data-testid="crew"
       data-car={car.carIdx}
-      className="flex h-full w-full flex-col overflow-hidden rounded bg-slate-800/(--bg-opacity) text-[0.8125rem] text-slate-200 tabular-nums"
+      className="flex h-full w-full flex-col overflow-hidden rounded bg-slate-800/(--bg-opacity) text-base text-slate-200 tabular-nums"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}
@@ -192,7 +192,7 @@ const CrewPanel = ({ settings }: { settings: CrewConfig }) => {
               {limits && (
                 <p
                   data-testid="crew-limits"
-                  className="px-3 pt-1 text-[0.6875rem] leading-snug text-slate-400"
+                  className="px-3 pt-1 text-xs leading-snug text-slate-400"
                 >
                   Bar: time driven against the maximum of{' '}
                   {formatDriven(limits.maxS)}.

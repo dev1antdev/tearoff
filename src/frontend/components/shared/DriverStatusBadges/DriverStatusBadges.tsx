@@ -213,7 +213,7 @@ export const DriverStatusBadges = memo(
         {penalty && (
           <StatusBadge
             textColor="text-orange-500"
-            borderColorClass="border-gray-500"
+            borderColorClass="border-slate-500"
             additionalClasses={flagBadgeClasses}
           >
             {' '}
@@ -221,7 +221,7 @@ export const DriverStatusBadges = memo(
         )}
         {slowdown && (
           <span
-            className={`text-orange-500 text-xs border-2 rounded-md text-center text-nowrap px-2 m-0 leading-tight border-gray-500 animate-pulse ${flagBadgeClasses}`}
+            className={`text-orange-500 text-xs border-2 rounded-md text-center text-nowrap px-2 m-0 leading-tight border-slate-500 animate-pulse ${flagBadgeClasses}`}
             style={{
               background:
                 'linear-gradient(to bottom right, black calc(50% - 1px), white calc(50% + 1px))',
@@ -233,7 +233,7 @@ export const DriverStatusBadges = memo(
         {repair && (
           <StatusBadge
             textColor="text-orange-500"
-            borderColorClass="border-gray-500"
+            borderColorClass="border-slate-500"
             additionalClasses={`${flagBadgeClasses} relative`}
           >
             {' '}

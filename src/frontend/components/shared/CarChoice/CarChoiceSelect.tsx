@@ -46,7 +46,7 @@ export const CarChoiceSelect = memo(
         onChange={(event: ChangeEvent<HTMLSelectElement>) =>
           onChange(Number(event.target.value))
         }
-        className={`max-w-[16rem] min-w-0 cursor-pointer truncate rounded-sm border border-slate-600 bg-slate-900 py-0.5 pr-1 pl-1.5 text-[12px] leading-5 font-semibold ${
+        className={`max-w-[16rem] min-w-0 cursor-pointer truncate rounded-sm border border-slate-600 bg-slate-900 py-0.5 pr-1 pl-1.5 text-sm leading-5 font-semibold ${
           isOwn ? 'text-amber-300' : 'text-white'
         }`}
       >

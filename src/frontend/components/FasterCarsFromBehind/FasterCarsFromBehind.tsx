@@ -35,14 +35,14 @@ const CARD_DENSITY = {
     spacing: 'gap-1',
     row: 'h-[33px] gap-2.5 pr-2.5 text-base',
     classBlock: 'w-[38px] gap-px leading-3',
-    countdown: 'text-[19px]',
+    countdown: 'text-5xl',
     bar: 'h-[3px]',
   },
   compact: {
     spacing: 'gap-[3px]',
-    row: 'h-7 gap-2 pr-2 text-md',
+    row: 'h-7 gap-2 pr-2 text-base',
     classBlock: 'w-9 gap-0 leading-3',
-    countdown: 'text-[17px]',
+    countdown: 'text-3xl',
     bar: 'h-0.5',
   },
   ultra: {
@@ -142,14 +142,14 @@ export const FasterCarsFromBehindDisplay = memo(
     return (
       <div
         role="listitem"
-        className={`w-full min-w-0 overflow-hidden rounded-sm text-[#edf0f4] ${isClosest ? 'bg-settings-control' : 'bg-[#1b222b]'}`}
+        className={`w-full min-w-0 overflow-hidden rounded-sm text-slate-100 ${isClosest ? 'bg-slate-800' : 'bg-slate-900'}`}
       >
         <div className={`flex min-w-0 items-center ${density.row}`}>
           <span
             role="group"
             aria-label={classDescription}
             title={classDescription}
-            className={`relative isolate flex shrink-0 self-stretch flex-col items-center justify-center overflow-hidden text-[11px] font-semibold ${density.classBlock}`}
+            className={`relative isolate flex shrink-0 self-stretch flex-col items-center justify-center overflow-hidden text-xs font-semibold ${density.classBlock}`}
             style={{ color: classStyle.canvasFill }}
           >
             <span
@@ -159,7 +159,7 @@ export const FasterCarsFromBehindDisplay = memo(
             <span className="block max-w-full px-0.5 font-mono">
               {formatClassLabel(className)}
             </span>
-            <span className="max-w-full truncate px-1 text-[#edf0f4] tabular-nums">
+            <span className="max-w-full truncate px-1 text-slate-100 tabular-nums">
               {position === undefined ? '—' : `P${position}`}
             </span>
           </span>
@@ -188,19 +188,17 @@ export const FasterCarsFromBehindDisplay = memo(
                   ? `${Math.abs(distance).toFixed(1)} seconds behind`
                   : 'Gap unavailable'
               }
-              className={`min-w-[5ch] shrink-0 text-right leading-none font-semibold tabular-nums ${density.countdown} ${urgent ? 'text-red-300' : ''}`}
+              className={`min-w-[5ch] shrink-0 text-right leading-none font-semibold tabular-nums ${density.countdown} ${urgent ? 'text-red-400' : ''}`}
             >
               {validDistance ? `−${Math.abs(distance).toFixed(1)}` : '—'}
-              <span className="ml-1 text-[11px] font-normal text-[#a5afbd]">
-                s
-              </span>
+              <span className="ml-1 text-xs font-normal text-slate-400">s</span>
             </span>
           )}
         </div>
 
-        <div aria-hidden="true" className={`bg-[#3a414b] ${density.bar}`}>
+        <div aria-hidden="true" className={`bg-slate-700 ${density.bar}`}>
           <div
-            className={`h-full w-full origin-left transition-[transform,background-color] duration-200 ease-linear motion-reduce:transition-none ${urgent ? 'bg-red-300' : 'bg-[#edbf68]'}`}
+            className={`h-full w-full origin-left transition-[transform,background-color] duration-200 ease-linear motion-reduce:transition-none ${urgent ? 'bg-red-400' : 'bg-amber-400'}`}
             style={{ transform: `scaleX(${proximity / 100})` }}
           />
         </div>

@@ -77,8 +77,8 @@ export const WeatherTrackWetness = memo(
 
         {/* Detail row with progress bar */}
         <div className="flex items-center flex-row gap-x-2 px-1">
-          <SunIcon size={14} className="text-gray-400 flex-none" />
-          <div className="grow bg-gray-700/50 rounded-full h-2">
+          <SunIcon size={14} className="text-slate-400 flex-none" />
+          <div className="grow bg-slate-700/50 rounded-full h-2">
             <div
               role="progressbar"
               aria-valuenow={trackWetnessPct}

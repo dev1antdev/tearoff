@@ -144,7 +144,7 @@ export const InputBar = memo(
               style={{ aspectRatio: '1 / 4', width: 'auto' }}
             >
               <div
-                className={`text-xs text-center flex justify-center ${value === 0 ? 'text-gray-400' : 'text-white'}`}
+                className={`text-xs text-center flex justify-center ${value === 0 ? 'text-slate-400' : 'text-white'}`}
               >
                 {(value * 100).toFixed(0)}
               </div>
@@ -176,7 +176,7 @@ export const InputBar = memo(
                   }}
                 />
                 {mark && (
-                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-[11px] font-bold text-white text-shadow-md pointer-events-none">
+                  <div className="absolute bottom-1 left-1/2 -translate-x-1/2 text-xs font-bold text-white text-shadow-md pointer-events-none">
                     {mark}
                   </div>
                 )}

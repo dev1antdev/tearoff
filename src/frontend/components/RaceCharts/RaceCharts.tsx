@@ -54,7 +54,7 @@ const count = (many: number, one: string): string =>
 
 // Sized in pixels: the page's own type scale is not the overlay's.
 const NOTICE =
-  'flex h-full items-center justify-center p-3 text-center text-[12px] text-slate-400';
+  'flex h-full items-center justify-center p-3 text-center text-sm text-slate-400';
 
 interface ChartAreaProps {
   /** The bar over the chart, less what the chart has to say in it. */

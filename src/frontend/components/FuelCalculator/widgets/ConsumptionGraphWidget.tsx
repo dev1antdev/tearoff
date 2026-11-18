@@ -84,7 +84,7 @@ export const ConsumptionGraphWidget = ({
       </div>
 
       <div
-        className={`${heightClass} relative bg-black/40 rounded border border-slate-700/50 mx-1 overflow-hidden`}
+        className={`${heightClass} relative bg-slate-950/40 rounded border border-slate-700/50 mx-1 overflow-hidden`}
         style={{ height: graphHeight }}
       >
         {consumptionGraphType === 'histogram'
@@ -164,7 +164,7 @@ export const ConsumptionGraphWidget = ({
               const displayValues = fuelValues.slice(-10);
               if (displayValues.length < 2) {
                 return (
-                  <div className="h-full w-full flex items-center justify-center text-[10px] text-slate-500 italic">
+                  <div className="h-full w-full flex items-center justify-center text-2xs text-slate-500 italic">
                     Recording lap data...
                   </div>
                 );

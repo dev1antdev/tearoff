@@ -287,11 +287,11 @@ describe('FlagPanel', () => {
       const far = show(blue({ distanceM: 120, closingMs: 0.5 }));
 
       expect(byTestId(near, 'flag-distance')?.className).toContain(
-        'text-red-300'
+        'text-red-400'
       );
       expect(byTestId(near, 'flag-closing')).not.toBeNull();
       expect(byTestId(far, 'flag-distance')?.className).not.toContain(
-        'text-red-300'
+        'text-red-400'
       );
       expect(byTestId(far, 'flag-closing')).toBeNull();
     });

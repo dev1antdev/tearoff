@@ -56,7 +56,7 @@ describe('PositionChangeItem', () => {
 
     expect(container.textContent).toBe('');
     expect(container.querySelector('svg')).not.toBeNull();
-    expect(caret(container)?.className).toContain('text-gray-400');
+    expect(caret(container)?.className).toContain('text-slate-400');
   });
 
   it('is not rendered outside a race or without a grid result', () => {

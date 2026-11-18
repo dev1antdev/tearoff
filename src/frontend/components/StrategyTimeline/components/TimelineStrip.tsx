@@ -73,7 +73,7 @@ export const TimelineStrip = memo(
           />
         )}
       </div>
-      <div className="flex justify-between text-[10px] tabular-nums text-slate-400">
+      <div className="flex justify-between text-2xs tabular-nums text-slate-400">
         <span>{startLabel}</span>
         <span>{endLabel}</span>
       </div>

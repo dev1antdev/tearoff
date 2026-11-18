@@ -544,7 +544,7 @@ export const raceLogStory = ({
           // A grid, as the page is: the panel takes the size of its cell,
           // inside the page's own margin.
           <div
-            className="grid bg-settings-page p-3"
+            className="grid bg-settings-page p-3 overlay-window overlay-theme-sm overlay-theme-font-face-lato overlay-theme-font-weight-normal"
             style={{
               width: panel.width + PAGE_MARGIN_PX * 2,
               height: panel.height + PAGE_MARGIN_PX * 2,

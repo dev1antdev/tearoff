@@ -157,7 +157,7 @@ export function InputSteer({
       {frontWheelAngleDeg !== undefined && (
         <div
           data-testid="input-steer-wheel-angle"
-          className="flex-none flex justify-center gap-1 whitespace-nowrap text-[10px] leading-3 tabular-nums text-white/70"
+          className="flex-none flex justify-center gap-1 whitespace-nowrap text-2xs leading-3 tabular-nums text-white/70"
         >
           <span>{Math.abs(frontWheelAngleDeg).toFixed(1)}°</span>
           <span>{steeringRatio(angleRad, frontWheelAngleDeg)}</span>

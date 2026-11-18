@@ -176,7 +176,12 @@ export const pitWallStage = (stage: PitWallStage = {}) => {
     (Story: ComponentType) => (
       <DashboardProvider bridge={bridge}>
         <RunningStateProvider bridge={runningState}>
-          <Story />
+          {/* The Pit Wall window sits in the overlay theme (ThemeManager in
+              PitWallWindow), so its panels' text follows the overlay scale.
+              The default size, and the palette the classes are written in. */}
+          <div className="contents overlay-window overlay-theme-sm overlay-theme-color-default overlay-theme-font-face-lato overlay-theme-font-weight-normal">
+            <Story />
+          </div>
         </RunningStateProvider>
       </DashboardProvider>
     ),

@@ -105,7 +105,7 @@ describe('DriverStatusBadges', () => {
       <DriverStatusBadges repair penalty slowdown />
     );
 
-    expect(container.querySelectorAll('span.border-gray-500')).toHaveLength(3);
+    expect(container.querySelectorAll('span.border-slate-500')).toHaveLength(3);
   });
 
   describe('lapsSinceLastPit with pitExitAfterSF', () => {

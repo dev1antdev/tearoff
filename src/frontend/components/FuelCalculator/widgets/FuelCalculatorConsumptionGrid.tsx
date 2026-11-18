@@ -320,7 +320,7 @@ export const FuelCalculatorConsumptionGrid: React.FC<
     isValid: boolean;
   }) => {
     if (!data.isValid) return 'text-slate-300';
-    return data.fitsInTank ? 'text-emerald-400' : 'text-red-400';
+    return data.fitsInTank ? 'text-green-400' : 'text-red-400';
   };
 
   // Helper for Refuel color
@@ -362,7 +362,7 @@ export const FuelCalculatorConsumptionGrid: React.FC<
   const pitWindowStatusClass = isPastPitWindow
     ? 'text-red-400'
     : isPitWindowOpen
-      ? 'text-emerald-400'
+      ? 'text-green-400'
       : 'text-amber-300';
 
   return (

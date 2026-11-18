@@ -7,7 +7,7 @@ interface RivalsHeaderProps {
 }
 
 const LABEL =
-  'px-1 pb-0.5 text-[10px] leading-none font-normal uppercase tracking-wide text-slate-400 whitespace-nowrap';
+  'px-1 pb-0.5 text-2xs leading-none font-normal uppercase tracking-wide text-slate-400 whitespace-nowrap';
 
 /**
  * The small labels above the rows. A row of bare figures (laps, stops,

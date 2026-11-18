@@ -49,6 +49,7 @@ layer(base);
   --color-on-accent: #fff;
   --animate-pulse-border: pulse-border 1s infinite;
   --animate-blink: blink 1s infinite;
+  --text-2xs: 9px;
   --text-xs: 10px;
   --text-sm: 12px;
   --text-md: 13px;
@@ -316,8 +317,11 @@ html {
 }
 
 /* Theme classes for different font sizes */
-/* 1. Define the base scale logic once */
+/* 1. Define the base scale logic once. Overlay text uses these steps only,
+   never a fixed px or rem size, so it follows the Font size setting. 2xs is
+   for the smallest labels (chart ticks, units under a value). */
 .overlay-window {
+  --text-2xs: calc(var(--theme-offset) - 1px);
   --text-xs: calc(var(--theme-offset) + 0px);
   --text-sm: calc(var(--theme-offset) + 1px);
   --text-base: calc(var(--theme-offset) + 2px);

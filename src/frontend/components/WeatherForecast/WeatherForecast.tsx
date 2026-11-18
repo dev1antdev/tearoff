@@ -171,7 +171,7 @@ const Column = memo(
               />
             </div>
             {rainValue && (
-              <span className="flex-none text-[10px] leading-none tabular-nums text-white/70">
+              <span className="flex-none text-2xs leading-none tabular-nums text-white/70">
                 {rainValue}
               </span>
             )}
@@ -184,13 +184,13 @@ const Column = memo(
           </div>
         )}
         {humidity && (
-          <div className="flex items-center gap-0.5 text-[10px] leading-3 tabular-nums text-white/70">
+          <div className="flex items-center gap-0.5 text-2xs leading-3 tabular-nums text-white/70">
             <DropIcon size={10} className="flex-none text-white/50" />
             <span>{humidity}</span>
           </div>
         )}
         {windSpeed && (
-          <div className="flex items-center gap-1 text-[10px] leading-3 tabular-nums text-white/70">
+          <div className="flex items-center gap-1 text-2xs leading-3 tabular-nums text-white/70">
             {windDirection !== null && (
               <WindArrow
                 direction={windDirection}

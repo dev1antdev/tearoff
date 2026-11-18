@@ -45,7 +45,7 @@ export const OurCarTile = memo(
       data-uncertain={uncertain}
       className="flex min-w-0 flex-col gap-1 rounded-md bg-slate-700/40 px-2.5 py-2"
     >
-      <span className="truncate text-[0.6875rem] font-medium uppercase leading-none tracking-wide text-slate-400">
+      <span className="truncate text-xs font-medium uppercase leading-none tracking-wide text-slate-400">
         {label}
       </span>
       <span
@@ -58,7 +58,7 @@ export const OurCarTile = memo(
       </span>
       <span
         data-testid={`our-car-${id}-note`}
-        className={`min-h-[1em] truncate text-[0.6875rem] leading-none ${TONE_CLASS[noteTone]}`}
+        className={`min-h-[1em] truncate text-xs leading-none ${TONE_CLASS[noteTone]}`}
       >
         {note}
       </span>

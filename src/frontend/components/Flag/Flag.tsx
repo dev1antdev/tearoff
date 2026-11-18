@@ -228,7 +228,7 @@ export const FlagDisplay = ({
 
   const grid = (
     <div
-      className="grid bg-black/(--bg-opacity) box-border"
+      className="grid bg-slate-950/(--bg-opacity) box-border"
       style={{
         ...bgOpacityStyle,
         gridTemplateColumns: `repeat(${cols}, 1fr)`,
