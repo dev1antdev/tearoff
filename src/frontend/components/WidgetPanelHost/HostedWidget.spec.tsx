@@ -55,6 +55,21 @@ describe('HostedWidget', () => {
     expect(mocks.widgetProps[0]).toEqual({ safetyMargin: 1, embedded: true });
   });
 
+  it('does not mark a widget embedded when it is the only copy', () => {
+    render(<HostedWidget {...host} widget={widget('fuel')} embedded={false} />);
+    expect(mocks.widgetProps[0]).toEqual({});
+  });
+
+  it('keeps a scale worked out from two others as it is', () => {
+    const { container } = render(
+      <HostedWidget {...host} widget={widget('fuel')} scale={300} exactScale />
+    );
+    expect(container.querySelector('[data-widget-scale]')).toHaveAttribute(
+      'data-widget-scale',
+      '300'
+    );
+  });
+
   it('finds a copy of a widget by its type', () => {
     render(
       <HostedWidget {...host} widget={widget('fuel-2', { type: 'fuel' })} />

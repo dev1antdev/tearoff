@@ -20,7 +20,11 @@ import { getWidget } from '../../WidgetIndex';
 import { getWidgetName } from '../../constants/widgetNames';
 import { ResizeIcon, XIcon } from '@phosphor-icons/react';
 import type { DashboardWidget } from '@irdashies/types';
-import { isWidgetDisabledForSim } from '@irdashies/types';
+import {
+  isWidgetDisabledForSim,
+  isWidgetGroup,
+  widgetGroupMemberIds,
+} from '@irdashies/types';
 import { useDragWidget, useResizeWidget } from '../WidgetContainer';
 import { ResizeHandles } from '../WidgetContainer/ResizeHandle';
 import logger from '@irdashies/utils/logger';
@@ -235,7 +239,12 @@ const SoloWidgetView = ({ widgetId, widgets }: SoloWidgetViewProps) => {
       style={{ background: 'transparent' }}
       data-widget-id={widget.id}
     >
-      <SessionTimingUpdater soloWidgetType={widget.type || widget.id} />
+      {/* The group answers for what is in it, not for a type of its own. */}
+      <SessionTimingUpdater
+        soloWidgetType={
+          isWidgetGroup(widget) ? undefined : widget.type || widget.id
+        }
+      />
       <div className="w-full h-full overflow-hidden text-white">
         {/* Hidden by its hotkey; the page stays up so the source keeps its slot. */}
         {!hiddenWidgetIds.has(widget.id) && (
@@ -296,9 +305,17 @@ export const DashboardView = ({ soloWidgetId }: DashboardViewProps = {}) => {
       return [];
     }
     const seen = new Set<string>();
+    const groupMembers = widgetGroupMemberIds(currentDashboard.widgets);
     const filtered = currentDashboard.widgets.filter((w) => {
-      // The Pit Wall is a page of the app's own window, not a widget box.
-      if (!w.enabled || isGantryOnly(w) || isPitWallPage(w) || seen.has(w.id))
+      // The Pit Wall is a page of the app's own window, not a widget box, and
+      // a widget in the group is drawn by the group.
+      if (
+        !w.enabled ||
+        isGantryOnly(w) ||
+        isPitWallPage(w) ||
+        groupMembers.has(w.id) ||
+        seen.has(w.id)
+      )
         return false;
       if (isWidgetDisabledForSim(simWidgetSupport, w.type ?? w.id, simulator))
         return false;

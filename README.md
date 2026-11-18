@@ -48,7 +48,7 @@ Choose **Auto**, **iRacing**, or **Le Mans Ultimate** in **Settings > General > 
 1. In LMU, enable **Settings > Gameplay > Enable Plugins**, then restart the simulator.
 2. Start Tearoff and load into an LMU session to receive telemetry.
 
-**Supported overlays:** Standings, Relative, Class Fields, Timing Tower, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Traffic, Faster Cars From Behind, Slow Car Ahead, Rejoin Indicator, Information Bar, System Performance (without its Sim row), Tyres, Tyre & Brake Wear, Chassis, Damage, Hybrid (for cars that have the system), Lift and Coast Lights, Shift Light, Friction Circle, Brake Performance, Minimap, Track Map, Flat Track Map, Elevation, Cruise, Track Notes, Weather (without its wind cell), Weather Forecast, Lap Delta, Sector Delta, Corner Delta, Delta Speed, Timing, Lap Timer, Car Systems, Fuel Calculator, Fuel Saver, Pit Stop, Finish Projection, Stint History, Garage Cover, and the Pit Wall with its panels: Our Car, Class Rivals, Stint Timeline, Crew and Stints, Car Laps, Race Charts and Race Log. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU: Radar, Blind Spot Monitor, the Gantry, Tachometer, Heart Rate, Wind, Stint Plan, Strategy Timeline, Stream Chat and the Broadcast overlays.
+**Supported overlays:** Standings, Relative, Class Fields, Timing Tower, Input, Lap Trace, Pitlane Helper, Corner Names, Battle, Flag, Flag Panel, Traffic, Faster Cars From Behind, Slow Car Ahead, Rejoin Indicator, Information Bar, System Performance (without its Sim row), Tyres, Tyre & Brake Wear, Chassis, Damage, Hybrid (for cars that have the system), Lift and Coast Lights, Shift Light, Friction Circle, Brake Performance, Minimap, Track Map, Flat Track Map, Elevation, Cruise, Track Notes, Weather (without its wind cell), Weather Forecast, Lap Delta, Sector Delta, Corner Delta, Delta Speed, Timing, Lap Timer, Car Systems, Fuel Calculator, Fuel Saver, Pit Stop, Finish Projection, Stint History, Garage Cover, Widget Group, and the Pit Wall with its panels: Our Car, Class Rivals, Stint Timeline, Crew and Stints, Car Laps, Race Charts and Race Log. Telemetry Inspector is also available for diagnostics. All other widgets are currently unavailable in LMU: Radar, Blind Spot Monitor, the Gantry, Tachometer, Heart Rate, Wind, Stint Plan, Strategy Timeline, Stream Chat and the Broadcast overlays.
 
 - Standings use class colours and manufacturer badges, with best-lap ordering in practice and position ordering in races. Driver ratings, incident counts, and team data are not yet integrated; car numbers are placeholders, and iRacing rating columns are hidden.
 - Corner Names and Lap Trace corner feedback depend on available LMU track data. Unnamed turns use turn numbers where provided.
@@ -148,6 +148,18 @@ A standalone shift indicator for drivers who do not need the full Tachometer wid
 - Optional RPM readout
 
 <img src="./docs/assets/shiftlight.png" alt="Shift Light indicating when to change gear" width="324">
+
+### Widget Group
+
+Places several widgets in one frame and shows them on the overlay as one widget. Works under iRacing and Le Mans Ultimate.
+
+**Features:**
+
+- Move and resize the group in edit mode like any widget, or set its width and height in its settings
+- One scale for the whole group, and a scale of its own for each widget in it
+- Position, size and drawing order of each widget, set one at a time in any order, with a live preview
+- One set of session visibility rules, one hide shortcut and one browser source for the group, while each widget inside keeps its own settings
+- A widget in the group leaves its own place on the overlay and returns to it, as it was, when removed. Switching the group off hides the widgets in it
 
 ### Car Systems
 

@@ -91,6 +91,30 @@ describe('RendererDataProviders', () => {
     expect(screen.getByTestId('session-provider')).toBeInTheDocument();
   });
 
+  it('mounts for the widgets inside the group on its own page', () => {
+    dashboard.widgets = [
+      {
+        id: 'widgetgroup',
+        enabled: false,
+        layout,
+        config: {
+          members: [
+            { widgetId: 'pitlanehelper', x: 0, y: 0, width: 9, height: 9 },
+          ],
+        },
+      },
+      { id: 'pitlanehelper', enabled: true, layout },
+    ];
+    Object.defineProperty(window, 'pitLaneBridge', {
+      configurable: true,
+      value: {},
+    });
+
+    render(<RendererDataProviders browser widgetId="widgetgroup" />);
+
+    expect(screen.getByTestId('pitlane-provider')).toBeInTheDocument();
+  });
+
   it('mounts for the widgets it is given instead of this display', () => {
     dashboard.widgets = [{ id: 'fuel', enabled: true, layout }];
 

@@ -49,6 +49,13 @@ export interface HostedWidgetProps {
    * the widget is drawn at the scale saved for it on the overlay.
    */
   scale?: number;
+  /** `scale` is a product of two scales, not held to the range of one. */
+  exactScale?: boolean;
+  /**
+   * False where this is the only copy of the widget, which then does the
+   * saving a copy must leave to the original.
+   */
+  embedded?: boolean;
   /**
    * Let content larger than the panel scroll inside it, and say
    * `emptyMessage` when the widget draws nothing, which a widget does at
@@ -70,6 +77,8 @@ export const HostedWidget = memo(
     host,
     waitingMessage,
     scale,
+    exactScale,
+    embedded = true,
     scroll,
   }: HostedWidgetProps) => {
     const type = widget.type || widget.id;
@@ -81,7 +90,9 @@ export const HostedWidget = memo(
     }
 
     // embedded: this copy must never write to disk.
-    const content = <Widget {...widget.config} embedded />;
+    const content = (
+      <Widget {...widget.config} {...(embedded && { embedded })} />
+    );
 
     return (
       <ErrorBoundary
@@ -90,7 +101,7 @@ export const HostedWidget = memo(
         fallback={PANEL_ERROR}
       >
         <WidgetRuntimeProvider widgetType={type}>
-          <WidgetScale scale={scale ?? widget.scale}>
+          <WidgetScale scale={scale ?? widget.scale} exact={exactScale}>
             {scroll ? (
               // Inside the scale, so the scrolling is in the widget's own
               // pixels and the scrollbar is not scaled away from the edge.

@@ -1,5 +1,9 @@
 import { useMemo } from 'react';
-import type { DashboardWidget } from '@irdashies/types';
+import {
+  isWidgetGroup,
+  resolveWidgetGroupMembers,
+  type DashboardWidget,
+} from '@irdashies/types';
 import {
   PitLaneProvider,
   ReferenceStoreProvider,
@@ -38,7 +42,9 @@ export const RendererDataProviders = ({
   /** The window already mounts a SessionProvider of its own. */
   sessionAlreadyMounted?: boolean;
 }) => {
-  const displayWidgets = useWidgetsForThisDisplay(browser);
+  const displayWidgets = useWidgetsForThisDisplay(browser, {
+    includeGroupMembers: true,
+  });
   const widgets = widgetsOverride ?? displayWidgets;
   const { currentDashboard } = useDashboard();
   // Looked up in the whole profile, not the enabled list above, so a disabled
@@ -48,14 +54,31 @@ export const RendererDataProviders = ({
     ? currentDashboard?.widgets.find((widget) => widget.id === widgetId)?.type
     : undefined;
   const runtimeNeeds = useMemo(() => {
-    const scoped = widgetId ? [{ id: widgetId, type: scopedType }] : widgets;
+    const solo = widgetId ? { id: widgetId, type: scopedType } : undefined;
+    const scoped = solo
+      ? [
+          solo,
+          // The group's page needs what the widgets inside it need.
+          ...(isWidgetGroup(solo)
+            ? resolveWidgetGroupMembers(currentDashboard).map(
+                ({ widget }) => widget
+              )
+            : []),
+        ]
+      : widgets;
     return {
       telemetryInspector: rendererNeedsTelemetryInspector(scoped),
       referenceLaps: rendererNeedsChannel(scoped, 'reference-laps.snapshot'),
       sessionData: !sessionAlreadyMounted && rendererNeedsSessionData(scoped),
       pitLaneData: rendererNeedsPitLaneData(scoped),
     };
-  }, [widgets, widgetId, scopedType, sessionAlreadyMounted]);
+  }, [
+    widgets,
+    widgetId,
+    scopedType,
+    currentDashboard,
+    sessionAlreadyMounted,
+  ]);
 
   if (
     !runtimeNeeds.telemetryInspector &&

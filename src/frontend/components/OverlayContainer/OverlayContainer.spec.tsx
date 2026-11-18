@@ -84,6 +84,21 @@ describe('OverlayContainer', () => {
     expect(screen.queryByTestId('widget-body')).toBeNull();
   });
 
+  it('subscribes for Sector Delta inside the widget group', () => {
+    const layout = { x: 0, y: 0, width: 100, height: 100 };
+    const group = { id: 'widgetgroup', enabled: true, layout };
+    const member = { id: 'sectordelta', enabled: true, layout };
+    mockDashboard([group]);
+    vi.mocked(useWidgetsForThisDisplay).mockImplementation(
+      (_browser, options) =>
+        options?.includeGroupMembers ? [group, member] : [group]
+    );
+
+    render(<OverlayContainer />);
+
+    expect(sectorTimingEnabled()).toBe(true);
+  });
+
   it('subscribes when Sector Delta is enabled', () => {
     mockDashboard([
       {

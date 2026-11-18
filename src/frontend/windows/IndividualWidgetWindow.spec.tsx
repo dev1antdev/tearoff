@@ -63,6 +63,17 @@ describe('individual widget presentation', () => {
     expect(mocks.sector).not.toHaveBeenCalled();
     expect(mocks.timing).toHaveBeenCalledWith({ soloWidgetType: 'flag' });
   });
+  it('runs what the widgets inside the group need', () => {
+    render(
+      <IndividualWidgetView
+        widget={widget('widgetgroup')}
+        running
+        dataWidgets={[widget('widgetgroup'), widget('map')]}
+      />
+    );
+    expect(mocks.sector).toHaveBeenCalled();
+    expect(mocks.timing).toHaveBeenCalledWith({ soloWidgetType: undefined });
+  });
   it('honours simulator disconnect and always-visible widgets', () => {
     const { rerender } = render(
       <IndividualWidgetView widget={widget()} running={false} />

@@ -432,6 +432,24 @@ describe('individual overlay windows', () => {
     }
   });
 
+  it('gives the widget group one window and its members none', () => {
+    const manager = new OverlayManager();
+    const layout = dashboard();
+    layout.widgets.push({
+      ...widget('widgetgroup', 500),
+      type: 'widgetgroup',
+      config: {
+        members: [{ widgetId: 'flag-right', x: 0, y: 0, width: 9, height: 9 }],
+      },
+    });
+    manager.createOverlays(layout, { createSettingsWindow: false });
+
+    expect(createdWindows.map((win) => win.options.title)).toEqual([
+      'Tearoff - flag-left',
+      'Tearoff - widgetgroup',
+    ]);
+  });
+
   it('creates one window per enabled instance and preserves a cross-display span', () => {
     const manager = new OverlayManager();
     const layout = dashboard();

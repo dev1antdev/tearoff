@@ -106,6 +106,47 @@ describe('useWidgetsForThisDisplay', () => {
     await waitFor(() => expect(ids(result.current)).toEqual(['input']));
   });
 
+  describe('with the widget group', () => {
+    const group = (): DashboardWidget => ({
+      ...widget('widgetgroup', 400),
+      config: {
+        members: [
+          { widgetId: 'standings', x: 0, y: 0, width: 10, height: 10 },
+          { widgetId: 'input', x: 0, y: 0, width: 10, height: 10 },
+        ],
+      },
+    });
+
+    beforeEach(() => {
+      dashboard.widgets = [
+        widget('input', 0),
+        widget('standings', 200),
+        widget('flag', 300),
+        group(),
+      ];
+    });
+
+    it('leaves the widgets in the group to the group', async () => {
+      const { result } = renderHook(() => useWidgetsForThisDisplay());
+
+      await waitFor(() =>
+        expect(ids(result.current)).toEqual(['flag', 'widgetgroup'])
+      );
+    });
+
+    it('names them for a caller that fetches their data', async () => {
+      main.simulator = 'iracing';
+      const { result } = renderHook(() =>
+        useWidgetsForThisDisplay(false, { includeGroupMembers: true })
+      );
+
+      // Standings is the one this sim cannot show.
+      await waitFor(() =>
+        expect(ids(result.current)).toEqual(['flag', 'widgetgroup', 'input'])
+      );
+    });
+  });
+
   it('still respects the widget the user switched off', async () => {
     main.support = DEFAULT_SIM_WIDGET_SUPPORT;
     main.simulator = 'iracing';

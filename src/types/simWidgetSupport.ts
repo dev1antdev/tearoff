@@ -206,6 +206,9 @@ export const LMU_SUPPORTED_WIDGETS: readonly string[] = [
   // LMU's own forecast for the session, from its REST API: five points
   // across practice, qualifying or the race, with the weather as it is.
   'weatherforecast',
+  // Draws the widgets placed in it, each of which has its own place in these
+  // lists: one the running sim cannot show is left out of the group.
+  'widgetgroup',
 ];
 
 /**

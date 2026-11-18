@@ -82,6 +82,10 @@ export const OverlayContainer = memo(() => {
   );
 
   const enabledForThisDisplay = useWidgetsForThisDisplay();
+  // What this window fetches data for, widgets inside the group included.
+  const widgetsWithData = useWidgetsForThisDisplay(false, {
+    includeGroupMembers: true,
+  });
 
   // Gantry has a window of its own (see the #/gantry route in App.tsx), so
   // rendering it here too would put a second copy inside the overlay.
@@ -113,7 +117,7 @@ export const OverlayContainer = memo(() => {
       ].join(' ')}
     >
       <SectorTimingUpdater
-        enabled={widgetsForThisDisplay.some((widget) =>
+        enabled={widgetsWithData.some((widget) =>
           ['sectordelta', 'map', 'flatmap', 'timing'].includes(
             widget.type || widget.id
           )

@@ -6,6 +6,16 @@ import { DashboardView } from './DashboardView';
 
 const dashboard = {
   widgets: [
+    {
+      id: 'widgetgroup',
+      enabled: false,
+      config: {
+        members: [
+          { widgetId: 'standings-3', x: 0, y: 0, width: 9, height: 9 },
+        ],
+      },
+    },
+    { id: 'standings-3', type: 'standings', enabled: true, config: {} },
     { id: 'carsystems', enabled: true, config: { fontSize: 14 } },
     { id: 'standings', enabled: true, scale: 125, config: {} },
     // Disabled for the desktop overlays, but still addressable by URL.
@@ -61,6 +71,12 @@ describe('DashboardView solo widget mode', () => {
 
     expect(screen.getByText('car systems widget')).toBeInTheDocument();
     expect(screen.getByText('standings widget')).toBeInTheDocument();
+  });
+
+  it('leaves a widget in the group to the group', () => {
+    render(<DashboardView />);
+
+    expect(screen.getAllByText('standings widget')).toHaveLength(1);
   });
 
   it('draws only the named widget', () => {

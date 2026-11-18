@@ -4,6 +4,8 @@ import {
   fitLayoutToDisplay,
   isLayoutOnDisplay,
   isWidgetDisabledForSim,
+  widgetGroupMemberIds,
+  withWidgetGroupMembers,
   type DashboardWidget,
 } from '@irdashies/types';
 import { useDashboard } from '../DashboardContext/DashboardContext';
@@ -55,19 +57,26 @@ export const rendersInOwnWindow = (widget: DashboardWidget): boolean =>
  * `browser` skips the display filtering — a browser-source view has no display
  * bounds of its own and should show the lot — but not the compatibility
  * filtering, which is about the sim rather than the screen.
+ *
+ * A widget placed in the widget group is not one of them: the group draws it.
+ * `includeGroupMembers` adds those of a group that is, for a caller asking
+ * what this window has to fetch data for rather than which blocks it places.
  */
 export const useWidgetsForThisDisplay = (
-  browser = false
+  browser = false,
+  { includeGroupMembers = false }: { includeGroupMembers?: boolean } = {}
 ): DashboardWidget[] => {
   const { currentDashboard, containerBoundsInfo } = useDashboard();
   const simulator = useActiveSimulator();
   const simWidgetSupport = useSimWidgetSupport();
 
-  return useMemo(() => {
+  const blocks = useMemo(() => {
+    const groupMembers = widgetGroupMemberIds(currentDashboard?.widgets);
     const enabled =
       currentDashboard?.widgets.filter(
         (widget) =>
           widget.enabled &&
+          !groupMembers.has(widget.id) &&
           !isGantryOnly(widget) &&
           !isPitWallPage(widget) &&
           !isWidgetDisabledForSim(
@@ -119,4 +128,15 @@ export const useWidgetsForThisDisplay = (
     simWidgetSupport,
     simulator,
   ]);
+
+  return useMemo(
+    () =>
+      includeGroupMembers
+        ? withWidgetGroupMembers(blocks, currentDashboard, {
+            support: simWidgetSupport,
+            simulator,
+          })
+        : blocks,
+    [includeGroupMembers, blocks, currentDashboard, simWidgetSupport, simulator]
+  );
 };

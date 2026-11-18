@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import type { DashboardWidget } from '@irdashies/types';
+import { isWidgetGroup, type DashboardWidget } from '@irdashies/types';
 import {
   DashboardProvider,
   RunningStateProvider,
@@ -42,23 +42,29 @@ const PitLapUpdater = () => {
 export const IndividualWidgetView = ({
   widget,
   running,
+  dataWidgets = [widget],
 }: {
   widget: DashboardWidget;
   running: boolean;
+  /** Whose data this window fetches: more than one for the widget group. */
+  dataWidgets?: readonly DashboardWidget[];
 }) => {
   const offset = useContainerOffset();
   const hidden = useHiddenWidgetIds();
   const type = widget.type ?? widget.id;
   const Widget = getWidget(type);
-  const needs = widgetUpdaterNeeds(widget);
+  const needs = dataWidgets.map(widgetUpdaterNeeds);
   if (!Widget || hidden.has(widget.id)) return null;
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none">
       <WidgetRuntimeProvider widgetType={type}>
-        {needs.sectorTiming && <SectorTimingUpdater />}
-        {needs.pushToPass && <PushToPassUpdater />}
-        {needs.pitLap && <PitLapUpdater />}
-        <SessionTimingUpdater soloWidgetType={type} />
+        {needs.some((need) => need.sectorTiming) && <SectorTimingUpdater />}
+        {needs.some((need) => need.pushToPass) && <PushToPassUpdater />}
+        {needs.some((need) => need.pitLap) && <PitLapUpdater />}
+        {/* The group answers for what is in it, not for a type of its own. */}
+        <SessionTimingUpdater
+          soloWidgetType={isWidgetGroup(widget) ? undefined : type}
+        />
         <div
           data-widget-id={widget.id}
           className="absolute pointer-events-none [contain:layout_style_paint]"
@@ -84,13 +90,16 @@ export const IndividualWidgetView = ({
 
 const IndividualWidgetContent = () => {
   const widgets = useWidgetsForThisDisplay();
+  const dataWidgets = useWidgetsForThisDisplay(false, {
+    includeGroupMembers: true,
+  });
   const widget = widgets[0];
   const { running } = useRunningState();
   useResetOnDisconnect(running);
   return (
     <>
       {/* Recording survives hide hotkeys and is owned by this widget's window. */}
-      {widget && (widget.type ?? widget.id) === 'laptrace' && (
+      {dataWidgets.some((w) => (w.type ?? w.id) === 'laptrace') && (
         <Suspense fallback={null}>
           <LapTraceUpdater />
         </Suspense>
@@ -99,7 +108,11 @@ const IndividualWidgetContent = () => {
         <ProfileSwitchOverlay showBanner={false}>
           <ThemeManager>
             {widget && (
-              <IndividualWidgetView widget={widget} running={running} />
+              <IndividualWidgetView
+                widget={widget}
+                running={running}
+                dataWidgets={dataWidgets}
+              />
             )}
           </ThemeManager>
         </ProfileSwitchOverlay>

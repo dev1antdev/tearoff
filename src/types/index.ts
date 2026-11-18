@@ -12,6 +12,7 @@ export * from './referenceLaps';
 export * from './raceControl';
 export * from './widgetConfigs';
 export * from './gantryDock';
+export * from './widgetGroup';
 export * from './gantryStandings';
 export * from './gantryPitStops';
 export * from './pitWall';

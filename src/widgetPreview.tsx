@@ -13,6 +13,8 @@ import {
 } from '@irdashies/context';
 import {
   channelRegistry,
+  isWidgetGroup,
+  resolveWidgetGroupMembers,
   type IrSdkBridge,
   type LapTraceConfig,
   type Session,
@@ -130,6 +132,15 @@ function renderPreview(config: WidgetPreviewConfig, session?: Session) {
   if (!Widget) return;
   currentType = type;
   const value = previewDashboard(config.dashboard, widget);
+  // The widget group is previewed with what the widgets in it need.
+  const group = isWidgetGroup(widget);
+  const shown = [
+    widget,
+    ...(group ? resolveWidgetGroupMembers(value).map((m) => m.widget) : []),
+  ];
+  const shownType = (id: string) =>
+    shown.find((item) => (item.type ?? item.id) === id);
+  const lapTrace = shownType('laptrace');
   if (!dashboard) {
     dashboard = createPreviewDashboardBridge(value, { readAsset });
     window.dashboardBridge = dashboard.bridge;
@@ -144,11 +155,13 @@ function renderPreview(config: WidgetPreviewConfig, session?: Session) {
         <ThemeManager>
           <WidgetRuntimeProvider widgetType={type}>
             <ReferenceStoreProvider bridge={channels.bridge} />
-            <SessionTimingUpdater soloWidgetType={type} />
-            <SectorTimingUpdater enabled={['map', 'flatmap'].includes(type)} />
-            {type === 'laptrace' && (
+            <SessionTimingUpdater soloWidgetType={group ? undefined : type} />
+            <SectorTimingUpdater
+              enabled={!!(shownType('map') || shownType('flatmap'))}
+            />
+            {lapTrace && (
               <LapTraceRecorder
-                config={widget.config as unknown as LapTraceConfig}
+                config={lapTrace.config as unknown as LapTraceConfig}
               />
             )}
             <WidgetScale scale={widget.scale}>
