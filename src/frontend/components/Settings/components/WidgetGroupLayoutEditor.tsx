@@ -13,6 +13,32 @@ import { useResizeWidget } from '../../WidgetContainer/useResizeWidget';
 /** Small enough for a badge, large enough to keep hold of. */
 const MIN_TILE_SIZE = 20;
 
+/** Moved inside the frame, where it can still be seen and picked up. */
+const movedIntoFrame = (
+  layout: WidgetLayout,
+  frame: WidgetLayout
+): WidgetLayout => ({
+  ...layout,
+  x: Math.max(0, Math.min(layout.x, frame.width - layout.width)),
+  y: Math.max(0, Math.min(layout.y, frame.height - layout.height)),
+});
+
+/** Cut at the frame, for a tile being sized past it. */
+const cutToFrame = (
+  layout: WidgetLayout,
+  frame: WidgetLayout
+): WidgetLayout => {
+  const x = Math.max(0, layout.x);
+  const y = Math.max(0, layout.y);
+  return {
+    ...layout,
+    x,
+    y,
+    width: Math.min(layout.x + layout.width, frame.width) - x,
+    height: Math.min(layout.y + layout.height, frame.height) - y,
+  };
+};
+
 export interface WidgetGroupEditorTile {
   id: string;
   name: string;
@@ -29,18 +55,17 @@ interface TileProps {
 
 const Tile = ({ tile, scale, bounds, siblings, onChange }: TileProps) => {
   const { id, name, layout } = tile;
-  const onLayoutChange = (next: WidgetLayout) => onChange(id, next);
   const snapOptions = { bounds, siblingLayouts: siblings };
   const { isDragging, dragHandleProps } = useDragWidget({
     layout,
-    onLayoutChange,
+    onLayoutChange: (next) => onChange(id, movedIntoFrame(next, bounds)),
     enabled: true,
     snapOptions,
     pointerScale: scale,
   });
   const { isResizing, getResizeHandleProps } = useResizeWidget({
     layout,
-    onLayoutChange,
+    onLayoutChange: (next) => onChange(id, cutToFrame(next, bounds)),
     enabled: true,
     minWidth: MIN_TILE_SIZE,
     minHeight: MIN_TILE_SIZE,
@@ -76,8 +101,12 @@ const Tile = ({ tile, scale, bounds, siblings, onChange }: TileProps) => {
           ...getResizeHandleProps(direction),
           'data-resize-handle': direction,
         })}
-        // As thick on screen as on the overlay, at any canvas scale.
-        size={RESIZE_HANDLE_SIZE / scale}
+        // As thick on screen as on the overlay, at any canvas scale, but
+        // never so thick that a small tile has no middle left to drag it by.
+        size={Math.min(
+          RESIZE_HANDLE_SIZE / scale,
+          Math.min(layout.width, layout.height) / 4
+        )}
         visible
       />
     </div>

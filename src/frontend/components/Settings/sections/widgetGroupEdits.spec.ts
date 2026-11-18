@@ -208,14 +208,17 @@ describe('widgetGroupFrameFor', () => {
 });
 
 describe('setWidgetGroupMembers', () => {
-  it('saves the members as given', () => {
+  it('saves the members and the frame as given', () => {
     const input = { widgetId: 'input', ...place };
     const radar = { widgetId: 'radar', ...place };
-    const next = setWidgetGroupMembers(dashboard([input, radar]), [
-      radar,
-      input,
-    ]);
+    const frame = { x: 1, y: 2, width: 300, height: 200 };
+    const next = setWidgetGroupMembers(
+      dashboard([input, radar]),
+      [radar, input],
+      frame
+    );
     expect(membersOf(next)).toEqual([radar, input]);
+    expect(groupOf(next).layout).toEqual(frame);
   });
 });
 

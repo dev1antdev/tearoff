@@ -108,8 +108,11 @@ const MemberFields = ({
 /** What is being arranged, until it is saved or dropped. */
 interface LayoutDraft {
   members: WidgetGroupMember[];
-  /** The frame, where the arrangement asked for a different one. */
-  frame?: WidgetLayout;
+  /**
+   * What Reset layout laid out, which the frame has to show. It is kept rather
+   * than the frame itself, so the frame follows the group's scale and size.
+   */
+  fitTo?: WidgetGroupMember[];
 }
 
 const WidgetGroupPage = ({
@@ -128,8 +131,10 @@ const WidgetGroupPage = ({
   const savedMembers = sanitizeWidgetGroupMembers(group.config?.members);
   const [draft, setDraft] = useState<LayoutDraft | null>(null);
   const members = draft?.members ?? savedMembers;
-  const frame = draft?.frame ?? group.layout;
-  const edited = setWidgetGroupMembers(dashboard, members, draft?.frame);
+  const frame = draft?.fitTo
+    ? widgetGroupFrameFor(group, draft.fitTo)
+    : group.layout;
+  const edited = setWidgetGroupMembers(dashboard, members, frame);
 
   const changeMember = (widgetId: string, change: WidgetGroupMemberChange) =>
     setDraft((current) => ({
@@ -157,23 +162,11 @@ const WidgetGroupPage = ({
     const widget = widgetOf(id);
     return widget ? memberName(widget) : id;
   };
-  const resizeFrame = (size: { width?: number; height?: number }) => {
-    if (draft?.frame) {
-      const resized = resizeWidgetGroup(edited, size);
-      setDraft({
-        ...draft,
-        frame: findWidgetGroup(resized.widgets)?.layout,
-      });
-    } else {
-      save(resizeWidgetGroup(dashboard, size));
-    }
-  };
+  const resizeFrame = (size: { width?: number; height?: number }) =>
+    save(resizeWidgetGroup(dashboard, size));
   const resetLayout = () => {
     const stacked = stackWidgetGroupMembers(dashboard, members);
-    setDraft({
-      members: stacked,
-      frame: widgetGroupFrameFor({ ...group, layout: frame }, stacked),
-    });
+    setDraft({ members: stacked, fitTo: stacked });
   };
   const scale = widgetGroupScale(group);
 

@@ -177,15 +177,15 @@ export const stackWidgetGroupMembers = (
   });
 };
 
-/** The dashboard with this arrangement of the group, and frame if given. */
+/** The dashboard with this arrangement of the group, in this frame. */
 export const setWidgetGroupMembers = (
   dashboard: DashboardLayout,
   members: WidgetGroupMember[],
-  frame?: WidgetLayout
+  frame: WidgetLayout
 ): DashboardLayout => {
   const group = findWidgetGroup(dashboard.widgets);
   return group
-    ? withGroup(dashboard, group, members, frame && { layout: frame })
+    ? withGroup(dashboard, group, members, { layout: frame })
     : dashboard;
 };
 

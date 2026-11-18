@@ -219,6 +219,53 @@ describe('WidgetGroupSettings', () => {
       expect(saved().group.layout.height).toBe(160);
     });
 
+    it('sizes the frame for the stack at the scale of the moment', () => {
+      const group = (mocks.dashboard as DashboardLayout).widgets[0];
+      group.layout.height = 100;
+      const { rerender } = render(<WidgetGroupSettings />);
+      fireEvent.click(screen.getByRole('button', { name: 'Reset layout' }));
+
+      group.scale = 200;
+      rerender(<WidgetGroupSettings />);
+      saveLayout();
+
+      expect(saved().group.layout.height).toBe(320);
+    });
+
+    it('keeps a dragged widget inside the frame', () => {
+      render(<WidgetGroupSettings />);
+
+      dragBy(tile('flag'), 1000, 1000);
+
+      expect(tile('flag')).toHaveStyle({ left: '500px', top: '250px' });
+    });
+
+    it('stops sizing a widget at the frame', () => {
+      render(<WidgetGroupSettings />);
+
+      const edge = tile('input').querySelector('[data-resize-handle="e"]');
+      dragBy(edge as Element, 1000, 0);
+
+      expect(tile('input')).toHaveStyle({ left: '5px', width: '595px' });
+    });
+
+    it('leaves the middle of a small widget free to drag', () => {
+      render(<WidgetGroupSettings />);
+      const size = { target: { value: '20' } };
+      fireEvent.change(
+        card('Flag').getByRole('spinbutton', { name: 'Width' }),
+        size
+      );
+      fireEvent.change(
+        card('Flag').getByRole('spinbutton', { name: 'Height' }),
+        size
+      );
+
+      expect(
+        tile('flag').querySelector('[data-resize-handle="nw"]')
+      ).toHaveStyle({ width: '10px', height: '10px' });
+    });
+
     it('says when there is something to save', () => {
       render(<WidgetGroupSettings />);
       expect(screen.queryByText('Unsaved changes')).not.toBeInTheDocument();
