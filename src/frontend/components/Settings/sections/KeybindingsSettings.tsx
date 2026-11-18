@@ -451,9 +451,10 @@ export const KeybindingsSettings = () => {
                   : widgetLabel(widget.type ?? widget.id);
                 // Named as now: a group's number changes as others go.
                 const entry: KeybindingEntry = {
-                  accelerator: '',
-                  isDefault: true,
-                  ...bindings[actionId],
+                  ...(bindings[actionId] ?? {
+                    accelerator: '',
+                    isDefault: true,
+                  }),
                   label,
                   description: `Show / hide the ${label} widget`,
                 };
