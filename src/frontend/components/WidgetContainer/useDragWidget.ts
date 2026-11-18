@@ -20,6 +20,8 @@ interface UseDragWidgetOptions {
    * widget comes near it. Undefined before the display is known.
    */
   centerX?: number;
+  /** Screen pixels to a layout pixel, where the layout is drawn scaled. */
+  pointerScale?: number;
 }
 
 /**
@@ -51,6 +53,7 @@ export function useDragWidget({
   enabled,
   snapOptions,
   centerX,
+  pointerScale = 1,
 }: UseDragWidgetOptions) {
   const [isDragging, setIsDragging] = useState(false);
   // Once shown, the center line stays for the rest of the drag.
@@ -93,8 +96,8 @@ export function useDragWidget({
     const placeWidget = (e: globalThis.PointerEvent) => {
       if (!dragStateRef.current) return;
 
-      const deltaX = e.clientX - dragStateRef.current.startX;
-      const deltaY = e.clientY - dragStateRef.current.startY;
+      const deltaX = (e.clientX - dragStateRef.current.startX) / pointerScale;
+      const deltaY = (e.clientY - dragStateRef.current.startY) / pointerScale;
 
       const nextLayout = {
         ...layoutRef.current,
@@ -152,7 +155,7 @@ export function useDragWidget({
       window.removeEventListener('pointerup', endDrag);
       window.removeEventListener('pointercancel', endDrag);
     };
-  }, [isDragging, onLayoutChange, snapOptions, centerX]);
+  }, [isDragging, onLayoutChange, snapOptions, centerX, pointerScale]);
 
   return {
     isDragging,

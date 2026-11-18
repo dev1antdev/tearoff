@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { TrashIcon } from '@phosphor-icons/react';
 import { useDashboard } from '@irdashies/context';
 import {
@@ -11,6 +12,7 @@ import {
   type DashboardWidget,
   type WidgetGroupMember,
   type WidgetGroupWidgetSettings,
+  type WidgetLayout,
 } from '@irdashies/types';
 import { getWidgetName } from '../../../constants/widgetNames';
 import { SortableList } from '../../SortableList';
@@ -22,14 +24,20 @@ import { SettingNumberRow } from '../components/SettingNumberRow';
 import { SettingProps, settingPropFor } from '../components/SettingProp';
 import { SettingSelectRow } from '../components/SettingSelectRow';
 import { SettingsSection } from '../components/SettingSection';
+import { WidgetGroupLayoutEditor } from '../components/WidgetGroupLayoutEditor';
 import { widgetLabel } from '../menuItems';
 import {
   addWidgetGroupMember,
+  changeWidgetGroupMember,
   removeWidgetGroupMember,
-  reorderWidgetGroupMembers,
   resizeWidgetGroup,
-  updateWidgetGroupMember,
+  setWidgetGroupMembers,
+  sizedWidgetGroupFrame,
+  stackWidgetGroupMembers,
   widgetGroupCandidates,
+  widgetGroupFrameFor,
+  widgetGroupScale,
+  type WidgetGroupFrameSize,
   type WidgetGroupMemberChange,
 } from './widgetGroupEdits';
 
@@ -99,23 +107,80 @@ const MemberFields = ({
   </div>
 );
 
-export const WidgetGroupSettings = () => {
-  const { currentDashboard, onDashboardUpdated } = useDashboard();
-  const group = findWidgetGroup(currentDashboard?.widgets);
-  if (!currentDashboard || !group) return <>Loading...</>;
+/** What is being arranged, until it is saved or dropped. */
+interface LayoutDraft {
+  members: WidgetGroupMember[];
+  /**
+   * What Reset layout laid out, which the frame has to show. It is kept rather
+   * than the frame itself, so the frame follows the group's scale and size.
+   */
+  fitTo?: WidgetGroupMember[];
+  /** A size typed for that frame, which waits to be saved along with it. */
+  frameSize?: WidgetGroupFrameSize;
+}
 
+const WidgetGroupPage = ({
+  dashboard,
+  group,
+  save,
+}: {
+  dashboard: DashboardLayout;
+  group: DashboardWidget;
+  save: (dashboard: DashboardLayout) => void;
+}) => {
   const config = {
     ...defaultConfig,
     ...group.config,
   } as WidgetGroupWidgetSettings['config'];
-  const members = sanitizeWidgetGroupMembers(config.members);
-  const save = (dashboard: DashboardLayout) => onDashboardUpdated?.(dashboard);
+  const savedMembers = sanitizeWidgetGroupMembers(group.config?.members);
+  const [draft, setDraft] = useState<LayoutDraft | null>(null);
+  const members = draft?.members ?? savedMembers;
+  const frame = draft?.fitTo
+    ? sizedWidgetGroupFrame(
+        widgetGroupFrameFor(group, draft.fitTo),
+        draft.frameSize ?? {}
+      )
+    : group.layout;
+  const edited = setWidgetGroupMembers(dashboard, members, frame);
+
+  const changeMember = (widgetId: string, change: WidgetGroupMemberChange) =>
+    setDraft((current) => ({
+      ...current,
+      members: changeWidgetGroupMember(
+        current?.members ?? savedMembers,
+        widgetId,
+        change
+      ),
+    }));
+  const placeMember = (
+    widgetId: string,
+    { x, y, width, height }: WidgetLayout
+  ) => changeMember(widgetId, { x, y, width, height });
+  // Adding and removing change more than the arrangement, so they save, and
+  // what was being edited is saved with them rather than lost.
+  const saveNow = (next: DashboardLayout) => {
+    save(next);
+    setDraft(null);
+  };
+
   const widgetOf = (id: string) =>
-    currentDashboard.widgets.find((widget) => widget.id === id);
+    dashboard.widgets.find((widget) => widget.id === id);
   const nameOf = (id: string) => {
     const widget = widgetOf(id);
     return widget ? memberName(widget) : id;
   };
+  const resizeFrame = (size: WidgetGroupFrameSize) => {
+    if (draft?.fitTo) {
+      setDraft({ ...draft, frameSize: { ...draft.frameSize, ...size } });
+    } else {
+      save(resizeWidgetGroup(dashboard, size));
+    }
+  };
+  const resetLayout = () => {
+    const stacked = stackWidgetGroupMembers(dashboard, members);
+    setDraft({ members: stacked, fitTo: stacked });
+  };
+  const scale = widgetGroupScale(group);
 
   return (
     <BaseSettingsSection
@@ -138,21 +203,66 @@ export const WidgetGroupSettings = () => {
                 title="Group width"
                 units="px"
                 min={1}
-                value={group.layout.width}
-                onChange={(width) =>
-                  save(resizeWidgetGroup(currentDashboard, { width }))
-                }
+                value={frame.width}
+                onChange={(width) => resizeFrame({ width })}
               />
               <SettingNumberRow
                 title="Group height"
                 units="px"
                 min={1}
-                value={group.layout.height}
-                onChange={(height) =>
-                  save(resizeWidgetGroup(currentDashboard, { height }))
-                }
+                value={frame.height}
+                onChange={(height) => resizeFrame({ height })}
               />
             </SettingsSection>
+
+            {members.length > 0 && (
+              <SettingsSection title="Layout">
+                <p className="text-sm text-slate-400">
+                  Drag a widget to move it and its edges to size it. Hold Shift
+                  to move freely. The preview shows the layout once it is saved.
+                </p>
+                <WidgetGroupLayoutEditor
+                  width={frame.width / scale}
+                  height={frame.height / scale}
+                  tiles={members.map(({ widgetId, x, y, width, height }) => ({
+                    id: widgetId,
+                    name: nameOf(widgetId),
+                    layout: { x, y, width, height },
+                  }))}
+                  onChange={placeMember}
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!draft}
+                    onClick={() => saveNow(edited)}
+                    className="settings-button-primary"
+                  >
+                    Save layout
+                  </button>
+                  <button
+                    type="button"
+                    disabled={!draft}
+                    onClick={() => setDraft(null)}
+                    className="settings-button"
+                  >
+                    Revert
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetLayout}
+                    className="settings-button"
+                  >
+                    Reset layout
+                  </button>
+                  {draft && (
+                    <span role="status" className="text-sm text-slate-300">
+                      Unsaved changes
+                    </span>
+                  )}
+                </div>
+              </SettingsSection>
+            )}
 
             <SettingsSection title="Widgets">
               <p className="text-sm text-slate-400">
@@ -160,20 +270,24 @@ export const WidgetGroupSettings = () => {
                 returns to it when removed. Widgets lower in the list are drawn
                 on top.
               </p>
+              {draft && (
+                <p className="text-sm text-slate-300">
+                  Changes below are kept with Save layout, above. They are lost
+                  on leaving this page without it.
+                </p>
+              )}
               <SettingSelectRow
                 title="Add widget"
                 value=""
                 options={[
                   { label: 'Select a widget...', value: '' },
-                  ...widgetGroupCandidates(currentDashboard).map((widget) => ({
+                  ...widgetGroupCandidates(dashboard).map((widget) => ({
                     label: memberName(widget),
                     value: widget.id,
                   })),
                 ]}
                 onChange={(widgetId) => {
-                  if (widgetId) {
-                    save(addWidgetGroupMember(currentDashboard, widgetId));
-                  }
+                  if (widgetId) saveNow(addWidgetGroupMember(edited, widgetId));
                 }}
               />
               {members.length === 0 ? (
@@ -185,12 +299,10 @@ export const WidgetGroupSettings = () => {
                     member,
                   }))}
                   onReorder={(items) =>
-                    save(
-                      reorderWidgetGroupMembers(
-                        currentDashboard,
-                        items.map((item) => item.member)
-                      )
-                    )
+                    setDraft({
+                      ...draft,
+                      members: items.map((item) => item.member),
+                    })
                   }
                   renderItem={({ id, member }, sortableProps) => (
                     <DraggableSettingItem
@@ -205,17 +317,9 @@ export const WidgetGroupSettings = () => {
                         name={nameOf(id)}
                         member={member}
                         widget={widgetOf(id)}
-                        onChange={(change) =>
-                          save(
-                            updateWidgetGroupMember(
-                              currentDashboard,
-                              id,
-                              change
-                            )
-                          )
-                        }
+                        onChange={(change) => changeMember(id, change)}
                         onRemove={() =>
-                          save(removeWidgetGroupMember(currentDashboard, id))
+                          saveNow(removeWidgetGroupMember(edited, id))
                         }
                       />
                     </DraggableSettingItem>
@@ -236,5 +340,21 @@ export const WidgetGroupSettings = () => {
         </SettingProps>
       )}
     </BaseSettingsSection>
+  );
+};
+
+export const WidgetGroupSettings = () => {
+  const { currentDashboard, currentProfile, onDashboardUpdated } =
+    useDashboard();
+  const group = findWidgetGroup(currentDashboard?.widgets);
+  if (!currentDashboard || !group) return <>Loading...</>;
+  return (
+    <WidgetGroupPage
+      // An arrangement being edited belongs to the profile it was made in.
+      key={currentProfile?.id}
+      dashboard={currentDashboard}
+      group={group}
+      save={(dashboard) => onDashboardUpdated?.(dashboard)}
+    />
   );
 };

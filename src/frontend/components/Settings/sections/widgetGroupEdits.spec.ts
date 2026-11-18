@@ -6,11 +6,13 @@ import type {
 } from '@irdashies/types';
 import {
   addWidgetGroupMember,
+  changeWidgetGroupMember,
   removeWidgetGroupMember,
-  reorderWidgetGroupMembers,
   resizeWidgetGroup,
-  updateWidgetGroupMember,
+  setWidgetGroupMembers,
+  stackWidgetGroupMembers,
   widgetGroupCandidates,
+  widgetGroupFrameFor,
 } from './widgetGroupEdits';
 
 const place = { x: 0, y: 0, width: 100, height: 50 };
@@ -145,42 +147,78 @@ describe('removeWidgetGroupMember', () => {
   });
 });
 
-describe('updateWidgetGroupMember', () => {
-  const two = () =>
-    dashboard([
-      { widgetId: 'input', ...place },
-      { widgetId: 'radar', ...place, x: 7 },
-    ]);
+describe('changeWidgetGroupMember', () => {
+  const two = (): WidgetGroupMember[] => [
+    { widgetId: 'input', ...place },
+    { widgetId: 'radar', ...place, x: 7 },
+  ];
 
   it('changes one member and no other', () => {
-    const next = updateWidgetGroupMember(two(), 'input', {
-      x: 12.4,
-      width: 300,
-      scale: 120,
-    });
-    expect(membersOf(next)).toEqual([
+    expect(
+      changeWidgetGroupMember(two(), 'input', {
+        x: 12.4,
+        width: 300,
+        scale: 120,
+      })
+    ).toEqual([
       { widgetId: 'input', ...place, x: 12, width: 300, scale: 120 },
       { widgetId: 'radar', ...place, x: 7 },
     ]);
   });
 
   it('keeps the member at least a pixel in size', () => {
-    const [member] = membersOf(
-      updateWidgetGroupMember(two(), 'input', { width: 0, height: -5 })
-    );
+    const [member] = changeWidgetGroupMember(two(), 'input', {
+      width: 0,
+      height: -5,
+    });
     expect(member).toMatchObject({ width: 1, height: 1 });
   });
 });
 
-describe('reorderWidgetGroupMembers', () => {
-  it('saves the members in the order given', () => {
+describe('stackWidgetGroupMembers', () => {
+  it('puts the members in a column at their own sizes, keeping their scale', () => {
+    expect(
+      stackWidgetGroupMembers(dashboard(), [
+        { widgetId: 'input', ...place, x: 40, scale: 120 },
+        { widgetId: 'radar', ...place },
+      ])
+    ).toEqual([
+      { widgetId: 'input', x: 0, y: 0, width: 200, height: 80, scale: 120 },
+      { widgetId: 'radar', x: 0, y: 80, width: 200, height: 80 },
+    ]);
+  });
+});
+
+describe('widgetGroupFrameFor', () => {
+  const group = groupOf(dashboard([], { scale: 200 }));
+
+  it('grows the frame to reach the members, at the scale of the group', () => {
+    expect(
+      widgetGroupFrameFor(group, [{ widgetId: 'input', ...place, y: 40 }])
+    ).toMatchObject({ width: 200, height: 180 });
+  });
+
+  it('leaves a frame that is large enough', () => {
+    expect(
+      widgetGroupFrameFor(group, [
+        { widgetId: 'input', ...place, width: 10, height: 10 },
+      ])
+    ).toMatchObject({ width: 150, height: 60 });
+  });
+});
+
+describe('setWidgetGroupMembers', () => {
+  it('saves the members and the frame as given', () => {
     const input = { widgetId: 'input', ...place };
     const radar = { widgetId: 'radar', ...place };
-    const next = reorderWidgetGroupMembers(dashboard([input, radar]), [
-      radar,
-      input,
-    ]);
+    const frame = { x: 1, y: 2, width: 300, height: 200 };
+    const next = setWidgetGroupMembers(
+      dashboard([input, radar]),
+      [radar, input],
+      frame
+    );
     expect(membersOf(next)).toEqual([radar, input]);
+    expect(groupOf(next).layout).toEqual(frame);
   });
 });
 
