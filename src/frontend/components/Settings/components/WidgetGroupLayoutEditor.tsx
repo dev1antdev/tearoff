@@ -114,6 +114,12 @@ const Tile = ({ tile, scale, bounds, siblings, onChange }: TileProps) => {
     snapOptions,
     pointerScale: scale,
   });
+  // As thick on screen as on the overlay, at any canvas scale, but never so
+  // thick that a small tile has no middle left to drag it by.
+  const handleSize = Math.min(
+    RESIZE_HANDLE_SIZE / scale,
+    Math.min(layout.width, layout.height) / 4
+  );
 
   return (
     <div
@@ -132,7 +138,11 @@ const Tile = ({ tile, scale, bounds, siblings, onChange }: TileProps) => {
         height: layout.height,
       }}
     >
-      <div className="h-full overflow-hidden p-1">
+      {/* Inset past the corner handles, which would cover the name. */}
+      <div
+        className="h-full overflow-hidden"
+        style={{ padding: handleSize * 1.5 }}
+      >
         <p className="truncate text-sm">{name}</p>
         <p className="truncate text-xs tabular-nums text-slate-400">
           {layout.width} × {layout.height}
@@ -143,12 +153,7 @@ const Tile = ({ tile, scale, bounds, siblings, onChange }: TileProps) => {
           ...getResizeHandleProps(direction),
           'data-resize-handle': direction,
         })}
-        // As thick on screen as on the overlay, at any canvas scale, but
-        // never so thick that a small tile has no middle left to drag it by.
-        size={Math.min(
-          RESIZE_HANDLE_SIZE / scale,
-          Math.min(layout.width, layout.height) / 4
-        )}
+        size={handleSize}
         visible
       />
     </div>
