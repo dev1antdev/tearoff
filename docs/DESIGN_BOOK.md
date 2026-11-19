@@ -23,7 +23,9 @@ Every rule here belongs to one of two surfaces.
 The Pit Wall window sits inside `ThemeManager` too, so a widget hosted in a Pit
 Wall panel uses the overlay scale and palette, exactly as it does on track. A
 Pit Wall or Gantry frame is the hosted widget's panel: inside it the widget's
-`overlay-panel` loses its own edge and corners, so there is one box, not two.
+`overlay-panel` loses its own edge and corners (the edge turns transparent),
+so there is one box, not two; a warning colour the widget sets on its edge (the
+Fuel Calculator's) still shows.
 
 The app is dark only (`color-scheme: dark`).
 

@@ -35,3 +35,31 @@ export const WithAside: Story = {
 export const OverlayContent: Story = {
   args: { overlayContent: true, children: body },
 };
+
+/**
+ * A hosted widget's panel loses its own edge and corners in the frame, so
+ * there is one box; a warning border it sets (the Fuel Calculator's) shows.
+ */
+export const HostedPanels: Story = {
+  args: {
+    overlayContent: true,
+    children: (
+      <div className="flex h-full gap-3 p-3 text-sm text-white">
+        <div
+          data-testid="hosted-plain"
+          className="overlay-panel flex-1 p-3"
+          style={{ ['--bg-opacity' as string]: '80%' }}
+        >
+          A widget
+        </div>
+        <div
+          data-testid="hosted-warning"
+          className="overlay-panel flex-1 p-3"
+          style={{ ['--bg-opacity' as string]: '80%', borderColor: '#ef4444' }}
+        >
+          Fuel short
+        </div>
+      </div>
+    ),
+  },
+};
