@@ -112,11 +112,12 @@ export const SystemColumn = memo(
     return (
       <div className="flex flex-auto min-w-0 flex-col items-center gap-0.5">
         {/* The bar sits under the label, not beside it, and stays while the
-            system works: the header is no wider than the old chip, and does
+            system works; the label drops the usual letter spacing. So the
+            header is no wider than the old chip at any Font size, and does
             not change size when the label fills. */}
         <div className="flex w-full min-w-0 flex-col items-center gap-0.5">
           <span
-            className={`overlay-label max-w-full truncate rounded-full px-1 py-0.5 leading-none ${labelColour}`}
+            className={`overlay-label tracking-normal max-w-full truncate rounded-full px-1 py-0.5 leading-none ${labelColour}`}
           >
             {short}
           </span>
