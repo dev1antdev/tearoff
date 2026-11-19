@@ -1,5 +1,9 @@
 import { InputGear, InputGearProps } from '../InputGear/InputGear';
-import { formatSteerAngle, UnwindArrow } from './RotationIndicator';
+import {
+  formatSteerAngle,
+  UnwindArrow,
+  unwindDirection,
+} from './RotationIndicator';
 
 export interface SteerDialProps {
   /** Steering wheel angle in radians (raw `SteeringWheelAngle` value). */
@@ -46,6 +50,7 @@ export function SteerDial({
   flashColor,
 }: SteerDialProps) {
   const steerDeg = angleRad * -1 * (180 / Math.PI);
+  const unwind = angleInside ? unwindDirection(steerDeg) : undefined;
 
   // 'light' draws on a dark scene, 'dark' on a bright one.
   const trackClass =
@@ -93,12 +98,14 @@ export function SteerDial({
             style={{ fontSize: 'min(18cqw, 18cqh)' }}
           >
             {/* Past 270 degrees, which way to unwind, as the wheels show it */}
-            <UnwindArrow
-              angleDeg={steerDeg}
-              size="0.9em"
-              weight="regular"
-              className="text-red-400"
-            />
+            {unwind && (
+              <UnwindArrow
+                direction={unwind}
+                size="0.9em"
+                weight="regular"
+                className="text-red-400"
+              />
+            )}
             {formatSteerAngle(steerDeg)}
           </div>
         ) : (
