@@ -299,7 +299,7 @@ Do not bundle or fetch Segoe UI; elsewhere the platform UI face stands in.
 
 ## 6. Shape, borders and depth
 
-- Radii: overlay panels `rounded-xl` (12px, part of `overlay-panel`); rev light segments `rounded-[30%]`; fields, buttons and licence badges `rounded-md`; larger settings panels and Pit Wall panels `rounded-lg`; dots, thumbs, thin bars and their tracks, a class's colour bar, status pills and scrollbars `rounded-full`; tall bar tracks (Pitlane Helper) `rounded-md`.
+- Radii: overlay panels `rounded-xl` (12px, part of `overlay-panel`); rev light segments `rounded-[30%]`; a fill or flash box inside an overlay panel (the Delta Speed fill, the Shift Light readout) `rounded-lg`; fields, buttons and licence badges `rounded-md`; larger settings panels and Pit Wall panels `rounded-lg`; dots, thumbs, thin bars and their tracks, a class's colour bar, status pills and scrollbars `rounded-full`; tall bar tracks (Pitlane Helper) `rounded-md`.
 - Separate with hairlines and space, not depth. Shadows only for layers that float over the page (menus, popovers, the profile-switch notice).
 - Scrollbars in `.settings-shell`: 6px, thumb `white/12%` (hover `white/24%`), transparent track.
 

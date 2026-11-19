@@ -175,7 +175,10 @@ export const ShiftLight = ({
                 ) : (
                   <>
                     {Math.round(clampedRpm).toLocaleString('en-US')}
-                    <span className="text-[0.6em] font-semibold tracking-wider text-slate-400 ml-2">
+                    <span
+                      className="overlay-label ml-2"
+                      style={{ fontSize: '0.6em' }}
+                    >
                       RPM
                     </span>
                   </>

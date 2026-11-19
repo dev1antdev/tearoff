@@ -777,6 +777,58 @@ describe('dashboards', () => {
       expect(withDashboardDefaults(result)).toEqual(result);
     });
 
+    const wheelOf = (result: DashboardLayout, id: string) =>
+      (
+        result.widgets.find((w) => w.id === id)?.config as {
+          steer: { config: { style: string } };
+        }
+      ).steer.config.style;
+    const inputWith = (steer: Record<string, unknown>) =>
+      ({
+        widgets: [
+          {
+            id: 'input-2',
+            type: 'input',
+            enabled: true,
+            config: {
+              steer: {
+                config: { style: 'default', color: 'light' },
+                angleReadout: 'beyond270',
+                rotationArc: 'never',
+                showWheelAngle: false,
+                ...steer,
+              },
+            },
+          },
+        ],
+      }) as unknown as DashboardLayout;
+
+    it('moves an Input wheel left as it came onto the ring once', () => {
+      const result = withDashboardDefaults(inputWith({}));
+
+      expect(wheelOf(result, 'input-2')).toBe('dial');
+      expect(withDashboardDefaults(result)).toEqual(result);
+    });
+
+    it('keeps a wheel picture the driver set up, or picked after the move', () => {
+      for (const steer of [
+        { config: { style: 'default', color: 'dark' } },
+        { angleReadout: 'always' },
+        { rotationArc: 'stationary' },
+        { showWheelAngle: true },
+        { config: { style: 'formula', color: 'light' } },
+      ]) {
+        expect(
+          wheelOf(withDashboardDefaults(inputWith(steer)), 'input-2')
+        ).toBe((steer.config?.style as string | undefined) ?? 'default');
+      }
+      const picked = {
+        ...inputWith({}),
+        generalSettings: { redesignDefaultsApplied: true },
+      };
+      expect(wheelOf(withDashboardDefaults(picked), 'input-2')).toBe('default');
+    });
+
     it('keeps a fill the driver switched on in Standings, which never stored one by default', () => {
       const result = withDashboardDefaults({
         widgets: [{ id: 'standings', enabled: true, config: filledConfig }],

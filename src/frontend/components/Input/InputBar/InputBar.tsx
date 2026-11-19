@@ -1,12 +1,12 @@
 import { memo, useMemo } from 'react';
 import { SteeringWheelIcon } from '@phosphor-icons/react';
 import { getColor } from '@irdashies/utils/colors';
+import { PEDAL_COLORS } from '../InputTrace/inputTraceDrawing';
 
-// The 400 shades, as the trace draws them: a pedal is read, not alarming.
 const INPUT_CONFIG = [
-  { key: 'clutch', letter: 'C', color: getColor('blue', 400) },
-  { key: 'brake', letter: 'B', color: getColor('red', 400) },
-  { key: 'throttle', letter: 'T', color: getColor('green', 400) },
+  { key: 'clutch', letter: 'C', color: PEDAL_COLORS.clutch },
+  { key: 'brake', letter: 'B', color: PEDAL_COLORS.brake },
+  { key: 'throttle', letter: 'T', color: PEDAL_COLORS.throttle },
 ] as const;
 
 /** Pedal travel at or above this counts as flat, allowing for sensor noise. */

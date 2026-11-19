@@ -1,4 +1,5 @@
 import { InputGear, InputGearProps } from '../InputGear/InputGear';
+import { formatSteerAngle } from './RotationIndicator';
 
 export interface SteerDialProps {
   /** Steering wheel angle in radians (raw `SteeringWheelAngle` value). */
@@ -45,8 +46,6 @@ export function SteerDial({
   flashColor,
 }: SteerDialProps) {
   const steerDeg = angleRad * -1 * (180 / Math.PI);
-  // A wheel a fraction of a degree to the left is at 0, not at -0.
-  const wholeDeg = Math.round(steerDeg);
 
   // 'light' draws on a dark scene, 'dark' on a bright one.
   const trackClass =
@@ -93,7 +92,7 @@ export function SteerDial({
             className="absolute inset-0 flex items-center justify-center font-semibold tabular-nums text-slate-200"
             style={{ fontSize: 'min(18cqw, 18cqh)' }}
           >
-            {wholeDeg === 0 ? 0 : wholeDeg}°
+            {formatSteerAngle(steerDeg)}
           </div>
         ) : (
           gearSettings && (

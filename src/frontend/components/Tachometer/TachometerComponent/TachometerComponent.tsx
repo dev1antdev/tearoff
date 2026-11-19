@@ -6,8 +6,6 @@ import { getLedRpmOverride } from '@irdashies/domain/shiftLight/shiftLight';
 
 /** The palette's dark neutral, for a light that is off. */
 const UNLIT_COLOR = 'var(--color-slate-800)';
-/** A unit or label beside a value: smaller, grey, spaced capitals. */
-const UNIT_CLASS = 'text-[0.6em] font-semibold tracking-wider text-slate-400';
 
 export interface TachometerProps {
   rpm: number;
@@ -356,7 +354,9 @@ export const Tachometer = ({
       className={`${tempBoxClass} ${warning ? 'text-red-400' : 'text-white'}`}
       style={tempBoxStyle}
     >
-      <span className={UNIT_CLASS}>{label}</span>
+      <span className="overlay-label" style={{ fontSize: '0.7em' }}>
+        {label}
+      </span>
       <span>{Math.round(value)}°C</span>
     </div>
   );
@@ -458,7 +458,12 @@ export const Tachometer = ({
                 ) : (
                   <>
                     {Math.round(clampedRpm).toLocaleString('en-US')}
-                    <span className={`${UNIT_CLASS} ml-2`}>RPM</span>
+                    <span
+                      className="overlay-label ml-2"
+                      style={{ fontSize: '0.6em' }}
+                    >
+                      RPM
+                    </span>
                   </>
                 )}
               </>
@@ -488,7 +493,12 @@ export const Tachometer = ({
               ) : (
                 <>
                   {Math.round(clampedRpm).toLocaleString('en-US')}
-                  <span className={`${UNIT_CLASS} ml-2`}>RPM</span>
+                  <span
+                    className="overlay-label ml-2"
+                    style={{ fontSize: '0.6em' }}
+                  >
+                    RPM
+                  </span>
                 </>
               )}
             </>

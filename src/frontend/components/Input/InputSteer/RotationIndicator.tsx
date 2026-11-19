@@ -9,6 +9,13 @@ const UNWIND_THRESHOLD_DEG = 270;
 
 export type AngleReadout = 'beyond270' | 'always' | 'never';
 
+/** The wheel angle in whole degrees, left negative: `-119°`. */
+export const formatSteerAngle = (angleDeg: number): string => {
+  const whole = Math.round(angleDeg);
+  // A wheel a fraction of a degree to the left is at 0, not at -0.
+  return `${whole === 0 ? 0 : whole}°`;
+};
+
 interface RotationIndicatorProps {
   currentAngleRad: number;
   /** When the angle is shown in degrees. The arrow is not affected. */
@@ -23,12 +30,10 @@ export function RotationIndicator({
   const { beyond, angleText, direction } = useMemo(() => {
     // Convert radians to degrees
     const angleDegrees = (currentAngleRad * -1 * 180) / Math.PI;
-    const whole = Math.round(angleDegrees);
     return {
       // The direction arrow only shows beyond ±270 degrees
       beyond: Math.abs(angleDegrees) > UNWIND_THRESHOLD_DEG,
-      // A wheel a fraction of a degree to the left is at 0, not at -0.
-      angleText: `${whole === 0 ? 0 : whole}°`,
+      angleText: formatSteerAngle(angleDegrees),
       // Which way to turn it back to centre
       direction: angleDegrees > 0 ? ('left' as const) : ('right' as const),
     };

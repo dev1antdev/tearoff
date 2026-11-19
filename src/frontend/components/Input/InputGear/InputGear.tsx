@@ -17,9 +17,8 @@ export interface InputGearProps {
   };
 }
 
-/** The unit as a label: small, grey, spaced capitals. */
-const UNIT_CLASS =
-  'mt-[0.15em] font-semibold uppercase tracking-wider text-slate-400 leading-none';
+/** The unit as a label; its size is set inline, over the label's own. */
+const UNIT_CLASS = 'overlay-label mt-[0.15em] leading-none';
 
 export const InputGear = memo(
   ({ gear, speedMs, unit, flashColor, settings }: InputGearProps) => {

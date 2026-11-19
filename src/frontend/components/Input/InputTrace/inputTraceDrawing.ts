@@ -32,14 +32,19 @@ const GRID_TICKS = [0, 0.25, 0.5, 0.75, 1];
 // A faint solid hairline: the grid is a reference, not a reading.
 const GRID_COLOR = 'rgb(255 255 255 / 0.08)';
 const DEFAULT_SETTINGS: Partial<InputTraceSettings> = {};
-// The 400 shades, as the bars draw them.
-const BRAKE_COLOR = getColor('red', 400);
+/** The pedals' colours, the 400 shades, for the trace and the bars alike. */
+export const PEDAL_COLORS = {
+  clutch: getColor('blue', 400),
+  brake: getColor('red', 400),
+  throttle: getColor('green', 400),
+};
+const BRAKE_COLOR = PEDAL_COLORS.brake;
 // One colour for an assist at work, on whichever pedal's curve it is: ABS on
 // the brake and traction control on the throttle.
 const ABS_COLOR = getColor('yellow', 500);
 const TC_COLOR = ABS_COLOR;
-const THROTTLE_COLOR = getColor('green', 400);
-const CLUTCH_COLOR = getColor('blue', 400);
+const THROTTLE_COLOR = PEDAL_COLORS.throttle;
+const CLUTCH_COLOR = PEDAL_COLORS.clutch;
 const STEER_COLOR = getColor('slate', 300);
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 
