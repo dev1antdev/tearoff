@@ -35,11 +35,10 @@ export const GantryPanel = memo(
         className={[
           'flex min-h-0 flex-1 flex-col',
           // A hosted widget fills the frame: its panel's own edge and corners
-          // would draw a second box inside this one. The edge turns
-          // transparent rather than zero width, so a warning colour the widget
-          // sets on it (the Fuel Calculator's) still shows.
+          // would draw a second box inside this one. A border the widget draws
+          // itself (the flag contour) still shows.
           overlayContent
-            ? '[&_.overlay-panel]:rounded-none [&_.overlay-panel]:border-transparent [&_[data-panel-stack]]:gap-0 [&_[data-panel-stack]]:rounded-none'
+            ? '[&_.overlay-panel]:rounded-none [&_.overlay-panel]:shadow-none [&_[data-panel-stack]]:gap-0 [&_[data-panel-stack]]:rounded-none'
             : 'settings-shell',
         ].join(' ')}
       >

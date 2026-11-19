@@ -38,7 +38,7 @@ export const OverlayContent: Story = {
 
 /**
  * A hosted widget's panel loses its own edge and corners in the frame, so
- * there is one box; a warning border it sets (the Fuel Calculator's) shows.
+ * there is one box; a border the widget draws itself (a flag contour) shows.
  */
 export const HostedPanels: Story = {
   args: {
@@ -54,10 +54,14 @@ export const HostedPanels: Story = {
         </div>
         <div
           data-testid="hosted-warning"
-          className="overlay-panel flex-1 p-3"
-          style={{ ['--bg-opacity' as string]: '80%', borderColor: '#ef4444' }}
+          className="overlay-panel border-solid flex-1 p-3"
+          style={{
+            ['--bg-opacity' as string]: '80%',
+            borderColor: '#ef4444',
+            borderWidth: '3px',
+          }}
         >
-          Fuel short
+          Flag contour
         </div>
       </div>
     ),

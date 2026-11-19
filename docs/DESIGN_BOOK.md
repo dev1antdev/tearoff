@@ -23,9 +23,9 @@ Every rule here belongs to one of two surfaces.
 The Pit Wall window sits inside `ThemeManager` too, so a widget hosted in a Pit
 Wall panel uses the overlay scale and palette, exactly as it does on track. A
 Pit Wall or Gantry frame is the hosted widget's panel: inside it the widget's
-`overlay-panel` loses its own edge and corners (the edge turns transparent),
-so there is one box, not two; a warning colour the widget sets on its edge (the
-Fuel Calculator's) still shows. A widget drawn as a stack of panels (the
+`overlay-panel` loses its own edge and corners (`shadow-none`,
+`rounded-none`), so there is one box, not two; a border the widget draws itself
+(the flag contour) and the Fuel Calculator's warning outline still show. A widget drawn as a stack of panels (the
 session bars above and below Standings and Relative, `SessionPanels`, marked
 `data-panel-stack`) closes up inside a frame: its panels sit flush, as bands of
 one box.
@@ -50,21 +50,22 @@ The app is dark only (`color-scheme: dark`).
 
 ### 3.1 Panel and rows
 
-| Element          | Classes                                                                                                                                                             |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Widget panel     | `overlay-panel` (`theme.css`): `bg-slate-950/(--bg-opacity)`, a 1px `border-white/9` edge, `rounded-xl` (12px); `p-2` (compact mode drops it), `text-white`         |
-| Rows             | No background. A hairline between them: `border-t overlay-divider first:border-t-0`; on a table row, on its cells (`[&>td]:border-t [&>td]:overlay-divider`)        |
-| The player's row | An amber tint (`bg-amber-500/(--player-row-opacity)` in Standings and Relative) and `text-amber-300`, the position included                                         |
-| Divider          | `overlay-divider` (a `white/5` border colour), between sections of one panel                                                                                        |
-| Selected row     | `overlay-selected` (`bg-slate-800/60 rounded-md`): the chosen or recommended line of a table or column of a strip (the Fuel Calculator's average, its best pit lap) |
-| Bar track        | `bg-slate-900/70`, `rounded-full` when thin, `rounded-md` when tall (Pitlane Helper); the fill inside takes its meaning's colour                                    |
-| Chip / scrim     | `bg-slate-950/NN` (behind a chip, a warning pill, a readout over a graphic)                                                                                         |
-| Inner tile       | Avoid a tile inside a panel: group with space and a divider. Where one is needed, `bg-slate-900/70`, `rounded-md`                                                   |
+| Element          | Classes                                                                                                                                                                                           |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Widget panel     | `overlay-panel` (`theme.css`): `bg-slate-950/(--bg-opacity)`, a 1px edge drawn as an inset `white/9` shadow so it takes no room, `rounded-xl` (12px); `p-2` (compact mode drops it), `text-white` |
+| Rows             | No background. A hairline between them: `border-t overlay-divider first:border-t-0`; on a table row, on its cells (`[&>td]:border-t [&>td]:overlay-divider`)                                      |
+| The player's row | An amber tint (`bg-amber-500/(--player-row-opacity)` in Standings and Relative) and `text-amber-300`, the position included                                                                       |
+| Divider          | `overlay-divider` (a `white/5` border colour), between sections of one panel                                                                                                                      |
+| Selected row     | `overlay-selected` (`bg-slate-800/60 rounded-md`): the chosen or recommended line of a table or column of a strip (the Fuel Calculator's average, its best pit lap)                               |
+| Bar track        | `bg-slate-900/70`, `rounded-full` when thin, `rounded-md` when tall (Pitlane Helper); the fill inside takes its meaning's colour                                                                  |
+| Chip / scrim     | `bg-slate-950/NN` (behind a chip, a warning pill, a readout over a graphic)                                                                                                                       |
+| Inner tile       | Avoid a tile inside a panel: group with space and a divider. Where one is needed, `bg-slate-900/70`, `rounded-md`                                                                                 |
 
 `--bg-opacity` comes from the widget's own `background.opacity` setting
 (0–100). At low opacity the game is the ground, so values stay `text-white`.
-An inline border (the flag contour, the Fuel Calculator's warning) takes the
-place of the hairline edge while it shows.
+An inline border (the flag contour) adds its own width while it shows. The
+edge itself takes none, so a layout sized before panels had edges, or a stack of
+several panels, keeps fitting its frame.
 
 A widget made of several sections can draw each as a card of its own instead,
 an `overlay-panel` per section in a stack (`data-panel-stack`) with no panel

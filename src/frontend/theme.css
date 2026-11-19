@@ -219,10 +219,12 @@ layer(base);
 }
 
 /* The overlay panel (docs/DESIGN_BOOK.md §3.1): near-black, see-through by
-   the widget's background.opacity, a hairline edge and 12px corners. An
-   inline border (the flag contour, a fuel warning) still wins over the edge. */
+   the widget's background.opacity, a hairline edge and 12px corners. The edge
+   is an inset shadow, so it takes no room: a layout sized before the panels
+   had edges, or a stack of several panels, keeps fitting its frame. An inline
+   border (the flag contour) adds its own width while it shows. */
 @utility overlay-panel {
-  @apply rounded-xl border border-white/9 bg-slate-950/(--bg-opacity);
+  @apply rounded-xl bg-slate-950/(--bg-opacity) shadow-[inset_0_0_0_1px_rgb(255_255_255/0.09)];
 }
 
 /* The hairline between rows or sections inside a panel: a border colour,

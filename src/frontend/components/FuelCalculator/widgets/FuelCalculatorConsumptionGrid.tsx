@@ -645,7 +645,7 @@ export const FuelCalculatorConsumptionGrid: React.FC<
         const uniqueOrder = Array.from(new Set(order));
         return uniqueOrder.map((id) => renderRow(id));
       })()}
-      <div className="col-span-4 mt-1 grid grid-cols-[1fr_auto] items-center border-t overlay-divider px-1 py-1 tabular-nums">
+      <div className="col-span-4 mt-1 grid grid-cols-[1fr_auto] items-center px-1 py-1 tabular-nums shadow-[inset_0_1px_0_rgb(255_255_255/0.05)]">
         <div className="flex items-baseline gap-1">
           <span
             className={`font-bold tracking-wide ${pitWindowStatusClass}`}
