@@ -358,12 +358,14 @@ export const OurCar = () => {
             <div data-testid="our-car-damage" className="flex flex-col gap-1">
               <span className="overlay-label leading-none">Damage</span>
               <span
+                // Sound is the normal state, so it is white; a wheel off or
+                // flat is a loss, other damage something to watch.
                 className={`font-bold leading-tight ${
-                  !harm
-                    ? 'text-white'
-                    : harm.damaged
+                  harm?.severe
+                    ? 'text-red-400'
+                    : harm?.damaged
                       ? 'text-amber-400'
-                      : 'text-green-400'
+                      : 'text-white'
                 }`}
               >
                 {harm?.text ?? NO_FIGURE}

@@ -111,6 +111,10 @@ has come off. A healthy wheel is neutral, a damaged one takes the damage
 scale. Tyres are blocks filled with the temperature scale, the temperature
 large inside, pressure and wear small beside them. A bar that is in range
 (ride height, what Our Car has aboard) is neutral; only a warning colours it.
+Our Car's damage line is white while the car is sound, `amber-400` for damage
+to watch and `red-400` for a wheel off or flat. A tyre pressure on the driver's
+target stays `green-400`, the one good news shown in colour here, because the
+target is the reading's purpose; low is `sky-400`, high `red-400`.
 
 ### 3.2 Neutrals follow the palette
 

@@ -35,7 +35,12 @@ const Row = ({ id, caption, unit, twoLines = false, children }: RowProps) => (
     data-testid={`chassis-${id}`}
     className={`flex min-h-0 items-center gap-2 ${twoLines ? 'flex-2' : 'flex-1'}`}
   >
-    <div className="w-[4.9em] flex-none whitespace-nowrap text-[0.7em] font-semibold uppercase leading-none text-slate-400">
+    {/* The label without its letter spacing, in the row's em size, so
+        CAMBER fits the column. */}
+    <div
+      className="overlay-label w-[4.9em] flex-none whitespace-nowrap leading-none tracking-normal"
+      style={{ fontSize: '0.7em' }}
+    >
       {caption}
       {unit && (
         <span className="ml-[0.35em] font-medium normal-case text-slate-400">

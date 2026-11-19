@@ -125,6 +125,7 @@ export const Damage = () => {
         {repair && (
           <div
             data-testid="damage-repair"
+            // The divider's colour as an inset shadow, so it adds no height.
             className="@container flex flex-none items-center gap-1.5 px-2 py-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.05)]"
           >
             <WrenchIcon
@@ -134,7 +135,7 @@ export const Damage = () => {
             />
             {/* The sim's choices all say "Repair" themselves, so in a narrow
               window the word gives way to them; the wrench still says it. */}
-            <span className="hidden text-xs leading-none text-slate-400 @[10rem]:inline">
+            <span className="overlay-label hidden leading-none @[10rem]:inline">
               Repair
             </span>
             {repair.time && (

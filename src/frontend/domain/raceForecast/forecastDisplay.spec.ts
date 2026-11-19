@@ -535,6 +535,7 @@ describe('damageLine', () => {
     expect(damageLine(damage())).toEqual({
       text: 'None',
       damaged: false,
+      severe: false,
       note: 'no repair time',
     });
   });
@@ -547,6 +548,7 @@ describe('damageLine', () => {
     ).toEqual({
       text: 'Aero 93 %, body 88 %',
       damaged: true,
+      severe: false,
       note: 'repairs 34s at the stop',
     });
     expect(damageLine(damage({ suspensionIntegrity: 0.6 }))?.text).toBe(
@@ -561,6 +563,7 @@ describe('damageLine', () => {
     expect(damageLine(damage({ wheels }))).toMatchObject({
       text: 'Puncture',
       damaged: true,
+      severe: true,
     });
     const off = wheels.map((entry, index) =>
       index === 2 ? { ...entry, detached: true } : entry

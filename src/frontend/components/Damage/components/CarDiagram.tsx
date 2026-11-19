@@ -160,7 +160,7 @@ export const CarDiagram = memo(
         aria-label="Car damage diagram"
         data-testid="damage-diagram"
       >
-        <path d={BODY_PATH} className="fill-white/5" />
+        <path d={BODY_PATH} className="fill-slate-800/40" />
         <path
           d={CABIN_PATH}
           className="fill-none stroke-slate-600 stroke-1 [stroke-linejoin:round]"

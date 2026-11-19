@@ -160,7 +160,7 @@ const Tyre = memo(
           >
             <div
               data-testid="tyre-load-fill"
-              className={`h-full ${loadLow ? 'bg-red-500' : 'bg-slate-100'}`}
+              className={`h-full rounded-full ${loadLow ? 'bg-red-500' : 'bg-slate-300'}`}
               style={{ width: `${Math.round(loadFill * 100)}%` }}
             />
           </div>
@@ -180,6 +180,8 @@ interface BrakeProps {
 /** The axle's brake temperature, between its two tyres. */
 const Brake = memo(({ color, temperature, unit }: BrakeProps) => (
   <div className="flex flex-none flex-col items-center justify-center gap-0.5 self-center">
+    {/* Bold where the overlays' icons are thin: its colour is the brake's
+        temperature, and a thin line shows too little of it. */}
     <DiscIcon size="1.9em" weight="bold" style={{ color }} aria-hidden="true" />
     <div className="flex items-baseline gap-0.5 text-[0.85em] font-semibold leading-none tabular-nums">
       <span>{temperature}</span>

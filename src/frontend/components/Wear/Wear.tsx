@@ -1,5 +1,11 @@
 import { memo } from 'react';
-import { DiscIcon, TireIcon, WarningIcon } from '@phosphor-icons/react';
+import {
+  DiscIcon,
+  IconContext,
+  TireIcon,
+  WarningIcon,
+} from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import {
   useDrivingState,
   useSessionVisibility,
@@ -276,7 +282,6 @@ const TyreSection = ({ wear, settings }: SectionProps) => {
                 // Says which half is the tyres where no compound does.
                 <TireIcon
                   size="1.25em"
-                  weight="bold"
                   className="text-slate-400"
                   aria-hidden="true"
                 />
@@ -353,7 +358,6 @@ const BrakeSection = ({ wear, settings }: SectionProps) => {
           <div className={CENTRE}>
             <DiscIcon
               size="1.25em"
-              weight="bold"
               className={stale ? 'text-amber-400' : 'text-slate-400'}
               aria-hidden="true"
             />
@@ -400,20 +404,24 @@ export const Wear = () => {
   const both = settings.tyres.show && settings.brakes.show;
 
   return (
-    <div
-      className="flex h-full w-full flex-col gap-[0.3em] overflow-hidden overlay-panel p-2 font-medium tabular-nums text-white"
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
-      {settings.tyres.show && <TyreSection wear={wear} settings={settings} />}
-      {both && <div className="flex-none border-t overlay-divider" />}
-      {settings.brakes.show && <BrakeSection wear={wear} settings={settings} />}
-      {!settings.tyres.show && !settings.brakes.show && (
-        <div className="flex flex-1 items-center justify-center text-[0.75em] text-slate-400">
-          {NO_READING}
-        </div>
-      )}
-    </div>
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        className="flex h-full w-full flex-col gap-[0.3em] overflow-hidden overlay-panel p-2 font-medium tabular-nums text-white"
+        style={{
+          ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+        }}
+      >
+        {settings.tyres.show && <TyreSection wear={wear} settings={settings} />}
+        {both && <div className="flex-none border-t overlay-divider" />}
+        {settings.brakes.show && (
+          <BrakeSection wear={wear} settings={settings} />
+        )}
+        {!settings.tyres.show && !settings.brakes.show && (
+          <div className="flex flex-1 items-center justify-center text-[0.75em] text-slate-400">
+            {NO_READING}
+          </div>
+        )}
+      </div>
+    </IconContext.Provider>
   );
 };
