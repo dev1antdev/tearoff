@@ -289,8 +289,8 @@ export const SectorDeltaDisplay = ({
 
   return (
     <div
-      className="flex flex-col gap-1 p-1 rounded-sm"
-      style={{ backgroundColor: `rgba(15, 23, 42, ${opacity})` }}
+      className="flex flex-col gap-1 p-1 overlay-panel"
+      style={{ ['--bg-opacity' as string]: `${opacity * 100}%` }}
     >
       {showTargetLap && renderTarget()}
       <div className="flex flex-row items-center gap-1">

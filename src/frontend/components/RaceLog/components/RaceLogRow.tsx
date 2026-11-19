@@ -73,7 +73,7 @@ export const RaceLogRow = memo(
         data-testid="race-log-row"
         data-seq={seq}
         data-own={own}
-        className="col-span-3 grid grid-cols-subgrid items-baseline px-2 py-0.5 border-t border-white/5 first:border-t-0"
+        className="col-span-3 grid grid-cols-subgrid items-baseline px-2 py-0.5 border-t overlay-divider first:border-t-0"
       >
         <span className="text-right text-slate-400">{time}</span>
         {field && MarkIcon ? (

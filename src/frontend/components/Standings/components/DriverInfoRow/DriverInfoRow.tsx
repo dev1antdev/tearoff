@@ -997,7 +997,7 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
         isPlayer ? 'text-amber-300' : '',
         isPlayer
           ? 'bg-yellow-500/(--player-row-opacity)'
-          : '[&>td]:border-t [&>td]:border-white/5 text-sm',
+          : '[&>td]:border-t [&>td]:overlay-divider text-sm',
         !isPlayer && isLapped ? 'text-blue-400' : '',
         !isPlayer && isLappingAhead ? 'text-red-400' : '',
         hidden ? 'invisible' : '',

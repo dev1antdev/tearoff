@@ -247,9 +247,9 @@ export const LapTrace = (props: LapTraceProps) => {
       // overflow-hidden keeps everything inside the layout rectangle: the
       // header and the panels are fixed-height, so a widget resized shorter
       // than their total would otherwise spill the trace outside its box.
-      className="flex h-full flex-col overflow-hidden rounded-sm p-1.5 text-white"
+      className="flex h-full flex-col overflow-hidden overlay-panel p-1.5 text-white"
       style={{
-        backgroundColor: `rgba(15, 23, 42, ${config.background.opacity})`,
+        ['--bg-opacity' as string]: `${config.background.opacity * 100}%`,
       }}
     >
       <div className="flex-none flex items-baseline gap-2 text-xs leading-none mb-1">

@@ -21,7 +21,9 @@ Every rule here belongs to one of two surfaces.
 | **App chrome** | Where the driver configures and watches: Settings, the Pit Wall's header and panels' frames, the Gantry bars | `.settings-shell` (in `SettingsLayout`, the Pit Wall and Gantry chrome pieces) | No: its own type and palette                                     |
 
 The Pit Wall window sits inside `ThemeManager` too, so a widget hosted in a Pit
-Wall panel uses the overlay scale and palette, exactly as it does on track.
+Wall panel uses the overlay scale and palette, exactly as it does on track. A
+Pit Wall or Gantry frame is the hosted widget's panel: inside it the widget's
+`overlay-panel` loses its own edge and corners, so there is one box, not two.
 
 The app is dark only (`color-scheme: dark`).
 
@@ -43,14 +45,14 @@ The app is dark only (`color-scheme: dark`).
 
 ### 3.1 Panel and rows
 
-| Element          | Classes                                                                                                                                                     |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Widget panel     | `overlay-panel` (`theme.css`): `bg-slate-950/(--bg-opacity)`, a 1px `border-white/9` edge, `rounded-xl` (12px); `p-2` (compact mode drops it), `text-white` |
-| Rows             | No background. A hairline between them: `border-t border-white/5 first:border-t-0`; on a table row, on its cells (`[&>td]:border-t [&>td]:border-white/5`)  |
-| The player's row | An amber tint (`bg-yellow-500/(--player-row-opacity)` in Standings and Relative) and `text-amber-300`                                                       |
-| Divider          | `border-white/5`, between sections of one panel                                                                                                             |
-| Chip / scrim     | `bg-slate-950/NN` (behind a chip, a warning pill, a readout over a graphic)                                                                                 |
-| Inner tile       | Avoid a tile inside a panel: group with space and a divider. Where one is needed, `bg-slate-900/70`, `rounded-md`                                           |
+| Element          | Classes                                                                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Widget panel     | `overlay-panel` (`theme.css`): `bg-slate-950/(--bg-opacity)`, a 1px `border-white/9` edge, `rounded-xl` (12px); `p-2` (compact mode drops it), `text-white`  |
+| Rows             | No background. A hairline between them: `border-t overlay-divider first:border-t-0`; on a table row, on its cells (`[&>td]:border-t [&>td]:overlay-divider`) |
+| The player's row | An amber tint (`bg-yellow-500/(--player-row-opacity)` in Standings and Relative) and `text-amber-300`                                                        |
+| Divider          | `overlay-divider` (a `white/5` border colour), between sections of one panel                                                                                 |
+| Chip / scrim     | `bg-slate-950/NN` (behind a chip, a warning pill, a readout over a graphic)                                                                                  |
+| Inner tile       | Avoid a tile inside a panel: group with space and a divider. Where one is needed, `bg-slate-900/70`, `rounded-md`                                            |
 
 `--bg-opacity` comes from the widget's own `background.opacity` setting
 (0–100). At low opacity the game is the ground, so values stay `text-white`.
@@ -149,6 +151,9 @@ picking Lato afterwards sticks. The canvas widgets (Radar, Minimap) draw their
 text in Lato. Weights run from light to extrabold, normal by default.
 
 ### 3.6 Hierarchy, and what overlays avoid
+
+The rules a widget is brought to when its look is redone, one group of widgets
+at a time; a widget not redone yet may still break the first four.
 
 - **Size and brightness, not colour, say what matters.** The value a widget
   exists for is the largest (a display step); its unit is smaller and
@@ -293,7 +298,7 @@ kept for units and empty values.
 
 ## 9. Icons
 
-- Phosphor through `@phosphor-icons/react`. Regular weight in settings; `weight="light"` in overlays (section 3.6), with `weight="fill"` or `weight="bold"` only where an icon has to hold up at a small size. 16px in buttons and rows; icons take the text colour.
+- Phosphor through `@phosphor-icons/react`. Regular weight in settings; `weight="light"` in overlays as each is redone (section 3.6), with `weight="fill"` or `weight="bold"` only where an icon has to hold up at a small size. 16px in buttons and rows; icons take the text colour.
 - Map icon names chosen at runtime through `src/frontend/utils/phosphorIconMap.ts`.
 - The one custom glyph is the finished-car checkered flag in `DriverStatusBadges.tsx`: Phosphor's `FlagCheckered` cannot be read at badge size.
 

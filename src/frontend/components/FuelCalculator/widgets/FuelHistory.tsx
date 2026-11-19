@@ -166,7 +166,7 @@ export const FuelHistory: React.FC<FuelCalculatorWidgetProps> = ({
             {rows.map((lap) => (
               <tr
                 key={`${lap.sessionNum ?? 'unknown'}:${lap.lapNumber}:${lap.timestamp}`}
-                className="border-b border-slate-700/30 last:border-0"
+                className="border-b overlay-divider last:border-0"
               >
                 <td className={compactMode === 'off' ? 'py-1' : 'py-0.5'}>
                   {lap.lapNumber}

@@ -126,7 +126,7 @@ export const LapTimeRow = memo(
 
     return (
       <div
-        className={`${!isCompact ? 'p-1' : ''} ${stintEdge ? EDGE_CLASS[stintEdge] : 'border-t border-white/5 first:border-t-0'}`}
+        className={`${!isCompact ? 'p-1' : ''} ${stintEdge ? EDGE_CLASS[stintEdge] : 'border-t overlay-divider first:border-t-0'}`}
       >
         <div
           className={`flex w-full items-center text-[1em] ${isUltra ? 'py-px px-1' : 'py-0.5 px-2'}`}

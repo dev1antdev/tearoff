@@ -203,7 +203,7 @@ export const ClassRivalRow = memo(
         data-car={carIdx}
         data-own={own}
         data-assumed={assumed}
-        className={`${ROW} border-b border-slate-700/60 py-1.5 leading-none ${
+        className={`${ROW} border-b overlay-divider py-1.5 leading-none ${
           own ? 'bg-amber-300/10 text-amber-300' : 'text-slate-200'
         }`}
         style={classRivalGrid({

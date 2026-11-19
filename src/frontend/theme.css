@@ -225,6 +225,12 @@ layer(base);
   @apply rounded-xl border border-white/9 bg-slate-950/(--bg-opacity);
 }
 
+/* The hairline between rows or sections inside a panel: a border colour,
+   with the side set where it is used (`border-t overlay-divider`). */
+@utility overlay-divider {
+  border-color: rgb(255 255 255 / 5%);
+}
+
 /* A label over or beside a value: small capitals, spaced, muted. */
 @utility overlay-label {
   @apply text-2xs font-semibold tracking-wider text-slate-400 uppercase;

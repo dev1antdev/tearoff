@@ -430,7 +430,7 @@ export const PitlaneHelperBody = ({
         showEarlyPitboxWarning ||
         refuel !== undefined ||
         (config.showPitlaneTraffic && traffic.totalCars > 0)) && (
-        <div className="flex flex-col gap-2 p-2 border-t border-white/5">
+        <div className="flex flex-col gap-2 p-2 border-t overlay-divider">
           {onPitRoad && Math.abs(position.distanceToPit) < 5 && (
             <div className="text-center text-xs font-bold py-1 px-2 bg-green-600 rounded">
               At Pitbox

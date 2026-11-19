@@ -184,7 +184,9 @@ export const PitWallPanel = memo(
           that is what keeps the widget as it is through an edit. */}
       <div
         className={
-          edit ? 'invisible relative min-h-0 flex-1' : 'min-h-0 flex-1'
+          // The frame is the widget's panel here: its own edge and corners
+          // would draw a second box inside this one.
+          `${edit ? 'invisible relative ' : ''}min-h-0 flex-1 [&_.overlay-panel]:rounded-none [&_.overlay-panel]:border-0`
         }
         inert={edit ? true : undefined}
       >

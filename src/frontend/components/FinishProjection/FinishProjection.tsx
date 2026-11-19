@@ -190,7 +190,7 @@ export const FinishProjection = () => {
       {hasRivals && (
         <div
           data-testid="finish-rivals"
-          className="flex flex-none flex-col gap-0.5 border-t border-slate-600/60 pt-1.5"
+          className="flex flex-none flex-col gap-0.5 border-t overlay-divider pt-1.5"
         >
           <FinishRivalsCaption />
           {rivals.ahead.map(rivalRow)}

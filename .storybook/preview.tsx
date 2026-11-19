@@ -1,5 +1,6 @@
 import type { Decorator, Preview } from '@storybook/react-vite';
 import '../src/frontend/theme.css';
+import { DEFAULT_FONT_TYPE } from '../src/types';
 
 const OVERLAY_SIZES = [
   'off',
@@ -24,7 +25,7 @@ const overlayThemeDecorator: Decorator = (Story, context) => {
   const palette = String(context.globals.overlayPalette ?? 'black');
   return (
     <div
-      className={`contents overlay-window overlay-theme-${size} overlay-theme-color-${palette} overlay-theme-font-face-figtree overlay-theme-font-weight-normal`}
+      className={`contents overlay-window overlay-theme-${size} overlay-theme-color-${palette} overlay-theme-font-face-${DEFAULT_FONT_TYPE} overlay-theme-font-weight-normal`}
     >
       <Story />
     </div>

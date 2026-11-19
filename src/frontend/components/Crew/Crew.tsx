@@ -208,7 +208,7 @@ const CrewPanel = ({ settings }: { settings: CrewConfig }) => {
             <div
               data-testid="crew-stints"
               className={`overflow-x-auto pb-1 ${
-                settings.showDrivers ? 'border-t border-slate-700' : ''
+                settings.showDrivers ? 'border-t overlay-divider' : ''
               }`}
             >
               <div

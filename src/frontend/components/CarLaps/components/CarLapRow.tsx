@@ -133,7 +133,7 @@ export const CarLapRow = memo(
         data-testid="car-lap"
         data-lap={lap}
         data-tone={tone}
-        className={`${ROW} border-b border-slate-700/60 py-1`}
+        className={`${ROW} border-b overlay-divider py-1`}
         style={carLapGrid({ sectors, energy })}
       >
         <span className="text-slate-400">{lap}</span>

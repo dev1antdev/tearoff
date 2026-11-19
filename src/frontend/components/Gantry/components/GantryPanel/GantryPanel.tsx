@@ -34,7 +34,11 @@ export const GantryPanel = memo(
       <div
         className={[
           'flex min-h-0 flex-1 flex-col',
-          overlayContent ? '' : 'settings-shell',
+          // A hosted widget fills the frame: its panel's own edge and corners
+          // would draw a second box inside this one.
+          overlayContent
+            ? '[&_.overlay-panel]:rounded-none [&_.overlay-panel]:border-0'
+            : 'settings-shell',
         ].join(' ')}
       >
         {children}

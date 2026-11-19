@@ -49,7 +49,7 @@ interface SpeedCellProps {
 const SpeedCell = memo(
   ({ label, unit, speed, driven, delta, tone }: SpeedCellProps) => (
     <div className="flex min-w-0 flex-1 flex-col gap-0.5 rounded-sm bg-slate-900/50 px-2 py-1 leading-tight">
-      <span className="text-2xs uppercase tracking-wide text-slate-400">
+      <span className="overlay-label">
         {label} <span className="normal-case text-slate-500">{unit}</span>
       </span>
       <div className="flex items-baseline justify-between gap-1 tabular-nums">
@@ -206,7 +206,7 @@ export const CornerDeltaView = ({
       {earlier.length > 0 && (
         <div
           data-testid="corner-delta-history"
-          className="flex flex-col gap-0.5 border-t border-slate-600/60 pt-1 text-xs leading-tight tabular-nums text-slate-300"
+          className="flex flex-col gap-0.5 border-t overlay-divider pt-1 text-xs leading-tight tabular-nums text-slate-300"
         >
           <div className="text-2xs uppercase tracking-wide text-slate-500">
             <HistoryRow
