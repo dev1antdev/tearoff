@@ -522,8 +522,12 @@ describe('CarSystems while a system is working', () => {
 
     render(<CarSystems />);
 
-    expect(screen.getByText('ABS')).toHaveClass('bg-green-600');
-    expect(screen.getByText('TC')).toHaveClass('bg-blue-700');
+    expect(screen.getByText('ABS').nextElementSibling).toHaveClass(
+      'bg-green-600'
+    );
+    expect(screen.getByText('TC').nextElementSibling).toHaveClass(
+      'bg-blue-700'
+    );
   });
 
   it('lights ABS under iRacing too', () => {

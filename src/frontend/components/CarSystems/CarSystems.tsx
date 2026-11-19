@@ -88,19 +88,21 @@ export const SystemColumn = memo(
     // here" - and the value below tells them apart: a number the driver set to
     // zero, or a blank for a system the car does not have.
     const subdued = unsupported || isOff;
-    // The colour the input bar gives the brake while ABS works.
-    const chipColour =
-      active && !unsupported
-        ? 'bg-yellow-500 text-slate-900'
-        : subdued
-          ? 'bg-slate-600/60 text-white/60'
-          : `${chip} text-white`;
+    // The system's colour is a short bar under its label; the label fills
+    // only while the system works, in the colour the input bar gives the
+    // brake while ABS works.
+    const working = active && !unsupported;
+    const labelColour = working
+      ? 'bg-yellow-500 text-slate-900'
+      : subdued
+        ? 'text-slate-500'
+        : '';
     // Lit at once and let go slowly: the transition is only on the resting
     // state, so it runs on the way back and not on the way in.
     const valueColour = flash
       ? 'bg-amber-400 text-slate-900'
       : `transition-colors duration-300 ${
-          subdued ? 'text-white/40' : 'text-white'
+          subdued ? 'text-slate-500' : 'text-white'
         }`;
 
     // flex-auto rather than flex-1: equal-width columns size to the widest
@@ -109,25 +111,34 @@ export const SystemColumn = memo(
     // brake bias column take the width it actually needs.
     return (
       <div className="flex flex-auto min-w-0 flex-col items-center gap-0.5">
-        {/* px-1 rather than the Pitlane Helper's px-2: its chips are standalone
-            status pills, these are packed side by side, and the wider padding
-            truncated a three-letter label once the column count got high. */}
-        <div
-          className={`w-full text-center text-xs font-bold py-1 px-1 rounded truncate ${chipColour}`}
-        >
-          {short}
+        {/* The bar sits under the label, not beside it, and stays while the
+            system works; the label drops the usual letter spacing. So the
+            header is no wider than the old chip at any Font size, and does
+            not change size when the label fills. */}
+        <div className="flex w-full min-w-0 flex-col items-center gap-0.5">
+          <span
+            className={`overlay-label tracking-normal max-w-full truncate rounded-full px-1 py-0.5 leading-none ${labelColour}`}
+          >
+            {short}
+          </span>
+          <span
+            aria-hidden="true"
+            className={`h-0.5 w-3 rounded-full ${chip} ${
+              subdued ? 'opacity-40' : ''
+            }`}
+          />
         </div>
         {/* The value carries the glance, so it outweighs its own label - the
             same balance the Pitlane Helper strikes between its big readouts
             and their small captions. */}
         <div
-          className={`${isCompact ? 'text-base' : 'text-[1.35em] py-0.5'} px-2 text-center font-semibold tabular-nums whitespace-nowrap leading-none rounded ${valueColour}`}
+          className={`${isCompact ? 'text-base' : 'text-[1.35em] py-0.5'} px-2 text-center font-semibold tabular-nums whitespace-nowrap leading-none rounded-lg ${valueColour}`}
         >
           {text ?? BLANK}
           {scale !== undefined && (
             <span
               className={`text-xs font-medium ${
-                flash ? 'text-slate-900/60' : 'text-white/50'
+                flash ? 'text-slate-900/60' : 'text-slate-400'
               }`}
             >
               /{scale}
@@ -135,7 +146,7 @@ export const SystemColumn = memo(
           )}
         </div>
         {delta !== undefined && (
-          <div className="text-xs leading-none tabular-nums text-white/60">
+          <div className="text-xs leading-none tabular-nums text-slate-400">
             {delta}
           </div>
         )}

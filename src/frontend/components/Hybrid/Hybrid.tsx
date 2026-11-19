@@ -1,5 +1,10 @@
 import { memo } from 'react';
-import { BatteryChargingIcon, LightningIcon } from '@phosphor-icons/react';
+import {
+  BatteryChargingIcon,
+  IconContext,
+  LightningIcon,
+} from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import {
   useDrivingState,
   useHybridSnapshot,
@@ -35,25 +40,26 @@ interface StateChipProps {
  */
 const StateChip = memo(({ state }: StateChipProps) => {
   const base =
-    'flex flex-none items-center gap-1 rounded px-1 py-0.5 text-xs font-bold leading-none';
+    'flex flex-none items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold tracking-wider leading-none';
+  // Tinted rather than filled: the state changes with every corner.
   if (state === 2) {
     return (
-      <div className={`${base} bg-orange-600 text-white`}>
-        <LightningIcon size={14} weight="fill" aria-hidden="true" />
+      <div className={`${base} bg-orange-500/20 text-orange-300`}>
+        <LightningIcon size={14} aria-hidden="true" />
         DEPLOY
       </div>
     );
   }
   if (state === 3) {
     return (
-      <div className={`${base} bg-emerald-600 text-white`}>
-        <BatteryChargingIcon size={14} weight="fill" aria-hidden="true" />
+      <div className={`${base} bg-emerald-500/20 text-emerald-300`}>
+        <BatteryChargingIcon size={14} aria-hidden="true" />
         REGEN
       </div>
     );
   }
   return (
-    <div className={`${base} bg-slate-600/60 py-1 text-white/60`}>
+    <div className={`${base} bg-white/5 py-1 text-slate-400`}>
       {state === 1 ? 'IDLE' : NO_READING}
     </div>
   );
@@ -74,18 +80,20 @@ interface CellProps {
  */
 const Cell = memo(({ caption, value, unit, toneClass }: CellProps) => (
   <div className="flex min-w-0 flex-auto flex-col items-center">
-    {/* Cut short rather than run into its neighbour in a box too narrow. */}
-    <span className="max-w-full truncate text-2xs uppercase leading-tight text-white/50">
+    {/* Cut short rather than run into its neighbour in a box too narrow.
+        Grey capitals without the label's weight and spacing: six captions
+        share a narrow row, and spaced they no longer fit. */}
+    <span className="max-w-full truncate text-2xs uppercase leading-tight text-slate-400">
       {caption}
     </span>
     <span
       className={`whitespace-nowrap text-sm font-medium leading-tight tabular-nums ${
-        value === NO_READING ? 'text-white/40' : toneClass
+        value === NO_READING ? 'text-slate-500' : toneClass
       }`}
     >
       {value}
       {unit !== undefined && value !== NO_READING && (
-        <span className="ml-0.5 text-2xs font-normal text-white/50">
+        <span className="ml-0.5 text-2xs font-normal text-slate-400">
           {unit}
         </span>
       )}
@@ -137,125 +145,127 @@ export const Hybrid = () => {
       settings.motor.showRegen);
 
   return (
-    <div
-      className="flex h-full w-full flex-col justify-center gap-1.5 overlay-panel p-2 font-medium text-white"
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-baseline gap-0.5 leading-none">
-          <span
-            data-testid="hybrid-charge"
-            className={`text-2xl font-semibold leading-none tabular-nums ${
-              CHARGE_TEXT_CLASS[lit ? band : 'normal']
-            }`}
-          >
-            {formatCharge(snapshot.chargePct, decimals)}
-          </span>
-          <span className="text-xs text-white/50">%</span>
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        className="flex h-full w-full flex-col justify-center gap-1.5 overlay-panel p-2 font-medium text-white"
+        style={{
+          ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+        }}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-baseline gap-0.5 leading-none">
+            <span
+              data-testid="hybrid-charge"
+              className={`text-2xl font-semibold leading-none tabular-nums ${
+                CHARGE_TEXT_CLASS[lit ? band : 'normal']
+              }`}
+            >
+              {formatCharge(snapshot.chargePct, decimals)}
+            </span>
+            <span className="text-xs text-slate-400">%</span>
+          </div>
+          <StateChip state={snapshot.motorState} />
         </div>
-        <StateChip state={snapshot.motorState} />
-      </div>
 
-      <div className="h-1.5 w-full flex-none overflow-hidden rounded-full bg-slate-700">
-        <div
-          data-testid="hybrid-bar"
-          className={`h-full w-(--charge) rounded-full ${CHARGE_BAR_CLASS[band]}`}
-          style={{
-            ['--charge' as string]: `${Math.min(100, Math.max(0, snapshot.chargePct ?? 0))}%`,
-          }}
-        />
-      </div>
+        <div className="h-1.5 w-full flex-none overflow-hidden rounded-full bg-slate-900/70">
+          <div
+            data-testid="hybrid-bar"
+            className={`h-full w-(--charge) rounded-full ${CHARGE_BAR_CLASS[band]}`}
+            style={{
+              ['--charge' as string]: `${Math.min(100, Math.max(0, snapshot.chargePct ?? 0))}%`,
+            }}
+          />
+        </div>
 
-      {hasLapRow && (
-        <div className="flex justify-between gap-2">
-          {settings.showLapUse && (
-            <>
+        {hasLapRow && (
+          <div className="flex justify-between gap-2">
+            {settings.showLapUse && (
+              <>
+                <Cell
+                  caption={use.frozen ? 'Last' : 'Used'}
+                  value={formatSigned(-use.used, decimals)}
+                  toneClass="text-orange-300"
+                />
+                <Cell
+                  caption={use.frozen ? 'Last' : 'Regen'}
+                  value={formatSigned(use.regen, decimals)}
+                  toneClass="text-emerald-300"
+                />
+              </>
+            )}
+            {settings.showNetEstimate && (
               <Cell
-                caption={use.frozen ? 'Last' : 'Used'}
-                value={formatSigned(-use.used, decimals)}
-                toneClass="text-orange-300"
+                caption="Net"
+                value={formatSigned(snapshot.netLapEstimatePct, decimals)}
+                toneClass={netToneClass(snapshot.netLapEstimatePct)}
               />
+            )}
+            {settings.showDeployTimer && (
               <Cell
-                caption={use.frozen ? 'Last' : 'Regen'}
-                value={formatSigned(use.regen, decimals)}
+                caption="Deploy"
+                value={formatSeconds(snapshot.deployTimeLapS)}
+                unit="s"
+                toneClass="text-white"
+              />
+            )}
+          </div>
+        )}
+
+        {hasMotorRow && (
+          <div className="flex justify-between gap-1">
+            {settings.motor.showTemps && (
+              <>
+                <Cell
+                  caption="Motor"
+                  value={formatTemperature(motor.motorTempC, temperatureUnit)}
+                  unit="°"
+                  toneClass={temperatureToneClass(
+                    motor.motorTempC,
+                    settings.motorTempWarnC
+                  )}
+                />
+                <Cell
+                  caption="Coolant"
+                  value={formatTemperature(motor.coolantTempC, temperatureUnit)}
+                  unit="°"
+                  toneClass={temperatureToneClass(
+                    motor.coolantTempC,
+                    settings.coolantTempWarnC
+                  )}
+                />
+              </>
+            )}
+            {settings.motor.showRpm && (
+              <Cell
+                caption="RPM"
+                value={formatWhole(motor.rpm)}
+                toneClass="text-white"
+              />
+            )}
+            {settings.motor.showTorque && (
+              <Cell
+                caption="Torque"
+                value={formatWhole(motor.torqueNm)}
+                toneClass="text-white"
+              />
+            )}
+            {settings.motor.showPower && (
+              <Cell
+                caption="Power"
+                value={formatPower(motor.powerKw, powerUnit)}
+                toneClass="text-white"
+              />
+            )}
+            {settings.motor.showRegen && (
+              <Cell
+                caption="Regen"
+                value={formatSignedPower(motor.regenKw, powerUnit)}
                 toneClass="text-emerald-300"
               />
-            </>
-          )}
-          {settings.showNetEstimate && (
-            <Cell
-              caption="Net"
-              value={formatSigned(snapshot.netLapEstimatePct, decimals)}
-              toneClass={netToneClass(snapshot.netLapEstimatePct)}
-            />
-          )}
-          {settings.showDeployTimer && (
-            <Cell
-              caption="Deploy"
-              value={formatSeconds(snapshot.deployTimeLapS)}
-              unit="s"
-              toneClass="text-white"
-            />
-          )}
-        </div>
-      )}
-
-      {hasMotorRow && (
-        <div className="flex justify-between gap-1">
-          {settings.motor.showTemps && (
-            <>
-              <Cell
-                caption="Motor"
-                value={formatTemperature(motor.motorTempC, temperatureUnit)}
-                unit="°"
-                toneClass={temperatureToneClass(
-                  motor.motorTempC,
-                  settings.motorTempWarnC
-                )}
-              />
-              <Cell
-                caption="Coolant"
-                value={formatTemperature(motor.coolantTempC, temperatureUnit)}
-                unit="°"
-                toneClass={temperatureToneClass(
-                  motor.coolantTempC,
-                  settings.coolantTempWarnC
-                )}
-              />
-            </>
-          )}
-          {settings.motor.showRpm && (
-            <Cell
-              caption="RPM"
-              value={formatWhole(motor.rpm)}
-              toneClass="text-white"
-            />
-          )}
-          {settings.motor.showTorque && (
-            <Cell
-              caption="Torque"
-              value={formatWhole(motor.torqueNm)}
-              toneClass="text-white"
-            />
-          )}
-          {settings.motor.showPower && (
-            <Cell
-              caption="Power"
-              value={formatPower(motor.powerKw, powerUnit)}
-              toneClass="text-white"
-            />
-          )}
-          {settings.motor.showRegen && (
-            <Cell
-              caption="Regen"
-              value={formatSignedPower(motor.regenKw, powerUnit)}
-              toneClass="text-emerald-300"
-            />
-          )}
-        </div>
-      )}
-    </div>
+            )}
+          </div>
+        )}
+      </div>
+    </IconContext.Provider>
   );
 };

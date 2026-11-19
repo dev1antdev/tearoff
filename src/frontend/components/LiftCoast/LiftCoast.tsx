@@ -51,11 +51,14 @@ interface LightProps {
   horizontal: boolean;
 }
 
-/** One light. Takes its colour by name, so only a light that changes redraws. */
+/**
+ * One light, a rounded segment like a rev light. Takes its colour by name, so
+ * only a light that changes redraws.
+ */
 const Light = memo(({ tone, horizontal }: LightProps) => (
   <div
     data-tone={tone}
-    className={`aspect-square flex-none rounded-full ${
+    className={`aspect-square flex-none rounded-[30%] ${
       horizontal ? 'w-(--light)' : 'h-(--light)'
     } ${LIFT_COAST_TONE_CLASS[tone]}`}
   />

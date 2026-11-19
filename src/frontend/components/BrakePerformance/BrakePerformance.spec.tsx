@@ -221,13 +221,16 @@ describe('BrakePerformance', () => {
       const { container } = show(braking());
 
       expect(textOf(container)).toContain('LockF 0.0 sR 0.0 s');
-      expect(container.querySelectorAll('.text-slate-400')).toHaveLength(2);
+      const slate = Array.from(
+        container.querySelectorAll('.text-slate-400')
+      ).filter((element) => /^[FR] /.test(element.textContent ?? ''));
+      expect(slate).toHaveLength(2);
     });
 
     it('are amber above zero and red from a second', () => {
       const { container } = show(braking({ lockS: [0.4, 1.3] }));
 
-      expect(container.querySelector('.text-amber-300')?.textContent).toBe(
+      expect(container.querySelector('.text-amber-400')?.textContent).toBe(
         'F 0.4 s'
       );
       expect(container.querySelector('.text-red-400')?.textContent).toBe(
