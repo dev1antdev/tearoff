@@ -14,7 +14,7 @@ const LEGACY_KEYS: readonly string[] = [
 
 const SIDES = ['top', 'bottom', 'left', 'right'] as const;
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const booleanOrUndefined = (value: unknown): boolean | undefined =>

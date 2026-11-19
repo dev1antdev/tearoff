@@ -280,7 +280,7 @@ Every overlay widget follows the driver's Font size and Palette settings (Settin
 
 - **Text size**: the overlay scale only, `text-2xs` (smallest labels) to `text-9xl`, plus `text-display-sm/md/lg` for the one headline value of a widget. Never `text-[11px]` or a rem size: those ignore the Font size setting. Relative `em` sizes inside a widget are fine. Fixed-size by design: the Timing Tower (fixed columns) and the Broadcast graphics.
 - **Neutrals**: `slate-*` only. The palette remaps `slate`; `gray`, `zinc`, `black` or a hex do not follow it. Scrims are `bg-slate-950/NN`.
-- **Panel**: `overlay-panel` (near-black, hairline edge, 12px corners); rows without stripes, separated by `border-t overlay-divider`; labels `overlay-label`. Colour only for the meanings below, one bright spot per row, no glow on anything that changes every frame (`docs/DESIGN_BOOK.md` §3.6).
+- **Panel**: `overlay-panel` (near-black, hairline edge, 12px corners); rows without stripes, separated by `border-t overlay-divider`; labels `overlay-label`; thin icons by wrapping the widget in `<IconContext.Provider value={OVERLAY_ICONS}>`. Colour only for the meanings below, one bright spot per row, no glow on anything that changes every frame (`docs/DESIGN_BOOK.md` §3.6).
 - **Meanings**: the player `text-amber-300`; session fastest `text-purple-400`; personal best and gains `text-green-400`; losses, warnings and urgent countdowns `text-red-400`; lapped cars `text-blue-400`. Flags and traffic-light readouts (pit speed) use the flag colours from `getFlagColor`.
 - **Sim colours stay exact**: flags, licence badges, class colours and LMU rank colours.
 

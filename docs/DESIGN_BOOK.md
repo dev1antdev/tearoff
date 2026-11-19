@@ -25,7 +25,10 @@ Wall panel uses the overlay scale and palette, exactly as it does on track. A
 Pit Wall or Gantry frame is the hosted widget's panel: inside it the widget's
 `overlay-panel` loses its own edge and corners (the edge turns transparent),
 so there is one box, not two; a warning colour the widget sets on its edge (the
-Fuel Calculator's) still shows.
+Fuel Calculator's) still shows. A widget drawn as a stack of panels (the
+session bars above and below Standings and Relative, `SessionPanels`, marked
+`data-panel-stack`) closes up inside a frame: its panels sit flush, as bands of
+one box.
 
 The app is dark only (`color-scheme: dark`).
 
@@ -271,7 +274,7 @@ Do not bundle or fetch Segoe UI; elsewhere the platform UI face stands in.
 
 ## 6. Shape, borders and depth
 
-- Radii: overlay panels `rounded-xl` (12px, part of `overlay-panel`); readout boxes in the Tachometer and Shift Light `rounded-sm`; fields, buttons and licence badges `rounded-md`; larger settings panels and Pit Wall panels `rounded-lg`; dots, thumbs, bars that fill and scrollbars `rounded-full`.
+- Radii: overlay panels `rounded-xl` (12px, part of `overlay-panel`); readout boxes in the Tachometer and Shift Light `rounded-sm`; fields, buttons and licence badges `rounded-md`; larger settings panels and Pit Wall panels `rounded-lg`; dots, thumbs, bars that fill, a class's colour bar, status pills and scrollbars `rounded-full`.
 - Separate with hairlines and space, not depth. Shadows only for layers that float over the page (menus, popovers, the profile-switch notice).
 - Scrollbars in `.settings-shell`: 6px, thumb `white/12%` (hover `white/24%`), transparent track.
 
@@ -301,7 +304,7 @@ kept for units and empty values.
 
 ## 9. Icons
 
-- Phosphor through `@phosphor-icons/react`. Regular weight in settings; `weight="light"` in overlays as each is redone (section 3.6), with `weight="fill"` or `weight="bold"` only where an icon has to hold up at a small size. 16px in buttons and rows; icons take the text colour.
+- Phosphor through `@phosphor-icons/react`. Regular weight in settings; `weight="light"` in overlays as each is redone (section 3.6): wrap the widget in `<IconContext.Provider value={OVERLAY_ICONS}>` (`src/frontend/utils/overlayIcons.ts`) rather than setting the weight icon by icon, with `weight="fill"` or `weight="bold"` only where an icon has to hold up at a small size. 16px in buttons and rows; icons take the text colour.
 - Map icon names chosen at runtime through `src/frontend/utils/phosphorIconMap.ts`.
 - The one custom glyph is the finished-car checkered flag in `DriverStatusBadges.tsx`: Phosphor's `FlagCheckered` cannot be read at badge size.
 

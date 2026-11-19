@@ -754,10 +754,9 @@ describe('dashboards', () => {
     const configOf = (result: DashboardLayout, id: string) =>
       result.widgets.find((w) => w.id === id)?.config as typeof filledConfig;
 
-    it('turns the old filled Standings and Relative cells off once', () => {
+    it('turns the old filled Relative cells off once', () => {
       const result = withDashboardDefaults({
         widgets: [
-          { id: 'standings', enabled: true, config: filledConfig },
           {
             id: 'relative-2',
             type: 'relative',
@@ -767,26 +766,44 @@ describe('dashboards', () => {
         ],
       } as unknown as DashboardLayout);
 
-      for (const id of ['standings', 'relative-2']) {
-        const config = configOf(result, id);
-        expect(config.stylingOptions.driverPosition.background).toBe(false);
-        expect(config.stylingOptions.driverNumber).toEqual({
-          background: false,
-          border: true,
-        });
-        expect(config.classHeaderStyle.className.colorBackground).toBe(false);
-        expect(config.classHeaderStyle.classInfo.colorBackground).toBe(false);
-      }
+      const config = configOf(result, 'relative-2');
+      expect(config.stylingOptions.driverPosition.background).toBe(false);
+      expect(config.stylingOptions.driverNumber).toEqual({
+        background: false,
+        border: true,
+      });
+      expect(config.classHeaderStyle.className.colorBackground).toBe(false);
+      expect(config.classHeaderStyle.classInfo.colorBackground).toBe(false);
       expect(withDashboardDefaults(result)).toEqual(result);
+    });
+
+    it('keeps a fill the driver switched on in Standings, which never stored one by default', () => {
+      const result = withDashboardDefaults({
+        widgets: [{ id: 'standings', enabled: true, config: filledConfig }],
+      } as unknown as DashboardLayout);
+
+      const config = configOf(result, 'standings');
+      expect(config.stylingOptions.driverNumber.background).toBe(true);
+      expect(config.classHeaderStyle.className.colorBackground).toBe(true);
+    });
+
+    it('gives Standings without a stored fill the unfilled defaults', () => {
+      const result = withDashboardDefaults({
+        widgets: [{ id: 'standings', enabled: true, config: {} }],
+      } as unknown as DashboardLayout);
+
+      const config = configOf(result, 'standings');
+      expect(config.stylingOptions.driverNumber.background).toBe(false);
+      expect(config.classHeaderStyle.className.colorBackground).toBe(false);
     });
 
     it('keeps a fill switched on after the move', () => {
       const result = withDashboardDefaults({
         generalSettings: { redesignDefaultsApplied: true },
-        widgets: [{ id: 'standings', enabled: true, config: filledConfig }],
+        widgets: [{ id: 'relative', enabled: true, config: filledConfig }],
       } as unknown as DashboardLayout);
 
-      const config = configOf(result, 'standings');
+      const config = configOf(result, 'relative');
       expect(config.stylingOptions.driverNumber.background).toBe(true);
       expect(config.classHeaderStyle.className.colorBackground).toBe(true);
     });

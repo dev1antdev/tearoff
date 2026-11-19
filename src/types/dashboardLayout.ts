@@ -107,8 +107,11 @@ export interface GeneralSettingsType {
   fontType?: FontType;
   /**
    * Set once a profile has moved onto the defaults of the 2.3 overlay look:
-   * off Lato, the font before Figtree, and off the filled Standings and
-   * Relative cells. A profile that picks them again after that keeps them.
+   * off Lato, the font before Figtree, and off the filled Relative cells. A
+   * profile that picks them again after that keeps them. The redesign's pull
+   * requests add their old defaults to this one move until the release that
+   * carries it; a default changed after that release needs a marker of its
+   * own, or profiles already marked would never move.
    */
   redesignDefaultsApplied?: boolean;
   fontSize?: FontSize;

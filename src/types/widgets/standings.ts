@@ -481,6 +481,33 @@ export default defineWidgetManifest({
       step: 1,
       units: '%',
     },
+    'classHeaderStyle.className.colorBackground': {
+      type: 'boolean',
+      label: 'Class Name Background',
+      description: 'Show a colored background on the class name badge',
+    },
+    'classHeaderStyle.classInfo.colorBackground': {
+      type: 'boolean',
+      label: 'Class Info Background',
+      description:
+        'Show a colored background on the SOF and driver count badges',
+    },
+    'stylingOptions.driverPosition.background': {
+      type: 'boolean',
+      label: 'Position Background',
+      description:
+        "Highlight the player's position cell with a colored background",
+    },
+    'stylingOptions.driverNumber.background': {
+      type: 'boolean',
+      label: 'Number Background',
+      description: 'Show a colored background on the car number cell',
+    },
+    'stylingOptions.driverNumber.border': {
+      type: 'boolean',
+      label: 'Number Left Border',
+      description: 'Show a colored left border on the car number cell',
+    },
     'driverRow.opacity': {
       type: 'number',
       label: 'Player Highlight Opacity',

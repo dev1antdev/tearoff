@@ -1,4 +1,9 @@
-// Badge preview component to show different formats
+import {
+  DriverRatingBadge,
+  type DriverRatingBadgeProps,
+} from '../../shared/DriverRatingBadge/DriverRatingBadge';
+
+/** One iRacing licence badge format, drawn by the badge itself. */
 export const BadgeFormatPreview = ({
   format,
   selected,
@@ -13,119 +18,16 @@ export const BadgeFormatPreview = ({
   selected?: boolean;
   onClick?: () => void;
 }) => {
-  const renderPreview = () => {
-    switch (format) {
-      case 'license-color-fullrating-combo':
-        return (
-          <div className="text-white text-nowrap border-2 px-1 rounded-md text-xs leading-tight border-green-500 bg-green-800">
-            B 3.8 &nbsp; 1412
-          </div>
-        );
-      case 'fullrating-color-no-license':
-        return (
-          <div className="text-white text-nowrap border-2 px-1 rounded-md text-xs leading-tight border-green-500 bg-green-800">
-            1412
-          </div>
-        );
-      case 'license-color-fullrating-bw':
-        return (
-          <div className="flex gap-1 items-center">
-            <div className="text-white text-nowrap border-2 px-1 rounded-md text-xs leading-tight border-green-500 bg-green-800">
-              B 3.8
-            </div>
-            <div className="bg-white/10 text-white border-2 border-transparent px-1 rounded-md text-xs leading-tight">
-              1412
-            </div>
-          </div>
-        );
-      case 'license-color-rating-bw':
-        return (
-          <div className="flex gap-1 items-center">
-            <div className="text-white text-nowrap border-2 px-1 rounded-md text-xs leading-tight border-green-500 bg-green-800">
-              B 3.8
-            </div>
-            <div className="bg-white/10 text-white border-2 border-transparent px-1 rounded-md text-xs leading-tight">
-              1.4k
-            </div>
-          </div>
-        );
-      case 'rating-only-color-rating-bw':
-        return (
-          <div className="flex gap-1 items-center">
-            <div className="text-white text-nowrap border-2 px-1 rounded-md text-xs leading-tight border-green-500 bg-green-800">
-              3.8
-            </div>
-            <div className="bg-white/10 text-white border-2 border-transparent px-1 rounded-md text-xs leading-tight">
-              1.4k
-            </div>
-          </div>
-        );
-      case 'license-color-rating-bw-no-license':
-        return (
-          <div className="flex gap-1 items-center">
-            <div className="text-white text-nowrap border-2 px-1 rounded-md text-xs leading-tight border-green-500 bg-green-800">
-              B
-            </div>
-            <div className="bg-white/10 text-white border-2 border-transparent px-1 rounded-md text-xs leading-tight">
-              1.4k
-            </div>
-          </div>
-        );
-      case 'rating-color-no-license':
-        return (
-          <div className="text-white text-nowrap border-2 px-1 rounded-md text-xs leading-tight border-green-500 bg-green-800">
-            1.4k
-          </div>
-        );
-      case 'license-bw-rating-bw':
-        return (
-          <div className="flex gap-1 items-center">
-            <div className="bg-white/10 text-white border-2 border-transparent px-1 rounded-md text-xs leading-tight">
-              B 3.8
-            </div>
-            <div className="bg-white/10 text-white border-2 border-transparent px-1 rounded-md text-xs leading-tight">
-              1.4k
-            </div>
-          </div>
-        );
-      case 'rating-only-bw-rating-bw':
-        return (
-          <div className="flex gap-1 items-center">
-            <div className="bg-white/10 text-white border-2 border-transparent px-1 rounded-md text-xs leading-tight">
-              3.8
-            </div>
-            <div className="bg-white/10 text-white border-2 border-transparent px-1 rounded-md text-xs leading-tight">
-              1.4k
-            </div>
-          </div>
-        );
-      case 'license-bw-rating-bw-no-license':
-        return (
-          <div className="flex gap-1 items-center">
-            <div className="bg-white/10 text-white border-2 border-transparent px-1 rounded-md text-xs leading-tight">
-              B
-            </div>
-            <div className="bg-white/10 text-white border-2 border-transparent px-1 rounded-md text-xs leading-tight">
-              1.4k
-            </div>
-          </div>
-        );
-      case 'rating-bw-no-license':
-        return (
-          <div className="text-white text-nowrap border-2 px-1 rounded-md text-xs leading-tight bg-white/10 border-transparent">
-            1.4k
-          </div>
-        );
-      case 'fullrating-bw-no-license':
-        return (
-          <div className="text-white text-nowrap border-2 px-1 rounded-md text-xs leading-tight bg-white/10 border-transparent">
-            1412
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
+  // The real badge, as LmuBadgeFormatPreview draws the real LMU one: a
+  // hand-built copy of each format drifted from what a row shows. The sample
+  // is a B 3.8 licence with a 1412 iRating.
+  const renderPreview = () => (
+    <DriverRatingBadge
+      license="B 3.80"
+      rating={1412}
+      format={format as DriverRatingBadgeProps['format']}
+    />
+  );
 
   if (!onClick) return <>{renderPreview()}</>;
 

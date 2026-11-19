@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from 'react';
+import { memo, type CSSProperties, type ReactNode } from 'react';
 import {
   lmuPenaltyBadgeText,
   type LmuFinishState,
@@ -12,6 +12,7 @@ interface StatusBadgeProps {
   animate?: boolean;
   children: ReactNode;
   additionalClasses?: string;
+  style?: CSSProperties;
 }
 
 const StatusBadge = ({
@@ -20,6 +21,7 @@ const StatusBadge = ({
   animate,
   children,
   additionalClasses = '',
+  style,
 }: StatusBadgeProps) => {
   const baseClasses =
     'text-xs border rounded-full text-center text-nowrap px-2 m-0 leading-tight';
@@ -28,6 +30,7 @@ const StatusBadge = ({
   return (
     <span
       className={`${textColor} ${baseClasses} ${borderColorClass} ${animationClass} ${additionalClasses}`}
+      style={style}
     >
       {children}
     </span>
@@ -220,15 +223,18 @@ export const DriverStatusBadges = memo(
           </StatusBadge>
         )}
         {slowdown && (
-          <span
-            className={`text-orange-500 text-xs border rounded-full text-center text-nowrap px-2 m-0 leading-tight border-slate-500 animate-pulse ${flagBadgeClasses}`}
+          <StatusBadge
+            textColor="text-orange-500"
+            borderColorClass="border-slate-500"
+            animate
+            additionalClasses={flagBadgeClasses}
             style={{
               background:
                 'linear-gradient(to bottom right, black calc(50% - 1px), white calc(50% + 1px))',
             }}
           >
-            {' '}
-          </span>
+            {' '}
+          </StatusBadge>
         )}
         {repair && (
           <StatusBadge

@@ -21,7 +21,7 @@ import { app } from 'electron';
 import { randomUUID, createHash } from 'node:crypto';
 import logger from '../logger';
 import { migrateLegacyStreamChat } from './streamChatMigration';
-import { migrateLapTraceLayout } from './lapTraceLayoutMigration';
+import { isRecord, migrateLapTraceLayout } from './lapTraceLayoutMigration';
 
 const DASHBOARDS_KEY = 'dashboards';
 const PROFILES_KEY = 'profiles';
@@ -90,10 +90,12 @@ const dropRemovedRadarTuning = (
 };
 
 /**
- * Standings and Relative cells that were filled with the class colour by
- * default until the 2.3 overlay look, which leaves them unfilled. A stored
- * `true` cannot be told from that old default, so it is turned off once, with
- * the rest of the new look's defaults (see withDashboardDefaults).
+ * Relative cells that were filled with the class colour by default until the
+ * 2.3 overlay look, which leaves them unfilled. Relative stored that default,
+ * so a stored `true` cannot be told from it and is turned off once, with the
+ * rest of the new look's defaults (see withDashboardDefaults). Standings never
+ * stored these keys (its fill came from a fallback in the row), so a `true`
+ * there was switched on by the driver and stays.
  */
 const OLD_FILL_DEFAULTS = [
   ['stylingOptions', 'driverPosition', 'background'],
@@ -102,17 +104,14 @@ const OLD_FILL_DEFAULTS = [
   ['classHeaderStyle', 'classInfo', 'colorBackground'],
 ] as const;
 
-const isPlainObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
-
 const dropOldFillDefaults = (saved: unknown): unknown => {
-  if (!isPlainObject(saved)) return saved;
+  if (!isRecord(saved)) return saved;
   let config = saved;
   for (const [group, part, key] of OLD_FILL_DEFAULTS) {
     const groupValue = config[group];
-    if (!isPlainObject(groupValue)) continue;
+    if (!isRecord(groupValue)) continue;
     const partValue = groupValue[part];
-    if (!isPlainObject(partValue) || partValue[key] !== true) continue;
+    if (!isRecord(partValue) || partValue[key] !== true) continue;
     config = {
       ...config,
       [group]: { ...groupValue, [part]: { ...partValue, [key]: false } },
@@ -274,8 +273,8 @@ export const withDashboardDefaults = (
     generalSettings.colorPalette = 'default';
   }
   // The 2.3 overlay look changed defaults a stored value cannot be told
-  // apart from: Lato was the default font before Figtree, and the Standings
-  // and Relative cells were filled (OLD_FILL_DEFAULTS). A profile moves onto
+  // apart from: Lato was the default font before Figtree, and the Relative
+  // cells were filled (OLD_FILL_DEFAULTS). A profile moves onto
   // the new defaults once. Read from the stored settings, not the merged ones,
   // so the defaults cannot mark a profile as already moved.
   const movesToNewLook =
@@ -300,7 +299,7 @@ export const withDashboardDefaults = (
       const saved =
         type === 'laptrace'
           ? migrateLapTraceLayout(widget.config)
-          : movesToNewLook && (type === 'standings' || type === 'relative')
+          : movesToNewLook && type === 'relative'
             ? dropOldFillDefaults(widget.config)
             : widget.config;
       const merged = deepMergeConfig(defaults, saved) as Record<

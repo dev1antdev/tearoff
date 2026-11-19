@@ -1,6 +1,4 @@
 import { useMemo } from 'react';
-import { IconContext } from '@phosphor-icons/react';
-import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import { DriverInfoRow } from './components/DriverInfoRow/DriverInfoRow';
 import {
   useDrivingState,
@@ -30,7 +28,7 @@ import {
   useHighlightColor,
   useDriverTagMap,
 } from './hooks';
-import { SessionBar } from './components/SessionBar/SessionBar';
+import { SessionPanels } from './components/SessionPanels/SessionPanels';
 import { TitleBar } from './components/TitleBar/TitleBar';
 import { useIsSingleMake } from './hooks/useIsSingleMake';
 import { useTrackLimitsMax } from './hooks/useTrackLimitsMax';
@@ -425,43 +423,35 @@ export const Relative = () => {
     return <></>;
   }
 
-  // The session's header and footer bars are panels of their own above and
-  // below the table's; the flag contour rings the table's panel. With no
-  // player found the table is empty and keeps its height. The icons are thin.
+  // The flag contour rings the table's panel. With no player found the table
+  // is empty and keeps its height.
   return (
-    <IconContext.Provider value={OVERLAY_ICONS}>
-      <div
-        className={`flex w-full flex-col ${isCompact ? 'gap-0.5' : 'gap-1.5'}`}
+    <SessionPanels
+      header={
+        (settings?.headerBar?.enabled ?? false)
+          ? settings?.headerBar
+          : undefined
+      }
+      footer={
+        (settings?.footerBar?.enabled ?? true) ? settings?.footerBar : undefined
+      }
+      barOpacity={settings?.foreground?.opacity}
+      compact={isCompact}
+    >
+      <FlagContour
+        compactMode={isCompact}
+        flags={{ enabled: flagContourEnabled }}
+        flagColor={flagColor}
+        backgroundOpacity={settings?.background?.opacity ?? 0}
+        borderWidth={borderWidth}
       >
-        {settings?.headerBar && (settings.headerBar.enabled ?? false) && (
-          <SessionBar
-            settings={settings.headerBar}
-            opacity={settings?.foreground?.opacity}
-            position="header"
-          />
-        )}
-        <FlagContour
-          compactMode={isCompact}
-          flags={{ enabled: flagContourEnabled }}
-          flagColor={flagColor}
-          backgroundOpacity={settings?.background?.opacity ?? 0}
-          borderWidth={borderWidth}
+        <TitleBar titleBarSettings={settings?.titleBar} />
+        <table
+          className={`w-full table-auto text-sm border-separate ${tableBorderSpacing}`}
         >
-          <TitleBar titleBarSettings={settings?.titleBar} />
-          <table
-            className={`w-full table-auto text-sm border-separate ${tableBorderSpacing}`}
-          >
-            <tbody>{rows}</tbody>
-          </table>
-        </FlagContour>
-        {settings?.footerBar && (settings.footerBar.enabled ?? true) && (
-          <SessionBar
-            settings={settings.footerBar}
-            opacity={settings?.foreground?.opacity}
-            position="footer"
-          />
-        )}
-      </div>
-    </IconContext.Provider>
+          <tbody>{rows}</tbody>
+        </table>
+      </FlagContour>
+    </SessionPanels>
   );
 };
