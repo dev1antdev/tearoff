@@ -198,6 +198,27 @@ export const ShortHeader: Story = {
  * between them, so the row takes no more room than the single panel did and
  * the shortfall at the right stays inside the frame.
  */
+/** The widest headline, a low-confidence range, at the same narrow width. */
+export const NarrowHeaderRange: Story = {
+  decorators: [
+    (Story) => (
+      <MockFuelDataProvider>
+        <div className="w-[235px]">
+          <Story />
+        </div>
+      </MockFuelDataProvider>
+    ),
+  ],
+  args: {
+    ...baselineArgs,
+    previewData: {
+      ...demoFuelData,
+      confidence: 'low',
+      lapsRemaining: 104.4,
+    },
+  },
+};
+
 export const SideBySideShort: Story = {
   decorators: [
     (Story) => (
@@ -241,8 +262,8 @@ export const SideBySideShort: Story = {
 };
 
 /**
- * Guards the header at a narrow width: a long medium-confidence estimate keeps
- * its line, and Next pit and Stops wrap below it instead of overlapping it.
+ * Guards the header at a narrow width: a long medium-confidence estimate
+ * shrinks to the space its column leaves, and never overlaps Next pit.
  */
 export const NarrowHeader: Story = {
   decorators: [
