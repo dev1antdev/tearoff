@@ -42,13 +42,14 @@ export const chargeBand = (
 export const CHARGE_TEXT_CLASS: Record<ChargeBand, string> = {
   low: 'text-red-400',
   normal: 'text-white',
-  high: 'text-amber-300',
+  high: 'text-amber-400',
 };
 
 /** The fill of the charge bar. */
 export const CHARGE_BAR_CLASS: Record<ChargeBand, string> = {
   low: 'bg-red-500',
-  normal: 'bg-green-500',
+  // A charge in range is the normal state, so it is neutral.
+  normal: 'bg-slate-300',
   high: 'bg-amber-400',
 };
 
@@ -119,8 +120,8 @@ export const lapUse = (
 
 /** Green for a lap that ends with more charge than it began, amber for less. */
 export const netToneClass = (net: number | null): string => {
-  if (net === null) return 'text-white/40';
-  return net >= 0 ? 'text-emerald-300' : 'text-amber-300';
+  if (net === null) return 'text-slate-500';
+  return net >= 0 ? 'text-emerald-300' : 'text-amber-400';
 };
 
 /** Seconds to a tenth, without the unit. */
@@ -148,9 +149,9 @@ export const temperatureToneClass = (
   celsius: number | null,
   warnC: number
 ): string => {
-  if (celsius === null) return 'text-white/40';
+  if (celsius === null) return 'text-slate-500';
   if (celsius >= warnC) return 'text-red-400';
-  if (celsius >= warnC - TEMPERATURE_CAUTION_C) return 'text-amber-300';
+  if (celsius >= warnC - TEMPERATURE_CAUTION_C) return 'text-amber-400';
   return 'text-white';
 };
 

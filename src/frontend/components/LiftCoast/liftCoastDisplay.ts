@@ -25,14 +25,15 @@ export type LiftCoastTone = 'off' | 'low' | 'critical' | LiftCoastOverride;
  * personal best.
  */
 export const LIFT_COAST_TONE_CLASS: Record<LiftCoastTone, string> = {
-  off: 'bg-slate-950/60 ring-1 ring-inset ring-white/20',
-  // The dark rim keeps a lit light a disc over a bright piece of scenery.
-  low: 'bg-violet-500 ring-1 ring-inset ring-black/25',
-  critical: 'bg-fuchsia-400 ring-1 ring-inset ring-black/25',
-  lock: 'bg-red-500 ring-1 ring-inset ring-black/25',
-  abs: 'bg-yellow-500 ring-1 ring-inset ring-black/25',
-  slip: 'bg-orange-500 ring-1 ring-inset ring-black/25',
-  tc: 'bg-blue-500 ring-1 ring-inset ring-black/25',
+  // An unlit light takes the palette's dark neutral, as the rev lights do. No
+  // rim: a ring is a shadow, and these change every frame.
+  off: 'bg-slate-800',
+  low: 'bg-violet-500',
+  critical: 'bg-fuchsia-400',
+  lock: 'bg-red-500',
+  abs: 'bg-yellow-500',
+  slip: 'bg-orange-500',
+  tc: 'bg-blue-500',
 };
 
 export const LIFT_COAST_DARK: LiftCoastLights = {

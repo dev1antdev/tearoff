@@ -120,7 +120,7 @@ describe('Hybrid', () => {
       render(<Hybrid />);
 
       expect(charge()).toHaveClass('text-white');
-      expect(bar()).toHaveClass('bg-green-500');
+      expect(bar()).toHaveClass('bg-slate-300');
     });
 
     it('is red at or below the low threshold', () => {
@@ -135,7 +135,7 @@ describe('Hybrid', () => {
       show({ chargePct: 95 });
       render(<Hybrid />);
 
-      expect(charge()).toHaveClass('text-amber-300');
+      expect(charge()).toHaveClass('text-amber-400');
       expect(bar()).toHaveClass('bg-amber-400');
     });
 
@@ -190,11 +190,11 @@ describe('Hybrid', () => {
       // Mid-pulse, straight to full: the new colour shows at once.
       show({ chargePct: 97 });
       rerender(<Hybrid />);
-      expect(charge()).toHaveClass('text-amber-300');
+      expect(charge()).toHaveClass('text-amber-400');
       advance(400);
       expect(charge()).toHaveClass('text-white');
       advance(200);
-      expect(charge()).toHaveClass('text-amber-300');
+      expect(charge()).toHaveClass('text-amber-400');
     });
 
     it('stops as the charge leaves the band', () => {
@@ -227,7 +227,7 @@ describe('Hybrid', () => {
       expect(screen.getByText('-6.2')).toHaveClass('text-orange-300');
       expect(screen.getByText('Regen')).toBeInTheDocument();
       expect(screen.getByText('+3.1')).toHaveClass('text-emerald-300');
-      expect(screen.getByText('-1.6')).toHaveClass('text-amber-300');
+      expect(screen.getByText('-1.6')).toHaveClass('text-amber-400');
       expect(screen.getByText('8.4')).toBeInTheDocument();
     });
 
@@ -330,7 +330,7 @@ describe('Hybrid', () => {
         'text-red-400'
       );
       expect(screen.getByText('Coolant').nextElementSibling).toHaveClass(
-        'text-amber-300'
+        'text-amber-400'
       );
     });
 

@@ -97,16 +97,16 @@ describe('the colours', () => {
   it('is green for a lap that gains and amber for one that loses', () => {
     expect(netToneClass(2.3)).toBe('text-emerald-300');
     expect(netToneClass(0)).toBe('text-emerald-300');
-    expect(netToneClass(-0.1)).toBe('text-amber-300');
-    expect(netToneClass(null)).toBe('text-white/40');
+    expect(netToneClass(-0.1)).toBe('text-amber-400');
+    expect(netToneClass(null)).toBe('text-slate-500');
   });
 
   it('is amber within ten degrees of the threshold and red from it', () => {
     expect(temperatureToneClass(69.9, 80)).toBe('text-white');
-    expect(temperatureToneClass(70, 80)).toBe('text-amber-300');
-    expect(temperatureToneClass(79.9, 80)).toBe('text-amber-300');
+    expect(temperatureToneClass(70, 80)).toBe('text-amber-400');
+    expect(temperatureToneClass(79.9, 80)).toBe('text-amber-400');
     expect(temperatureToneClass(80, 80)).toBe('text-red-400');
-    expect(temperatureToneClass(null, 80)).toBe('text-white/40');
+    expect(temperatureToneClass(null, 80)).toBe('text-slate-500');
   });
 });
 

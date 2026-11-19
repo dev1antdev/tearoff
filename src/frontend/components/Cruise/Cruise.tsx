@@ -1,12 +1,14 @@
 import { memo } from 'react';
 import {
   CompassIcon,
+  IconContext,
   MapPinLineIcon,
   MountainsIcon,
   PathIcon,
   SteeringWheelIcon,
   type Icon,
 } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import {
   sessionBarSelectors,
   useActiveSimulator,
@@ -46,16 +48,13 @@ interface CruiseCellProps {
 /** One reading: an icon, the figure, and its unit small beside it. */
 const CruiseCell = memo(
   ({ icon: CellIcon, label, value, unit }: CruiseCellProps) => (
-    <div
-      className="flex min-w-0 items-center gap-1 rounded-sm bg-slate-800/70 px-1.5 py-1"
-      title={label}
-    >
-      <CellIcon size={14} className="flex-none text-white/50" />
+    <div className="flex min-w-0 items-center gap-1 px-1.5 py-1" title={label}>
+      <CellIcon size={14} className="flex-none text-slate-400" />
       <span className="sr-only">{label}</span>
       <span className="truncate whitespace-nowrap text-sm font-semibold tabular-nums">
         {value}
         {unit !== '' && (
-          <span className="ml-0.5 text-xs font-normal text-white/60">
+          <span className="ml-0.5 text-xs font-normal text-slate-400">
             {unit}
           </span>
         )}
@@ -160,40 +159,42 @@ export const Cruise = () => {
   const own = snapshot?.available === true;
 
   return (
-    <div
-      className="flex h-full w-full gap-1 overlay-panel p-2 text-white"
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
-      {settings.compass.dial && (
-        <CompassDial
-          headingDeg={own ? (snapshot?.headingDeg ?? null) : null}
-          driftDeg={own ? (snapshot?.driftDeg ?? null) : null}
-        />
-      )}
-      {cells.length > 0 && (
-        <div
-          className={
-            settings.layout === 'row'
-              ? 'flex min-w-0 flex-1 flex-row flex-wrap content-center gap-1 [&>*]:flex-1'
-              : 'grid min-w-0 flex-1 auto-rows-fr grid-cols-3 gap-1'
-          }
-        >
-          {cells.map((cell) => {
-            const figure = figureOf(cell, snapshot, settings, metric);
-            return (
-              <CruiseCell
-                key={cell}
-                icon={CELL_ICONS[cell]}
-                label={CELL_LABELS[cell]}
-                value={figure.value}
-                unit={figure.unit}
-              />
-            );
-          })}
-        </div>
-      )}
-    </div>
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        className="flex h-full w-full gap-1 overlay-panel p-2 text-white"
+        style={{
+          ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+        }}
+      >
+        {settings.compass.dial && (
+          <CompassDial
+            headingDeg={own ? (snapshot?.headingDeg ?? null) : null}
+            driftDeg={own ? (snapshot?.driftDeg ?? null) : null}
+          />
+        )}
+        {cells.length > 0 && (
+          <div
+            className={
+              settings.layout === 'row'
+                ? 'flex min-w-0 flex-1 flex-row flex-wrap content-center gap-1 [&>*]:flex-1'
+                : 'grid min-w-0 flex-1 auto-rows-fr grid-cols-3 gap-1'
+            }
+          >
+            {cells.map((cell) => {
+              const figure = figureOf(cell, snapshot, settings, metric);
+              return (
+                <CruiseCell
+                  key={cell}
+                  icon={CELL_ICONS[cell]}
+                  label={CELL_LABELS[cell]}
+                  value={figure.value}
+                  unit={figure.unit}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </IconContext.Provider>
   );
 };

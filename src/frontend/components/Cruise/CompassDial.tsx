@@ -41,7 +41,7 @@ export const CompassDial = memo(
 
     return (
       <div
-        className="relative aspect-square h-full flex-none rounded-sm bg-slate-800/70"
+        className="relative aspect-square h-full flex-none"
         data-testid="compass-dial"
       >
         {/* The rose, with room left under it for the angle. */}
@@ -53,7 +53,7 @@ export const CompassDial = memo(
           >
             <CompassRoseIcon
               weight="light"
-              className="absolute inset-[14%] h-[72%] w-[72%] text-white/40"
+              className="absolute inset-[14%] h-[72%] w-[72%] text-slate-500"
             />
             {/* Inside the square at any turn: a little in from the edge. */}
             <span className="absolute left-1/2 top-0 -translate-x-1/2 text-2xs font-bold leading-none text-white">
@@ -79,7 +79,7 @@ export const CompassDial = memo(
         </div>
         <div
           className={`absolute inset-x-0 bottom-[3%] text-center text-xs leading-none tabular-nums ${
-            sliding ? 'text-red-400' : 'text-white/60'
+            sliding ? 'text-red-400' : 'text-slate-400'
           }`}
         >
           {driftDeg === null ? NO_READING : formatDrift(driftDeg)}

@@ -1,5 +1,10 @@
 import { memo } from 'react';
-import { ArrowRightIcon, LockSimpleIcon } from '@phosphor-icons/react';
+import {
+  ArrowRightIcon,
+  IconContext,
+  LockSimpleIcon,
+} from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import {
   trackStateSelectors,
   useBrakingSnapshot,
@@ -25,13 +30,13 @@ import {
 
 const DELTA_CLASS: Record<DeltaTone, string> = {
   gained: 'bg-green-500/20 text-green-400',
-  lost: 'bg-amber-500/20 text-amber-300',
+  lost: 'bg-amber-500/20 text-amber-400',
   level: 'bg-slate-500/20 text-slate-300',
 };
 
 const LOCK_CLASS: Record<LockTone, string> = {
   none: 'text-slate-400',
-  some: 'text-amber-300',
+  some: 'text-amber-400',
   long: 'text-red-400',
 };
 
@@ -48,17 +53,19 @@ const PeakLine = memo(({ peak, delta, deltaClass, best }: PeakLineProps) => (
   <div className="flex items-center gap-2">
     <div className="flex items-baseline gap-1 leading-none">
       <span className="text-2xl font-bold">{peak}</span>
-      <span className="text-sm font-semibold text-slate-300">g</span>
+      <span className="text-sm font-semibold text-slate-400">g</span>
     </div>
     {delta && (
       <span
-        className={`rounded px-1.5 py-0.5 text-xs font-semibold leading-none ${deltaClass}`}
+        className={`rounded-md px-1.5 py-0.5 text-xs font-semibold leading-none ${deltaClass}`}
       >
         {delta}
       </span>
     )}
     <div className="ml-auto flex items-baseline gap-1 text-xs leading-none text-purple-400">
-      <span className="text-[0.85em] uppercase">Best</span>
+      <span className="text-[0.85em] font-semibold uppercase tracking-wider">
+        Best
+      </span>
       <span className="font-semibold">{best}</span>
       <span>g</span>
     </div>
@@ -97,7 +104,7 @@ const DetailLine = memo(
         <span className="font-semibold text-white">{entry}</span>
         {exit && (
           <>
-            <ArrowRightIcon size="0.9em" weight="bold" aria-hidden="true" />
+            <ArrowRightIcon size="0.9em" aria-hidden="true" />
             <span className="font-semibold text-white">{exit}</span>
           </>
         )}
@@ -137,7 +144,7 @@ const LockLine = memo(
   ({ front, frontClass, rear, rearClass }: LockLineProps) => (
     <div className="flex items-center gap-x-2 whitespace-nowrap text-xs leading-none text-slate-300">
       <span className="flex items-center gap-1">
-        <LockSimpleIcon size="1em" weight="bold" aria-hidden="true" />
+        <LockSimpleIcon aria-hidden="true" />
         Lock
       </span>
       <span className={frontClass}>
@@ -203,45 +210,47 @@ export const BrakePerformance = () => {
   const lockS = reading?.lockS ?? null;
 
   return (
-    <div
-      className="flex h-full w-full flex-col justify-center gap-1.5 overflow-hidden overlay-panel p-2 font-medium tabular-nums text-white"
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
-      <PeakLine
-        peak={formatG(live?.peakG ?? last?.peakG)}
-        delta={delta?.text ?? ''}
-        deltaClass={DELTA_CLASS[delta?.tone ?? 'level']}
-        best={best > 0 ? formatG(best) : NO_READING}
-      />
-      {settings.showZoneDetail && (
-        <DetailLine
-          entry={formatSpeed(live?.entrySpeed ?? last?.entrySpeed, speedUnit)}
-          exit={live ? '' : formatSpeed(last?.exitSpeed, speedUnit)}
-          speedUnit={speedUnit}
-          distance={formatDistance(
-            live?.distanceM ?? last?.distanceM,
-            distanceUnit
-          )}
-          distanceUnit={distanceUnit}
-          time={
-            live
-              ? formatSeconds(live.durationS, 1)
-              : formatSeconds(last?.durationS, 2)
-          }
-          average={live ? '' : formatG(last?.averageG)}
-          abs={last && last.absS > 0 ? formatSeconds(last.absS, 1) : ''}
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        className="flex h-full w-full flex-col justify-center gap-1.5 overflow-hidden overlay-panel p-2 font-medium tabular-nums text-white"
+        style={{
+          ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+        }}
+      >
+        <PeakLine
+          peak={formatG(live?.peakG ?? last?.peakG)}
+          delta={delta?.text ?? ''}
+          deltaClass={DELTA_CLASS[delta?.tone ?? 'level']}
+          best={best > 0 ? formatG(best) : NO_READING}
         />
-      )}
-      {settings.showLockTime && lockS && (
-        <LockLine
-          front={formatSeconds(lockS[0], 1)}
-          frontClass={LOCK_CLASS[lockTone(lockS[0])]}
-          rear={formatSeconds(lockS[1], 1)}
-          rearClass={LOCK_CLASS[lockTone(lockS[1])]}
-        />
-      )}
-    </div>
+        {settings.showZoneDetail && (
+          <DetailLine
+            entry={formatSpeed(live?.entrySpeed ?? last?.entrySpeed, speedUnit)}
+            exit={live ? '' : formatSpeed(last?.exitSpeed, speedUnit)}
+            speedUnit={speedUnit}
+            distance={formatDistance(
+              live?.distanceM ?? last?.distanceM,
+              distanceUnit
+            )}
+            distanceUnit={distanceUnit}
+            time={
+              live
+                ? formatSeconds(live.durationS, 1)
+                : formatSeconds(last?.durationS, 2)
+            }
+            average={live ? '' : formatG(last?.averageG)}
+            abs={last && last.absS > 0 ? formatSeconds(last.absS, 1) : ''}
+          />
+        )}
+        {settings.showLockTime && lockS && (
+          <LockLine
+            front={formatSeconds(lockS[0], 1)}
+            frontClass={LOCK_CLASS[lockTone(lockS[0])]}
+            rear={formatSeconds(lockS[1], 1)}
+            rearClass={LOCK_CLASS[lockTone(lockS[1])]}
+          />
+        )}
+      </div>
+    </IconContext.Provider>
   );
 };
