@@ -441,10 +441,12 @@ export const Tachometer = ({
         ))}
 
         {/* RPM display - Horinztonal - shows when showRpmText is true OR when custom shift points exist */}
+        {/* The RPM readouts change every frame, so they take the panel's
+            background and corners but not its edge, which is a shadow. */}
         {shouldShowRpmBox && rpmOrientation === 'horizontal' && (
           <div
             id="rpm-text"
-            className="overlay-panel text-2xl absolute right-[-8em] flex min-w-[6em] font-bold tabular-nums text-white px-4 mx-2 transition-colors duration-200 whitespace-nowrap justify-center items-center"
+            className="rounded-xl bg-slate-950/(--bg-opacity) text-2xl absolute right-[-8em] flex min-w-[6em] font-bold tabular-nums text-white px-4 mx-2 transition-colors duration-200 whitespace-nowrap justify-center items-center"
             style={{
               ...getRpmBoxStyle(),
               height: '2em',
@@ -479,7 +481,7 @@ export const Tachometer = ({
       {shouldShowRpmBox && rpmOrientation !== 'horizontal' && (
         <div
           id="rpm-text"
-          className="overlay-panel text-2xl flex min-w-[6em] font-bold tabular-nums text-white px-4 mx-2 transition-colors duration-200 whitespace-nowrap justify-center items-center"
+          className="rounded-xl bg-slate-950/(--bg-opacity) text-2xl flex min-w-[6em] font-bold tabular-nums text-white px-4 mx-2 transition-colors duration-200 whitespace-nowrap justify-center items-center"
           style={{
             ...getRpmBoxStyle(),
             height: '1.5em',

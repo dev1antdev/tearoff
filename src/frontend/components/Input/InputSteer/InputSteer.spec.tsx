@@ -158,4 +158,21 @@ describe('InputSteer', () => {
     expect(getByTestId('input-steer-dial-angle').textContent).toBe('-119°');
     expect(screen.queryByText('3')).toBeNull();
   });
+
+  it('shows which way to unwind in the dial past 270 degrees', () => {
+    const arrows = (degrees: number) => {
+      const { getByTestId, unmount } = render(
+        <InputSteer angleRad={radians(degrees)} wheelStyle="dial" />
+      );
+      const count = getByTestId('input-steer-dial-angle').querySelectorAll(
+        'svg'
+      ).length;
+      unmount();
+      return count;
+    };
+
+    expect(arrows(250)).toBe(0);
+    expect(arrows(300)).toBe(1);
+    expect(arrows(-300)).toBe(1);
+  });
 });

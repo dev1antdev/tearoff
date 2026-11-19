@@ -3,11 +3,32 @@ import {
   ArrowsClockwiseIcon,
   ArrowsCounterClockwiseIcon,
 } from '@phosphor-icons/react';
+import type { IconWeight } from '@phosphor-icons/react';
 
 /** Past this, either way, the wheel is far enough round to need unwinding. */
 const UNWIND_THRESHOLD_DEG = 270;
 
 export type AngleReadout = 'beyond270' | 'always' | 'never';
+
+interface UnwindArrowProps {
+  /** The wheel angle in degrees, left negative. */
+  angleDeg: number;
+  size: number | string;
+  weight: IconWeight;
+  className: string;
+}
+
+/** Which way to turn the wheel back to centre, once it is past 270 degrees. */
+export const UnwindArrow = ({
+  angleDeg,
+  size,
+  weight,
+  className,
+}: UnwindArrowProps) => {
+  if (Math.abs(angleDeg) <= UNWIND_THRESHOLD_DEG) return null;
+  const Arrow = angleDeg > 0 ? ArrowsCounterClockwiseIcon : ArrowsClockwiseIcon;
+  return <Arrow size={size} weight={weight} className={className} />;
+};
 
 /** The wheel angle in whole degrees, left negative: `-119°`. */
 export const formatSteerAngle = (angleDeg: number): string => {
@@ -27,15 +48,14 @@ export function RotationIndicator({
   readout = 'beyond270',
 }: RotationIndicatorProps) {
   // Memoize calculations to avoid recalculating on every render
-  const { beyond, angleText, direction } = useMemo(() => {
+  const { beyond, angleText, angleDegrees } = useMemo(() => {
     // Convert radians to degrees
     const angleDegrees = (currentAngleRad * -1 * 180) / Math.PI;
     return {
       // The direction arrow only shows beyond ±270 degrees
       beyond: Math.abs(angleDegrees) > UNWIND_THRESHOLD_DEG,
       angleText: formatSteerAngle(angleDegrees),
-      // Which way to turn it back to centre
-      direction: angleDegrees > 0 ? ('left' as const) : ('right' as const),
+      angleDegrees,
     };
   }, [currentAngleRad]);
 
@@ -62,19 +82,12 @@ export function RotationIndicator({
 
           {/* Direction arrow */}
           <div className="absolute w-6 h-6 flex items-center justify-center">
-            {direction === 'left' ? (
-              <ArrowsCounterClockwiseIcon
-                size={20}
-                weight="bold"
-                className="text-white"
-              />
-            ) : (
-              <ArrowsClockwiseIcon
-                size={20}
-                weight="bold"
-                className="text-white"
-              />
-            )}
+            <UnwindArrow
+              angleDeg={angleDegrees}
+              size={20}
+              weight="bold"
+              className="text-white"
+            />
           </div>
         </div>
       )}

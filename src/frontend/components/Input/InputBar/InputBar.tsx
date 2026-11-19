@@ -16,6 +16,12 @@ const clamp = (value: number) => Math.max(0, Math.min(1, value));
 
 /** A bar is a thin rounded strip, half its column's width. */
 const STRIP = 'w-1/2';
+/**
+ * The pedal letters, only where the column is tall enough to keep a usable
+ * bar under them: a widget sized before the letters keeps its bars.
+ */
+const LETTER_ROW =
+  'hidden [@container(min-height:5em)]:block overlay-label mt-0.5 leading-none';
 
 export interface InputBarProps {
   /** The pedals of the chosen input source. */
@@ -139,7 +145,9 @@ export const InputBar = memo(
     const force = includeFfb && ffb !== undefined ? Math.abs(ffb) : undefined;
 
     return (
-      <div className="flex gap-1 w-full h-full relative justify-center">
+      // A size container in the value's type size, so the letters below the
+      // bars go by the room left for the bars, at any Font size.
+      <div className="@container-[size] flex gap-1 w-full h-full relative justify-center text-xs">
         {activeInputs.map(
           ({
             key,
@@ -199,7 +207,7 @@ export const InputBar = memo(
                   </div>
                 )}
               </div>
-              <div className="overlay-label mt-0.5 leading-none">{letter}</div>
+              <div className={LETTER_ROW}>{letter}</div>
             </div>
           )
         )}
@@ -228,7 +236,7 @@ export const InputBar = memo(
               />
             </div>
             {/* The pedals' letter row, so the bars end level. */}
-            <div className="overlay-label mt-0.5 leading-none">{'\u00a0'}</div>
+            <div className={LETTER_ROW}>{'\u00a0'}</div>
           </div>
         )}
       </div>

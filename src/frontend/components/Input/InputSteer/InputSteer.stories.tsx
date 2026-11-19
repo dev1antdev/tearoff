@@ -58,6 +58,12 @@ export const Dial: Story = {
   ),
 };
 
+/** Past 270 degrees the dial shows which way to unwind, as the wheels do. */
+export const DialUnwind: Story = {
+  ...Dial,
+  args: { angleRad: 5.4, wheelStyle: 'dial' },
+};
+
 // Verifies the dial stays a maximal, centred square (and the speed/gear never
 // overlaps the ring) across very different widget aspect ratios.
 export const RingAspectRatios: Story = {

@@ -1,5 +1,5 @@
 import { InputGear, InputGearProps } from '../InputGear/InputGear';
-import { formatSteerAngle } from './RotationIndicator';
+import { formatSteerAngle, UnwindArrow } from './RotationIndicator';
 
 export interface SteerDialProps {
   /** Steering wheel angle in radians (raw `SteeringWheelAngle` value). */
@@ -89,9 +89,16 @@ export function SteerDial({
         {angleInside ? (
           <div
             data-testid="input-steer-dial-angle"
-            className="absolute inset-0 flex items-center justify-center font-semibold tabular-nums text-slate-200"
+            className="absolute inset-0 flex flex-col items-center justify-center font-semibold tabular-nums text-slate-200"
             style={{ fontSize: 'min(18cqw, 18cqh)' }}
           >
+            {/* Past 270 degrees, which way to unwind, as the wheels show it */}
+            <UnwindArrow
+              angleDeg={steerDeg}
+              size="0.9em"
+              weight="regular"
+              className="text-red-400"
+            />
             {formatSteerAngle(steerDeg)}
           </div>
         ) : (
