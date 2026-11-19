@@ -1,3 +1,5 @@
+import { IconContext } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import { memo } from 'react';
 import {
   CaretDownIcon,
@@ -76,7 +78,7 @@ const RejoinCarCell = memo(
         <span className="font-bold" style={color ? { color } : undefined}>
           #{number}
         </span>
-        <span className={close ? 'text-amber-300' : 'text-slate-200'}>
+        <span className={close ? 'text-amber-400' : 'text-slate-200'}>
           {formatPitGap(side === 'ahead' ? -gapS : gapS)}
         </span>
       </span>
@@ -192,222 +194,226 @@ export const PitStop = () => {
   const behind = carOf(projection?.behind ?? null);
 
   return (
-    <div
-      data-testid="pit-stop"
-      data-mode={mode}
-      className={`flex h-full w-full flex-col gap-2 overflow-hidden overlay-panel p-2 leading-none text-white tabular-nums ${
-        mode === 'idle' ? 'opacity-60' : ''
-      }`}
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
-      <div className="flex flex-none items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1 overlay-label">
-          <TimerIcon size="1.2em" aria-hidden />
-          <span className="truncate">
-            {mode === 'result' ? 'Stop done' : 'Pit stop'}
-          </span>
-          {snapshot?.requested && (
-            <span
-              data-testid="pit-stop-requested"
-              className="rounded bg-amber-500/20 px-1 py-0.5 text-2xs font-bold text-amber-300"
-            >
-              Requested
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        data-testid="pit-stop"
+        data-mode={mode}
+        className={`flex h-full w-full flex-col gap-2 overflow-hidden overlay-panel p-2 leading-none text-white tabular-nums ${
+          mode === 'idle' ? 'opacity-60' : ''
+        }`}
+        style={{
+          ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+        }}
+      >
+        <div className="flex flex-none items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-1 overlay-label">
+            <TimerIcon size="1.2em" aria-hidden />
+            <span className="truncate">
+              {mode === 'result' ? 'Stop done' : 'Pit stop'}
             </span>
+            {snapshot?.requested && (
+              <span
+                data-testid="pit-stop-requested"
+                className="rounded bg-amber-500/20 px-1 py-0.5 text-2xs font-bold text-amber-400"
+              >
+                Requested
+              </span>
+            )}
+          </div>
+          {projection && (
+            <div
+              data-testid="pit-stop-position"
+              data-reckoned={positionReckoned}
+              className={`flex flex-none items-center gap-0.5 text-lg font-bold ${
+                projection.positionAfter > projection.positionNow
+                  ? 'text-amber-400'
+                  : 'text-green-400'
+              }`}
+            >
+              <span className="text-slate-300">P{projection.positionNow}</span>
+              <CaretRightIcon
+                size="0.8em"
+                weight="bold"
+                className="text-slate-500"
+                aria-label="rejoins"
+              />
+              <span>
+                {positionReckoned && (
+                  <span className="font-medium text-slate-400">~</span>
+                )}
+                P{projection.positionAfter}
+              </span>
+            </div>
           )}
         </div>
-        {projection && (
-          <div
-            data-testid="pit-stop-position"
-            data-reckoned={positionReckoned}
-            className={`flex flex-none items-center gap-0.5 text-lg font-bold ${
-              projection.positionAfter > projection.positionNow
-                ? 'text-amber-300'
-                : 'text-green-400'
-            }`}
-          >
-            <span className="text-slate-300">P{projection.positionNow}</span>
-            <CaretRightIcon
-              size="0.8em"
-              weight="bold"
-              className="text-slate-500"
-              aria-label="rejoins"
-            />
-            <span>
-              {positionReckoned && (
-                <span className="font-medium text-slate-400">~</span>
-              )}
-              P{projection.positionAfter}
-            </span>
-          </div>
-        )}
-      </div>
 
-      {mode === 'inPits' && snapshot ? (
-        <PitStopCountdown
-          enteredAt={snapshot.timer.enteredAt}
-          stoppedAt={snapshot.timer.stoppedAt}
-          standingS={snapshot.timer.standingS}
-          plannedStandingS={snapshot.planned?.standingS ?? null}
-        />
-      ) : mode === 'result' && last ? (
-        <div className="flex flex-none items-end gap-4">
-          <PitStopFigure
-            name="main"
-            label="Stop"
-            value={formatPitSeconds(last.standingS)}
-            unit="s"
-            tone={
-              last.plannedStandingS === null
-                ? 'normal'
-                : Math.abs(last.standingS - last.plannedStandingS) <=
-                    STOP_ON_PLAN_S
-                  ? 'good'
-                  : 'caution'
-            }
-            large
+        {mode === 'inPits' && snapshot ? (
+          <PitStopCountdown
+            enteredAt={snapshot.timer.enteredAt}
+            stoppedAt={snapshot.timer.stoppedAt}
+            standingS={snapshot.timer.standingS}
+            plannedStandingS={snapshot.planned?.standingS ?? null}
           />
-          <PitStopFigure
-            name="planned"
-            label="Planned"
-            value={formatPitSeconds(last.plannedStandingS)}
-          />
-          <PitStopFigure
-            name="lane"
-            label="Lane"
-            value={formatPitSeconds(last.laneS)}
-          />
-        </div>
-      ) : (
-        <div className="flex flex-none items-end gap-4">
-          {loss !== null ? (
-            <PitStopFigure
-              name="main"
-              label={standing === null ? 'Loss, no stop' : 'Loss'}
-              value={formatPitSeconds(loss)}
-              unit="s"
-              approximate={!driveMeasured || learned}
-              large
-            />
-          ) : (
-            // No lane to drive yet: the stop alone, and why.
+        ) : mode === 'result' && last ? (
+          <div className="flex flex-none items-end gap-4">
             <PitStopFigure
               name="main"
               label="Stop"
-              value={formatPitSeconds(standing)}
+              value={formatPitSeconds(last.standingS)}
               unit="s"
-              approximate={learned}
               tone={
-                standing !== null && standing >= settings.longStopThreshold
-                  ? 'bad'
-                  : 'normal'
+                last.plannedStandingS === null
+                  ? 'normal'
+                  : Math.abs(last.standingS - last.plannedStandingS) <=
+                      STOP_ON_PLAN_S
+                    ? 'good'
+                    : 'caution'
               }
               large
             />
-          )}
-          {loss !== null ? (
-            <>
+            <PitStopFigure
+              name="planned"
+              label="Planned"
+              value={formatPitSeconds(last.plannedStandingS)}
+            />
+            <PitStopFigure
+              name="lane"
+              label="Lane"
+              value={formatPitSeconds(last.laneS)}
+            />
+          </div>
+        ) : (
+          <div className="flex flex-none items-end gap-4">
+            {loss !== null ? (
               <PitStopFigure
-                name="stop"
+                name="main"
+                label={standing === null ? 'Loss, no stop' : 'Loss'}
+                value={formatPitSeconds(loss)}
+                unit="s"
+                approximate={!driveMeasured || learned}
+                large
+              />
+            ) : (
+              // No lane to drive yet: the stop alone, and why.
+              <PitStopFigure
+                name="main"
                 label="Stop"
-                value={
-                  estimate?.penalty === 'DT' ? 'DT' : formatPitSeconds(standing)
-                }
+                value={formatPitSeconds(standing)}
+                unit="s"
                 approximate={learned}
                 tone={
                   standing !== null && standing >= settings.longStopThreshold
                     ? 'bad'
                     : 'normal'
                 }
+                large
               />
-              <PitStopFigure
-                name="lane"
-                label="Lane"
-                value={formatPitSeconds(drive)}
-                approximate={!driveMeasured}
+            )}
+            {loss !== null ? (
+              <>
+                <PitStopFigure
+                  name="stop"
+                  label="Stop"
+                  value={
+                    estimate?.penalty === 'DT'
+                      ? 'DT'
+                      : formatPitSeconds(standing)
+                  }
+                  approximate={learned}
+                  tone={
+                    standing !== null && standing >= settings.longStopThreshold
+                      ? 'bad'
+                      : 'normal'
+                  }
+                />
+                <PitStopFigure
+                  name="lane"
+                  label="Lane"
+                  value={formatPitSeconds(drive)}
+                  approximate={!driveMeasured}
+                />
+              </>
+            ) : (
+              lane && (
+                <span
+                  data-testid="pit-stop-no-lane"
+                  className="pb-0.5 text-xs leading-tight text-slate-400"
+                >
+                  {lane.driveAtLimitS === null
+                    ? 'lane not measured yet'
+                    : 'no lap time yet'}
+                </span>
+              )
+            )}
+          </div>
+        )}
+
+        {chips.length > 0 && (
+          <div
+            data-testid="pit-stop-chips"
+            className="flex flex-none flex-wrap gap-1"
+          >
+            {chips.map((chip) => (
+              <PitStopChip
+                key={chip.kind}
+                kind={chip.kind}
+                seconds={chip.seconds}
+                tone={chip.tone}
               />
-            </>
-          ) : (
-            lane && (
+            ))}
+          </div>
+        )}
+
+        {refuel && <RefuelLine refuel={refuel} run={settings.showRunLength} />}
+
+        {projection && (ahead || behind || projection.inPits > 0) && (
+          <div
+            data-testid="pit-stop-rejoin"
+            className="flex flex-none items-center gap-3 text-xs"
+          >
+            {ahead && projection.ahead && (
+              <RejoinCarCell
+                side="ahead"
+                number={ahead.number}
+                color={ahead.color}
+                gapS={projection.ahead.gapS}
+                close={
+                  projection.positionAfter > projection.positionNow &&
+                  projection.ahead.gapS < margin
+                }
+              />
+            )}
+            {behind && projection.behind && (
+              <RejoinCarCell
+                side="behind"
+                number={behind.number}
+                color={behind.color}
+                gapS={projection.behind.gapS}
+                close={projection.behind.gapS < margin}
+              />
+            )}
+            {projection.inPits > 0 && (
               <span
-                data-testid="pit-stop-no-lane"
-                className="pb-0.5 text-xs leading-tight text-slate-400"
+                data-testid="pit-stop-rejoin-in-pits"
+                className="text-slate-400"
               >
-                {lane.driveAtLimitS === null
-                  ? 'lane not measured yet'
-                  : 'no lap time yet'}
+                +{projection.inPits} in pits
               </span>
-            )
-          )}
-        </div>
-      )}
+            )}
+          </div>
+        )}
 
-      {chips.length > 0 && (
-        <div
-          data-testid="pit-stop-chips"
-          className="flex flex-none flex-wrap gap-1"
-        >
-          {chips.map((chip) => (
-            <PitStopChip
-              key={chip.kind}
-              kind={chip.kind}
-              seconds={chip.seconds}
-              tone={chip.tone}
-            />
-          ))}
-        </div>
-      )}
-
-      {refuel && <RefuelLine refuel={refuel} run={settings.showRunLength} />}
-
-      {projection && (ahead || behind || projection.inPits > 0) && (
-        <div
-          data-testid="pit-stop-rejoin"
-          className="flex flex-none items-center gap-3 text-xs"
-        >
-          {ahead && projection.ahead && (
-            <RejoinCarCell
-              side="ahead"
-              number={ahead.number}
-              color={ahead.color}
-              gapS={projection.ahead.gapS}
-              close={
-                projection.positionAfter > projection.positionNow &&
-                projection.ahead.gapS < margin
-              }
-            />
-          )}
-          {behind && projection.behind && (
-            <RejoinCarCell
-              side="behind"
-              number={behind.number}
-              color={behind.color}
-              gapS={projection.behind.gapS}
-              close={projection.behind.gapS < margin}
-            />
-          )}
-          {projection.inPits > 0 && (
-            <span
-              data-testid="pit-stop-rejoin-in-pits"
-              className="text-slate-400"
-            >
-              +{projection.inPits} in pits
-            </span>
-          )}
-        </div>
-      )}
-
-      {counts && (
-        <div
-          data-testid="pit-stop-occupancy"
-          className="flex-none text-xs text-slate-400"
-        >
-          Pits {counts.standingInLane}/{counts.inLane}
-          {hasRequests && `, requests ${counts.requested}`}
-        </div>
-      )}
-    </div>
+        {counts && (
+          <div
+            data-testid="pit-stop-occupancy"
+            className="flex-none text-xs text-slate-400"
+          >
+            Pits {counts.standingInLane}/{counts.inLane}
+            {hasRequests && `, requests ${counts.requested}`}
+          </div>
+        )}
+      </div>
+    </IconContext.Provider>
   );
 };
 
@@ -453,7 +459,7 @@ const RefuelLine = ({ refuel, run }: RefuelLineProps) => {
         </span>
       )}
       {short && refuel.toFinish !== null && (
-        <span data-testid="pit-stop-needs" className="text-amber-300">
+        <span data-testid="pit-stop-needs" className="text-amber-400">
           needs +{amount(refuel.toFinish)} {unit}
         </span>
       )}

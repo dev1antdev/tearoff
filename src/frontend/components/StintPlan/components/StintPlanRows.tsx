@@ -1,3 +1,5 @@
+import { IconContext } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import { memo, type ReactNode } from 'react';
 import {
   ClockIcon,
@@ -17,12 +19,14 @@ interface StintPlanFrameProps {
 }
 
 export const StintPlanFrame = ({ opacity, children }: StintPlanFrameProps) => (
-  <div
-    className="flex h-full w-full flex-col gap-1 overflow-hidden overlay-panel p-2 text-sm text-white"
-    style={{ ['--bg-opacity' as string]: `${opacity}%` }}
-  >
-    {children}
-  </div>
+  <IconContext.Provider value={OVERLAY_ICONS}>
+    <div
+      className="flex h-full w-full flex-col gap-1 overflow-hidden overlay-panel p-2 text-sm text-white"
+      style={{ ['--bg-opacity' as string]: `${opacity}%` }}
+    >
+      {children}
+    </div>
+  </IconContext.Provider>
 );
 
 export const StintPlanBanner = memo(({ text }: { text: string }) => (
@@ -61,7 +65,7 @@ export const ClashIcon = memo(({ clashes, warnings, text }: ClashIconProps) => {
       title={`${label}\n${text}`}
       aria-label={label}
       role="img"
-      className={`flex flex-none items-center gap-0.5 text-xs ${clashes > 0 ? 'text-red-400' : 'text-amber-300'}`}
+      className={`flex flex-none items-center gap-0.5 text-xs ${clashes > 0 ? 'text-red-400' : 'text-amber-400'}`}
     >
       <WarningIcon size={16} weight="fill" />
       {clashes + warnings}
@@ -156,7 +160,7 @@ export const NextRow = memo(({ label, driverName, start }: NextRowProps) => (
 NextRow.displayName = 'NextRow';
 
 const DRIFT_CLASS: Record<RacePlanDriftLevel, string> = {
-  behind: 'text-amber-300',
+  behind: 'text-amber-400',
   ahead: 'text-green-400',
   'on-plan': 'text-slate-300',
 };

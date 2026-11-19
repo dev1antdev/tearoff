@@ -42,7 +42,7 @@ export const PitSpeedBar = memo(
           </span>
 
           {/* Bar */}
-          <div className="relative w-full min-w-10 min-h-10 bg-white/8 rounded-lg overflow-hidden h-full">
+          <div className="relative w-full min-w-10 min-h-10 bg-slate-900/70 rounded-md overflow-hidden h-full">
             <div
               className="absolute bottom-0 w-full transition-all duration-150 ease-out"
               style={{ height: `${fillPercent}%`, backgroundColor: fillColor }}
@@ -71,7 +71,7 @@ export const PitSpeedBar = memo(
           </span>
         </div>
         {/* Horizontal bar */}
-        <div className="relative min-h-5 h-full bg-white/8 rounded-lg overflow-hidden flex-1">
+        <div className="relative min-h-5 h-full bg-slate-900/70 rounded-md overflow-hidden flex-1">
           <div
             className="absolute left-0 top-0 h-full transition-all duration-150 ease-out"
             style={{ width: `${fillPercent}%`, backgroundColor: fillColor }}

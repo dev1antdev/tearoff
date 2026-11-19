@@ -169,7 +169,8 @@ export default defineWidgetManifest({
     showFuelStatusBorder: {
       type: 'boolean',
       label: 'Show Border Color',
-      description: 'Green (safe), Orange (caution), Red (danger)',
+      description:
+        'Outline the widget in amber when fuel is tight and red when it runs short; no colour while it is safe',
     },
     enableStorage: {
       type: 'boolean',

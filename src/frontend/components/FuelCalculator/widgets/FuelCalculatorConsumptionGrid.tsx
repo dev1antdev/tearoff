@@ -337,7 +337,7 @@ export const FuelCalculatorConsumptionGrid: React.FC<
     compactMode === 'ultra' ? '' : compactMode === 'compact' ? 'px-1' : 'px-2';
   const rowGap = '';
   const rowCls = 'col-span-4 grid grid-cols-subgrid';
-  const recommendedRowCls = `${rowCls} bg-slate-800/60`;
+  const recommendedRowCls = `${rowCls} overlay-selected`;
   const actionCellCls = rowPadding;
   const avg10 = displayData?.avg10Laps || 0;
   const pitWindowOpen = frozenPitWindowOpen;

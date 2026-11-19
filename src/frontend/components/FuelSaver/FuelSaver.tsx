@@ -1,3 +1,5 @@
+import { IconContext } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import { memo } from 'react';
 import { GasPumpIcon, LightningIcon } from '@phosphor-icons/react';
 import {
@@ -21,7 +23,7 @@ const NO_READING = '--';
 
 const TONE_CLASS: Record<SavingTone, string> = {
   inside: 'text-green-400',
-  reachable: 'text-amber-300',
+  reachable: 'text-amber-400',
   outOfReach: 'text-slate-500',
 };
 
@@ -48,8 +50,8 @@ const SaverColumnCell = memo(
       data-testid="fuel-saver-column"
       data-current={isCurrent}
       data-tone={saving ? tone : 'none'}
-      className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded px-1 py-1 ${
-        isCurrent ? 'rounded-md bg-slate-800/60' : ''
+      className={`flex min-w-0 flex-1 flex-col items-center gap-1 px-1 py-1 ${
+        isCurrent ? 'overlay-selected' : ''
       }`}
     >
       <span className="text-[0.7em] leading-none text-slate-400">
@@ -151,95 +153,100 @@ export const FuelSaver = () => {
   const placeholders = settings.fewerLaps + 1 + settings.moreLaps;
 
   return (
-    <div
-      data-testid="fuel-saver"
-      className="flex h-full w-full flex-col gap-1.5 overflow-hidden overlay-panel p-2 leading-none text-white tabular-nums"
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
-      <div className="flex flex-none items-center justify-between gap-2 text-[0.7em] font-semibold uppercase leading-none tracking-wider text-slate-400">
-        <span className="flex items-center gap-1">
-          <BudgetIcon
-            size="1.3em"
-            weight="fill"
-            aria-label={onEnergy ? 'Virtual energy' : 'Fuel'}
-          />
-          <span>Use</span>
-          <span
-            data-testid="fuel-saver-use"
-            className={`text-[1.2em] font-bold normal-case ${
-              perLap > 0 ? 'text-white' : 'text-slate-500'
-            }`}
-          >
-            {perLap > 0 ? figure(perLap) : NO_READING}
-          </span>
-          <span className="normal-case">{unit}/lap</span>
-        </span>
-        {settings.showLast && (
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        data-testid="fuel-saver"
+        className="flex h-full w-full flex-col gap-1.5 overflow-hidden overlay-panel p-2 leading-none text-white tabular-nums"
+        style={{
+          ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+        }}
+      >
+        <div
+          className="flex flex-none items-center justify-between gap-2 overlay-label leading-none"
+          style={{ fontSize: '0.7em' }}
+        >
           <span className="flex items-center gap-1">
-            <span>Last</span>
+            <BudgetIcon
+              size="1.3em"
+              weight="fill"
+              aria-label={onEnergy ? 'Virtual energy' : 'Fuel'}
+            />
+            <span>Use</span>
             <span
-              data-testid="fuel-saver-last"
-              className={`text-[1.2em] font-bold ${
-                lastLap > 0 ? 'text-slate-200' : 'text-slate-500'
+              data-testid="fuel-saver-use"
+              className={`text-[1.2em] font-bold normal-case ${
+                perLap > 0 ? 'text-white' : 'text-slate-500'
               }`}
             >
-              {lastLap > 0 ? figure(lastLap) : NO_READING}
+              {perLap > 0 ? figure(perLap) : NO_READING}
             </span>
+            <span className="normal-case">{unit}/lap</span>
           </span>
+          {settings.showLast && (
+            <span className="flex items-center gap-1">
+              <span>Last</span>
+              <span
+                data-testid="fuel-saver-last"
+                className={`text-[1.2em] font-bold ${
+                  lastLap > 0 ? 'text-slate-200' : 'text-slate-500'
+                }`}
+              >
+                {lastLap > 0 ? figure(lastLap) : NO_READING}
+              </span>
+            </span>
+          )}
+        </div>
+
+        <div className="flex min-h-0 flex-1 items-stretch gap-1">
+          {table.columns.length > 0
+            ? table.columns.map((column) => (
+                <SaverColumnCell
+                  key={column.laps}
+                  caption={
+                    stintLaps === null
+                      ? String(column.laps)
+                      : column.isCurrent
+                        ? `${stintLaps}/${column.stintLaps}`
+                        : String(column.stintLaps)
+                  }
+                  target={figure(column.target)}
+                  saving={signed(column.saving)}
+                  tone={savingTone(column.saving, perLap, settings.reachShare)}
+                  isCurrent={column.isCurrent}
+                />
+              ))
+            : Array.from({ length: placeholders }, (_, index) => (
+                <SaverColumnCell
+                  key={index}
+                  caption={NO_READING}
+                  target=""
+                  saving=""
+                  tone="inside"
+                  isCurrent={index === settings.fewerLaps}
+                />
+              ))}
+        </div>
+
+        {showStop && stop && (
+          <div
+            data-testid="fuel-saver-stop"
+            data-tone={savingTone(stop.saving, perLap, settings.reachShare)}
+            className="flex flex-none items-center justify-between gap-2 border-t overlay-divider px-2 pt-1 text-xs"
+          >
+            <span className="overlay-label" style={{ fontSize: '0.85em' }}>
+              1 stop fewer
+            </span>
+            <span className="font-bold">{figure(stop.target)}</span>
+            <span
+              className={`font-semibold ${
+                TONE_CLASS[savingTone(stop.saving, perLap, settings.reachShare)]
+              }`}
+            >
+              {signed(stop.saving)} ({Math.round(stop.savingShare * 100)}%)
+            </span>
+          </div>
         )}
       </div>
-
-      <div className="flex min-h-0 flex-1 items-stretch gap-1">
-        {table.columns.length > 0
-          ? table.columns.map((column) => (
-              <SaverColumnCell
-                key={column.laps}
-                caption={
-                  stintLaps === null
-                    ? String(column.laps)
-                    : column.isCurrent
-                      ? `${stintLaps}/${column.stintLaps}`
-                      : String(column.stintLaps)
-                }
-                target={figure(column.target)}
-                saving={signed(column.saving)}
-                tone={savingTone(column.saving, perLap, settings.reachShare)}
-                isCurrent={column.isCurrent}
-              />
-            ))
-          : Array.from({ length: placeholders }, (_, index) => (
-              <SaverColumnCell
-                key={index}
-                caption={NO_READING}
-                target=""
-                saving=""
-                tone="inside"
-                isCurrent={index === settings.fewerLaps}
-              />
-            ))}
-      </div>
-
-      {showStop && stop && (
-        <div
-          data-testid="fuel-saver-stop"
-          data-tone={savingTone(stop.saving, perLap, settings.reachShare)}
-          className="flex flex-none items-center justify-between gap-2 border-t overlay-divider px-2 pt-1 text-xs"
-        >
-          <span className="text-[0.85em] font-semibold uppercase tracking-wider text-slate-400">
-            1 stop fewer
-          </span>
-          <span className="font-bold">{figure(stop.target)}</span>
-          <span
-            className={`font-semibold ${
-              TONE_CLASS[savingTone(stop.saving, perLap, settings.reachShare)]
-            }`}
-          >
-            {signed(stop.saving)} ({Math.round(stop.savingShare * 100)}%)
-          </span>
-        </div>
-      )}
-    </div>
+    </IconContext.Provider>
   );
 };

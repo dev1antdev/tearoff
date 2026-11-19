@@ -231,6 +231,11 @@ layer(base);
   border-color: rgb(255 255 255 / 5%);
 }
 
+/* The chosen or recommended line of a table, or column of a strip. */
+@utility overlay-selected {
+  @apply rounded-md bg-slate-800/60;
+}
+
 /* A label over or beside a value: small capitals, spaced, muted. */
 @utility overlay-label {
   @apply text-2xs font-semibold tracking-wider text-slate-400 uppercase;

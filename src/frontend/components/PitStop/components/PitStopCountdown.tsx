@@ -87,7 +87,7 @@ export const PitStopCountdown = memo(
         <div
           data-testid="pit-stop-progress"
           data-over={over}
-          className="h-1 w-full overflow-hidden rounded-full bg-white/8"
+          className="h-1 w-full overflow-hidden rounded-full bg-slate-900/70"
         >
           <div
             className={`h-full rounded ${over ? 'bg-red-500' : 'bg-sky-500'}`}

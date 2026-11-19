@@ -61,6 +61,10 @@ export const FuelCalculatorHeader: React.FC<FuelCalculatorWidgetProps> = ({
       ? `${widgetStyle.fontSize}px`
       : '14px';
 
+  const ownValueSize = Boolean(
+    widgetStyle.valueFontSize || widgetStyle.fontSize
+  );
+
   if (!fuelData) return null;
 
   const stopsRemaining = fuelData.stopsRemaining ?? 0;
@@ -108,10 +112,15 @@ export const FuelCalculatorHeader: React.FC<FuelCalculatorWidgetProps> = ({
             )}
             <span>To go</span>
           </div>
-          {/* The headline: twice the value size, its unit small and grey. */}
+          {/* The headline, its unit small and grey: the display step, or
+              twice the box's own value size when the box sets one. */}
           <div
-            className={`flex items-baseline gap-1 ${confConfig.color} font-bold tabular-nums leading-none`}
-            style={{ fontSize: `calc(${valueFontSize} * 2)` }}
+            className={`flex items-baseline gap-1 ${confConfig.color} font-bold tabular-nums leading-none ${ownValueSize ? '' : 'text-display-lg'}`}
+            style={
+              ownValueSize
+                ? { fontSize: `calc(${valueFontSize} * 2)` }
+                : undefined
+            }
             title={`${confidence} confidence`}
           >
             <span
@@ -119,7 +128,7 @@ export const FuelCalculatorHeader: React.FC<FuelCalculatorWidgetProps> = ({
             />
             {lapsText}
             {hasLaps && (
-              <span className="text-[0.45em] font-medium text-slate-400">
+              <span className="text-[0.5em] font-semibold text-slate-400">
                 laps
               </span>
             )}

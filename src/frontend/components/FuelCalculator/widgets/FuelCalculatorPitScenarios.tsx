@@ -197,30 +197,17 @@ export const FuelCalculatorPitScenarios: React.FC<
       ></div>
 
       <div className="grid grid-cols-4 mb-3">
-        <div
-          className="text-slate-400 text-center"
-          style={{ fontSize: labelFontSize }}
-        >
-          PIT @
-        </div>
-        <div
-          className="text-slate-400 text-center"
-          style={{ fontSize: labelFontSize }}
-        >
-          {isEnergy ? 'FILL TO' : 'ADD'}
-        </div>
-        <div
-          className="text-slate-400 text-center"
-          style={{ fontSize: labelFontSize }}
-        >
-          FINISH
-        </div>
-        <div
-          className="text-slate-400 text-center"
-          style={{ fontSize: labelFontSize }}
-        >
-          WINDOW
-        </div>
+        {['Pit @', isEnergy ? 'Fill to' : 'Add', 'Finish', 'Window'].map(
+          (label) => (
+            <div
+              key={label}
+              className="overlay-label text-center"
+              style={{ fontSize: labelFontSize }}
+            >
+              {label}
+            </div>
+          )
+        )}
 
         {displayData.targetScenarios.map((scenario) => {
           // Calculate values for this scenario
@@ -287,7 +274,7 @@ export const FuelCalculatorPitScenarios: React.FC<
           return (
             <div
               key={scenario.laps}
-              className={`col-span-4 grid grid-cols-subgrid rounded-md ${scenario.isCurrentTarget ? 'bg-slate-800/60' : ''}`}
+              className={`col-span-4 grid grid-cols-subgrid ${scenario.isCurrentTarget ? 'overlay-selected' : ''}`}
             >
               <div
                 className={`${rowColor} text-center ${cellPadding}`}

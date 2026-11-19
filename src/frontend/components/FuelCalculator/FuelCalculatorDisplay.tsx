@@ -1,3 +1,5 @@
+import { IconContext } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import { useMemo, useState, useEffect } from 'react';
 import {
   useDashboard,
@@ -308,14 +310,13 @@ export const FuelCalculatorDisplay = ({
     if (node.type === 'box') {
       const isHorizontalBox = node.direction === 'row';
       // Each box is a card: a panel of its own, see-through by the widget's
-      // background opacity, its edge taking the fuel warning's colour.
+      // background opacity.
       return (
         <div
-          className={`flex-1 flex flex-col w-full overlay-panel transition-colors duration-300 ${paddingClass}`}
+          className={`flex-1 flex flex-col w-full overlay-panel ${paddingClass}`}
           style={{
             flexGrow: node.weight || 1,
             ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 0}%`,
-            borderColor: borderColorValue,
           }}
         >
           <div
@@ -354,7 +355,8 @@ export const FuelCalculatorDisplay = ({
 
   // A safe fuel state is the normal state, not an alert. Keep the cards' own
   // edges like Standings/Relative, and reserve colour for a warning that needs
-  // action: then every card's edge takes it.
+  // action: then one outline in its colour rings the whole stack, over the
+  // outer edges of the cards, so a Pit Wall or Gantry frame shows it once.
   const borderColorValue =
     showFuelStatusBorder && currentFuelStatus === 'caution'
       ? '#f59e0b'
@@ -367,15 +369,18 @@ export const FuelCalculatorDisplay = ({
   // The widget is a stack of cards, one per box of its layout, like the
   // session panels of Standings; a Pit Wall or Gantry frame closes it up.
   return (
-    <div
-      data-panel-stack
-      className="relative w-full flex flex-col box-border text-white overflow-hidden"
-    >
-      {layoutTree ? (
-        <RecursiveWidgetRenderer node={layoutTree} />
-      ) : (
-        <div className="text-red-400">Layout Error</div>
-      )}
-    </div>
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        data-panel-stack
+        className={`relative w-full flex flex-col box-border text-white overflow-hidden rounded-xl transition-[outline-color] duration-300 ${borderColorValue ? 'outline outline-1 -outline-offset-1' : ''}`}
+        style={{ outlineColor: borderColorValue }}
+      >
+        {layoutTree ? (
+          <RecursiveWidgetRenderer node={layoutTree} />
+        ) : (
+          <div className="text-red-400">Layout Error</div>
+        )}
+      </div>
+    </IconContext.Provider>
   );
 };

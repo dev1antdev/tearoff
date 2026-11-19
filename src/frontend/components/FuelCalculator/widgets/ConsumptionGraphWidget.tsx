@@ -84,7 +84,7 @@ export const ConsumptionGraphWidget = ({
       </div>
 
       <div
-        className={`${heightClass} relative rounded-md bg-slate-900/50 mx-1 overflow-hidden`}
+        className={`${heightClass} relative rounded-md bg-slate-900/70 mx-1 overflow-hidden`}
         style={{ height: graphHeight }}
       >
         {consumptionGraphType === 'histogram'

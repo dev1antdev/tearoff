@@ -24,36 +24,20 @@ export const getFuelStatusColors = (
     // Safe is the normal state, not news: neutral, so colour is left for a
     // fuel state that needs action.
     case 'safe':
+    default:
       return {
         text: 'text-white',
         bar: 'from-slate-300 to-slate-200',
-        border: 'border-white/9',
-        bg: 'bg-white/5',
-        borderSolid: 'border-white/9',
       };
     case 'caution':
       return {
         text: 'text-amber-400',
         bar: 'from-amber-500 to-amber-400',
-        border: 'border-amber-500/50',
-        bg: 'bg-amber-500/10',
-        borderSolid: 'border-amber-500/50',
       };
     case 'danger':
       return {
         text: 'text-red-400',
         bar: 'from-red-500 to-red-400',
-        border: 'border-red-500/50',
-        bg: 'bg-red-500/10',
-        borderSolid: 'border-red-500/50',
-      };
-    default:
-      return {
-        text: 'text-white',
-        bar: 'from-slate-300 to-slate-200',
-        border: 'border-white/9',
-        bg: 'bg-white/5',
-        borderSolid: 'border-white/9',
       };
   }
 };
@@ -143,7 +127,7 @@ export const FuelCalculatorGauge: React.FC<FuelCalculatorWidgetProps> = ({
           </span>
         )}
       </div>
-      <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
+      <div className="h-1.5 bg-slate-900/70 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full bg-gradient-to-r ${gradient} transition-all duration-300`}
           style={{ width: `${fuelPct}%` }}
