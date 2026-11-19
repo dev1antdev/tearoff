@@ -313,7 +313,7 @@ export const FuelCalculatorDisplay = ({
       // background opacity.
       return (
         <div
-          className={`flex-1 flex flex-col w-full overlay-panel ${paddingClass}`}
+          className={`flex-1 flex flex-col w-full overlay-panel ${cardPadding}`}
           style={{
             flexGrow: node.weight || 1,
             ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 0}%`,
@@ -339,7 +339,9 @@ export const FuelCalculatorDisplay = ({
       return (
         <div
           data-panel-stack
-          className={`flex flex-1 ${derivedCompactMode !== 'off' ? 'gap-1' : 'gap-1.5'} ${node.direction === 'row' ? 'flex-row items-stretch' : 'flex-col'} h-full`}
+          // Cards side by side wrap onto a new line rather than clip a value
+          // when their content no longer fits across the widget.
+          className={`flex flex-1 ${derivedCompactMode !== 'off' ? 'gap-1' : 'gap-1.5'} ${node.direction === 'row' ? 'flex-row flex-wrap items-stretch' : 'flex-col'} h-full`}
         >
           {node.children?.map((child: LayoutNode) => (
             <RecursiveWidgetRenderer key={child.id} node={child} />
@@ -364,7 +366,8 @@ export const FuelCalculatorDisplay = ({
         ? '#ef4444'
         : undefined;
 
-  const paddingClass = derivedCompactMode !== 'off' ? '' : 'p-2';
+  // The sub-widgets pad themselves; a card adds only a little around them.
+  const cardPadding = derivedCompactMode !== 'off' ? '' : 'p-1';
 
   // The widget is a stack of cards, one per box of its layout, like the
   // session panels of Standings; a Pit Wall or Gantry frame closes it up.

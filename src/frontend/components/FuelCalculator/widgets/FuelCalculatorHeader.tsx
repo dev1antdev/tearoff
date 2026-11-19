@@ -94,8 +94,10 @@ export const FuelCalculatorHeader: React.FC<FuelCalculatorWidgetProps> = ({
 
   return (
     <div className={paddingClass}>
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-x-3">
-        <div>
+      {/* Next pit and stops sit beside the headline, and wrap below it when
+          the widget is too narrow for all three. */}
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-1">
+        <div className="mr-auto whitespace-nowrap">
           <div
             className="flex items-center gap-1 overlay-label"
             style={{ fontSize: labelFontSize }}

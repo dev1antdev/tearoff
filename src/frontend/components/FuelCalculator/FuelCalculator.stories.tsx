@@ -153,6 +153,30 @@ export const Primary: Story = {
   args: { ...baselineArgs, previewData: demoFuelData },
 };
 
+/**
+ * Guards the header at a narrow width: a long medium-confidence estimate keeps
+ * its line, and Next pit and Stops wrap below it instead of overlapping it.
+ */
+export const NarrowHeader: Story = {
+  decorators: [
+    (Story) => (
+      <MockFuelDataProvider>
+        <div className="w-[235px]">
+          <Story />
+        </div>
+      </MockFuelDataProvider>
+    ),
+  ],
+  args: {
+    ...baselineArgs,
+    previewData: {
+      ...demoFuelData,
+      confidence: 'medium',
+      lapsRemaining: 103.4,
+    },
+  },
+};
+
 /** Guards the widest consumption label at a font size that exceeded the old fixed column. */
 export const Avg10AtLargerFontSize: Story = {
   decorators: [
