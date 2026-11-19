@@ -78,9 +78,7 @@ interface StintHeaderProps extends ClashIconProps {
 export const StintHeader = memo(
   ({ stintLabel, driverName, clashes, warnings, text }: StintHeaderProps) => (
     <div className="flex items-center gap-2">
-      <span className="flex-none text-xs font-bold uppercase tracking-wider text-slate-400">
-        {stintLabel}
-      </span>
+      <span className="flex-none overlay-label">{stintLabel}</span>
       <span className="min-w-0 flex-1 truncate font-semibold">
         {driverName}
       </span>

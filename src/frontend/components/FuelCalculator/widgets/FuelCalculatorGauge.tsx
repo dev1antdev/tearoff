@@ -21,13 +21,15 @@ export const getFuelStatusColors = (
   status: 'safe' | 'caution' | 'danger' = 'safe'
 ) => {
   switch (status) {
+    // Safe is the normal state, not news: neutral, so colour is left for a
+    // fuel state that needs action.
     case 'safe':
       return {
-        text: 'text-green-400',
-        bar: 'from-green-500 to-green-400',
-        border: 'border-green-500/50',
-        bg: 'bg-green-500/10',
-        borderSolid: 'border-green-500/50',
+        text: 'text-white',
+        bar: 'from-slate-300 to-slate-200',
+        border: 'border-white/9',
+        bg: 'bg-white/5',
+        borderSolid: 'border-white/9',
       };
     case 'caution':
       return {
@@ -47,11 +49,11 @@ export const getFuelStatusColors = (
       };
     default:
       return {
-        text: 'text-green-400',
-        bar: 'from-green-500 to-green-400',
-        border: 'border-green-500/50',
-        bg: 'bg-green-500/10',
-        borderSolid: 'border-green-500/50',
+        text: 'text-white',
+        bar: 'from-slate-300 to-slate-200',
+        border: 'border-white/9',
+        bg: 'bg-white/5',
+        borderSolid: 'border-white/9',
       };
   }
 };
@@ -121,10 +123,7 @@ export const FuelCalculatorGauge: React.FC<FuelCalculatorWidgetProps> = ({
       <div
         className={`flex justify-between text-[0.75em] text-slate-400 font-medium items-end ${compactMode !== 'off' ? 'mb-0.5' : 'mb-1'}`}
       >
-        <span
-          className="uppercase tracking-wide"
-          style={{ fontSize: labelFontSize }}
-        >
+        <span className="overlay-label" style={{ fontSize: labelFontSize }}>
           {isEnergy ? 'Energy' : 'Tank'}
         </span>
         <span
@@ -144,9 +143,9 @@ export const FuelCalculatorGauge: React.FC<FuelCalculatorWidgetProps> = ({
           </span>
         )}
       </div>
-      <div className="h-1.5 bg-slate-700/80 rounded-sm overflow-hidden">
+      <div className="h-1.5 bg-white/8 rounded-full overflow-hidden">
         <div
-          className={`h-full bg-gradient-to-r ${gradient} transition-all duration-300`}
+          className={`h-full rounded-full bg-gradient-to-r ${gradient} transition-all duration-300`}
           style={{ width: `${fuelPct}%` }}
         />
       </div>
@@ -161,7 +160,7 @@ export const FuelCalculatorGauge: React.FC<FuelCalculatorWidgetProps> = ({
               : 'Fuel in the tank'
           }
         >
-          <span className="uppercase tracking-wide">
+          <span className="overlay-label">
             {tankEndsFirst ? 'Fuel ends first' : 'Fuel'}
           </span>
           <span className={tankEndsFirst ? 'font-bold' : ''}>

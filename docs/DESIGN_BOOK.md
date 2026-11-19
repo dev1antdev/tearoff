@@ -56,6 +56,7 @@ The app is dark only (`color-scheme: dark`).
 | Rows             | No background. A hairline between them: `border-t overlay-divider first:border-t-0`; on a table row, on its cells (`[&>td]:border-t [&>td]:overlay-divider`) |
 | The player's row | An amber tint (`bg-amber-500/(--player-row-opacity)` in Standings and Relative) and `text-amber-300`, the position included                                  |
 | Divider          | `overlay-divider` (a `white/5` border colour), between sections of one panel                                                                                 |
+| Selected row     | `bg-slate-800/60 rounded-md`: the chosen or recommended line of a table (the Fuel Calculator's average, its best pit lap)                                    |
 | Chip / scrim     | `bg-slate-950/NN` (behind a chip, a warning pill, a readout over a graphic)                                                                                  |
 | Inner tile       | Avoid a tile inside a panel: group with space and a divider. Where one is needed, `bg-slate-900/70`, `rounded-md`                                            |
 
@@ -63,6 +64,13 @@ The app is dark only (`color-scheme: dark`).
 (0–100). At low opacity the game is the ground, so values stay `text-white`.
 An inline border (the flag contour, the Fuel Calculator's warning) takes the
 place of the hairline edge while it shows.
+
+A widget made of several sections can draw each as a card of its own instead,
+an `overlay-panel` per section in a stack (`data-panel-stack`) with no panel
+around them: the Fuel Calculator draws one card per box of its layout, and its
+fuel warning colours every card's edge. A safe fuel state is the normal one, so
+it is neutral (white values, a light bar); caution and danger take amber and
+red.
 
 Graphic widgets (Radar, Track Map, Minimap, Blind Spot Monitor, the Flag light
 board) draw their own shapes and have no panel. The Tachometer's and Shift
@@ -97,18 +105,18 @@ So: **overlay neutrals are written in `slate-*` only.** `gray-*`, `zinc-*`,
 
 These hold in every palette.
 
-| Meaning                                  | Class                                             | Note                                                         |
-| ---------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------ |
-| The player ("you")                       | `text-amber-300`; a focused row `bg-amber-500/20` | Keep amber for "you"                                         |
-| Session's fastest lap                    | `text-purple-400`                                 | Timing-screen convention                                     |
-| A driver's personal best                 | `text-green-400`                                  |                                                              |
-| Gain, good outcome (fits in the tank, …) | `text-green-400`                                  | With a sign or an arrow                                      |
-| Loss, warning, error, urgent countdown   | `text-red-400`                                    | With a sign, an arrow or words                               |
-| Lapped car                               | `text-blue-400`                                   |                                                              |
-| Marked or voided lap                     | `text-white/60`                                   |                                                              |
-| Text on a tinted badge                   | the light shade of its hue                        | e.g. `bg-red-900 text-red-200`, `bg-red-500/20 text-red-300` |
+| Meaning                                       | Class                                             | Note                                                         |
+| --------------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------ |
+| The player ("you")                            | `text-amber-300`; a focused row `bg-amber-500/20` | Keep amber for "you"                                         |
+| Session's fastest lap                         | `text-purple-400`                                 | Timing-screen convention                                     |
+| A driver's personal best                      | `text-green-400`                                  |                                                              |
+| Gain, good outcome (spare fuel at the end, …) | `text-green-400`                                  | With a sign or an arrow                                      |
+| Loss, warning, error, urgent countdown        | `text-red-400`                                    | With a sign, an arrow or words                               |
+| Lapped car                                    | `text-blue-400`                                   |                                                              |
+| Marked or voided lap                          | `text-white/60`                                   |                                                              |
+| Text on a tinted badge                        | the light shade of its hue                        | e.g. `bg-red-900 text-red-200`, `bg-red-500/20 text-red-300` |
 
-Colour is for these meanings only. A neutral value (an amount to add, a level
+Colour is for these meanings only. A neutral value (an amount to add that fits, a level
 in the tank) stays white even when it is good news.
 
 ### 3.4 Sim colours stay exact

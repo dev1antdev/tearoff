@@ -102,7 +102,7 @@ export const FuelCalculatorTargetMessage: React.FC<
 
   return (
     <div
-      className={`${compactMode === 'ultra' ? '' : compactMode === 'compact' ? 'p-1' : 'p-2'} border-t border-slate-600/30 flex items-center justify-between ${compactMode !== 'off' ? 'mb-0.5' : 'mb-2'}`}
+      className={`${compactMode === 'ultra' ? '' : compactMode === 'compact' ? 'p-1' : 'p-2'} border-t overlay-divider flex items-center justify-between ${compactMode !== 'off' ? 'mb-0.5' : 'mb-2'}`}
     >
       <div
         className={`flex items-center ${compactMode !== 'off' ? 'gap-1' : 'gap-2'}`}

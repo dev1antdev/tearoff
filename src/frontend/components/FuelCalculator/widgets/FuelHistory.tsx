@@ -139,7 +139,7 @@ export const FuelHistory: React.FC<FuelCalculatorWidgetProps> = ({
         className={`${paddingClass} ${compactMode !== 'off' ? 'mt-1 mb-0.5' : 'mt-2 mb-1'} w-full min-w-0`}
       >
         <div
-          className="mb-1 flex items-center justify-between text-xs font-bold uppercase text-slate-400"
+          className="mb-1 flex items-center justify-between overlay-label"
           style={{ fontSize: labelFontSize }}
         >
           <span>{budgetName} History</span>
@@ -153,7 +153,7 @@ export const FuelHistory: React.FC<FuelCalculatorWidgetProps> = ({
             className="text-xs text-slate-400"
             style={{ fontSize: labelFontSize }}
           >
-            <tr className="border-b border-slate-700/50">
+            <tr className="border-b overlay-divider">
               <th scope="col" className="py-1 text-left font-normal">
                 Lap
               </th>

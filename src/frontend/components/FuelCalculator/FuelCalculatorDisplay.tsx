@@ -307,10 +307,16 @@ export const FuelCalculatorDisplay = ({
     if (!node || !node.type) return null;
     if (node.type === 'box') {
       const isHorizontalBox = node.direction === 'row';
+      // Each box is a card: a panel of its own, see-through by the widget's
+      // background opacity, its edge taking the fuel warning's colour.
       return (
         <div
-          className="flex-1 flex flex-col w-full"
-          style={{ flexGrow: node.weight || 1 }}
+          className={`flex-1 flex flex-col w-full overlay-panel transition-colors duration-300 ${paddingClass}`}
+          style={{
+            flexGrow: node.weight || 1,
+            ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 0}%`,
+            borderColor: borderColorValue,
+          }}
         >
           <div
             className={`flex flex-1 ${isHorizontalBox ? 'flex-row items-center justify-around' : 'flex-col'} w-full`}
@@ -331,7 +337,8 @@ export const FuelCalculatorDisplay = ({
     if (node.type === 'split') {
       return (
         <div
-          className={`flex flex-1 gap-1 ${node.direction === 'row' ? 'flex-row items-center' : 'flex-col'} h-full`}
+          data-panel-stack
+          className={`flex flex-1 ${derivedCompactMode !== 'off' ? 'gap-1' : 'gap-1.5'} ${node.direction === 'row' ? 'flex-row items-stretch' : 'flex-col'} h-full`}
         >
           {node.children?.map((child: LayoutNode) => (
             <RecursiveWidgetRenderer key={child.id} node={child} />
@@ -345,9 +352,9 @@ export const FuelCalculatorDisplay = ({
   const currentFuelStatus = displayData.fuelStatus || 'safe';
   const showFuelStatusBorder = settings.showFuelStatusBorder ?? true;
 
-  // A safe fuel state is the normal state, not an alert. Keep the panel's own
-  // edge like Standings/Relative, and reserve colour for a warning that needs
-  // action.
+  // A safe fuel state is the normal state, not an alert. Keep the cards' own
+  // edges like Standings/Relative, and reserve colour for a warning that needs
+  // action: then every card's edge takes it.
   const borderColorValue =
     showFuelStatusBorder && currentFuelStatus === 'caution'
       ? '#f59e0b'
@@ -357,13 +364,12 @@ export const FuelCalculatorDisplay = ({
 
   const paddingClass = derivedCompactMode !== 'off' ? '' : 'p-2';
 
+  // The widget is a stack of cards, one per box of its layout, like the
+  // session panels of Standings; a Pit Wall or Gantry frame closes it up.
   return (
     <div
-      className={`relative w-full flex flex-col box-border transition-colors duration-300 overlay-panel text-white overflow-hidden ${paddingClass}`}
-      style={{
-        ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 0}%`,
-        borderColor: borderColorValue,
-      }}
+      data-panel-stack
+      className="relative w-full flex flex-col box-border text-white overflow-hidden"
     >
       {layoutTree ? (
         <RecursiveWidgetRenderer node={layoutTree} />

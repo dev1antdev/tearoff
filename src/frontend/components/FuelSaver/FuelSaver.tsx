@@ -49,7 +49,7 @@ const SaverColumnCell = memo(
       data-current={isCurrent}
       data-tone={saving ? tone : 'none'}
       className={`flex min-w-0 flex-1 flex-col items-center gap-1 rounded px-1 py-1 ${
-        isCurrent ? 'bg-slate-700/60' : ''
+        isCurrent ? 'rounded-md bg-slate-800/60' : ''
       }`}
     >
       <span className="text-[0.7em] leading-none text-slate-400">
@@ -158,7 +158,7 @@ export const FuelSaver = () => {
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}
     >
-      <div className="flex flex-none items-center justify-between gap-2 text-[0.7em] uppercase leading-none text-slate-400">
+      <div className="flex flex-none items-center justify-between gap-2 text-[0.7em] font-semibold uppercase leading-none tracking-wider text-slate-400">
         <span className="flex items-center gap-1">
           <BudgetIcon
             size="1.3em"
@@ -225,9 +225,9 @@ export const FuelSaver = () => {
         <div
           data-testid="fuel-saver-stop"
           data-tone={savingTone(stop.saving, perLap, settings.reachShare)}
-          className="flex flex-none items-center justify-between gap-2 rounded bg-slate-900/70 px-2 py-1 text-xs"
+          className="flex flex-none items-center justify-between gap-2 border-t overlay-divider px-2 pt-1 text-xs"
         >
-          <span className="text-[0.85em] font-medium uppercase tracking-wide text-slate-400">
+          <span className="text-[0.85em] font-semibold uppercase tracking-wider text-slate-400">
             1 stop fewer
           </span>
           <span className="font-bold">{figure(stop.target)}</span>

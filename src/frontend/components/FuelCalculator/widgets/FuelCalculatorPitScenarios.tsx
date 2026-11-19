@@ -107,7 +107,7 @@ const TargetScenarioRow: React.FC<{
     compactMode === 'ultra' ? '' : compactMode === 'compact' ? 'p-1' : 'p-2';
 
   return (
-    <div className="col-span-4 grid grid-cols-subgrid bg-slate-700/50">
+    <div className="col-span-4 grid grid-cols-subgrid">
       <div
         className={`${rowColor} text-center ${cellPadding}`}
         style={{ fontSize: valueFontSize }}
@@ -179,9 +179,9 @@ export const FuelCalculatorPitScenarios: React.FC<
     // Show "Pit scenarios available after more laps" placeholder if empty
     return (
       <div>
-        <div className="border-t border-slate-600/30 mb-2"></div>
+        <div className="border-t overlay-divider mb-2"></div>
         <div
-          className="text-[0.75em] text-center text-slate-400 mb-3 py-2 bg-slate-900/40 rounded"
+          className="text-[0.75em] text-center text-slate-400 mb-3 py-2"
           style={{ fontSize: labelFontSize }}
         >
           Pit scenarios available after more laps
@@ -193,30 +193,30 @@ export const FuelCalculatorPitScenarios: React.FC<
   return (
     <div>
       <div
-        className={`border-t border-slate-600/30 ${compactMode !== 'off' ? 'mb-0.5' : 'mb-2'}`}
+        className={`border-t overlay-divider ${compactMode !== 'off' ? 'mb-0.5' : 'mb-2'}`}
       ></div>
 
       <div className="grid grid-cols-4 mb-3">
         <div
-          className="text-slate-500 text-center"
+          className="text-slate-400 text-center"
           style={{ fontSize: labelFontSize }}
         >
           PIT @
         </div>
         <div
-          className="text-slate-500 text-center"
+          className="text-slate-400 text-center"
           style={{ fontSize: labelFontSize }}
         >
           {isEnergy ? 'FILL TO' : 'ADD'}
         </div>
         <div
-          className="text-slate-500 text-center"
+          className="text-slate-400 text-center"
           style={{ fontSize: labelFontSize }}
         >
           FINISH
         </div>
         <div
-          className="text-slate-500 text-center"
+          className="text-slate-400 text-center"
           style={{ fontSize: labelFontSize }}
         >
           WINDOW
@@ -287,7 +287,7 @@ export const FuelCalculatorPitScenarios: React.FC<
           return (
             <div
               key={scenario.laps}
-              className={`col-span-4 grid grid-cols-subgrid ${scenario.isCurrentTarget ? 'bg-slate-700/50' : ''}`}
+              className={`col-span-4 grid grid-cols-subgrid rounded-md ${scenario.isCurrentTarget ? 'bg-slate-800/60' : ''}`}
             >
               <div
                 className={`${rowColor} text-center ${cellPadding}`}

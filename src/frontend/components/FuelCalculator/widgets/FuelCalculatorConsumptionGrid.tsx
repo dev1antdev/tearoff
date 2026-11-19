@@ -319,8 +319,9 @@ export const FuelCalculatorConsumptionGrid: React.FC<
     fitsInTank: boolean;
     isValid: boolean;
   }) => {
+    // Fitting is the normal case: neutral. Red when it does not fit.
     if (!data.isValid) return 'text-slate-300';
-    return data.fitsInTank ? 'text-green-400' : 'text-red-400';
+    return data.fitsInTank ? 'text-white' : 'text-red-400';
   };
 
   // Helper for Refuel color
@@ -336,7 +337,7 @@ export const FuelCalculatorConsumptionGrid: React.FC<
     compactMode === 'ultra' ? '' : compactMode === 'compact' ? 'px-1' : 'px-2';
   const rowGap = '';
   const rowCls = 'col-span-4 grid grid-cols-subgrid';
-  const recommendedRowCls = `${rowCls} bg-slate-700/50`;
+  const recommendedRowCls = `${rowCls} bg-slate-800/60`;
   const actionCellCls = rowPadding;
   const avg10 = displayData?.avg10Laps || 0;
   const pitWindowOpen = frozenPitWindowOpen;
@@ -363,7 +364,7 @@ export const FuelCalculatorConsumptionGrid: React.FC<
     ? 'text-red-400'
     : isPitWindowOpen
       ? 'text-green-400'
-      : 'text-amber-300';
+      : 'text-slate-300';
 
   return (
     <div
@@ -371,7 +372,7 @@ export const FuelCalculatorConsumptionGrid: React.FC<
       className={`grid w-full grid-cols-[max-content_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.15fr)] select-none overflow-hidden ${gridPadding} ${rowGap}`}
     >
       <div
-        className="col-span-4 flex items-center justify-between pb-1 text-slate-500 font-semibold tracking-wide uppercase"
+        className="col-span-4 flex items-center justify-between pb-1 overlay-label"
         style={{ fontSize: labelFontSize }}
       >
         <span>
@@ -385,7 +386,7 @@ export const FuelCalculatorConsumptionGrid: React.FC<
         </span>
       </div>
       {/* Grid Header */}
-      <div className="col-span-4 mt-0.5 grid grid-cols-subgrid bg-slate-900/30">
+      <div className="col-span-4 mt-0.5 grid grid-cols-subgrid">
         <div aria-hidden="true" />
         <div
           className={`font-bold text-slate-400 flex justify-center items-center leading-none ${headerPadding}`}
@@ -644,7 +645,7 @@ export const FuelCalculatorConsumptionGrid: React.FC<
         const uniqueOrder = Array.from(new Set(order));
         return uniqueOrder.map((id) => renderRow(id));
       })()}
-      <div className="col-span-4 mt-1 grid grid-cols-[1fr_auto] items-center bg-slate-900/30 px-1 py-1 tabular-nums">
+      <div className="col-span-4 mt-1 grid grid-cols-[1fr_auto] items-center border-t overlay-divider px-1 py-1 tabular-nums">
         <div className="flex items-baseline gap-1">
           <span
             className={`font-bold tracking-wide ${pitWindowStatusClass}`}
@@ -660,10 +661,7 @@ export const FuelCalculatorConsumptionGrid: React.FC<
           </span>
         </div>
         <div className="flex items-baseline gap-1">
-          <span
-            className="font-semibold tracking-wide text-slate-500"
-            style={{ fontSize: labelFontSize }}
-          >
+          <span className="overlay-label" style={{ fontSize: labelFontSize }}>
             {isEnergy ? 'FILL TO' : 'ADD'}
           </span>
           <strong

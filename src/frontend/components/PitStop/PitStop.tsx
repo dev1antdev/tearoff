@@ -203,7 +203,7 @@ export const PitStop = () => {
       }}
     >
       <div className="flex flex-none items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1 text-xs font-medium uppercase tracking-wide text-slate-400">
+        <div className="flex min-w-0 items-center gap-1 overlay-label">
           <TimerIcon size="1.2em" aria-hidden />
           <span className="truncate">
             {mode === 'result' ? 'Stop done' : 'Pit stop'}
