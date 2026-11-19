@@ -120,8 +120,8 @@ describe('Damage', () => {
         'healthy',
         'healthy',
       ]);
-      expect(classOf('damage-zone-0')).toContain('fill-slate-500');
-      expect(classOf('damage-wheel-0')).toContain('fill-green-500');
+      expect(classOf('damage-zone-0')).toContain('stroke-slate-500');
+      expect(classOf('damage-wheel-0')).toContain('fill-slate-600');
     });
 
     it('reads 100% in the car and beside it, with no repair line', () => {
@@ -143,8 +143,8 @@ describe('Damage', () => {
       show(frontDent());
 
       expect(zoneLevels()).toEqual(['1', '0', '0', '0', '0', '0', '0', '0']);
-      expect(classOf('damage-zone-0')).toContain('fill-amber-400');
-      expect(classOf('damage-zone-1')).toContain('fill-slate-500');
+      expect(classOf('damage-zone-0')).toContain('stroke-amber-400');
+      expect(classOf('damage-zone-1')).toContain('stroke-slate-500');
     });
 
     it('reads the aero figure in the car and the two beside it', () => {
@@ -198,8 +198,8 @@ describe('Damage', () => {
       show(wreck());
 
       expect(zoneLevels()).toEqual(['1', '2', '2', '2', '3', '1', '0', '0']);
-      expect(classOf('damage-zone-1')).toContain('fill-red-500');
-      expect(classOf('damage-zone-4')).toContain('fill-slate-950');
+      expect(classOf('damage-zone-1')).toContain('stroke-red-500');
+      expect(classOf('damage-zone-4')).toContain('stroke-dasharray');
       expect(classOf('damage-zone-4')).toContain('stroke-red-500');
     });
 
@@ -212,12 +212,12 @@ describe('Damage', () => {
         'heavy',
         'detached',
       ]);
-      expect(classOf('damage-wheel-0')).toContain('fill-amber-300');
+      expect(classOf('damage-wheel-0')).toContain('fill-amber-400');
       // A flat tyre is an empty red rim.
       expect(classOf('damage-wheel-1')).toContain('fill-none');
       expect(classOf('damage-wheel-1')).toContain('stroke-red-500');
       expect(classOf('damage-wheel-2')).toContain('fill-red-500');
-      expect(classOf('damage-wheel-3')).toContain('fill-slate-950');
+      expect(classOf('damage-wheel-3')).toContain('fill-none');
     });
 
     it('pulses what has come off, and nothing else', () => {
@@ -354,7 +354,7 @@ describe('Damage', () => {
         'unknown',
         'unknown',
       ]);
-      expect(classOf('damage-wheel-0')).toContain('fill-slate-600');
+      expect(classOf('damage-wheel-0')).toContain('fill-slate-800');
       expect(screen.getByTestId('damage-reading')).toHaveTextContent('100%');
       expect(stat('aero')).toEqual({ text: '--', tone: 'none' });
       expect(stat('suspension').text).toBe('--');
@@ -375,7 +375,7 @@ describe('Damage', () => {
 
       expect(isDrawn()).toBe(true);
       for (let zone = 0; zone < 8; zone += 1) {
-        expect(classOf(`damage-zone-${zone}`)).toContain('fill-slate-600');
+        expect(classOf(`damage-zone-${zone}`)).toContain('stroke-slate-600');
       }
       expect(wheelStates()).toEqual([
         'unknown',

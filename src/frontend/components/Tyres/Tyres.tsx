@@ -105,7 +105,7 @@ const Tyre = memo(
         className={`flex items-baseline gap-1 font-bold tabular-nums leading-none ${pressureToneClass}`}
       >
         <span>{pressure}</span>
-        <span className="text-[0.55em] font-semibold text-slate-300">
+        <span className="text-[0.55em] font-semibold text-slate-400">
           {pressureUnit}
         </span>
       </div>
@@ -118,7 +118,7 @@ const Tyre = memo(
         </div>
       )}
       <div
-        className="flex min-h-[3.25em] w-full max-w-[5.5em] flex-1 items-center justify-center rounded-[1.1em] border border-black/50"
+        className="flex min-h-[3.25em] w-full max-w-[5.5em] flex-1 items-center justify-center rounded-[1.1em]"
         style={{
           background: `linear-gradient(to right, ${left}, ${middle}, ${right})`,
         }}
@@ -156,7 +156,7 @@ const Tyre = memo(
             nothing has no fill left to colour.
           */}
           <div
-            className={`flex h-[0.4em] min-w-0 flex-1 overflow-hidden rounded-sm ${loadLow ? 'bg-red-500' : 'bg-slate-900/70'} ${isLeft ? 'justify-end' : 'justify-start'}`}
+            className={`flex h-[0.4em] min-w-0 flex-1 overflow-hidden rounded-full ${loadLow ? 'bg-red-500' : 'bg-slate-900/70'} ${isLeft ? 'justify-end' : 'justify-start'}`}
           >
             <div
               data-testid="tyre-load-fill"
@@ -183,7 +183,7 @@ const Brake = memo(({ color, temperature, unit }: BrakeProps) => (
     <DiscIcon size="1.9em" weight="bold" style={{ color }} aria-hidden="true" />
     <div className="flex items-baseline gap-0.5 text-[0.85em] font-semibold leading-none tabular-nums">
       <span>{temperature}</span>
-      <span className="text-[0.7em] text-slate-300">{unit}</span>
+      <span className="text-[0.7em] text-slate-400">{unit}</span>
     </div>
   </div>
 ));
@@ -298,8 +298,9 @@ const Axle = ({
 
   return (
     <section className="flex min-h-0 flex-1 flex-col gap-1.5">
-      <header className="flex items-center justify-center gap-2 rounded bg-slate-900/70 py-1 text-[0.85em] font-semibold leading-none">
-        <span>{title}</span>
+      {/* A label over the axle rather than a tile inside the panel. */}
+      <header className="flex items-center justify-center gap-2 py-1 leading-none">
+        <span className="overlay-label">{title}</span>
         {settings.showCompound && compound >= 0 && (
           <Compound tireCompound={compound} />
         )}

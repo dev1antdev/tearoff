@@ -6,31 +6,38 @@ import type {
 } from '@irdashies/domain/damage/damageDisplay';
 
 /**
- * The car from above, nose up, in a 62 by 80 picture: eight body zones that
- * read as its outline, and a wheel inside each corner.
+ * The car from above, nose up, in a 62 by 80 picture: a thin outline in eight
+ * pieces, one per body zone, and a wheel inside each corner. Tearoff's own
+ * drawing: a narrow nose, arches over the wheels, a waist at the cockpit and
+ * a square tail.
  *
  * The zones run clockwise from the nose, as the snapshot has them: front,
- * front right, right, rear right, rear, rear left, left, front left. A corner
- * is the piece of outline that wraps it; the front ones are rounder, which is
- * what says which end is the nose.
+ * front right, right, rear right, rear, rear left, left, front left. Each
+ * piece starts where the one before it ends, so together they are the whole
+ * outline; a damaged piece is drawn thicker, in its level's colour.
  */
 const ZONE_PATHS = [
-  'M21.8 2H40.2V8H21.8Z',
-  'M41.8 2H50A10 10 0 0 1 60 12V26.2H54V12A4 4 0 0 0 50 8H41.8Z',
-  'M54 27.8H60V52.2H54Z',
-  'M41.8 78H54A6 6 0 0 0 60 72V53.8H54V70.5A1.5 1.5 0 0 1 52.5 72H41.8Z',
-  'M21.8 72H40.2V78H21.8Z',
-  'M20.2 78H8A6 6 0 0 1 2 72V53.8H8V70.5A1.5 1.5 0 0 0 9.5 72H20.2Z',
-  'M2 27.8H8V52.2H2Z',
-  'M20.2 2H12A10 10 0 0 0 2 12V26.2H8V12A4 4 0 0 1 12 8H20.2Z',
+  'M24 3.5Q31 2 38 3.5',
+  'M38 3.5C46 4.5 51 8 54 13Q57.5 19 56.5 27',
+  'M56.5 27C52 33 52 46 56.5 52',
+  'M56.5 52Q59.5 60 58.5 70Q57.5 77 50 77.5L44 77.5',
+  'M44 77.5L18 77.5',
+  'M18 77.5L12 77.5Q4.5 77 3.5 70Q2.5 60 5.5 52',
+  'M5.5 52C10 46 10 33 5.5 27',
+  'M5.5 27Q4.5 19 8 13C11 8 16 4.5 24 3.5',
 ] as const;
+
+/** The whole outline as one shape, for the body's faint fill. */
+const BODY_PATH = `${ZONE_PATHS[0]}${ZONE_PATHS.slice(1)
+  .map((path) => path.replace(/^M[\d.]+ [\d.]+/, ''))
+  .join('')}Z`;
 
 /** Top-left corner of each wheel: LF, RF, LR, RR. */
 const WHEEL_ORIGINS = [
-  [10, 10.5],
-  [42, 10.5],
-  [10, 53.5],
-  [42, 53.5],
+  [11, 12],
+  [41, 12],
+  [11, 53],
+  [41, 53],
 ] as const;
 const WHEEL_WIDTH = 10;
 const WHEEL_HEIGHT = 16;
@@ -45,29 +52,42 @@ const CENTRE_Y = 40;
  */
 const IMPACT_WEDGE = 'M29.17 26.12L24.2 -11.6H37.8L32.83 26.12Z';
 
-/** The cabin: where the figure sits, and what makes the outline a car. */
-const CABIN = { x: 15.5, y: 27.5, width: 31, height: 25, radius: 6 } as const;
+/**
+ * The cockpit, narrower at the windscreen: where the figure sits, and what
+ * makes the outline a car.
+ */
+const CABIN_PATH = 'M19 29Q31 25 43 29L44.5 49Q31 52 17.5 49Z';
 
 /** Side of the overheating icon, which sits under the figure. */
 const WARNING_SIZE = 10;
 
 /** Without a car the outline is drawn, and nothing is said about it. */
-const NO_CAR_CLASS = 'fill-slate-600';
+const NO_CAR_CLASS = 'stroke-slate-600 stroke-1';
 
-/** A part that has come off: black, outlined in red. */
-const DETACHED_CLASS = 'fill-slate-950 stroke-red-500 stroke-[1.5]';
+/** A damaged piece of outline: thicker, its ends rounded. */
+const HIT = 'stroke-[3] [stroke-linecap:round]';
 
+/**
+ * The levels the sim gives a zone: whole, dented, badly damaged, gone. An
+ * intact piece is the thin neutral outline; a piece that has come off is
+ * dashed, the outline broken.
+ */
 const ZONE_CLASS: Record<string, string> = {
-  '0': 'fill-slate-500',
-  '1': 'fill-amber-400',
-  '2': 'fill-red-500',
-  '3': DETACHED_CLASS,
+  '0': 'stroke-slate-500 stroke-1',
+  '1': `stroke-amber-400 ${HIT}`,
+  '2': `stroke-red-500 ${HIT}`,
+  // Square ends, or the round caps would close the gaps.
+  '3': 'stroke-red-500 stroke-[3] [stroke-dasharray:3_3]',
 };
 
+/** A wheel that has come off: an empty place, outlined in red. */
+const DETACHED_CLASS = 'fill-none stroke-red-500 stroke-[1.5]';
+
+/** A healthy wheel is neutral: colour is for damage. */
 const WHEEL_CLASS: Record<WheelState, string> = {
-  unknown: 'fill-slate-600',
-  healthy: 'fill-green-500',
-  light: 'fill-amber-300',
+  unknown: 'fill-slate-800',
+  healthy: 'fill-slate-600',
+  light: 'fill-amber-400',
   medium: 'fill-orange-500',
   heavy: 'fill-red-500',
   destroyed: 'fill-red-800',
@@ -140,13 +160,10 @@ export const CarDiagram = memo(
         aria-label="Car damage diagram"
         data-testid="damage-diagram"
       >
-        <rect
-          x={CABIN.x}
-          y={CABIN.y}
-          width={CABIN.width}
-          height={CABIN.height}
-          rx={CABIN.radius}
-          className="fill-slate-900/50"
+        <path d={BODY_PATH} className="fill-white/5" />
+        <path
+          d={CABIN_PATH}
+          className="fill-none stroke-slate-600 stroke-1 [stroke-linejoin:round]"
         />
 
         {ZONE_PATHS.map((path, zone) => {
@@ -160,7 +177,7 @@ export const CarDiagram = memo(
               d={path}
               data-testid={`damage-zone-${zone}`}
               data-level={level}
-              className={`${tone}${level === '3' ? pulse : ''}`}
+              className={`fill-none ${tone}${level === '3' ? pulse : ''}`}
             />
           );
         })}

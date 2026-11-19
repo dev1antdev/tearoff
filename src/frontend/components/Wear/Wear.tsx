@@ -77,7 +77,7 @@ const TyreCell = memo(
       >
         <span>{tread}</span>
         {hasUnit && (
-          <span className="text-[0.5em] font-semibold text-slate-300">%</span>
+          <span className="text-[0.5em] font-semibold text-slate-400">%</span>
         )}
       </div>
       {(perLap || laps || minutes) && (
@@ -86,7 +86,7 @@ const TyreCell = memo(
           className={`${SMALL_LINE} ${estimate ? 'italic text-slate-400' : 'text-slate-300'}`}
         >
           {perLap && (
-            <span className={perLapHigh ? 'text-amber-300' : ''}>{perLap}</span>
+            <span className={perLapHigh ? 'text-amber-400' : ''}>{perLap}</span>
           )}
           {laps && (
             <span className={lapsFew ? 'text-red-400' : ''}>{laps}</span>
@@ -143,7 +143,7 @@ const BrakeCell = memo(
       >
         <span>{figure}</span>
         {unit && (
-          <span className="text-[0.5em] font-semibold text-slate-300">
+          <span className="text-[0.5em] font-semibold text-slate-400">
             {unit}
           </span>
         )}
@@ -354,7 +354,7 @@ const BrakeSection = ({ wear, settings }: SectionProps) => {
             <DiscIcon
               size="1.25em"
               weight="bold"
-              className={stale ? 'text-amber-300' : 'text-slate-400'}
+              className={stale ? 'text-amber-400' : 'text-slate-400'}
               aria-hidden="true"
             />
           </div>
@@ -364,7 +364,7 @@ const BrakeSection = ({ wear, settings }: SectionProps) => {
       {stale && (
         <div
           data-testid="wear-brakes-stale"
-          className="flex items-center justify-center gap-[0.4em] text-[0.7em] leading-none text-amber-300"
+          className="flex items-center justify-center gap-[0.4em] text-[0.7em] leading-none text-amber-400"
         >
           <WarningIcon size="1.1em" weight="fill" aria-hidden="true" />
           <span>No answer from the sim</span>
@@ -407,7 +407,7 @@ export const Wear = () => {
       }}
     >
       {settings.tyres.show && <TyreSection wear={wear} settings={settings} />}
-      {both && <div className="flex-none border-t border-slate-600/30" />}
+      {both && <div className="flex-none border-t overlay-divider" />}
       {settings.brakes.show && <BrakeSection wear={wear} settings={settings} />}
       {!settings.tyres.show && !settings.brakes.show && (
         <div className="flex flex-1 items-center justify-center text-[0.75em] text-slate-400">

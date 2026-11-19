@@ -35,7 +35,7 @@ const Row = ({ id, caption, unit, twoLines = false, children }: RowProps) => (
     data-testid={`chassis-${id}`}
     className={`flex min-h-0 items-center gap-2 ${twoLines ? 'flex-2' : 'flex-1'}`}
   >
-    <div className="w-[4.9em] flex-none whitespace-nowrap text-[0.7em] font-semibold uppercase leading-none text-slate-300">
+    <div className="w-[4.9em] flex-none whitespace-nowrap text-[0.7em] font-semibold uppercase leading-none text-slate-400">
       {caption}
       {unit && (
         <span className="ml-[0.35em] font-medium normal-case text-slate-400">
@@ -64,10 +64,10 @@ interface BarProps {
  */
 const Bar = memo(({ fill, warn, side }: BarProps) => (
   <div
-    className={`flex h-[0.4em] overflow-hidden rounded-sm ${warn ? 'bg-red-500' : 'bg-slate-900/70'} ${side === 'left' ? 'justify-end' : 'justify-start'}`}
+    className={`flex h-[0.4em] overflow-hidden rounded-full ${warn ? 'bg-red-500' : 'bg-slate-900/70'} ${side === 'left' ? 'justify-end' : 'justify-start'}`}
   >
     <div
-      className={`h-full ${warn ? 'bg-red-500' : 'bg-green-500'}`}
+      className={`h-full rounded-full ${warn ? 'bg-red-500' : 'bg-slate-300'}`}
       style={{ width: `${Math.round(fill * 100)}%` }}
     />
   </div>
@@ -203,7 +203,7 @@ export const Chassis = () => {
     camberFigure(live?.camberDeg?.[wheel])
   );
   const camberClassName = (wheel: number) =>
-    cambers[wheel].positive ? 'text-amber-300' : '';
+    cambers[wheel].positive ? 'text-amber-400' : '';
 
   return (
     <div

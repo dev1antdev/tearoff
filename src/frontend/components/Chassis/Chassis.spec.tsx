@@ -206,7 +206,7 @@ describe('Chassis', () => {
       expect(red).toEqual(['9', '-1']);
       // The whole track of the bar, as a corner on the road has no fill left.
       expect(ride?.querySelectorAll('.bg-red-500')).toHaveLength(4);
-      expect(ride?.querySelectorAll('.bg-green-500')).toHaveLength(2);
+      expect(ride?.querySelectorAll('.bg-slate-300')).toHaveLength(2);
     });
 
     it('draws nothing red with the default bottoming height of 0', () => {
@@ -229,7 +229,7 @@ describe('Chassis', () => {
     it('draws a camber at zero or above in amber', () => {
       const container = draw(wheels({ camberDeg: [-2.6, 0.42, -1.9, -1.48] }));
       const amber = [
-        ...(row(container, 'camber')?.querySelectorAll('.text-amber-300') ??
+        ...(row(container, 'camber')?.querySelectorAll('.text-amber-400') ??
           []),
       ].map((element) => element.textContent);
 

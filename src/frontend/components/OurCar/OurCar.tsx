@@ -47,12 +47,13 @@ const NO_PREVIOUS_STINT = [-1, ''] as const;
 const BUDGET_LOW = 0.3;
 const BUDGET_CRITICAL = 0.15;
 
+// Plenty aboard is the normal state, so it is neutral, as safe fuel is.
 const budgetBarClass = (fill: number): string =>
   fill < BUDGET_CRITICAL
     ? 'bg-red-400'
     : fill < BUDGET_LOW
-      ? 'bg-amber-300'
-      : 'bg-green-400';
+      ? 'bg-amber-400'
+      : 'bg-slate-300';
 
 /**
  * Our Car: what the own entry has aboard and how long it lasts, its pit
@@ -246,10 +247,10 @@ export const OurCar = () => {
             {budget ? `${budget.value} ${budget.unit}` : NO_FIGURE}
           </span>
         </div>
-        <div className="mt-1.5 h-2 overflow-hidden rounded bg-slate-600/60">
+        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-slate-900/70">
           {budget?.fill !== null && budget?.fill !== undefined && (
             <div
-              className={`h-full ${budgetBarClass(budget.fill)}`}
+              className={`h-full rounded-full ${budgetBarClass(budget.fill)}`}
               style={{ width: `${budget.fill * 100}%` }}
             />
           )}
@@ -336,10 +337,10 @@ export const OurCar = () => {
       </div>
 
       {(settings.showTyres || settings.showDamage) && (
-        <div className="flex flex-none flex-wrap justify-between gap-x-6 gap-y-2 border-t border-slate-600/60 pt-2.5">
+        <div className="flex flex-none flex-wrap justify-between gap-x-6 gap-y-2 border-t overlay-divider pt-2.5">
           {settings.showTyres && (
             <div data-testid="our-car-tyres" className="flex flex-col gap-1">
-              <span className="flex items-center gap-1.5 text-xs font-medium uppercase leading-none tracking-wide text-slate-400">
+              <span className="overlay-label flex items-center gap-1.5 leading-none">
                 Tyres
                 {tyres && tyres.compound >= 0 && (
                   <Compound tireCompound={tyres.compound} />
@@ -355,15 +356,13 @@ export const OurCar = () => {
           )}
           {settings.showDamage && (
             <div data-testid="our-car-damage" className="flex flex-col gap-1">
-              <span className="text-xs font-medium uppercase leading-none tracking-wide text-slate-400">
-                Damage
-              </span>
+              <span className="overlay-label leading-none">Damage</span>
               <span
                 className={`font-bold leading-tight ${
                   !harm
                     ? 'text-white'
                     : harm.damaged
-                      ? 'text-amber-300'
+                      ? 'text-amber-400'
                       : 'text-green-400'
                 }`}
               >

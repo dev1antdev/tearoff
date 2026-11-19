@@ -1,5 +1,6 @@
 import { memo } from 'react';
-import { WrenchIcon } from '@phosphor-icons/react';
+import { IconContext, WrenchIcon } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import {
   useDamageSnapshot,
   useDrivingState,
@@ -35,7 +36,7 @@ interface StatProps {
 /** One figure beside the car: what it is, and how much of it is left. */
 const Stat = memo(({ name, label, value, tone }: StatProps) => (
   <>
-    <dt className="text-xs leading-none text-white/60">{label}</dt>
+    <dt className="overlay-label leading-none">{label}</dt>
     <dd
       data-testid={`damage-stat-${name}`}
       data-tone={tone}
@@ -78,81 +79,83 @@ export const Damage = () => {
       : null;
 
   return (
-    <div
-      data-testid="damage"
-      className="flex h-full w-full flex-col gap-1.5 overflow-hidden overlay-panel p-2 leading-none text-white"
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
-      <div className="flex min-h-0 flex-1 items-stretch justify-center gap-3">
-        {settings.diagram.enabled && (
-          <div className="h-full flex-none">
-            <CarDiagram
-              available={car !== undefined}
-              zones={car ? car.body.join('') : ''}
-              leftFront={wheelState(car?.wheels[0])}
-              rightFront={wheelState(car?.wheels[1])}
-              leftRear={wheelState(car?.wheels[2])}
-              rightRear={wheelState(car?.wheels[3])}
-              impactDegrees={impact}
-              readingValue={reading ? reading.value : null}
-              readingLabel={reading ? reading.label : ''}
-              readingTone={reading ? reading.tone : 'none'}
-              overheating={overheating}
-              flash={settings.flashDetached}
-            />
-          </div>
-        )}
-
-        {settings.stats.enabled && (
-          <dl className="grid min-w-0 flex-1 grid-cols-[auto_1fr] content-center items-baseline gap-x-3 gap-y-1.5 rounded bg-slate-900/70 px-2 py-1">
-            {damageStats(snapshot, settings.stats).map((stat) => (
-              <Stat
-                key={stat.key}
-                name={stat.key}
-                label={stat.label}
-                value={stat.value}
-                tone={stat.tone}
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        data-testid="damage"
+        className="flex h-full w-full flex-col gap-1.5 overflow-hidden overlay-panel p-2 leading-none text-white"
+        style={{
+          ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+        }}
+      >
+        <div className="flex min-h-0 flex-1 items-stretch justify-center gap-3">
+          {settings.diagram.enabled && (
+            <div className="h-full flex-none">
+              <CarDiagram
+                available={car !== undefined}
+                zones={car ? car.body.join('') : ''}
+                leftFront={wheelState(car?.wheels[0])}
+                rightFront={wheelState(car?.wheels[1])}
+                leftRear={wheelState(car?.wheels[2])}
+                rightRear={wheelState(car?.wheels[3])}
+                impactDegrees={impact}
+                readingValue={reading ? reading.value : null}
+                readingLabel={reading ? reading.label : ''}
+                readingTone={reading ? reading.tone : 'none'}
+                overheating={overheating}
+                flash={settings.flashDetached}
               />
-            ))}
-          </dl>
-        )}
-      </div>
-
-      {repair && (
-        <div
-          data-testid="damage-repair"
-          className="@container flex flex-none items-center gap-1.5 rounded bg-slate-900/70 px-2 py-1"
-        >
-          <WrenchIcon
-            size={14}
-            className="flex-none text-white/60"
-            aria-hidden
-          />
-          {/* The sim's choices all say "Repair" themselves, so in a narrow
-              window the word gives way to them; the wrench still says it. */}
-          <span className="hidden text-xs leading-none text-white/60 @[10rem]:inline">
-            Repair
-          </span>
-          {repair.time && (
-            <span
-              data-testid="damage-repair-time"
-              className="text-sm font-semibold leading-none tabular-nums text-amber-300"
-            >
-              {repair.time}
-            </span>
+            </div>
           )}
-          {repair.choice && (
-            <span
-              data-testid="damage-repair-choice"
-              className="min-w-0 flex-1 truncate text-right text-xs leading-4 text-white/60"
-            >
-              {repair.choice}
-            </span>
+
+          {settings.stats.enabled && (
+            <dl className="grid min-w-0 flex-1 grid-cols-[auto_1fr] content-center items-baseline gap-x-3 gap-y-1.5 px-2 py-1">
+              {damageStats(snapshot, settings.stats).map((stat) => (
+                <Stat
+                  key={stat.key}
+                  name={stat.key}
+                  label={stat.label}
+                  value={stat.value}
+                  tone={stat.tone}
+                />
+              ))}
+            </dl>
           )}
         </div>
-      )}
-    </div>
+
+        {repair && (
+          <div
+            data-testid="damage-repair"
+            className="@container flex flex-none items-center gap-1.5 px-2 py-1 shadow-[inset_0_1px_0_rgb(255_255_255/0.05)]"
+          >
+            <WrenchIcon
+              size={14}
+              className="flex-none text-slate-400"
+              aria-hidden
+            />
+            {/* The sim's choices all say "Repair" themselves, so in a narrow
+              window the word gives way to them; the wrench still says it. */}
+            <span className="hidden text-xs leading-none text-slate-400 @[10rem]:inline">
+              Repair
+            </span>
+            {repair.time && (
+              <span
+                data-testid="damage-repair-time"
+                className="text-sm font-semibold leading-none tabular-nums text-amber-400"
+              >
+                {repair.time}
+              </span>
+            )}
+            {repair.choice && (
+              <span
+                data-testid="damage-repair-choice"
+                className="min-w-0 flex-1 truncate text-right text-xs leading-4 text-slate-400"
+              >
+                {repair.choice}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+    </IconContext.Provider>
   );
 };
