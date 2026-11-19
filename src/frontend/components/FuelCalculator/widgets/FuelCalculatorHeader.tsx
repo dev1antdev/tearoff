@@ -93,11 +93,12 @@ export const FuelCalculatorHeader: React.FC<FuelCalculatorWidgetProps> = ({
         : 'px-2 py-1';
 
   return (
-    <div className={paddingClass}>
-      {/* Next pit and stops sit beside the headline, and wrap below it when
-          the widget is too narrow for all three. */}
-      <div className="flex flex-wrap items-end gap-x-3 gap-y-1">
-        <div className="mr-auto whitespace-nowrap">
+    // One line, as the header always was, so a layout sized for it keeps
+    // fitting: the headline shrinks with the widget's width (a container
+    // query) rather than wrap Next pit and Stops onto a second line.
+    <div className={`@container ${paddingClass}`}>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-x-3">
+        <div className="min-w-0 whitespace-nowrap">
           <div
             className="flex items-center gap-1 overlay-label"
             style={{ fontSize: labelFontSize }}
@@ -114,15 +115,14 @@ export const FuelCalculatorHeader: React.FC<FuelCalculatorWidgetProps> = ({
             )}
             <span>To go</span>
           </div>
-          {/* The headline, its unit small and grey: the display step, or
-              twice the box's own value size when the box sets one. */}
+          {/* The headline, its unit small and grey: the display-sm step, or
+              1.6 times the box's own value size when the box sets one, never
+              wider than the widget leaves it. */}
           <div
-            className={`flex items-baseline gap-1 ${confConfig.color} font-bold tabular-nums leading-none ${ownValueSize ? '' : 'text-display-lg'}`}
-            style={
-              ownValueSize
-                ? { fontSize: `calc(${valueFontSize} * 2)` }
-                : undefined
-            }
+            className={`flex items-baseline gap-1 ${confConfig.color} font-bold tabular-nums leading-none`}
+            style={{
+              fontSize: `min(${ownValueSize ? `calc(${valueFontSize} * 1.6)` : 'var(--text-display-sm)'}, 7.5cqi)`,
+            }}
             title={`${confidence} confidence`}
           >
             <span

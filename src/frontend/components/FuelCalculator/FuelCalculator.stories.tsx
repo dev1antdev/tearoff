@@ -154,6 +154,45 @@ export const Primary: Story = {
 };
 
 /**
+ * Guards a short header-only overlay (275 x 50): the headline, Next pit and
+ * Stops stay on one line inside the frame, as they did before the redesign.
+ */
+export const ShortHeader: Story = {
+  decorators: [
+    (Story) => (
+      <MockFuelDataProvider>
+        <div className="h-[50px] w-[275px] overflow-hidden [&>div]:h-full">
+          <Story />
+        </div>
+      </MockFuelDataProvider>
+    ),
+  ],
+  args: {
+    ...baselineArgs,
+    layoutTree: {
+      id: 'header-only',
+      type: 'split',
+      direction: 'col',
+      children: [
+        {
+          id: 'header',
+          type: 'box',
+          direction: 'col',
+          widgets: ['fuelHeader'],
+        },
+      ],
+    },
+    previewData: {
+      ...demoFuelData,
+      confidence: 'medium',
+      lapsRemaining: 103.4,
+      pitWindowOpen: 18,
+      stopsRemaining: 2,
+    },
+  },
+};
+
+/**
  * Guards a short, side-by-side layout: Tank, Time Empty and Fuel at End in one
  * row of a 310 x 85 frame. Boxes side by side share one card, a hairline
  * between them, so the row takes no more room than the single panel did and

@@ -140,17 +140,17 @@ Overlay text sizes are relative. `.overlay-window` sets `--text-xs` to
 `--theme-offset`; each step up adds 1px and `--text-2xs` sits 1px below xs. The
 Font size setting picks the offset, from 7px (`4xs`) to 22px (`9xl`).
 
-| Class                  | At the default size (`sm`) | Use                                                                                                                          |
-| ---------------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `text-2xs`             | 10px                       | Smallest labels: chart ticks, captions over a value                                                                          |
-| `text-xs`              | 11px                       | Footers, badges, units                                                                                                       |
-| `text-sm`              | 12px                       | Table rows (Standings, Relative)                                                                                             |
-| `text-base`            | 13px                       | Standalone values in small widgets                                                                                           |
-| `text-lg`              | 14px                       | Emphasised readouts                                                                                                          |
-| `text-xl` … `text-9xl` | 15px … 23px                | Emphasised numbers, large deltas                                                                                             |
-| `text-display-sm`      | 22px (offset × 2)          | The value a small widget exists to show                                                                                      |
-| `text-display-md`      | 27.5px (offset × 2.5)      | Gear, a headline delta                                                                                                       |
-| `text-display-lg`      | 38.5px (offset × 3.5)      | The one number of a large widget (laps to go; a Fuel Calculator box with its own font size draws it at twice its value size) |
+| Class                  | At the default size (`sm`) | Use                                                                                                                                                                                                                        |
+| ---------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `text-2xs`             | 10px                       | Smallest labels: chart ticks, captions over a value                                                                                                                                                                        |
+| `text-xs`              | 11px                       | Footers, badges, units                                                                                                                                                                                                     |
+| `text-sm`              | 12px                       | Table rows (Standings, Relative)                                                                                                                                                                                           |
+| `text-base`            | 13px                       | Standalone values in small widgets                                                                                                                                                                                         |
+| `text-lg`              | 14px                       | Emphasised readouts                                                                                                                                                                                                        |
+| `text-xl` … `text-9xl` | 15px … 23px                | Emphasised numbers, large deltas                                                                                                                                                                                           |
+| `text-display-sm`      | 22px (offset × 2)          | The value a small widget exists to show; the Fuel Calculator's laps to go, which shares one line with Next pit and Stops and shrinks with the width (`min(…, 7.5cqi)`), so a layout sized for the old header keeps fitting |
+| `text-display-md`      | 27.5px (offset × 2.5)      | Gear, a headline delta                                                                                                                                                                                                     |
+| `text-display-lg`      | 38.5px (offset × 3.5)      | The one number of a large widget                                                                                                                                                                                           |
 
 Rules:
 
