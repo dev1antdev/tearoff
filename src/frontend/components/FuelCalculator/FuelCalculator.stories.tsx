@@ -154,6 +154,54 @@ export const Primary: Story = {
 };
 
 /**
+ * Guards a short, side-by-side layout: Tank, Time Empty and Fuel at End in one
+ * row of a 310 x 85 frame. Boxes side by side share one card, a hairline
+ * between them, so the row takes no more room than the single panel did and
+ * the shortfall at the right stays inside the frame.
+ */
+export const SideBySideShort: Story = {
+  decorators: [
+    (Story) => (
+      <MockFuelDataProvider>
+        <div className="h-[85px] w-[310px] overflow-hidden [&>div]:h-full">
+          <Story />
+        </div>
+      </MockFuelDataProvider>
+    ),
+  ],
+  args: {
+    ...baselineArgs,
+    layoutTree: {
+      id: 'side-by-side',
+      type: 'split',
+      direction: 'row',
+      children: [
+        { id: 'tank', type: 'box', direction: 'col', widgets: ['fuelGauge'] },
+        {
+          id: 'empty',
+          type: 'box',
+          direction: 'col',
+          widgets: ['fuelTimeEmpty'],
+        },
+        {
+          id: 'finish',
+          type: 'box',
+          direction: 'col',
+          widgets: ['fuelAtFinish'],
+        },
+      ],
+    },
+    previewData: {
+      ...demoFuelData,
+      fuelLevel: 8,
+      lapsWithFuel: 3.4,
+      fuelAtFinish: -64.6,
+      fuelStatus: 'danger',
+    },
+  },
+};
+
+/**
  * Guards the header at a narrow width: a long medium-confidence estimate keeps
  * its line, and Next pit and Stops wrap below it instead of overlapping it.
  */

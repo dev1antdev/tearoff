@@ -68,10 +68,13 @@ place of the hairline edge while it shows.
 
 A widget made of several sections can draw each as a card of its own instead,
 an `overlay-panel` per section in a stack (`data-panel-stack`) with no panel
-around them: the Fuel Calculator draws one card per box of its layout, and its
-fuel warning draws one outline in its colour round the whole stack. A safe fuel state is the normal one, so
-it is neutral (white values, a light bar); caution and danger take amber and
-red.
+around them. The Fuel Calculator draws a card for each section stacked down
+its layout; boxes side by side share one card, a hairline between them. The
+cards have no padding of their own (the sub-widgets pad themselves), so they
+take no more room than the single panel did and a saved layout keeps fitting
+its frame. Its fuel warning draws one outline in its colour round the whole
+stack. A safe fuel state is the normal one, so it is neutral (white values, a
+light bar); caution and danger take amber and red.
 
 Graphic widgets (Radar, Track Map, Minimap, Blind Spot Monitor, the Flag light
 board) draw their own shapes and have no panel. The Tachometer's and Shift
