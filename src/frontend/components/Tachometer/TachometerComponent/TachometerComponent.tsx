@@ -4,6 +4,9 @@ import type { ShiftPointSettings, TachometerConfig } from '@irdashies/types';
 import { EngineWarnings } from '@irdashies/types';
 import { getLedRpmOverride } from '@irdashies/domain/shiftLight/shiftLight';
 
+/** The palette's dark neutral, for a light that is off. */
+const UNLIT_COLOR = 'var(--color-slate-800)';
+
 export interface TachometerProps {
   rpm: number;
   maxRpm: number;
@@ -284,9 +287,9 @@ export const Tachometer = ({
 
   // Determine the color for each LED
   const getLedColor = (index: number): string => {
-    // Always gray for inactive LEDs
+    // An unlit light takes the palette's dark neutral.
     if (!isLedActive(index)) {
-      return '#1f2937'; // Dark gray for inactive LEDs
+      return UNLIT_COLOR;
     }
 
     // Phase 1: At or above blinkRpm - flash purple/white with stronger colors
@@ -328,7 +331,7 @@ export const Tachometer = ({
   // Match the RPM readout box exactly (text-2xl / 1.5em tall / px-4) so the
   // oil & water boxes are the same visual size.
   const tempBoxClass =
-    'bg-slate-950/(--bg-opacity) text-2xl flex min-w-[5em] font-mono font-bold px-4 rounded-sm whitespace-nowrap justify-center items-center gap-1';
+    'overlay-panel text-2xl flex min-w-[5em] font-bold tabular-nums px-4 whitespace-nowrap justify-center items-center gap-1';
   const tempBoxStyle = {
     height: '1.5em',
     ['--bg-opacity' as string]: `${opacity ?? 80}%`,
@@ -351,7 +354,9 @@ export const Tachometer = ({
       className={`${tempBoxClass} ${warning ? 'text-red-400' : 'text-white'}`}
       style={tempBoxStyle}
     >
-      <span className="text-[0.7em] text-slate-400">{label}</span>
+      <span className="overlay-label" style={{ fontSize: '0.7em' }}>
+        {label}
+      </span>
       <span>{Math.round(value)}°C</span>
     </div>
   );
@@ -387,7 +392,7 @@ export const Tachometer = ({
       {/* LED lights */}
       <div
         id="ledcontainer"
-        className={`bg-slate-950/(--bg-opacity) flex relative items-center justify-center rounded-full`}
+        className="overlay-panel flex relative items-center justify-center"
         style={{
           ['--bg-opacity' as string]: `${opacity ?? 80}%`,
           padding: `4px min(40cqh, ${(42.5 / effectiveNumLights).toFixed(2)}cqw)`,
@@ -425,24 +430,23 @@ export const Tachometer = ({
               width: `min(80cqh, ${(85 / effectiveNumLights).toFixed(2)}cqw)`,
             }}
           >
+            {/* A rounded segment, lit or not at once: no glow, edge or fade,
+                which would cost the GPU every frame and lag the RPM. */}
             <div
-              className="rounded-full w-full h-full border border-slate-600 transition-all duration-300"
-              style={{
-                backgroundColor: getLedColor(i),
-                boxShadow: isLedActive(i)
-                  ? `0 0 4px ${getLedColor(i)}`
-                  : 'none',
-              }}
+              className="w-full h-full rounded-[30%]"
+              style={{ backgroundColor: getLedColor(i) }}
               aria-label={`LED ${i + 1}`}
             />
           </div>
         ))}
 
         {/* RPM display - Horinztonal - shows when showRpmText is true OR when custom shift points exist */}
+        {/* The RPM readouts change every frame, so they take the panel's
+            background and corners but not its edge, which is a shadow. */}
         {shouldShowRpmBox && rpmOrientation === 'horizontal' && (
           <div
             id="rpm-text"
-            className={`bg-slate-950/(--bg-opacity) text-2xl absolute right-[-8em] flex min-w-[6em] font-mono font-bold text-white px-4 mx-2 rounded-sm transition-colors duration-200 whitespace-nowrap justify-center items-center`}
+            className="rounded-xl bg-slate-950/(--bg-opacity) text-2xl absolute right-[-8em] flex min-w-[6em] font-bold tabular-nums text-white px-4 mx-2 transition-colors duration-200 whitespace-nowrap justify-center items-center"
             style={{
               ...getRpmBoxStyle(),
               height: '2em',
@@ -456,7 +460,12 @@ export const Tachometer = ({
                 ) : (
                   <>
                     {Math.round(clampedRpm).toLocaleString('en-US')}
-                    <span className="text-[0.6em] ml-2">RPM</span>
+                    <span
+                      className="overlay-label ml-2"
+                      style={{ fontSize: '0.6em' }}
+                    >
+                      RPM
+                    </span>
                   </>
                 )}
               </>
@@ -472,7 +481,7 @@ export const Tachometer = ({
       {shouldShowRpmBox && rpmOrientation !== 'horizontal' && (
         <div
           id="rpm-text"
-          className={`bg-slate-950/(--bg-opacity) text-2xl flex min-w-[6em] font-mono font-bold text-white px-4 mx-2 rounded-sm transition-colors duration-200 whitespace-nowrap justify-center items-center`}
+          className="rounded-xl bg-slate-950/(--bg-opacity) text-2xl flex min-w-[6em] font-bold tabular-nums text-white px-4 mx-2 transition-colors duration-200 whitespace-nowrap justify-center items-center"
           style={{
             ...getRpmBoxStyle(),
             height: '1.5em',
@@ -486,7 +495,12 @@ export const Tachometer = ({
               ) : (
                 <>
                   {Math.round(clampedRpm).toLocaleString('en-US')}
-                  <span className="text-[0.6em] ml-2">RPM</span>
+                  <span
+                    className="overlay-label ml-2"
+                    style={{ fontSize: '0.6em' }}
+                  >
+                    RPM
+                  </span>
                 </>
               )}
             </>

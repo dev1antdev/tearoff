@@ -62,7 +62,7 @@ describe('Tachometer', () => {
 
   it('renders the correct number of LED lights (10)', () => {
     const { container } = render(<Tachometer rpm={3000} maxRpm={8500} />);
-    const ledElements = container.querySelectorAll('.rounded-full.border');
+    const ledElements = container.querySelectorAll('[aria-label^="LED "]');
     expect(ledElements.length).toBe(10);
   });
 
@@ -81,7 +81,7 @@ describe('Tachometer', () => {
         ]}
       />
     );
-    const ledElements = container.querySelectorAll('.rounded-full.border');
+    const ledElements = container.querySelectorAll('[aria-label^="LED "]');
     expect(ledElements.length).toBe(5); // ledColors.length - 1 (subtract redline color)
   });
 
@@ -89,7 +89,7 @@ describe('Tachometer', () => {
     const { container } = render(
       <Tachometer rpm={4250} maxRpm={8500} shiftRpm={7650} />
     );
-    const ledElements = container.querySelectorAll('.rounded-full.border');
+    const ledElements = container.querySelectorAll('[aria-label^="LED "]');
 
     // Check first 6 LEDs are lit - 4250 RPM is ~55% of 7650 shift RPM
     for (let i = 0; i < 6; i++) {
@@ -100,7 +100,7 @@ describe('Tachometer', () => {
     // Check remaining LEDs are dark
     for (let i = 6; i < 10; i++) {
       const bgColor = (ledElements[i] as HTMLElement).style.backgroundColor;
-      expect(bgColor).toBe('rgb(31, 41, 55)');
+      expect(bgColor).toBe('var(--color-slate-800)');
     }
   });
 
@@ -108,7 +108,7 @@ describe('Tachometer', () => {
     const { container } = render(
       <Tachometer rpm={6375} maxRpm={8500} shiftRpm={7650} />
     );
-    const ledElements = container.querySelectorAll('.rounded-full.border');
+    const ledElements = container.querySelectorAll('[aria-label^="LED "]');
 
     // Check 8th LED is yellow (index 7)
     const led8Color = (ledElements[7] as HTMLElement).style.backgroundColor;
@@ -119,7 +119,7 @@ describe('Tachometer', () => {
     const { container } = render(
       <Tachometer rpm={7650} maxRpm={8500} shiftRpm={7650} />
     );
-    const ledElements = container.querySelectorAll('.rounded-full.border');
+    const ledElements = container.querySelectorAll('[aria-label^="LED "]');
 
     // At shift RPM, last LED should be purple
     const lastLedColor = (ledElements[9] as HTMLElement).style.backgroundColor;
@@ -128,12 +128,12 @@ describe('Tachometer', () => {
 
   it('handles zero RPM correctly', () => {
     const { container } = render(<Tachometer rpm={0} maxRpm={8500} />);
-    const ledElements = container.querySelectorAll('.rounded-full.border');
+    const ledElements = container.querySelectorAll('[aria-label^="LED "]');
 
     // All LEDs should be dark
     ledElements.forEach((led) => {
       expect((led as HTMLElement).style.backgroundColor).toBe(
-        'rgb(31, 41, 55)'
+        'var(--color-slate-800)'
       );
     });
   });
@@ -142,7 +142,7 @@ describe('Tachometer', () => {
     const { container } = render(
       <Tachometer rpm={8500} maxRpm={8500} shiftRpm={7650} blinkRpm={8245} />
     );
-    const ledElements = container.querySelectorAll('.rounded-full.border');
+    const ledElements = container.querySelectorAll('[aria-label^="LED "]');
 
     // All 10 LEDs should be lit
     expect(ledElements.length).toBe(10);
@@ -164,7 +164,7 @@ describe('Tachometer', () => {
       vi.advanceTimersByTime(100);
     });
 
-    const firstLed = container.querySelectorAll('.rounded-full.border')[0];
+    const firstLed = container.querySelectorAll('[aria-label^="LED "]')[0];
     expect((firstLed as HTMLElement).style.backgroundColor).toBe(
       'rgb(255, 255, 255)'
     );
@@ -182,7 +182,7 @@ describe('Tachometer', () => {
     rerender(<Tachometer rpm={8000} maxRpm={8500} blinkRpm={8200} />);
     rerender(<Tachometer rpm={8300} maxRpm={8500} blinkRpm={8200} />);
 
-    const firstLed = container.querySelectorAll('.rounded-full.border')[0];
+    const firstLed = container.querySelectorAll('[aria-label^="LED "]')[0];
     expect((firstLed as HTMLElement).style.backgroundColor).toBe(
       'rgb(147, 51, 234)'
     );
@@ -197,14 +197,14 @@ describe('Tachometer', () => {
         gearRpmThresholds={gearRpmThresholds}
       />
     );
-    const ledElements = container.querySelectorAll('.rounded-full.border');
+    const ledElements = container.querySelectorAll('[aria-label^="LED "]');
 
     // At 5250 RPM, should light up LEDs with thresholds <= 5250
     // That would be: 4500, 5000 (indices 1, 2 in the array, so LEDs 0, 1)
     for (let i = 0; i < 2; i++) {
       const bgColor = (ledElements[i] as HTMLElement).style.backgroundColor;
       expect(bgColor).toBeTruthy();
-      expect(bgColor).not.toBe('rgb(31, 41, 55)');
+      expect(bgColor).not.toBe('var(--color-slate-800)');
     }
   });
 
@@ -367,7 +367,7 @@ describe('Tachometer', () => {
   });
 
   describe('with LED thresholds set by hand', () => {
-    const DARK = 'rgb(31, 41, 55)';
+    const DARK = 'var(--color-slate-800)';
     const PURPLE = 'rgb(168, 85, 247)';
     const FLASH_PURPLE = 'rgb(147, 51, 234)';
     const override = {
@@ -380,7 +380,7 @@ describe('Tachometer', () => {
 
     const ledColors = (container: HTMLElement) =>
       Array.from(
-        container.querySelectorAll<HTMLElement>('.rounded-full.border')
+        container.querySelectorAll<HTMLElement>('[aria-label^="LED "]')
       ).map((led) => led.style.backgroundColor);
     const litCount = (container: HTMLElement) =>
       ledColors(container).filter((color) => color !== DARK).length;

@@ -15,10 +15,10 @@ import { RotationArc } from './RotationArc';
 import { RotationIndicator } from './RotationIndicator';
 import type { AngleReadout } from './RotationIndicator';
 import { SteerDial } from './SteerDial';
+import type { SteerConfig } from '@irdashies/types';
 import type { SteerDialProps } from './SteerDial';
 
-export type WheelStyle =
-  'formula' | 'lmp' | 'nascar' | 'ushape' | 'default' | 'ring';
+export type WheelStyle = SteerConfig['style'];
 
 const wheelComponentMap = {
   default: {
@@ -47,7 +47,8 @@ export interface InputSteerProps {
   angleRad?: number;
   wheelStyle?: WheelStyle;
   wheelColor?: 'dark' | 'light';
-  /** Used by the `ring` style to render gear + speed inside the dial. */
+  /** Used by the `ring` style to render gear + speed inside the dial; the
+   * `dial` style shows the wheel angle there instead. */
   gear?: number;
   speedMs?: number;
   unit?: number;
@@ -113,7 +114,7 @@ export function InputSteer({
     }
   }, [angleRad]);
 
-  if (wheelStyle === 'ring') {
+  if (wheelStyle === 'ring' || wheelStyle === 'dial') {
     return (
       <SteerDial
         angleRad={angleRad}
@@ -122,6 +123,7 @@ export function InputSteer({
         unit={unit}
         wheelColor={wheelColor}
         gearSettings={gearSettings}
+        angleInside={wheelStyle === 'dial'}
         flashColor={flashColor}
       />
     );

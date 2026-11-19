@@ -291,7 +291,10 @@ describe('InputSettings', () => {
       );
     });
 
-    it('offers the wheel range for every style, and the readouts not for the ring', () => {
+    it('offers the wheel range for every style, and the readouts not for the rings', () => {
+      mocks.dashboard = dashboardWith({
+        steer: { enabled: true, config: { style: 'default', color: 'light' } },
+      });
       const { unmount } = renderPage();
       for (const title of [
         'Wheel Rotation Range',
@@ -303,17 +306,20 @@ describe('InputSettings', () => {
       }
       unmount();
 
-      mocks.dashboard = dashboardWith({
-        steer: { enabled: true, config: { style: 'ring', color: 'light' } },
-      });
-      renderPage();
-      expect(screen.getByText('Wheel Rotation Range')).toBeInTheDocument();
-      for (const title of [
-        'Angle Readout',
-        'Rotation Arc',
-        'Show Front Wheel Angle',
-      ]) {
-        expect(screen.queryByText(title)).toBeNull();
+      for (const style of ['ring', 'dial'] as const) {
+        mocks.dashboard = dashboardWith({
+          steer: { enabled: true, config: { style, color: 'light' } },
+        });
+        const page = renderPage();
+        expect(screen.getByText('Wheel Rotation Range')).toBeInTheDocument();
+        for (const title of [
+          'Angle Readout',
+          'Rotation Arc',
+          'Show Front Wheel Angle',
+        ]) {
+          expect(screen.queryByText(title)).toBeNull();
+        }
+        page.unmount();
       }
     });
 

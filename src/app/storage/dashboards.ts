@@ -120,6 +120,32 @@ const dropOldFillDefaults = (saved: unknown): unknown => {
   return config;
 };
 
+/**
+ * The Input wheel was the Default picture before the ring with the angle
+ * inside. A stored `default` cannot be told from the old default, so a wheel
+ * still set up as it came (light, readout past 270 degrees, no arc, no wheel
+ * angle) moves to the ring once, with the rest of the new look's defaults. A
+ * wheel the driver set up keeps its picture: the ring hides those settings.
+ */
+const moveOldWheelDefault = (saved: unknown): unknown => {
+  if (!isRecord(saved) || !isRecord(saved.steer)) return saved;
+  const steer = saved.steer;
+  const wheel = steer.config;
+  if (
+    !isRecord(wheel) ||
+    wheel.style !== 'default' ||
+    (wheel.color ?? 'light') !== 'light' ||
+    (steer.angleReadout ?? 'beyond270') !== 'beyond270' ||
+    (steer.rotationArc ?? 'never') !== 'never' ||
+    steer.showWheelAngle === true
+  )
+    return saved;
+  return {
+    ...saved,
+    steer: { ...steer, config: { ...wheel, style: 'dial' } },
+  };
+};
+
 const isDashboardChanged = (
   oldDashboard: DashboardLayout | undefined,
   newDashboard: DashboardLayout
@@ -273,8 +299,9 @@ export const withDashboardDefaults = (
     generalSettings.colorPalette = 'default';
   }
   // The 2.3 overlay look changed defaults a stored value cannot be told
-  // apart from: Lato was the default font before Figtree, and the Relative
-  // cells were filled (OLD_FILL_DEFAULTS). A profile moves onto
+  // apart from: Lato was the default font before Figtree, the Relative
+  // cells were filled (OLD_FILL_DEFAULTS), and the Input wheel was the
+  // Default picture (moveOldWheelDefault). A profile moves onto
   // the new defaults once. Read from the stored settings, not the merged ones,
   // so the defaults cannot mark a profile as already moved.
   const movesToNewLook =
@@ -299,9 +326,13 @@ export const withDashboardDefaults = (
       const saved =
         type === 'laptrace'
           ? migrateLapTraceLayout(widget.config)
-          : movesToNewLook && type === 'relative'
-            ? dropOldFillDefaults(widget.config)
-            : widget.config;
+          : !movesToNewLook
+            ? widget.config
+            : type === 'relative'
+              ? dropOldFillDefaults(widget.config)
+              : type === 'input'
+                ? moveOldWheelDefault(widget.config)
+                : widget.config;
       const merged = deepMergeConfig(defaults, saved) as Record<
         string,
         unknown

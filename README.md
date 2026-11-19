@@ -88,11 +88,11 @@ Displays the throttle, clutch, and brake input traces, as well as the current ge
   - Optional force feedback bar, which turns amber while the force is clipping
 - Current gear display with speed (auto/mph/km/h units) and dynamic sizing to fit container
 - Optional speed-first gear layout
-- Steering wheel visualization with multiple styles (default, formula, LMP, NASCAR, U-shape, ring) and color themes (light/dark)
-  - Angle readout in degrees: past 270° (default), always, or never
-  - Optional rotation arc around the wheel, always or only at a standstill
+- Steering wheel visualization with multiple styles (a ring with the angle inside, the default; a ring with the gear and speed inside; classic, formula, LMP, NASCAR and U-shape wheels) and color themes (light/dark)
+  - On the wheel pictures: an angle readout in degrees, past 270° (default), always, or never
+  - On the wheel pictures: an optional rotation arc around the wheel, always or only at a standstill
   - Manual wheel rotation range, for a wheel whose range the sim gets wrong
-  - Front wheel angle and steering ratio under the wheel (Le Mans Ultimate only)
+  - On the wheel pictures: the front wheel angle and steering ratio under the wheel (Le Mans Ultimate only)
 - Optional steering meter: a bar that fills from its centre toward the steered side, with scale marks at a configurable spacing
 - Customizable display order for all components
 - Drag-and-drop layout editor to arrange traces, bars, steering, the steering meter, gear, and ABS indicators

@@ -17,6 +17,9 @@ export interface InputGearProps {
   };
 }
 
+/** The unit as a label; its size is set inline, over the label's own. */
+const UNIT_CLASS = 'overlay-label mt-[0.15em] leading-none';
+
 export const InputGear = memo(
   ({ gear, speedMs, unit, flashColor, settings }: InputGearProps) => {
     // 'none' is vestigial — the settings UI only offers auto/mph/km/h — but the
@@ -51,7 +54,7 @@ export const InputGear = memo(
           : 90;
 
     return (
-      <div className="@container-size flex items-center justify-center p-1 font-mono w-full h-full">
+      <div className="@container-size flex items-center justify-center p-1 tabular-nums w-full h-full">
         <div className="flex flex-col items-center">
           <div
             className="font-bold leading-none"
@@ -67,7 +70,7 @@ export const InputGear = memo(
               {/* Swapped: unit on top (same size as default unit), speed on bottom (same size as default speed) */}
               {settings.showspeed && settings.showspeedunit && (
                 <div
-                  className="text-slate-400 leading-none"
+                  className={UNIT_CLASS}
                   style={{
                     fontSize: `min(${displaySize * (displayMultiplier / 4)}cqh, ${displaySize * 25}cqw)`,
                   }}
@@ -77,7 +80,7 @@ export const InputGear = memo(
               )}
               {settings.showspeed && (
                 <div
-                  className="text-slate-200 leading-none"
+                  className="font-bold leading-none"
                   style={{
                     fontSize: `min(${displaySize * (displayMultiplier / 2)}cqh, ${displaySize * 45}cqw)`,
                   }}
@@ -91,7 +94,7 @@ export const InputGear = memo(
               {/* Default: speed on top, unit on bottom */}
               {settings.showspeed && (
                 <div
-                  className="text-slate-200 leading-none"
+                  className="font-bold leading-none"
                   style={{
                     fontSize: `min(${displaySize * (displayMultiplier / 2)}cqh, ${displaySize * 45}cqw)`,
                   }}
@@ -101,7 +104,7 @@ export const InputGear = memo(
               )}
               {settings.showspeed && settings.showspeedunit && (
                 <div
-                  className="text-slate-400 leading-none"
+                  className={UNIT_CLASS}
                   style={{
                     fontSize: `min(${displaySize * (displayMultiplier / 4)}cqh, ${displaySize * 25}cqw)`,
                   }}

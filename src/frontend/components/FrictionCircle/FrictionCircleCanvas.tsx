@@ -46,7 +46,8 @@ const TRAIL_BANDS = 16;
 // Tailwind's palette, for a canvas that cannot take a class.
 const RING_COLOR = 'rgb(148 163 184 / 0.4)'; // slate-400
 const RIM_COLOR = 'rgb(148 163 184 / 0.7)';
-const SUSTAINED_COLOR = '#c084fc'; // purple-400
+// A neutral under the trail: purple means the session's fastest lap.
+const SUSTAINED_COLOR = '#94a3b8'; // slate-400
 const TRAIL_COLOR = '#ffffff';
 const DOT_COLOR = '#ffffff';
 const DOT_CLAMPED_COLOR = '#fcd34d'; // amber-300

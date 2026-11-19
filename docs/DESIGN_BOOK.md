@@ -79,9 +79,20 @@ light bar); caution and danger take amber and red.
 
 Graphic widgets (Radar, Track Map, Minimap, Blind Spot Monitor, the Flag light
 board) draw their own shapes and have no panel. The Tachometer's and Shift
-Light's readout boxes are near-black chips (`bg-slate-950/(--bg-opacity)`). The
-Timing Tower and the Broadcast graphics keep their own panels (fixed size, own
-themes).
+Light's readout boxes are overlay panels; the Tachometer's rev lights are
+rounded segments, unlit `slate-800`, lit at once in their own colours (the
+car's, or green, yellow, red and purple at the shift point) with no glow, edge
+or fade. The Timing Tower and the Broadcast graphics keep their own panels
+(fixed size, own themes).
+
+Input: each pedal is a thin rounded strip on a bar track, half its column wide,
+its value above and its letter (C, B, T) below as a label. Pedals take the 400
+shades (clutch `blue-400`, brake `red-400`, throttle `green-400`) in the bars
+and the trace alike; an assist at work turns the strip `yellow-500`. The trace
+grid is a faint solid hairline. The default wheel is a faint ring with a short
+arc that turns with the wheel and the angle in its centre; the wheel pictures
+and the ring with the gear inside remain styles. Gear and speed are in the
+overlay font, the unit a grey label.
 
 ### 3.2 Neutrals follow the palette
 
@@ -288,7 +299,7 @@ Do not bundle or fetch Segoe UI; elsewhere the platform UI face stands in.
 
 ## 6. Shape, borders and depth
 
-- Radii: overlay panels `rounded-xl` (12px, part of `overlay-panel`); readout boxes in the Tachometer and Shift Light `rounded-sm`; fields, buttons and licence badges `rounded-md`; larger settings panels and Pit Wall panels `rounded-lg`; dots, thumbs, thin bars and their tracks, a class's colour bar, status pills and scrollbars `rounded-full`; tall bar tracks (Pitlane Helper) `rounded-md`.
+- Radii: overlay panels `rounded-xl` (12px, part of `overlay-panel`); rev light segments `rounded-[30%]`; a fill or flash box inside an overlay panel (the Delta Speed fill, the Shift Light readout) `rounded-lg`; fields, buttons and licence badges `rounded-md`; larger settings panels and Pit Wall panels `rounded-lg`; dots, thumbs, thin bars and their tracks, a class's colour bar, status pills and scrollbars `rounded-full`; tall bar tracks (Pitlane Helper) `rounded-md`.
 - Separate with hairlines and space, not depth. Shadows only for layers that float over the page (menus, popovers, the profile-switch notice).
 - Scrollbars in `.settings-shell`: 6px, thumb `white/12%` (hover `white/24%`), transparent track.
 

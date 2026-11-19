@@ -66,6 +66,18 @@ export const Primary: Story = {
   },
 };
 
+/** Too short for the letters: the bars keep the height they had before them. */
+export const Short: Story = {
+  ...Primary,
+  decorators: [
+    (Story) => (
+      <div className="h-[40px]">
+        <Story />
+      </div>
+    ),
+  ],
+};
+
 export const Zero: Story = {
   ...Primary,
   args: {

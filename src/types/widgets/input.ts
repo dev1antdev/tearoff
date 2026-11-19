@@ -52,7 +52,7 @@ export default defineWidgetManifest({
     steer: {
       enabled: true,
       config: {
-        style: 'default',
+        style: 'dial',
         color: 'light',
       },
       angleReadout: 'beyond270',
@@ -230,7 +230,8 @@ export default defineWidgetManifest({
       type: 'enum',
       label: 'Wheel Style',
       options: [
-        { value: 'default', label: 'Default' },
+        { value: 'dial', label: 'Ring (angle inside)' },
+        { value: 'default', label: 'Classic' },
         { value: 'formula', label: 'Formula' },
         { value: 'lmp', label: 'LMP' },
         { value: 'nascar', label: 'NASCAR' },

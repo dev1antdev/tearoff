@@ -65,7 +65,10 @@ export function createInputSelector(config: InputConfig) {
   const bar = elements.has('bar');
   const steer = elements.has('steer');
   const meter = elements.has('steermeter');
-  const ring = config.steer.config?.style === 'ring';
+  const style = config.steer.config?.style;
+  const ring = style === 'ring';
+  // Both rings draw only the ring: no wheel angle or stationary arc.
+  const plainWheel = !ring && style !== 'dial';
   const gear = elements.has('gear') || (steer && ring);
   const brakeBar = bar && config.bar.includeBrake;
   const throttleBar = bar && config.bar.includeThrottle;
@@ -91,11 +94,10 @@ export function createInputSelector(config: InputConfig) {
   const steerWanted =
     steer || meter || (trace && (config.trace.includeSteer ?? true));
   const manualRangeDeg = positive(config.steer.rangeDeg);
-  // The ring keeps its centre for the gear and speed.
   const wheelAngleWanted =
-    steer && !ring && config.steer.showWheelAngle === true;
+    steer && plainWheel && config.steer.showWheelAngle === true;
   const stationaryWanted =
-    steer && !ring && config.steer.rotationArc === 'stationary';
+    steer && plainWheel && config.steer.rotationArc === 'stationary';
   const gearWanted = gear || !!config.gearFlash?.enabled;
   const speedWanted = gear && config.gear.showspeed;
   // Stored data is untrusted: only a true reads as the Pedals source.

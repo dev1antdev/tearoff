@@ -100,7 +100,7 @@ export const DeltaSpeedBox = memo(
     return (
       <div
         className={[
-          'flex h-full w-full items-center justify-center rounded-sm',
+          'flex h-full w-full items-center justify-center rounded-lg',
           PADDING[density],
           // One step above the InformationBar's text-sm. The bar is reference
           // material you scan between corners; this is meant to be caught

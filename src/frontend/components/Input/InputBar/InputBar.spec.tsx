@@ -166,7 +166,7 @@ describe('InputBar pedal travel', () => {
       'scaleY(1)'
     );
     expect(scaleOf(getByTestId('input-bar-fill-throttle'))).toBe('scaleY(0.4)');
-    expect(getByTestId('input-bar-throttle').textContent).toBe('100');
+    expect(getByTestId('input-value-throttle').textContent).toBe('100');
     expect(getByTestId('input-cap-throttle').dataset.lit).toBe('true');
   });
 
@@ -181,7 +181,7 @@ describe('InputBar pedal travel', () => {
     );
 
     expect(queryByTestId('input-bar-fill-throttle-pedal')).toBeNull();
-    expect(getByTestId('input-bar-throttle').textContent).toBe('40');
+    expect(getByTestId('input-value-throttle').textContent).toBe('40');
   });
 
   it('marks the car strip, not the pedal strip, while an assist works', () => {
@@ -208,7 +208,7 @@ describe('InputBar pedal travel', () => {
       <InputBar throttle={0.4} throttlePedal={1} settings={settings} />
     );
     // The Car source during a cut: the bar is at 40 and the pedal is flat.
-    expect(getByTestId('input-bar-throttle').textContent).toBe('40');
+    expect(getByTestId('input-value-throttle').textContent).toBe('40');
     expect(getByTestId('input-cap-throttle').dataset.lit).toBe('true');
 
     rerender(

@@ -45,6 +45,25 @@ export const Ring: Story = {
   ),
 };
 
+/** The ring with the wheel angle in its centre, the gear shown elsewhere. */
+export const Dial: Story = {
+  args: {
+    angleRad: 0.35,
+    wheelStyle: 'dial',
+  },
+  render: (args) => (
+    <div className="w-40 h-40 bg-slate-800 p-2 rounded-md">
+      <InputSteer {...args} />
+    </div>
+  ),
+};
+
+/** Past 270 degrees the dial shows which way to unwind, as the wheels do. */
+export const DialUnwind: Story = {
+  ...Dial,
+  args: { angleRad: 5.4, wheelStyle: 'dial' },
+};
+
 // Verifies the dial stays a maximal, centred square (and the speed/gear never
 // overlaps the ring) across very different widget aspect ratios.
 export const RingAspectRatios: Story = {
@@ -97,6 +116,7 @@ export const AllWheels: Story = {
       'nascar',
       'ushape',
       'ring',
+      'dial',
     ] as const;
     const colors = ['light', 'dark'] as const;
 

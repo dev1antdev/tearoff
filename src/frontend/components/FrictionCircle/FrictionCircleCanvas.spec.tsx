@@ -51,7 +51,7 @@ const RADIUS = 86;
 const WHITE = '#ffffff';
 const AMBER = '#fcd34d';
 const SLATE = '#64748b';
-const PURPLE = '#c084fc';
+const SUSTAINED = '#94a3b8';
 
 interface Stroke {
   color: string;
@@ -359,40 +359,42 @@ describe('FrictionCircleCanvas', () => {
     expect(recorded.frames.length - before).toBeGreaterThanOrEqual(2);
   });
 
-  it('draws the sustained grip as a dashed purple ring', () => {
+  it('draws the sustained grip as a dashed neutral ring', () => {
     mount();
     frame();
     send({ latG: 1, sustainedLatG: 2.31 });
     frame();
 
-    const ring = lastFrame().strokes.find((stroke) => stroke.color === PURPLE);
+    const ring = lastFrame().strokes.find(
+      (stroke) => stroke.color === SUSTAINED
+    );
     expect(ring).toMatchObject({ dashed: true, width: 2 });
     expect(ring?.arcs[0][2]).toBeCloseTo((2.31 / 3.5) * RADIUS, 6);
   });
 
   it('leaves the sustained ring out when it is zero, past the scale or off', () => {
-    const purple = () =>
-      lastFrame().strokes.filter((stroke) => stroke.color === PURPLE);
+    const sustained = () =>
+      lastFrame().strokes.filter((stroke) => stroke.color === SUSTAINED);
     const view = mount();
     frame();
 
     send({ latG: 1, sustainedLatG: 0 });
     frame();
-    expect(purple()).toEqual([]);
+    expect(sustained()).toEqual([]);
 
     send({ latG: 1.1, sustainedLatG: 3.6 });
     frame();
-    expect(purple()).toEqual([]);
+    expect(sustained()).toEqual([]);
 
     send({ latG: 1.2, sustainedLatG: 2 });
     frame();
-    expect(purple()).toHaveLength(1);
+    expect(sustained()).toHaveLength(1);
 
     view.rerender(
       <FrictionCircleCanvas {...defaults} showSustainedRing={false} />
     );
     frame();
-    expect(purple()).toEqual([]);
+    expect(sustained()).toEqual([]);
   });
 
   it('leaves the rings and the trail out when they are switched off', () => {
