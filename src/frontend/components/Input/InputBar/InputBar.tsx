@@ -2,16 +2,20 @@ import { memo, useMemo } from 'react';
 import { SteeringWheelIcon } from '@phosphor-icons/react';
 import { getColor } from '@irdashies/utils/colors';
 
+// The 400 shades, as the trace draws them: a pedal is read, not alarming.
 const INPUT_CONFIG = [
-  { key: 'clutch', color: getColor('blue') },
-  { key: 'brake', color: getColor('red') },
-  { key: 'throttle', color: getColor('green') },
+  { key: 'clutch', letter: 'C', color: getColor('blue', 400) },
+  { key: 'brake', letter: 'B', color: getColor('red', 400) },
+  { key: 'throttle', letter: 'T', color: getColor('green', 400) },
 ] as const;
 
 /** Pedal travel at or above this counts as flat, allowing for sensor noise. */
 const FULL_TRAVEL = 0.999;
 
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
+
+/** A bar is a thin rounded strip, half its column's width. */
+const STRIP = 'w-1/2';
 
 export interface InputBarProps {
   /** The pedals of the chosen input source. */
@@ -75,7 +79,7 @@ export const InputBar = memo(
         if (key === 'throttle') return includeThrottle;
         if (key === 'brake') return includeBrake;
         return false;
-      }).map(({ key, color }) => {
+      }).map(({ key, letter, color }) => {
         const shown =
           key === 'clutch' ? clutch : key === 'brake' ? brake : throttle;
         const pedal =
@@ -102,6 +106,7 @@ export const InputBar = memo(
               : undefined;
         return {
           key,
+          letter,
           value,
           pedal: split ? pedal : undefined,
           car: split ? car : undefined,
@@ -136,15 +141,26 @@ export const InputBar = memo(
     return (
       <div className="flex gap-1 w-full h-full relative justify-center">
         {activeInputs.map(
-          ({ key, value, pedal, car, baseColor, color, mark, flat }) => (
+          ({
+            key,
+            letter,
+            value,
+            pedal,
+            car,
+            baseColor,
+            color,
+            mark,
+            flat,
+          }) => (
             <div
               key={key}
               data-testid={`input-bar-${key}`}
-              className="flex flex-col relative min-w-0 h-full"
+              className="flex flex-col items-center relative min-w-0 h-full"
               style={{ aspectRatio: '1 / 4', width: 'auto' }}
             >
               <div
-                className={`text-xs text-center flex justify-center ${value === 0 ? 'text-slate-400' : 'text-white'}`}
+                data-testid={`input-value-${key}`}
+                className={`text-xs font-semibold tabular-nums text-center ${value === 0 ? 'text-slate-400' : 'text-white'}`}
               >
                 {(value * 100).toFixed(0)}
               </div>
@@ -152,15 +168,17 @@ export const InputBar = memo(
                 <div
                   data-testid={`input-cap-${key}`}
                   data-lit={flat}
-                  className="h-[3px] mb-px flex-none bg-white/15"
+                  className={`${STRIP} h-[3px] mb-px flex-none rounded-full bg-white/15`}
                   style={flat ? { backgroundColor: baseColor } : undefined}
                 />
               )}
-              <div className="flex-1 flex gap-px relative min-h-0">
+              <div
+                className={`${STRIP} flex-1 flex gap-px relative min-h-0 rounded-full bg-slate-900/70`}
+              >
                 {pedal !== undefined && (
                   <div
                     data-testid={`input-bar-fill-${key}-pedal`}
-                    className="h-full w-1/4 flex-none origin-bottom opacity-60 transition-transform duration-50 ease-out"
+                    className="h-full w-1/4 flex-none origin-bottom rounded-full opacity-60 transition-transform duration-50 ease-out"
                     style={{
                       transform: `scaleY(${clamp(pedal)})`,
                       backgroundColor: baseColor,
@@ -169,7 +187,7 @@ export const InputBar = memo(
                 )}
                 <div
                   data-testid={`input-bar-fill-${key}`}
-                  className="h-full flex-1 min-w-0 origin-bottom transition-transform duration-50 ease-out"
+                  className="h-full flex-1 min-w-0 origin-bottom rounded-full transition-transform duration-50 ease-out"
                   style={{
                     transform: `scaleY(${clamp(car ?? value)})`,
                     backgroundColor: color,
@@ -181,13 +199,14 @@ export const InputBar = memo(
                   </div>
                 )}
               </div>
+              <div className="overlay-label mt-0.5 leading-none">{letter}</div>
             </div>
           )
         )}
         {force !== undefined && (
           <div
             data-testid="input-bar-ffb"
-            className="flex flex-col relative min-w-0 h-full"
+            className="flex flex-col items-center relative min-w-0 h-full"
             style={{ aspectRatio: '1 / 4', width: 'auto' }}
           >
             {/* Where the pedals have their number, so it is not read as a
@@ -196,16 +215,20 @@ export const InputBar = memo(
               <SteeringWheelIcon size={12} />
             </div>
             {showMaxMarker && <div className="h-[3px] mb-px flex-none" />}
-            <div className="flex-1 flex relative min-h-0">
+            <div
+              className={`${STRIP} flex-1 flex relative min-h-0 rounded-full bg-slate-900/70`}
+            >
               <div
                 data-testid="input-bar-fill-ffb"
                 data-clipping={force >= 1}
-                className={`h-full flex-1 min-w-0 origin-bottom transition-transform duration-50 ease-out ${
+                className={`h-full flex-1 min-w-0 origin-bottom rounded-full transition-transform duration-50 ease-out ${
                   force >= 1 ? 'bg-amber-400' : 'bg-slate-400'
                 }`}
                 style={{ transform: `scaleY(${clamp(force)})` }}
               />
             </div>
+            {/* The pedals' letter row, so the bars end level. */}
+            <div className="overlay-label mt-0.5 leading-none">{'\u00a0'}</div>
           </div>
         )}
       </div>

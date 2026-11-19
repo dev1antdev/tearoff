@@ -139,4 +139,23 @@ describe('InputSteer', () => {
     expect(queryByTestId('input-steer-wheel-angle')).toBeNull();
     expect(screen.queryByText('-119°')).toBeNull();
   });
+
+  it('shows the angle in the dial centre, not the gear', () => {
+    const { getByTestId } = render(
+      <InputSteer
+        angleRad={radians(119)}
+        wheelStyle="dial"
+        gear={3}
+        gearSettings={{
+          size: 100,
+          unit: 'auto',
+          showspeed: true,
+          showspeedunit: true,
+        }}
+      />
+    );
+
+    expect(getByTestId('input-steer-dial-angle').textContent).toBe('-119°');
+    expect(screen.queryByText('3')).toBeNull();
+  });
 });

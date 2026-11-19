@@ -244,7 +244,7 @@ describe('InputTrace Canvas', () => {
     drawFrame();
     const drawn = paths(view.container);
     expect(drawn.map(({ kind, color }) => [kind, color])).toEqual([
-      ['stroke', '#666'],
+      ['stroke', 'rgb(255 255 255 / 0.08)'],
       ['stroke', 'slate'],
       ['stroke', 'blue'],
       ['stroke', 'green'],
@@ -275,7 +275,7 @@ describe('InputTrace Canvas', () => {
     // The fill under each curve, the curve, then its highlight: the
     // throttle's set first, the brake's on top.
     expect(drawn.map(({ kind, color }) => [kind, color])).toEqual([
-      ['stroke', '#666'],
+      ['stroke', 'rgb(255 255 255 / 0.08)'],
       ['stroke', 'slate'],
       ['stroke', 'blue'],
       ['fill', 'yellow'],
@@ -365,7 +365,7 @@ describe('InputTrace Canvas', () => {
       const drawn = paths(view.container);
       expect(
         drawn.filter(({ kind }) => kind === 'stroke').map(({ color }) => color)
-      ).toEqual(['#666', 'slate']);
+      ).toEqual(['rgb(255 255 255 / 0.08)', 'slate']);
       expect(drawn.filter(({ kind }) => kind === 'fill')).toHaveLength(
         absStyle === 'bar' ? 1 : 0
       );

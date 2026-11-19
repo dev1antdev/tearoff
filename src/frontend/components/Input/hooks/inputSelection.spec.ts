@@ -434,8 +434,9 @@ describe('Input selection: the steering', () => {
     expect(createInputSelector(config())(turned).steerRangeDeg).toBeUndefined();
   });
 
-  it('reads the front wheel angle only when asked, and never for the ring', () => {
+  it('reads the front wheel angle only when asked, and never for the rings', () => {
     const settings = config();
+    settings.steer.config = { style: 'default', color: 'light' };
     expect(
       createInputSelector(settings)(turned).frontWheelAngleDeg
     ).toBeUndefined();
@@ -454,10 +455,15 @@ describe('Input selection: the steering', () => {
     expect(
       createInputSelector(settings)(turned).frontWheelAngleDeg
     ).toBeUndefined();
+    settings.steer.config = { style: 'dial', color: 'light' };
+    expect(
+      createInputSelector(settings)(turned).frontWheelAngleDeg
+    ).toBeUndefined();
   });
 
   it('says whether the car is stationary only for an arc drawn at a standstill', () => {
     const settings = config();
+    settings.steer.config = { style: 'default', color: 'light' };
     expect(createInputSelector(settings)(turned).stationary).toBeUndefined();
     settings.steer.rotationArc = 'always';
     expect(createInputSelector(settings)(turned).stationary).toBeUndefined();

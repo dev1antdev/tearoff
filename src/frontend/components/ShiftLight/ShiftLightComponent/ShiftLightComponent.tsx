@@ -151,7 +151,7 @@ export const ShiftLight = ({
       {shouldShowRpmBox && (
         <div
           data-testid="shiftlight-box"
-          className={`bg-slate-950/(--bg-opacity) flex relative items-center justify-center rounded-sm`}
+          className="overlay-panel flex relative items-center justify-center"
           style={{
             ['--bg-opacity' as string]: `${opacity ?? 80}%`,
             padding: `1px`,
@@ -161,11 +161,10 @@ export const ShiftLight = ({
 
           <div
             id="rpm-text"
-            className={`bg-slate-950/(--bg-opacity) text-2xl flex relative font-mono font-bold text-white px-4 mx-2 rounded-sm transition-colors duration-200 whitespace-nowrap justify-center items-center`}
+            className="text-2xl flex relative font-bold tabular-nums text-white px-4 mx-2 rounded-lg transition-colors duration-200 whitespace-nowrap justify-center items-center"
             style={{
               ...getRpmBoxStyle(),
               height: '3em',
-              ['--bg-opacity' as string]: `${opacity ?? 80}%`,
               padding: `1px`,
             }}
           >
@@ -176,7 +175,9 @@ export const ShiftLight = ({
                 ) : (
                   <>
                     {Math.round(clampedRpm).toLocaleString('en-US')}
-                    <span className="text-[0.6em] ml-2">RPM</span>
+                    <span className="text-[0.6em] font-semibold tracking-wider text-slate-400 ml-2">
+                      RPM
+                    </span>
                   </>
                 )}
               </>

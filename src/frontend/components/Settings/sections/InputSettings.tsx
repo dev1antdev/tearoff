@@ -504,16 +504,18 @@ const SingleInputWidgetSettings = ({ widgetId }: { widgetId: string }) => {
 
                       <SettingProp path="steer.rangeDeg" />
 
-                      {/* The ring keeps its centre for the gear and speed. */}
-                      {config.steer.config?.style !== 'ring' && (
-                        <>
-                          <SettingProp path="steer.angleReadout" />
+                      {/* The rings keep their centre for the gear and
+                          speed, or the angle, and the arc is the mark. */}
+                      {config.steer.config?.style !== 'ring' &&
+                        config.steer.config?.style !== 'dial' && (
+                          <>
+                            <SettingProp path="steer.angleReadout" />
 
-                          <SettingProp path="steer.rotationArc" />
+                            <SettingProp path="steer.rotationArc" />
 
-                          <SettingProp path="steer.showWheelAngle" />
-                        </>
-                      )}
+                            <SettingProp path="steer.showWheelAngle" />
+                          </>
+                        )}
                     </SettingsSection>
 
                     {/* Steering Meter Settings */}

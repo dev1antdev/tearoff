@@ -56,7 +56,7 @@ const Figure = memo(({ label, value, corner }: FigureProps) => {
         current ? 'text-sm font-bold text-white' : 'text-xs text-slate-300'
       } ${CORNER_CLASS[corner]}`}
     >
-      <span className="text-[0.6em] font-semibold uppercase text-slate-300">
+      <span className="text-[0.6em] font-semibold uppercase tracking-wider text-slate-400">
         {label}
       </span>
       <span>{value}</span>

@@ -29,16 +29,17 @@ const TRACE_HEIGHT = 100;
 // Match the settings UI limit and bound allocations from external configs.
 const MAX_TRACE_SAMPLES = 1000;
 const GRID_TICKS = [0, 0.25, 0.5, 0.75, 1];
-const GRID_DASH = [2, 2];
-const SOLID_DASH: number[] = [];
+// A faint solid hairline: the grid is a reference, not a reading.
+const GRID_COLOR = 'rgb(255 255 255 / 0.08)';
 const DEFAULT_SETTINGS: Partial<InputTraceSettings> = {};
-const BRAKE_COLOR = getColor('red');
+// The 400 shades, as the bars draw them.
+const BRAKE_COLOR = getColor('red', 400);
 // One colour for an assist at work, on whichever pedal's curve it is: ABS on
 // the brake and traction control on the throttle.
 const ABS_COLOR = getColor('yellow', 500);
 const TC_COLOR = ABS_COLOR;
-const THROTTLE_COLOR = getColor('green');
-const CLUTCH_COLOR = getColor('blue');
+const THROTTLE_COLOR = getColor('green', 400);
+const CLUTCH_COLOR = getColor('blue', 400);
 const STEER_COLOR = getColor('slate', 300);
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
 
@@ -205,8 +206,7 @@ export class InputTraceDrawing {
   private drawGrid(): void {
     const { ctx } = this;
     ctx.lineWidth = 1;
-    ctx.strokeStyle = '#666';
-    ctx.setLineDash(GRID_DASH);
+    ctx.strokeStyle = GRID_COLOR;
     ctx.beginPath();
     for (const tick of GRID_TICKS) {
       const y = this.y(tick);
@@ -214,7 +214,6 @@ export class InputTraceDrawing {
       ctx.lineTo(TRACE_WIDTH, y);
     }
     ctx.stroke();
-    ctx.setLineDash(SOLID_DASH);
   }
 
   /** Painting never advances history: resizes and scale changes only repaint. */

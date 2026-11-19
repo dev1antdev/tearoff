@@ -510,7 +510,8 @@ export interface FlatTrackMapConfig {
 }
 
 export interface SteerConfig {
-  style: 'formula' | 'lmp' | 'nascar' | 'ushape' | 'default' | 'ring';
+  /** `ring` keeps the gear and speed in its centre, `dial` the angle. */
+  style: 'formula' | 'lmp' | 'nascar' | 'ushape' | 'default' | 'ring' | 'dial';
   color: 'dark' | 'light';
 }
 
