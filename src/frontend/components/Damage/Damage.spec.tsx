@@ -217,7 +217,9 @@ describe('Damage', () => {
       expect(classOf('damage-wheel-1')).toContain('fill-none');
       expect(classOf('damage-wheel-1')).toContain('stroke-red-500');
       expect(classOf('damage-wheel-2')).toContain('fill-red-500');
-      expect(classOf('damage-wheel-3')).toContain('fill-none');
+      expect(classOf('damage-wheel-3')).toContain('fill-slate-950');
+      expect(classOf('damage-wheel-3')).toContain('stroke-dasharray');
+      expect(classOf('damage-wheel-1')).not.toContain('stroke-dasharray');
     });
 
     it('pulses what has come off, and nothing else', () => {

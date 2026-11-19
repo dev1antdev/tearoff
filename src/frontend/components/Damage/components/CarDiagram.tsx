@@ -80,8 +80,13 @@ const ZONE_CLASS: Record<string, string> = {
   '3': 'stroke-red-500 stroke-[3] [stroke-dasharray:3_3]',
 };
 
-/** A wheel that has come off: an empty place, outlined in red. */
-const DETACHED_CLASS = 'fill-none stroke-red-500 stroke-[1.5]';
+/**
+ * A wheel that has come off: a dark place with a dashed red outline, as a
+ * body piece that has come off is dashed. Apart from a flat tyre, which is a
+ * solid red rim; dark, so an impact wedge under it does not show through.
+ */
+const DETACHED_CLASS =
+  'fill-slate-950 stroke-red-500 stroke-[1.5] [stroke-dasharray:2_1.5]';
 
 /** A healthy wheel is neutral: colour is for damage. */
 const WHEEL_CLASS: Record<WheelState, string> = {
