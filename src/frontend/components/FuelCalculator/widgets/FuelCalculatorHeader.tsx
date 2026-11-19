@@ -61,10 +61,6 @@ export const FuelCalculatorHeader: React.FC<FuelCalculatorWidgetProps> = ({
       ? `${widgetStyle.fontSize}px`
       : '14px';
 
-  const ownValueSize = Boolean(
-    widgetStyle.valueFontSize || widgetStyle.fontSize
-  );
-
   if (!fuelData) return null;
 
   const stopsRemaining = fuelData.stopsRemaining ?? 0;
@@ -93,14 +89,12 @@ export const FuelCalculatorHeader: React.FC<FuelCalculatorWidgetProps> = ({
         : 'px-2 py-1';
 
   return (
-    // One line, as the header always was, so a layout sized for it keeps
-    // fitting. Next pit and Stops keep their width; the headline's column is
-    // a size container, and the headline shrinks to the space left in it
-    // rather than push them, its unit wrapping below it when the number needs
-    // the whole column (as the old header's did).
+    // The header keeps its size and layout from before the redesign, so a
+    // layout sized for it keeps fitting: the laps at the value size, Next pit
+    // and Stops beside them on one line.
     <div className={paddingClass}>
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-x-3">
-        <div className="@container min-w-0">
+        <div>
           <div
             className="flex items-center gap-1 overlay-label"
             style={{ fontSize: labelFontSize }}
@@ -117,28 +111,26 @@ export const FuelCalculatorHeader: React.FC<FuelCalculatorWidgetProps> = ({
             )}
             <span>To go</span>
           </div>
-          {/* The headline, its unit small and grey: the display-sm step, or
-              1.6 times the box's own value size when the box sets one, and
-              never more than its column leaves it: 18cqi lets the widest
-              range ("104-106") and the dot fit the column. */}
+          {/* The laps at the value size, the unit smaller and grey, one run
+              of text beside the dot that wraps as the old "104-106 LAPS"
+              did in a narrow column. */}
           <div
-            className={`flex flex-wrap items-baseline gap-x-1 ${confConfig.color} font-bold tabular-nums leading-none`}
-            style={{
-              fontSize: `min(${ownValueSize ? `calc(${valueFontSize} * 1.6)` : 'var(--text-display-sm)'}, 18cqi)`,
-            }}
+            className={`flex items-center gap-1 ${confConfig.color} font-bold tabular-nums`}
+            style={{ fontSize: valueFontSize }}
             title={`${confidence} confidence`}
           >
-            <span className="inline-flex items-center gap-1 whitespace-nowrap">
-              <span
-                className={`w-1.5 h-1.5 shrink-0 rounded-full ${confConfig.bg} ${confConfig.pulse}`}
-              />
+            <span
+              className={`w-1.5 h-1.5 shrink-0 rounded-full ${confConfig.bg} ${confConfig.pulse}`}
+            />
+            <span>
               {lapsText}
+              {hasLaps && (
+                <span className="text-[0.75em] font-semibold text-slate-400">
+                  {' '}
+                  laps
+                </span>
+              )}
             </span>
-            {hasLaps && (
-              <span className="text-[0.5em] font-semibold text-slate-400">
-                laps
-              </span>
-            )}
           </div>
         </div>
         <div className="flex items-baseline gap-1 whitespace-nowrap pb-px">

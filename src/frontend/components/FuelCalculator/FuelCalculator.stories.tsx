@@ -154,8 +154,8 @@ export const Primary: Story = {
 };
 
 /**
- * Guards a short header-only overlay (275 x 50): the headline, Next pit and
- * Stops stay on one line inside the frame, as they did before the redesign.
+ * Guards a short header-only overlay (275 x 50): the laps, Next pit and Stops
+ * stay on one line inside the frame, as they did before the redesign.
  */
 export const ShortHeader: Story = {
   decorators: [
@@ -219,6 +219,41 @@ export const NarrowHeaderRange: Story = {
   },
 };
 
+/** A short estimate in a narrow header-only overlay (210 x 110) stays readable. */
+export const NarrowShortEstimate: Story = {
+  decorators: [
+    (Story) => (
+      <MockFuelDataProvider>
+        <div className="h-[110px] w-[210px] overflow-hidden [&>div]:h-full">
+          <Story />
+        </div>
+      </MockFuelDataProvider>
+    ),
+  ],
+  args: {
+    ...baselineArgs,
+    layoutTree: {
+      id: 'header-only',
+      type: 'split',
+      direction: 'col',
+      children: [
+        {
+          id: 'header',
+          type: 'box',
+          direction: 'col',
+          widgets: ['fuelHeader'],
+        },
+      ],
+    },
+    previewData: {
+      ...demoFuelData,
+      lapsRemaining: 37.4,
+      pitWindowOpen: 16,
+      stopsRemaining: 2,
+    },
+  },
+};
+
 export const SideBySideShort: Story = {
   decorators: [
     (Story) => (
@@ -263,7 +298,7 @@ export const SideBySideShort: Story = {
 
 /**
  * Guards the header at a narrow width: a long medium-confidence estimate
- * shrinks to the space its column leaves, and never overlaps Next pit.
+ * keeps clear of Next pit, its unit wrapping below it when needed.
  */
 export const NarrowHeader: Story = {
   decorators: [
