@@ -25,7 +25,10 @@ Wall panel uses the overlay scale and palette, exactly as it does on track. A
 Pit Wall or Gantry frame is the hosted widget's panel: inside it the widget's
 `overlay-panel` loses its own edge and corners (the edge turns transparent),
 so there is one box, not two; a warning colour the widget sets on its edge (the
-Fuel Calculator's) still shows.
+Fuel Calculator's) still shows. A widget drawn as a stack of panels (the
+session bars above and below Standings and Relative, `SessionPanels`, marked
+`data-panel-stack`) closes up inside a frame: its panels sit flush, as bands of
+one box.
 
 The app is dark only (`color-scheme: dark`).
 
@@ -51,7 +54,7 @@ The app is dark only (`color-scheme: dark`).
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Widget panel     | `overlay-panel` (`theme.css`): `bg-slate-950/(--bg-opacity)`, a 1px `border-white/9` edge, `rounded-xl` (12px); `p-2` (compact mode drops it), `text-white`  |
 | Rows             | No background. A hairline between them: `border-t overlay-divider first:border-t-0`; on a table row, on its cells (`[&>td]:border-t [&>td]:overlay-divider`) |
-| The player's row | An amber tint (`bg-yellow-500/(--player-row-opacity)` in Standings and Relative) and `text-amber-300`                                                        |
+| The player's row | An amber tint (`bg-amber-500/(--player-row-opacity)` in Standings and Relative) and `text-amber-300`, the position included                                  |
 | Divider          | `overlay-divider` (a `white/5` border colour), between sections of one panel                                                                                 |
 | Chip / scrim     | `bg-slate-950/NN` (behind a chip, a warning pill, a readout over a graphic)                                                                                  |
 | Inner tile       | Avoid a tile inside a panel: group with space and a divider. Where one is needed, `bg-slate-900/70`, `rounded-md`                                            |
@@ -113,8 +116,9 @@ in the tank) stays white even when it is good news.
 These come from the simulator's own vocabulary and are not themed.
 
 - **Flags** (`getFlagColor`): green `green-500`, yellow and debris `yellow-400`, blue `blue-500`, red `red-500`, white and chequered white, black and disqualified black, meatball `orange-500`, none `gray-400`. A readout that works like a traffic light (the pit-lane speed: green, amber, red) uses the same -500 shades.
-- **Licence badges** (`DriverRatingBadge`): fill and 2px border per class, white `text-xs`, `rounded-md`. R `red-800`/`red-500`, D `orange-700`/`orange-500`, C `yellow-700`/`yellow-500`, B `green-800`/`green-500`, A `blue-800`/`blue-500`, P `purple-800`/`purple-500`, W `zinc-500`/`zinc-100`.
-- **Class colours** (`getTailwindStyle`): iRacing ranks classes fastest first as yellow, blue, red, cyan, pink, purple, amber, lime; a class renders in the -500 shade on headers and borders and the -800 shade on the car-number chip. Le Mans Ultimate classes keep their exact livery values (Hypercar `#ff000a`, LMP2 `#0690ff`, LMP3 `#763993`, LMGT3 `#00ff6a`, LMGTE `#fff600`); the chip shows them at 30% with a solid border. An unknown class falls back to stone.
+- **Licence badges** (`DriverRatingBadge`): the licence colour as a 1px outline at 70% and a 12% tint, the text in its light shade, `text-xs`, `rounded-md`: R `red-500`/`red-300`, D `orange-500`/`orange-300`, C `yellow-500`/`yellow-300`, B `green-500`/`green-300`, A `blue-500`/`blue-300`, P `purple-500`/`purple-300`, W `zinc-100`. Minimal keeps a faint outline and the coloured text. The iRating beside it is `bg-white/8 text-slate-200`.
+- **Status badges** (`DriverStatusBadges`: PIT, OUT, DNF, …): a 1px outline in the status colour, `rounded-full`.
+- **Class colours** (`getTailwindStyle`): iRacing ranks classes fastest first as yellow, blue, red, cyan, pink, purple, amber, lime; a class renders in the -500 shade as a short bar before the class name and as the car number's left border; the number itself is `slate-400`. Filling the class name, the class info and the number with the class colour (the -500 and -800 shades) are settings, off by default. Le Mans Ultimate classes keep their exact livery values (Hypercar `#ff000a`, LMP2 `#0690ff`, LMP3 `#763993`, LMGT3 `#00ff6a`, LMGTE `#fff600`); the chip shows them at 30% with a solid border. An unknown class falls back to stone.
 - **LMU rank badges** (`LmuRatingBadge`) and the penalty badge's exact `#FF0000`.
 
 ### 3.5 Type scale
@@ -148,7 +152,7 @@ of 1.
 
 Faces: Figtree by default; Lato, Noto Sans, Inter and Roboto are the driver's
 alternatives, all from Google Fonts. A profile still on Lato, the default
-before Figtree, moves to Figtree once when it loads (`figtreeDefaultApplied`);
+before Figtree, moves to Figtree once when it loads (`redesignDefaultsApplied`);
 picking Lato afterwards sticks. The canvas widgets (Radar, Minimap) draw their
 text in Lato. Weights run from light to extrabold, normal by default.
 
@@ -270,7 +274,7 @@ Do not bundle or fetch Segoe UI; elsewhere the platform UI face stands in.
 
 ## 6. Shape, borders and depth
 
-- Radii: overlay panels `rounded-xl` (12px, part of `overlay-panel`); readout boxes in the Tachometer and Shift Light `rounded-sm`; fields, buttons and licence badges `rounded-md`; larger settings panels and Pit Wall panels `rounded-lg`; dots, thumbs, bars that fill and scrollbars `rounded-full`.
+- Radii: overlay panels `rounded-xl` (12px, part of `overlay-panel`); readout boxes in the Tachometer and Shift Light `rounded-sm`; fields, buttons and licence badges `rounded-md`; larger settings panels and Pit Wall panels `rounded-lg`; dots, thumbs, bars that fill, a class's colour bar, status pills and scrollbars `rounded-full`.
 - Separate with hairlines and space, not depth. Shadows only for layers that float over the page (menus, popovers, the profile-switch notice).
 - Scrollbars in `.settings-shell`: 6px, thumb `white/12%` (hover `white/24%`), transparent track.
 
@@ -300,7 +304,7 @@ kept for units and empty values.
 
 ## 9. Icons
 
-- Phosphor through `@phosphor-icons/react`. Regular weight in settings; `weight="light"` in overlays as each is redone (section 3.6), with `weight="fill"` or `weight="bold"` only where an icon has to hold up at a small size. 16px in buttons and rows; icons take the text colour.
+- Phosphor through `@phosphor-icons/react`. Regular weight in settings; `weight="light"` in overlays as each is redone (section 3.6): wrap the widget in `<IconContext.Provider value={OVERLAY_ICONS}>` (`src/frontend/utils/overlayIcons.ts`) rather than setting the weight icon by icon, with `weight="fill"` or `weight="bold"` only where an icon has to hold up at a small size. 16px in buttons and rows; icons take the text colour.
 - Map icon names chosen at runtime through `src/frontend/utils/phosphorIconMap.ts`.
 - The one custom glyph is the finished-car checkered flag in `DriverStatusBadges.tsx`: Phosphor's `FlagCheckered` cannot be read at badge size.
 

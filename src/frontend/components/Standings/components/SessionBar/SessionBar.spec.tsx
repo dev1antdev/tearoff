@@ -94,6 +94,31 @@ describe('SessionBar', () => {
   });
 });
 
+describe('SessionBar opacity', () => {
+  it.each([30, 90])(
+    'tints the standalone strip by the session bar opacity (%i%%)',
+    (opacity) => {
+      const { container } = render(
+        <SessionBar settings={baseSettings} standalone opacity={opacity} />
+      );
+
+      const bar = container.firstElementChild as HTMLElement;
+      expect(bar.className).toContain('bg-slate-900/(--fg-opacity)');
+      expect(bar.style.getPropertyValue('--fg-opacity')).toBe(`${opacity}%`);
+    }
+  );
+
+  it('is a panel of its own inside a widget, see-through by the same opacity', () => {
+    const { container } = render(
+      <SessionBar settings={baseSettings} opacity={40} />
+    );
+
+    const bar = container.firstElementChild as HTMLElement;
+    expect(bar.className).toContain('overlay-panel');
+    expect(bar.style.getPropertyValue('--bg-opacity')).toBe('40%');
+  });
+});
+
 describe('SessionBar untrusted configuration', () => {
   it.each([[42], ['missing'], ['__proto__', 'constructor'], [null], [{}]])(
     'uses header and footer defaults for an invalid-only order %j',

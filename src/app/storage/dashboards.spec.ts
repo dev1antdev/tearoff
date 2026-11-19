@@ -699,7 +699,7 @@ describe('dashboards', () => {
     });
   });
 
-  describe('Lato to Figtree default font', () => {
+  describe('moving onto the new overlay look', () => {
     it('moves a profile still on Lato, the old default, to Figtree once', () => {
       const result = withDashboardDefaults({
         widgets: [],
@@ -709,7 +709,7 @@ describe('dashboards', () => {
       expect(result.generalSettings).toMatchObject({
         fontType: 'figtree',
         fontSize: 'lg',
-        figtreeDefaultApplied: true,
+        redesignDefaultsApplied: true,
       });
       expect(withDashboardDefaults(result)).toEqual(result);
     });
@@ -717,7 +717,7 @@ describe('dashboards', () => {
     it('keeps Lato when it was picked after the move', () => {
       const result = withDashboardDefaults({
         widgets: [],
-        generalSettings: { fontType: 'lato', figtreeDefaultApplied: true },
+        generalSettings: { fontType: 'lato', redesignDefaultsApplied: true },
       });
 
       expect(result.generalSettings?.fontType).toBe('lato');
@@ -731,7 +731,7 @@ describe('dashboards', () => {
 
       expect(result.generalSettings).toMatchObject({
         fontType: 'inter',
-        figtreeDefaultApplied: true,
+        redesignDefaultsApplied: true,
       });
     });
 
@@ -739,6 +739,83 @@ describe('dashboards', () => {
       const result = withDashboardDefaults({ widgets: [] });
 
       expect(result.generalSettings?.fontType).toBe('figtree');
+    });
+
+    const filledConfig = {
+      stylingOptions: {
+        driverPosition: { background: true },
+        driverNumber: { background: true, border: true },
+      },
+      classHeaderStyle: {
+        className: { colorBackground: true },
+        classInfo: { colorBackground: false },
+      },
+    };
+    const configOf = (result: DashboardLayout, id: string) =>
+      result.widgets.find((w) => w.id === id)?.config as typeof filledConfig;
+
+    it('turns the old filled Relative cells off once', () => {
+      const result = withDashboardDefaults({
+        widgets: [
+          {
+            id: 'relative-2',
+            type: 'relative',
+            enabled: true,
+            config: filledConfig,
+          },
+        ],
+      } as unknown as DashboardLayout);
+
+      const config = configOf(result, 'relative-2');
+      expect(config.stylingOptions.driverPosition.background).toBe(false);
+      expect(config.stylingOptions.driverNumber).toEqual({
+        background: false,
+        border: true,
+      });
+      expect(config.classHeaderStyle.className.colorBackground).toBe(false);
+      expect(config.classHeaderStyle.classInfo.colorBackground).toBe(false);
+      expect(withDashboardDefaults(result)).toEqual(result);
+    });
+
+    it('keeps a fill the driver switched on in Standings, which never stored one by default', () => {
+      const result = withDashboardDefaults({
+        widgets: [{ id: 'standings', enabled: true, config: filledConfig }],
+      } as unknown as DashboardLayout);
+
+      const config = configOf(result, 'standings');
+      expect(config.stylingOptions.driverNumber.background).toBe(true);
+      expect(config.classHeaderStyle.className.colorBackground).toBe(true);
+    });
+
+    it('gives Standings without a stored fill the unfilled defaults', () => {
+      const result = withDashboardDefaults({
+        widgets: [{ id: 'standings', enabled: true, config: {} }],
+      } as unknown as DashboardLayout);
+
+      const config = configOf(result, 'standings');
+      expect(config.stylingOptions.driverNumber.background).toBe(false);
+      expect(config.classHeaderStyle.className.colorBackground).toBe(false);
+    });
+
+    it('keeps a fill switched on after the move', () => {
+      const result = withDashboardDefaults({
+        generalSettings: { redesignDefaultsApplied: true },
+        widgets: [{ id: 'relative', enabled: true, config: filledConfig }],
+      } as unknown as DashboardLayout);
+
+      const config = configOf(result, 'relative');
+      expect(config.stylingOptions.driverNumber.background).toBe(true);
+      expect(config.classHeaderStyle.className.colorBackground).toBe(true);
+    });
+
+    it('leaves the fills of other widgets alone', () => {
+      const result = withDashboardDefaults({
+        widgets: [{ id: 'battle', enabled: true, config: filledConfig }],
+      } as unknown as DashboardLayout);
+
+      expect(
+        configOf(result, 'battle').stylingOptions.driverNumber.background
+      ).toBe(true);
     });
   });
 

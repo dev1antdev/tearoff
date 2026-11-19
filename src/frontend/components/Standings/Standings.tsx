@@ -1,7 +1,7 @@
 import { Fragment, useMemo } from 'react';
 import { DriverClassHeader } from './components/DriverClassHeader/DriverClassHeader';
 import { DriverInfoRow } from './components/DriverInfoRow/DriverInfoRow';
-import { SessionBar } from './components/SessionBar/SessionBar';
+import { SessionPanels } from './components/SessionPanels/SessionPanels';
 
 import { TitleBar } from './components/TitleBar/TitleBar';
 import {
@@ -339,7 +339,21 @@ export const Standings = () => {
   }
 
   return (
-    <div className="w-full h-full overflow-hidden">
+    <SessionPanels
+      header={
+        !holding && (settings?.headerBar?.enabled ?? true)
+          ? settings?.headerBar
+          : undefined
+      }
+      footer={
+        !holding && (settings?.footerBar?.enabled ?? true)
+          ? settings?.footerBar
+          : undefined
+      }
+      barOpacity={settings?.foreground?.opacity}
+      compact={isCompact}
+      fullHeight
+    >
       <div
         className={`overlay-panel text-white ${!isCompact ? 'p-2' : ''}`}
         style={{
@@ -347,15 +361,6 @@ export const Standings = () => {
         }}
       >
         {!holding && <TitleBar titleBarSettings={settings?.titleBar} />}
-        {!holding &&
-          settings?.headerBar &&
-          (settings.headerBar.enabled ?? true) && (
-            <SessionBar
-              settings={settings.headerBar}
-              opacity={settings?.foreground?.opacity}
-              position="header"
-            />
-          )}
         <table
           className={`w-full table-auto text-sm border-separate ${tableBorderSpacing}`}
         >
@@ -599,16 +604,7 @@ export const Standings = () => {
             })}
           </tbody>
         </table>
-        {!holding &&
-          settings?.footerBar &&
-          (settings.footerBar.enabled ?? true) && (
-            <SessionBar
-              settings={settings.footerBar}
-              opacity={settings?.foreground?.opacity}
-              position="footer"
-            />
-          )}
       </div>
-    </div>
+    </SessionPanels>
   );
 };

@@ -21,7 +21,7 @@ import { app } from 'electron';
 import { randomUUID, createHash } from 'node:crypto';
 import logger from '../logger';
 import { migrateLegacyStreamChat } from './streamChatMigration';
-import { migrateLapTraceLayout } from './lapTraceLayoutMigration';
+import { isRecord, migrateLapTraceLayout } from './lapTraceLayoutMigration';
 
 const DASHBOARDS_KEY = 'dashboards';
 const PROFILES_KEY = 'profiles';
@@ -87,6 +87,37 @@ const dropRemovedRadarTuning = (
     )
   );
   return { ...merged, tuning: kept };
+};
+
+/**
+ * Relative cells that were filled with the class colour by default until the
+ * 2.3 overlay look, which leaves them unfilled. Relative stored that default,
+ * so a stored `true` cannot be told from it and is turned off once, with the
+ * rest of the new look's defaults (see withDashboardDefaults). Standings never
+ * stored these keys (its fill came from a fallback in the row), so a `true`
+ * there was switched on by the driver and stays.
+ */
+const OLD_FILL_DEFAULTS = [
+  ['stylingOptions', 'driverPosition', 'background'],
+  ['stylingOptions', 'driverNumber', 'background'],
+  ['classHeaderStyle', 'className', 'colorBackground'],
+  ['classHeaderStyle', 'classInfo', 'colorBackground'],
+] as const;
+
+const dropOldFillDefaults = (saved: unknown): unknown => {
+  if (!isRecord(saved)) return saved;
+  let config = saved;
+  for (const [group, part, key] of OLD_FILL_DEFAULTS) {
+    const groupValue = config[group];
+    if (!isRecord(groupValue)) continue;
+    const partValue = groupValue[part];
+    if (!isRecord(partValue) || partValue[key] !== true) continue;
+    config = {
+      ...config,
+      [group]: { ...groupValue, [part]: { ...partValue, [key]: false } },
+    };
+  }
+  return config;
 };
 
 const isDashboardChanged = (
@@ -241,13 +272,17 @@ export const withDashboardDefaults = (
   ) {
     generalSettings.colorPalette = 'default';
   }
-  // Lato was the default font before Figtree: a profile still on it moves to
-  // Figtree once. Read from the stored settings, not the merged ones, so the
-  // defaults cannot mark a profile as already moved.
-  if (dashboard.generalSettings?.figtreeDefaultApplied !== true) {
+  // The 2.3 overlay look changed defaults a stored value cannot be told
+  // apart from: Lato was the default font before Figtree, and the Relative
+  // cells were filled (OLD_FILL_DEFAULTS). A profile moves onto
+  // the new defaults once. Read from the stored settings, not the merged ones,
+  // so the defaults cannot mark a profile as already moved.
+  const movesToNewLook =
+    dashboard.generalSettings?.redesignDefaultsApplied !== true;
+  if (movesToNewLook) {
     if (generalSettings.fontType === 'lato')
       generalSettings.fontType = 'figtree';
-    generalSettings.figtreeDefaultApplied = true;
+    generalSettings.redesignDefaultsApplied = true;
   }
 
   return {
@@ -264,7 +299,9 @@ export const withDashboardDefaults = (
       const saved =
         type === 'laptrace'
           ? migrateLapTraceLayout(widget.config)
-          : widget.config;
+          : movesToNewLook && type === 'relative'
+            ? dropOldFillDefaults(widget.config)
+            : widget.config;
       const merged = deepMergeConfig(defaults, saved) as Record<
         string,
         unknown

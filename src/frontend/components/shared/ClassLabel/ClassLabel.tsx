@@ -10,9 +10,8 @@ export interface ClassLabelProps {
   highlightColor?: number;
   isMultiClass: boolean;
   /**
-   * Fill the label with the class colour. Off, only its bottom border carries
-   * the colour, as the standings draw it with their coloured class header
-   * switched off.
+   * Fill the label with the class colour. Off, a short bar in the class
+   * colour stands before the name, as the standings draw it by default.
    */
   filled?: boolean;
   /** Padding and text size; the standings and each widget set their own. */
@@ -20,8 +19,8 @@ export interface ClassLabelProps {
 }
 
 /**
- * The class label the standings draw: the class name in bold on the solid
- * class colour, with a left border in the same colour.
+ * The class label the standings draw: the class name in bold, after a short
+ * bar in the class colour, or on the solid class colour when filled.
  *
  * One component so that every widget that names a class draws it the same
  * way. The colours come from `getTailwindStyle`, so a single-class session
@@ -37,10 +36,23 @@ export const ClassLabel = memo(
     className = '',
   }: ClassLabelProps) => {
     const styles = getTailwindStyle(color, highlightColor, isMultiClass);
+    if (!filled) {
+      return (
+        <span
+          data-testid="class-label"
+          className={`inline-flex items-center gap-2 font-bold whitespace-nowrap ${className}`}
+        >
+          <span
+            aria-hidden
+            className={`h-[1em] w-1 shrink-0 rounded-full ${styles.classHeader}`}
+          />
+          {name}
+        </span>
+      );
+    }
     const classes = [
-      filled ? styles.classHeader : styles.borderColor,
-      'font-bold whitespace-nowrap',
-      filled ? 'border-l-4' : '',
+      styles.classHeader,
+      'font-bold whitespace-nowrap border-l-4',
       className,
     ];
     return (

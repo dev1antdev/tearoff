@@ -835,38 +835,8 @@ const StandingsSettingsPage = ({ widgetId }: { widgetId: string }) => {
                 {shownTab === 'styling' && (
                   <div className="space-y-5">
                     <SettingsSection title="Class Header">
-                      <SettingToggleRow
-                        title="Class Name Background"
-                        description="Show a colored background on the class name badge"
-                        enabled={
-                          settings.config.classHeaderStyle?.className
-                            ?.colorBackground ?? true
-                        }
-                        onToggle={(newValue) =>
-                          handleConfigChange({
-                            classHeaderStyle: {
-                              ...settings.config.classHeaderStyle,
-                              className: { colorBackground: newValue },
-                            },
-                          })
-                        }
-                      />
-                      <SettingToggleRow
-                        title="Class Info Background"
-                        description="Show a colored background on the SOF and driver count badges"
-                        enabled={
-                          settings.config.classHeaderStyle?.classInfo
-                            ?.colorBackground ?? true
-                        }
-                        onToggle={(newValue) =>
-                          handleConfigChange({
-                            classHeaderStyle: {
-                              ...settings.config.classHeaderStyle,
-                              classInfo: { colorBackground: newValue },
-                            },
-                          })
-                        }
-                      />
+                      <SettingProp path="classHeaderStyle.className.colorBackground" />
+                      <SettingProp path="classHeaderStyle.classInfo.colorBackground" />
                       <SettingToggleRow
                         title="Bottom Border"
                         description="Show a colored bottom border beneath the class header row"
@@ -1020,63 +990,12 @@ const StandingsSettingsPage = ({ widgetId }: { widgetId: string }) => {
                     </SettingsSection>
 
                     <SettingsSection title="Driver Position">
-                      <SettingToggleRow
-                        title="Position Background"
-                        description="Highlight the player's position cell with a colored background"
-                        enabled={
-                          settings.config.stylingOptions?.driverPosition
-                            ?.background ?? true
-                        }
-                        onToggle={(newValue) =>
-                          handleConfigChange({
-                            stylingOptions: {
-                              ...settings.config.stylingOptions,
-                              driverPosition: { background: newValue },
-                            },
-                          })
-                        }
-                      />
+                      <SettingProp path="stylingOptions.driverPosition.background" />
                     </SettingsSection>
 
                     <SettingsSection title="Car Number">
-                      <SettingToggleRow
-                        title="Number Background"
-                        description="Show a colored background on the car number cell"
-                        enabled={
-                          settings.config.stylingOptions?.driverNumber
-                            ?.background ?? true
-                        }
-                        onToggle={(newValue) =>
-                          handleConfigChange({
-                            stylingOptions: {
-                              ...settings.config.stylingOptions,
-                              driverNumber: {
-                                ...settings.config.stylingOptions?.driverNumber,
-                                background: newValue,
-                              },
-                            },
-                          })
-                        }
-                      />
-                      <SettingToggleRow
-                        title="Number Left Border"
-                        description="Show a colored left border on the car number cell"
-                        enabled={
-                          settings.config.stylingOptions?.driverNumber
-                            ?.border ?? true
-                        }
-                        onToggle={(newValue) =>
-                          handleConfigChange({
-                            stylingOptions: {
-                              ...settings.config.stylingOptions,
-                              driverNumber: {
-                                ...settings.config.stylingOptions?.driverNumber,
-                                border: newValue,
-                              },
-                            },
-                          })
-                        }
-                      />
+                      <SettingProp path="stylingOptions.driverNumber.background" />
+                      <SettingProp path="stylingOptions.driverNumber.border" />
                     </SettingsSection>
 
                     <SettingsSection title="Badges">

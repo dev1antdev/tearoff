@@ -28,7 +28,7 @@ import {
   useHighlightColor,
   useDriverTagMap,
 } from './hooks';
-import { SessionBar } from './components/SessionBar/SessionBar';
+import { SessionPanels } from './components/SessionPanels/SessionPanels';
 import { TitleBar } from './components/TitleBar/TitleBar';
 import { useIsSingleMake } from './hooks/useIsSingleMake';
 import { useTrackLimitsMax } from './hooks/useTrackLimitsMax';
@@ -423,9 +423,21 @@ export const Relative = () => {
     return <></>;
   }
 
-  // If no player found, render empty table with consistent height
-  if (playerIndex === -1) {
-    return (
+  // The flag contour rings the table's panel. With no player found the table
+  // is empty and keeps its height.
+  return (
+    <SessionPanels
+      header={
+        (settings?.headerBar?.enabled ?? false)
+          ? settings?.headerBar
+          : undefined
+      }
+      footer={
+        (settings?.footerBar?.enabled ?? true) ? settings?.footerBar : undefined
+      }
+      barOpacity={settings?.foreground?.opacity}
+      compact={isCompact}
+    >
       <FlagContour
         compactMode={isCompact}
         flags={{ enabled: flagContourEnabled }}
@@ -434,57 +446,12 @@ export const Relative = () => {
         borderWidth={borderWidth}
       >
         <TitleBar titleBarSettings={settings?.titleBar} />
-        {settings?.headerBar && (settings.headerBar.enabled ?? false) && (
-          <SessionBar
-            settings={settings.headerBar}
-            opacity={settings?.foreground?.opacity}
-            position="header"
-          />
-        )}
         <table
           className={`w-full table-auto text-sm border-separate ${tableBorderSpacing}`}
         >
           <tbody>{rows}</tbody>
         </table>
-        {settings?.footerBar && (settings.footerBar.enabled ?? true) && (
-          <SessionBar
-            settings={settings.footerBar}
-            opacity={settings?.foreground?.opacity}
-            position="footer"
-          />
-        )}
       </FlagContour>
-    );
-  }
-
-  return (
-    <FlagContour
-      compactMode={isCompact}
-      flags={{ enabled: flagContourEnabled }}
-      flagColor={flagColor}
-      backgroundOpacity={settings?.background?.opacity ?? 0}
-      borderWidth={borderWidth}
-    >
-      <TitleBar titleBarSettings={settings?.titleBar} />
-      {settings?.headerBar && (settings.headerBar.enabled ?? false) && (
-        <SessionBar
-          settings={settings.headerBar}
-          opacity={settings?.foreground?.opacity}
-          position="header"
-        />
-      )}
-      <table
-        className={`w-full table-auto text-sm border-separate ${tableBorderSpacing}`}
-      >
-        <tbody>{rows}</tbody>
-      </table>
-      {settings?.footerBar && (settings.footerBar.enabled ?? true) && (
-        <SessionBar
-          settings={settings.footerBar}
-          opacity={settings?.foreground?.opacity}
-          position="footer"
-        />
-      )}
-    </FlagContour>
+    </SessionPanels>
   );
 };
