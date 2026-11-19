@@ -233,7 +233,7 @@ export const DriverStatusBadges = memo(
                 'linear-gradient(to bottom right, black calc(50% - 1px), white calc(50% + 1px))',
             }}
           >
-            {' '}
+            {'\u00a0'}
           </StatusBadge>
         )}
         {repair && (

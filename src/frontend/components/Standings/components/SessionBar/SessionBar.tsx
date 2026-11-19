@@ -67,12 +67,15 @@ export const SessionBar = ({
   // Inside a widget the bar is a panel of its own, see-through by the session
   // bar opacity, its items in equal columns with a hairline between the ones
   // that draw (an item with nothing to show renders nothing, so no stray
-  // line). Standalone (the Information Bar) it sits in that widget's panel.
+  // line). Standalone (the Information Bar) it is a tinted strip, the same
+  // opacity, inside that widget's panel.
   return (
     <div
-      className={`${pxClass} ${pyClass} flex items-center text-sm ${standalone ? `w-full justify-between ${gapClass}` : 'overlay-panel justify-between [&>*]:flex-1 [&>*+*]:border-l [&>*+*]:overlay-divider'}`}
+      className={`${pxClass} ${pyClass} flex items-center text-sm ${standalone ? `w-full justify-between ${gapClass} bg-slate-900/(--fg-opacity)` : 'overlay-panel justify-between [&>*]:flex-1 [&>*+*]:border-l [&>*+*]:overlay-divider'}`}
       style={
-        standalone ? undefined : { ['--bg-opacity' as string]: `${opacity}%` }
+        standalone
+          ? { ['--fg-opacity' as string]: `${opacity}%` }
+          : { ['--bg-opacity' as string]: `${opacity}%` }
       }
     >
       {enabledKeys.map((key) => {

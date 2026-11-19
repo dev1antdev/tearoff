@@ -108,6 +108,19 @@ describe('DriverStatusBadges', () => {
     expect(container.querySelectorAll('span.border-slate-500')).toHaveLength(3);
   });
 
+  it('gives every flag badge a non-breaking space, so it keeps a line of height', () => {
+    // A plain space collapses, and an inline-block badge with no line box is
+    // only its two borders tall: a slowdown would show as a thin strip.
+    const { container } = render(
+      <DriverStatusBadges repair penalty slowdown />
+    );
+
+    const badges = container.querySelectorAll('span.border-slate-500');
+    for (const badge of badges) {
+      expect(badge.firstChild?.textContent).toBe('\u00a0');
+    }
+  });
+
   describe('lapsSinceLastPit with pitExitAfterSF', () => {
     it('shows L2 on 2nd lap out when pitExitAfterSF is true (not L3)', () => {
       // pitted lap 5, now lap 7 — without fix this would show L3
