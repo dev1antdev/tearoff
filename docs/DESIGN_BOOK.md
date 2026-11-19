@@ -110,8 +110,8 @@ dark band with a thin `slate-600` edge, a dented one filled `amber-400`, a
 badly damaged one `red-500`, and one that has come off a dashed red line. Each
 corner has its wheel, which shows the tyre alone (grey, a red rim when flat,
 dark and dashed when it has come off), and a wishbone beside it for the
-suspension: a thin grey outline while sound, filled with the damage scale. A healthy wheel is neutral, a damaged one takes the damage
-scale. Tyres are blocks filled with the temperature scale, the temperature
+suspension: a thin grey outline while sound, filled with the damage scale.
+The figure in the middle is laid over the drawing in the overlay's type size. Tyres are blocks filled with the temperature scale, the temperature
 large inside, pressure and wear small beside them. A bar that is in range
 (ride height, what Our Car has aboard) is neutral; only a warning colours it. Chassis
 lays its blocks out in a column, in two rows or in one row; a hairline in the

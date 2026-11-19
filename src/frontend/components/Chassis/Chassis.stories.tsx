@@ -139,7 +139,7 @@ export const TwoRows: Story = {
       toeTotalDeg: [-0.14, 0.24],
     }),
     { showRollShare: true, layout: 'twoRows' },
-    { width: 500, height: 130 }
+    { width: 600, height: 130 }
   ),
 };
 
@@ -157,6 +157,14 @@ export const OneRow: Story = {
     { layout: 'oneRow' },
     { width: 720, height: 70 }
   ),
+};
+
+/**
+ * One Row chosen in the default window, before it is widened: the blocks
+ * wrap rather than draw over each other.
+ */
+export const OneRowInADefaultWindow: Story = {
+  ...story(wheels(), { layout: 'oneRow' }),
 };
 
 /** Every row on, toe at each wheel: the widget wants more height. */

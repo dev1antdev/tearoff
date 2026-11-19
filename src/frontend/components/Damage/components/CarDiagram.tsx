@@ -3,7 +3,7 @@ import { ThermometerHotIcon } from '@phosphor-icons/react';
 import type {
   IntegrityTone,
   SuspensionState,
-  TyreState,
+  WheelPresence,
 } from '@irdashies/domain/damage/damageDisplay';
 
 /**
@@ -120,7 +120,7 @@ const DETACHED_CLASS =
   'fill-slate-950 stroke-red-500 stroke-[1.5] [stroke-dasharray:2_1.5]';
 
 /** The wheel shows the tyre alone; a sound one is neutral. */
-const WHEEL_CLASS: Record<TyreState, string> = {
+const WHEEL_CLASS: Record<WheelPresence, string> = {
   unknown: 'fill-slate-800',
   healthy: 'fill-slate-600',
   detached: DETACHED_CLASS,
@@ -142,9 +142,9 @@ const WISHBONE_CLASS: Record<SuspensionState, string> = {
 };
 
 const READING_CLASS: Record<IntegrityTone, string> = {
-  none: 'fill-slate-400',
-  normal: 'fill-white',
-  warn: 'fill-red-400',
+  none: 'text-slate-400',
+  normal: 'text-white',
+  warn: 'text-red-400',
 };
 
 export interface CarDiagramProps {
@@ -152,10 +152,10 @@ export interface CarDiagramProps {
   available: boolean;
   /** The eight zone levels, clockwise from the nose, one digit each. */
   zones: string;
-  leftFront: TyreState;
-  rightFront: TyreState;
-  leftRear: TyreState;
-  rightRear: TyreState;
+  leftFront: WheelPresence;
+  rightFront: WheelPresence;
+  leftRear: WheelPresence;
+  rightRear: WheelPresence;
   leftFrontSuspension: SuspensionState;
   rightFrontSuspension: SuspensionState;
   leftRearSuspension: SuspensionState;
@@ -208,112 +208,112 @@ export const CarDiagram = memo(
     // The figure and the warning share the middle: each is centred alone,
     // and they stack when both are there.
     const stacked = warning && readingValue !== null;
-    const readingY = stacked ? CENTRE_Y - 4.5 : CENTRE_Y;
+    // In percent of the picture's height, for the figure laid over it.
+    const readingTop = `${stacked ? CENTRE_Y - 4.5 : CENTRE_Y}%`;
     const warningY = stacked ? CENTRE_Y + 1 : CENTRE_Y - WARNING_SIZE / 2;
 
     return (
-      <svg
-        viewBox="0 0 46 100"
-        className="h-full w-auto"
-        role="img"
-        aria-label="Car damage diagram"
-        data-testid="damage-diagram"
-      >
-        <path d={BODY_PATH} className="fill-slate-800/40" />
-        <path
-          d={CABIN_PATH}
-          className="fill-none stroke-slate-600 stroke-1 [stroke-linejoin:round]"
-        />
-
-        {ZONE_PATHS.map((path, zone) => {
-          const level = available ? (zones[zone] ?? '0') : '0';
-          const panel = available ? (PANEL[level] ?? PANEL['0']) : NO_CAR;
-          return (
-            <g key={path} className="fill-none">
-              {panel.edge && <path d={path} className={panel.edge} />}
-              <path
-                d={path}
-                data-testid={`damage-zone-${zone}`}
-                data-level={level}
-                className={`${panel.inside}${level === '3' ? pulse : ''}`}
-              />
-            </g>
-          );
-        })}
-
-        {/* Over the outline, so the zone that was hit shows through it, and
-            under the wheels and the figure, which stay readable. */}
-        {available && impactDegrees !== null && (
+      // The figure is laid over the drawing rather than drawn in it, so it
+      // keeps the overlay's type size however narrow the car is.
+      <div className="relative h-full aspect-[46/100]">
+        <svg
+          viewBox="0 0 46 100"
+          className="absolute inset-0 h-full w-full"
+          role="img"
+          aria-label="Car damage diagram"
+          data-testid="damage-diagram"
+        >
+          <path d={BODY_PATH} className="fill-slate-800/40" />
           <path
-            d={IMPACT_WEDGE}
-            transform={`rotate(${impactDegrees} ${CENTRE_X} ${CENTRE_Y})`}
-            data-testid="damage-impact"
-            // The dark edge keeps it apart from a zone that is red itself.
-            className="fill-red-500/85 stroke-slate-950/80 stroke-[0.75]"
+            d={CABIN_PATH}
+            className="fill-none stroke-slate-600 stroke-1 [stroke-linejoin:round]"
           />
-        )}
 
-        {WISHBONES.map((points, corner) => {
-          const state = available ? suspension[corner] : 'unknown';
-          return (
-            <polygon
-              key={points}
-              points={points}
-              data-testid={`damage-suspension-${corner}`}
-              data-state={state}
-              className={`stroke-[0.8] [stroke-linejoin:round] ${WISHBONE_CLASS[state]}`}
+          {ZONE_PATHS.map((path, zone) => {
+            const level = available ? (zones[zone] ?? '0') : '0';
+            const panel = available ? (PANEL[level] ?? PANEL['0']) : NO_CAR;
+            return (
+              <g key={path} className="fill-none">
+                {panel.edge && <path d={path} className={panel.edge} />}
+                <path
+                  d={path}
+                  data-testid={`damage-zone-${zone}`}
+                  data-level={level}
+                  className={`${panel.inside}${level === '3' ? pulse : ''}`}
+                />
+              </g>
+            );
+          })}
+
+          {/* Over the outline, so the zone that was hit shows through it, and
+            under the wheels and the figure, which stay readable. */}
+          {available && impactDegrees !== null && (
+            <path
+              d={IMPACT_WEDGE}
+              transform={`rotate(${impactDegrees} ${CENTRE_X} ${CENTRE_Y})`}
+              data-testid="damage-impact"
+              // The dark edge keeps it apart from a zone that is red itself.
+              className="fill-red-500/85 stroke-slate-950/80 stroke-[0.75]"
             />
-          );
-        })}
+          )}
 
-        {WHEEL_ORIGINS.map(([x, y], wheel) => {
-          const state = available ? wheels[wheel] : 'unknown';
-          return (
-            <rect
-              key={`${x}-${y}`}
-              x={x}
-              y={y}
-              width={WHEEL_WIDTH}
-              height={WHEEL_HEIGHT}
-              rx={2}
-              data-testid={`damage-wheel-${wheel}`}
-              data-state={state}
-              className={`${WHEEL_CLASS[state]}${
-                state === 'detached' ? pulse : ''
-              }`}
+          {WISHBONES.map((points, corner) => {
+            const state = available ? suspension[corner] : 'unknown';
+            return (
+              <polygon
+                key={points}
+                points={points}
+                data-testid={`damage-suspension-${corner}`}
+                data-state={state}
+                className={`stroke-[0.8] [stroke-linejoin:round] ${WISHBONE_CLASS[state]}`}
+              />
+            );
+          })}
+
+          {WHEEL_ORIGINS.map(([x, y], wheel) => {
+            const state = available ? wheels[wheel] : 'unknown';
+            return (
+              <rect
+                key={`${x}-${y}`}
+                x={x}
+                y={y}
+                width={WHEEL_WIDTH}
+                height={WHEEL_HEIGHT}
+                rx={2}
+                data-testid={`damage-wheel-${wheel}`}
+                data-state={state}
+                className={`${WHEEL_CLASS[state]}${
+                  state === 'detached' ? pulse : ''
+                }`}
+              />
+            );
+          })}
+
+          {warning && (
+            <ThermometerHotIcon
+              x={CENTRE_X - WARNING_SIZE / 2}
+              y={warningY}
+              size={WARNING_SIZE}
+              weight="fill"
+              role="img"
+              aria-label="Overheating"
+              data-testid="damage-overheating"
+              className="text-red-400"
             />
-          );
-        })}
-
+          )}
+        </svg>
         {readingValue !== null && (
-          <text
-            x={CENTRE_X}
-            y={readingY}
-            textAnchor="middle"
-            dominantBaseline="central"
+          <div
             aria-label={`${readingLabel} ${readingValue}`}
             data-testid="damage-reading"
             data-tone={readingTone}
-            // The overlay's smallest step, but never wider than the cockpit.
-            className={`text-[length:min(var(--text-2xs),9px)] font-bold tabular-nums ${READING_CLASS[readingTone]}`}
+            className={`absolute left-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-xs font-bold leading-none tabular-nums ${READING_CLASS[readingTone]}`}
+            style={{ top: readingTop }}
           >
             {readingValue}
-          </text>
+          </div>
         )}
-
-        {warning && (
-          <ThermometerHotIcon
-            x={CENTRE_X - WARNING_SIZE / 2}
-            y={warningY}
-            size={WARNING_SIZE}
-            weight="fill"
-            role="img"
-            aria-label="Overheating"
-            data-testid="damage-overheating"
-            className="text-red-400"
-          />
-        )}
-      </svg>
+      </div>
     );
   }
 );

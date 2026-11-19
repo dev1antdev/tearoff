@@ -15,6 +15,7 @@ import {
   integrityTone,
   repairRow,
   suspensionState,
+  wheelPresence,
   wheelState,
 } from './damageDisplay';
 
@@ -429,6 +430,17 @@ describe('hasDamageToShow', () => {
     ).toBe(true);
     expect(hasDamageToShow(snapshot({ repairSeconds: 30 }), defaults)).toBe(
       true
+    );
+  });
+});
+
+describe('wheelPresence', () => {
+  it('is the wheel and tyre alone, a wheel off before a flat', () => {
+    expect(wheelPresence(undefined)).toBe('unknown');
+    expect(wheelPresence(wheel({ suspensionDamage: 0.9 }))).toBe('healthy');
+    expect(wheelPresence(wheel({ punctured: true }))).toBe('punctured');
+    expect(wheelPresence(wheel({ detached: true, punctured: true }))).toBe(
+      'detached'
     );
   });
 });

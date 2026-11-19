@@ -12,7 +12,7 @@ import {
   hasDamageToShow,
   repairRow,
   suspensionState,
-  tyreState,
+  wheelPresence,
   type IntegrityTone,
 } from '@irdashies/domain/damage/damageDisplay';
 import { CarDiagram } from './components/CarDiagram';
@@ -94,10 +94,10 @@ export const Damage = () => {
               <CarDiagram
                 available={car !== undefined}
                 zones={car ? car.body.join('') : ''}
-                leftFront={tyreState(car?.wheels[0])}
-                rightFront={tyreState(car?.wheels[1])}
-                leftRear={tyreState(car?.wheels[2])}
-                rightRear={tyreState(car?.wheels[3])}
+                leftFront={wheelPresence(car?.wheels[0])}
+                rightFront={wheelPresence(car?.wheels[1])}
+                leftRear={wheelPresence(car?.wheels[2])}
+                rightRear={wheelPresence(car?.wheels[3])}
                 leftFrontSuspension={suspensionState(
                   car?.wheels[0]?.suspensionDamage
                 )}

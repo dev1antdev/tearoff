@@ -42,10 +42,12 @@ export const suspensionState = (
 export type WheelState = SuspensionState | 'detached' | 'punctured';
 
 /** The wheel and tyre alone, apart from the suspension behind them. */
-export type TyreState = 'unknown' | 'healthy' | 'detached' | 'punctured';
+export type WheelPresence = 'unknown' | 'healthy' | 'detached' | 'punctured';
 
 /** A wheel that has come off outranks a flat tyre. */
-export const tyreState = (wheel: DamageWheel | undefined): TyreState => {
+export const wheelPresence = (
+  wheel: DamageWheel | undefined
+): WheelPresence => {
   if (!wheel) return 'unknown';
   if (wheel.detached) return 'detached';
   if (wheel.punctured) return 'punctured';

@@ -21,12 +21,18 @@ import {
 
 type ChassisLayout = ChassisConfig['layout'];
 
-/** How the blocks are laid out, by the Layout setting. */
+/**
+ * How the blocks are laid out, by the Layout setting: a column, or rows. A
+ * row wraps, since a block never shrinks below its figures: a window too
+ * narrow for its layout takes another line rather than draw one figure over
+ * another.
+ */
 const CONTAINER_CLASS: Record<ChassisLayout, string> = {
   column: 'flex flex-col gap-1.5',
-  twoRows: 'grid grid-flow-col grid-rows-2 auto-cols-auto gap-x-3 gap-y-1.5',
-  oneRow: 'flex flex-row gap-3',
+  twoRows: 'flex flex-col justify-center gap-1.5',
+  oneRow: 'flex flex-col justify-center',
 };
+const ROW_CLASS = 'flex flex-row flex-wrap gap-x-3 gap-y-1.5';
 
 /**
  * The hairlines between blocks: a line in the middle of the gap, drawn by a
@@ -76,16 +82,16 @@ const Row = ({
       ? twoLines
         ? 'flex-2'
         : 'flex-1'
-      : layout === 'oneRow'
-        ? id === 'ride'
-          ? 'flex-[2_1_auto]'
-          : 'flex-auto'
-        : '';
+      : id === 'ride'
+        ? 'flex-[2_1_auto]'
+        : 'flex-auto';
   return (
     <div
       data-testid={`chassis-${id}`}
-      className={`relative flex min-h-0 min-w-0 ${
-        stacked ? 'flex-col justify-center gap-[0.35em]' : 'items-center gap-2'
+      className={`relative flex min-h-0 ${
+        stacked
+          ? 'flex-col justify-center gap-[0.35em]'
+          : 'min-w-0 items-center gap-2'
       } ${size} ${ruleAbove ? RULE_ABOVE : ''} ${ruleBefore ? RULE_BEFORE : ''}`}
       // In a row the bars need room the figures do not ask for.
       style={stacked && id === 'ride' ? { minWidth: '9em' } : undefined}
@@ -387,6 +393,15 @@ export const Chassis = () => {
   }
 
   const { layout } = settings;
+  // A column is one list; rows are one or two lines of blocks, the first of
+  // two taking half the blocks, rounded up.
+  const half = Math.ceil(blocks.length / 2);
+  const lines =
+    layout === 'column'
+      ? []
+      : layout === 'oneRow'
+        ? [blocks]
+        : [blocks.slice(0, half), blocks.slice(half)];
   return (
     <div
       className={`h-full w-full overlay-panel p-2 font-medium text-white ${CONTAINER_CLASS[layout]}`}
@@ -394,23 +409,29 @@ export const Chassis = () => {
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}
     >
-      {blocks.map((block, index) => (
-        <Row
-          key={block.id}
-          {...block}
-          layout={layout}
-          // Two rows fill column by column: a block in the second row has a
-          // line above it, one past the first column a line before it.
-          ruleAbove={
-            layout === 'column'
-              ? index > 0
-              : layout === 'twoRows' && index % 2 === 1
-          }
-          ruleBefore={
-            layout === 'oneRow' ? index > 0 : layout === 'twoRows' && index >= 2
-          }
-        />
-      ))}
+      {layout === 'column'
+        ? blocks.map((block, index) => (
+            <Row
+              key={block.id}
+              {...block}
+              layout={layout}
+              ruleAbove={index > 0}
+              ruleBefore={false}
+            />
+          ))
+        : lines.map((line, lineIndex) => (
+            <div key={lineIndex} className={ROW_CLASS}>
+              {line.map((block, index) => (
+                <Row
+                  key={block.id}
+                  {...block}
+                  layout={layout}
+                  ruleAbove={lineIndex > 0}
+                  ruleBefore={index > 0}
+                />
+              ))}
+            </div>
+          ))}
     </div>
   );
 };
