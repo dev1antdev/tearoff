@@ -64,7 +64,7 @@ export const FuelCalculatorEconomyPredict: React.FC<
   }
 
   return (
-    <div className="grid w-full grid-cols-3 border-y border-slate-600/40">
+    <div className="grid w-full grid-cols-3 border-y overlay-divider">
       {scenariosToShow.map((scenario) => {
         const isCurrent = scenario.isCurrentTarget;
         const lapsRemaining = scenario.laps;
@@ -75,8 +75,8 @@ export const FuelCalculatorEconomyPredict: React.FC<
 
         const textColor = isCurrent ? 'text-slate-100' : 'text-slate-400';
         const valueColor = isCurrent
-          ? 'text-green-400 font-bold'
-          : 'text-slate-200 font-medium';
+          ? 'text-white font-bold'
+          : 'text-slate-300 font-medium';
         const padding =
           compactMode === 'ultra'
             ? 'py-0.5'
@@ -87,7 +87,7 @@ export const FuelCalculatorEconomyPredict: React.FC<
         return (
           <div
             key={lapsRemaining}
-            className={`flex min-w-0 flex-col items-center justify-center px-1 ${padding} ${isCurrent ? 'bg-slate-700/60' : ''} ${lapsRemaining !== scenariosToShow[0]?.laps ? 'border-l border-slate-600/40' : ''}`}
+            className={`flex min-w-0 flex-col items-center justify-center px-1 ${padding} ${isCurrent ? 'overlay-selected' : ''} ${lapsRemaining !== scenariosToShow[0]?.laps ? 'border-l overlay-divider' : ''}`}
           >
             <span
               className={`${textColor} uppercase leading-none`}
@@ -100,7 +100,7 @@ export const FuelCalculatorEconomyPredict: React.FC<
               style={{ fontSize: valueFontSize }}
             >
               {fuelPerLap}
-              <span className="ml-0.5 text-[0.7em] text-slate-500">
+              <span className="ml-0.5 text-[0.7em] text-slate-400">
                 {units}/lap
               </span>
             </span>

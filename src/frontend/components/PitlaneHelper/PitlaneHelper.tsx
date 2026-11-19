@@ -1,4 +1,6 @@
-﻿import { usePitlaneHelperSettings } from './hooks/usePitlaneHelperSettings';
+import { IconContext } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
+import { usePitlaneHelperSettings } from './hooks/usePitlaneHelperSettings';
 import { usePitSpeed } from './hooks/usePitSpeed';
 import { usePitboxPosition } from './hooks/usePitboxPosition';
 import { usePitlaneVisibility } from './hooks/usePitlaneVisibility';
@@ -228,254 +230,260 @@ export const PitlaneHelperBody = ({
   refuel,
 }: PitlaneHelperBodyProps) => {
   return (
-    <div
-      className="flex flex-col h-full overflow-hidden overlay-panel"
-      style={{
-        ['--bg-opacity' as string]: `${config.background.opacity ?? 0}%`,
-      }}
-    >
-      <div className="flex flex-1 min-h-0 flex-col gap-2 p-2 text-white font-medium">
-        {/* Row 1: Speed delta */}
-        {config.showSpeedSummary && (
-          <div
-            className={[
-              'flex gap-2 w-full',
-              config.speedBarOrientation == 'vertical'
-                ? 'flex-row'
-                : 'flex-col',
-            ].join(' ')}
-          >
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        className="flex flex-col h-full overflow-hidden overlay-panel"
+        style={{
+          ['--bg-opacity' as string]: `${config.background.opacity ?? 0}%`,
+        }}
+      >
+        <div className="flex flex-1 min-h-0 flex-col gap-2 p-2 text-white font-medium">
+          {/* Row 1: Speed delta */}
+          {config.showSpeedSummary && (
             <div
               className={[
-                'flex flex-col flex-2 items-center justify-center p-2 rounded transition-all text-center w-full h-full ',
-                speed.isSeverelyOver
-                  ? 'bg-red-600 animate-pulse'
-                  : speed.isSpeeding
-                    ? 'bg-red-600/50'
-                    : '',
+                'flex gap-2 w-full',
+                config.speedBarOrientation == 'vertical'
+                  ? 'flex-row'
+                  : 'flex-col',
               ].join(' ')}
             >
-              {config.showSpeedDelta && speed.hasLimit && (
-                <>
-                  <div
-                    className={[
-                      'text-2xl font-bold leading-none transition-colors tabular-nums',
-                      speed.isSeverelyOver || speed.isSpeeding
-                        ? 'text-white'
-                        : speed.colorClass,
-                    ].join(' ')}
-                  >
-                    <div className="text-[1.4em]">
-                      {speed.deltaKph > 0 ? '+' : ''}
+              <div
+                className={[
+                  'flex flex-col flex-2 items-center justify-center p-2 rounded transition-all text-center w-full h-full ',
+                  speed.isSeverelyOver
+                    ? 'bg-red-600 animate-pulse'
+                    : speed.isSpeeding
+                      ? 'bg-red-600/50'
+                      : '',
+                ].join(' ')}
+              >
+                {config.showSpeedDelta && speed.hasLimit && (
+                  <>
+                    <div
+                      className={[
+                        'text-2xl font-bold leading-none transition-colors tabular-nums',
+                        speed.isSeverelyOver || speed.isSpeeding
+                          ? 'text-white'
+                          : speed.colorClass,
+                      ].join(' ')}
+                    >
+                      <div className="text-[1.4em]">
+                        {speed.deltaKph > 0 ? '+' : ''}
+                        {displayKph
+                          ? speed.deltaKph.toFixed(1)
+                          : speed.deltaMph.toFixed(1)}
+                      </div>
+                    </div>
+                    <div className="text-xs text-slate-400">
+                      {displayKph ? 'km/h' : 'mph'}
+                    </div>
+                  </>
+                )}
+                {config.speedLimitStyle === 'text' && speed.hasLimit && (
+                  <div className="text-lg text-slate-300 flex items-center justify-center">
+                    lim{' '}
+                    {displayKph
+                      ? speed.limitKph.toFixed(0)
+                      : speed.limitMph.toFixed(0)}
+                  </div>
+                )}
+                {config.speedLimitStyle === 'european' && speed.hasLimit && (
+                  <div className="text-3xl font-bold text-slate-800 m-2 w-[2.5em] h-[2.5em] bg-white border-3 border-red-500 rounded-full flex items-center justify-center">
+                    <div className="-translate-y-[0.05em] text-[1.4em]">
                       {displayKph
-                        ? speed.deltaKph.toFixed(1)
-                        : speed.deltaMph.toFixed(1)}
+                        ? speed.limitKph.toFixed(0)
+                        : speed.limitMph.toFixed(0)}
                     </div>
                   </div>
-                  <div className="text-xs text-slate-400">
-                    {displayKph ? 'km/h' : 'mph'}
+                )}
+                {config.speedLimitStyle === 'american' && speed.hasLimit && (
+                  <div className="font-bold text-3xl text-slate-800 m-2 w-[2.5em] h-[2.5em] bg-white border-3 border-black rounded-lg flex flex-col items-center justify-center">
+                    <div className="text-[0.6em] font-semibold tracking-tight leading-none">
+                      LIMIT
+                    </div>
+                    <div className="text-[1.25em]">
+                      {displayKph
+                        ? speed.limitKph.toFixed(0)
+                        : speed.limitMph.toFixed(0)}
+                    </div>
                   </div>
-                </>
-              )}
-              {config.speedLimitStyle === 'text' && speed.hasLimit && (
-                <div className="text-lg text-slate-300 flex items-center justify-center">
-                  lim{' '}
-                  {displayKph
-                    ? speed.limitKph.toFixed(0)
-                    : speed.limitMph.toFixed(0)}
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Row 2: Speed & Pitbox Progress */}
+          {(config.showProgressBar ||
+            (config.showSpeedBar && speed.hasLimit)) && (
+            <div
+              className={`flex gap-3 w-full h-full flex-2 ${
+                config.showSpeedBar &&
+                config.showProgressBar &&
+                config.progressBarOrientation === 'vertical' &&
+                config.speedBarOrientation === 'vertical'
+                  ? 'flex-row'
+                  : 'flex-col'
+              }`}
+            >
+              {/* 2b. SPEED BAR SECTION */}
+              {config.showSpeedBar && speed.hasLimit && (
+                <div
+                  className={`h-full ${
+                    config.progressBarOrientation === 'vertical' &&
+                    config.speedBarOrientation === 'vertical'
+                      ? 'flex-1'
+                      : config.speedBarOrientation === 'vertical'
+                        ? 'w-full flex-2'
+                        : 'w-full flex-1'
+                  }`}
+                >
+                  <PitSpeedBar
+                    speed={displayKph ? speed.speedKph : speed.speedMph}
+                    limit={displayKph ? speed.limitKph : speed.limitMph}
+                    orientation={config.speedBarOrientation}
+                  />
                 </div>
               )}
-              {config.speedLimitStyle === 'european' && speed.hasLimit && (
-                <div className="text-3xl font-bold text-slate-800 m-2 w-[2.5em] h-[2.5em] bg-white border-3 border-red-500 rounded-full flex items-center justify-center">
-                  <div className="-translate-y-[0.05em] text-[1.4em]">
-                    {displayKph
-                      ? speed.limitKph.toFixed(0)
-                      : speed.limitMph.toFixed(0)}
-                  </div>
-                </div>
-              )}
-              {config.speedLimitStyle === 'american' && speed.hasLimit && (
-                <div className="font-bold text-3xl text-slate-800 m-2 w-[2.5em] h-[2.5em] bg-white border-3 border-black rounded-lg flex flex-col items-center justify-center">
-                  <div className="text-[0.6em] font-semibold tracking-tight leading-none">
-                    LIMIT
-                  </div>
-                  <div className="text-[1.25em]">
-                    {displayKph
-                      ? speed.limitKph.toFixed(0)
-                      : speed.limitMph.toFixed(0)}
-                  </div>
+
+              {/* 2a. PROGRESS BAR SECTION */}
+              {config.showProgressBar && (
+                <div
+                  className={`flex gap-3 h-full ${
+                    config.progressBarOrientation === 'vertical' &&
+                    config.speedBarOrientation === 'vertical'
+                      ? config.showPastPitBox && position.distanceToPit <= -5
+                        ? 'flex-2 flex-row'
+                        : 'flex-1 flex-row'
+                      : config.progressBarOrientation === 'vertical'
+                        ? 'w-full flex-col flex-2'
+                        : 'w-full flex-col flex-1'
+                  }`}
+                >
+                  {/* Pit Entry */}
+                  {!onPitRoad &&
+                    position.distanceToPitEntry > 0 &&
+                    position.distanceToPitEntry <= config.approachDistance && (
+                      <PitCountdownBar
+                        distance={position.distanceToPitEntry}
+                        maxDistance={config.approachDistance}
+                        orientation={config.progressBarOrientation}
+                        color={getCountdownColor(
+                          position.distanceToPitEntry,
+                          config.approachDistance
+                        )}
+                        targetName="Pit Entry"
+                      />
+                    )}
+
+                  {/* Pit Box / Past Box */}
+                  {onPitRoad &&
+                    (position.distanceToPit >= 0 ||
+                      (config.showPastPitBox &&
+                        position.distanceToPit < 0)) && (
+                      <PitCountdownBar
+                        distance={Math.abs(position.distanceToPit)}
+                        maxDistance={100}
+                        orientation={config.progressBarOrientation}
+                        color={
+                          position.distanceToPit > 0
+                            ? getCountdownColor(position.distanceToPit, 100)
+                            : 'rgb(34, 197, 94)'
+                        }
+                        targetName={
+                          position.distanceToPit > 0 ? 'Pitbox' : 'Past Box'
+                        }
+                      />
+                    )}
+
+                  {/* Pit Exit */}
+                  {onPitRoad &&
+                    position.distanceToPit < -5 &&
+                    position.distanceToPitExit > 0 &&
+                    position.distanceToPitExit <= 150 && (
+                      <PitCountdownBar
+                        distance={position.distanceToPitExit}
+                        maxDistance={150}
+                        orientation={config.progressBarOrientation}
+                        color={getCountdownColor(
+                          position.distanceToPitExit,
+                          150
+                        )}
+                        targetName="Pit Exit"
+                      />
+                    )}
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Row 2: Speed & Pitbox Progress */}
-        {(config.showProgressBar ||
-          (config.showSpeedBar && speed.hasLimit)) && (
-          <div
-            className={`flex gap-3 w-full h-full flex-2 ${
-              config.showSpeedBar &&
-              config.showProgressBar &&
-              config.progressBarOrientation === 'vertical' &&
-              config.speedBarOrientation === 'vertical'
-                ? 'flex-row'
-                : 'flex-col'
-            }`}
-          >
-            {/* 2b. SPEED BAR SECTION */}
-            {config.showSpeedBar && speed.hasLimit && (
-              <div
-                className={`h-full ${
-                  config.progressBarOrientation === 'vertical' &&
-                  config.speedBarOrientation === 'vertical'
-                    ? 'flex-1'
-                    : config.speedBarOrientation === 'vertical'
-                      ? 'w-full flex-2'
-                      : 'w-full flex-1'
-                }`}
-              >
-                <PitSpeedBar
-                  speed={displayKph ? speed.speedKph : speed.speedMph}
-                  limit={displayKph ? speed.limitKph : speed.limitMph}
-                  orientation={config.speedBarOrientation}
+          {/* Row 3: Inputs */}
+          {config.showPitExitInputs && (
+            <div className="flex gap-3 w-full flex-1">
+              {shouldShowInputs && (
+                <PitExitInputs
+                  showThrottle={config.pitExitInputs?.throttle}
+                  showClutch={config.pitExitInputs?.clutch}
                 />
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Status & warning badges */}
+        {((onPitRoad && Math.abs(position.distanceToPit) < 5) ||
+          (inBlendZone && position.distanceToPitEntry === 0) ||
+          limiterWarning.showWarning ||
+          showEarlyPitboxWarning ||
+          refuel !== undefined ||
+          (config.showPitlaneTraffic && traffic.totalCars > 0)) && (
+          <div className="flex flex-col gap-2 p-2 border-t overlay-divider">
+            {onPitRoad && Math.abs(position.distanceToPit) < 5 && (
+              <div className="text-center text-xs font-bold py-1 px-2 bg-green-600 rounded">
+                At Pitbox
               </div>
             )}
 
-            {/* 2a. PROGRESS BAR SECTION */}
-            {config.showProgressBar && (
+            {inBlendZone && position.distanceToPitEntry === 0 && (
+              <div className="text-center text-xs font-bold py-1 px-2 bg-amber-600 rounded">
+                Entering Pit Lane
+              </div>
+            )}
+
+            {limiterWarning.showWarning && (
               <div
-                className={`flex gap-3 h-full ${
-                  config.progressBarOrientation === 'vertical' &&
-                  config.speedBarOrientation === 'vertical'
-                    ? config.showPastPitBox && position.distanceToPit <= -5
-                      ? 'flex-2 flex-row'
-                      : 'flex-1 flex-row'
-                    : config.progressBarOrientation === 'vertical'
-                      ? 'w-full flex-col flex-2'
-                      : 'w-full flex-col flex-1'
-                }`}
+                className={[
+                  'text-center text-xs font-bold py-1 px-2 rounded',
+                  limiterWarning.isTeamRaceWarning
+                    ? 'bg-red-700 animate-pulse'
+                    : 'bg-red-600',
+                ].join(' ')}
               >
-                {/* Pit Entry */}
-                {!onPitRoad &&
-                  position.distanceToPitEntry > 0 &&
-                  position.distanceToPitEntry <= config.approachDistance && (
-                    <PitCountdownBar
-                      distance={position.distanceToPitEntry}
-                      maxDistance={config.approachDistance}
-                      orientation={config.progressBarOrientation}
-                      color={getCountdownColor(
-                        position.distanceToPitEntry,
-                        config.approachDistance
-                      )}
-                      targetName="Pit Entry"
-                    />
-                  )}
-
-                {/* Pit Box / Past Box */}
-                {onPitRoad &&
-                  (position.distanceToPit >= 0 ||
-                    (config.showPastPitBox && position.distanceToPit < 0)) && (
-                    <PitCountdownBar
-                      distance={Math.abs(position.distanceToPit)}
-                      maxDistance={100}
-                      orientation={config.progressBarOrientation}
-                      color={
-                        position.distanceToPit > 0
-                          ? getCountdownColor(position.distanceToPit, 100)
-                          : 'rgb(34, 197, 94)'
-                      }
-                      targetName={
-                        position.distanceToPit > 0 ? 'Pitbox' : 'Past Box'
-                      }
-                    />
-                  )}
-
-                {/* Pit Exit */}
-                {onPitRoad &&
-                  position.distanceToPit < -5 &&
-                  position.distanceToPitExit > 0 &&
-                  position.distanceToPitExit <= 150 && (
-                    <PitCountdownBar
-                      distance={position.distanceToPitExit}
-                      maxDistance={150}
-                      orientation={config.progressBarOrientation}
-                      color={getCountdownColor(position.distanceToPitExit, 150)}
-                      targetName="Pit Exit"
-                    />
-                  )}
+                {limiterWarning.warningText}
               </div>
             )}
-          </div>
-        )}
 
-        {/* Row 3: Inputs */}
-        {config.showPitExitInputs && (
-          <div className="flex gap-3 w-full flex-1">
-            {shouldShowInputs && (
-              <PitExitInputs
-                showThrottle={config.pitExitInputs?.throttle}
-                showClutch={config.pitExitInputs?.clutch}
+            {showEarlyPitboxWarning && (
+              <div className="bg-amber-600 text-center text-xs font-bold py-1 px-2 rounded">
+                EARLY PITBOX
+              </div>
+            )}
+
+            {config.showPitlaneTraffic && traffic.totalCars > 0 && (
+              <div className="bg-blue-700 text-center text-xs py-1 px-2 rounded">
+                {traffic.carsAhead} ahead · {traffic.carsBehind} behind
+              </div>
+            )}
+
+            {refuel !== undefined && (
+              <PitRefuelTarget
+                amount={refuel.amount}
+                isVirtualEnergy={refuel.isVirtualEnergy}
               />
             )}
           </div>
         )}
       </div>
-
-      {/* Status & warning badges */}
-      {((onPitRoad && Math.abs(position.distanceToPit) < 5) ||
-        (inBlendZone && position.distanceToPitEntry === 0) ||
-        limiterWarning.showWarning ||
-        showEarlyPitboxWarning ||
-        refuel !== undefined ||
-        (config.showPitlaneTraffic && traffic.totalCars > 0)) && (
-        <div className="flex flex-col gap-2 p-2 border-t overlay-divider">
-          {onPitRoad && Math.abs(position.distanceToPit) < 5 && (
-            <div className="text-center text-xs font-bold py-1 px-2 bg-green-600 rounded">
-              At Pitbox
-            </div>
-          )}
-
-          {inBlendZone && position.distanceToPitEntry === 0 && (
-            <div className="text-center text-xs font-bold py-1 px-2 bg-amber-600 rounded">
-              Entering Pit Lane
-            </div>
-          )}
-
-          {limiterWarning.showWarning && (
-            <div
-              className={[
-                'text-center text-xs font-bold py-1 px-2 rounded',
-                limiterWarning.isTeamRaceWarning
-                  ? 'bg-red-700 animate-pulse'
-                  : 'bg-red-600',
-              ].join(' ')}
-            >
-              {limiterWarning.warningText}
-            </div>
-          )}
-
-          {showEarlyPitboxWarning && (
-            <div className="bg-amber-600 text-center text-xs font-bold py-1 px-2 rounded">
-              EARLY PITBOX
-            </div>
-          )}
-
-          {config.showPitlaneTraffic && traffic.totalCars > 0 && (
-            <div className="bg-blue-700 text-center text-xs py-1 px-2 rounded">
-              {traffic.carsAhead} ahead · {traffic.carsBehind} behind
-            </div>
-          )}
-
-          {refuel !== undefined && (
-            <PitRefuelTarget
-              amount={refuel.amount}
-              isVirtualEnergy={refuel.isVirtualEnergy}
-            />
-          )}
-        </div>
-      )}
-    </div>
+    </IconContext.Provider>
   );
 };

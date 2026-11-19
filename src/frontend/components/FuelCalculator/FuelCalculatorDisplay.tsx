@@ -1,3 +1,5 @@
+import { IconContext } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import { useMemo, useState, useEffect } from 'react';
 import {
   useDashboard,
@@ -303,14 +305,33 @@ export const FuelCalculatorDisplay = ({
     }
   };
 
-  const RecursiveWidgetRenderer = ({ node }: { node: LayoutNode }) => {
+  // Cards: each section of the layout stacked down the widget is a card of
+  // its own; boxes side by side share one card, a hairline between them. So a
+  // card adds no more width or height than the single panel did (1px edges,
+  // no padding of its own: the sub-widgets pad themselves), and a saved layout
+  // keeps fitting its frame.
+  const cardClass = `overlay-panel ${derivedCompactMode !== 'off' ? '' : 'px-1'}`;
+  const cardStyle = {
+    ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 0}%`,
+  };
+
+  const RecursiveWidgetRenderer = ({
+    node,
+    inCard = false,
+  }: {
+    node: LayoutNode;
+    inCard?: boolean;
+  }) => {
     if (!node || !node.type) return null;
     if (node.type === 'box') {
       const isHorizontalBox = node.direction === 'row';
       return (
         <div
-          className="flex-1 flex flex-col w-full"
-          style={{ flexGrow: node.weight || 1 }}
+          className={`flex-1 flex flex-col w-full ${inCard ? '' : cardClass}`}
+          style={{
+            flexGrow: node.weight || 1,
+            ...(inCard ? undefined : cardStyle),
+          }}
         >
           <div
             className={`flex flex-1 ${isHorizontalBox ? 'flex-row items-center justify-around' : 'flex-col'} w-full`}
@@ -328,13 +349,34 @@ export const FuelCalculatorDisplay = ({
         </div>
       );
     }
+    if (node.type === 'split' && node.direction === 'row') {
+      const row = (
+        <div className="flex flex-1 flex-row items-center h-full [&>*+*]:border-l [&>*+*]:overlay-divider">
+          {node.children?.map((child: LayoutNode) => (
+            <RecursiveWidgetRenderer key={child.id} node={child} inCard />
+          ))}
+        </div>
+      );
+      return inCard ? (
+        row
+      ) : (
+        <div className={`flex flex-1 w-full ${cardClass}`} style={cardStyle}>
+          {row}
+        </div>
+      );
+    }
     if (node.type === 'split') {
       return (
         <div
-          className={`flex flex-1 gap-1 ${node.direction === 'row' ? 'flex-row items-center' : 'flex-col'} h-full`}
+          data-panel-stack={inCard ? undefined : true}
+          className="flex flex-1 flex-col gap-1 h-full"
         >
           {node.children?.map((child: LayoutNode) => (
-            <RecursiveWidgetRenderer key={child.id} node={child} />
+            <RecursiveWidgetRenderer
+              key={child.id}
+              node={child}
+              inCard={inCard}
+            />
           ))}
         </div>
       );
@@ -345,9 +387,10 @@ export const FuelCalculatorDisplay = ({
   const currentFuelStatus = displayData.fuelStatus || 'safe';
   const showFuelStatusBorder = settings.showFuelStatusBorder ?? true;
 
-  // A safe fuel state is the normal state, not an alert. Keep the panel's own
-  // edge like Standings/Relative, and reserve colour for a warning that needs
-  // action.
+  // A safe fuel state is the normal state, not an alert. Keep the cards' own
+  // edges like Standings/Relative, and reserve colour for a warning that needs
+  // action: then one outline in its colour rings the whole stack, over the
+  // outer edges of the cards, so a Pit Wall or Gantry frame shows it once.
   const borderColorValue =
     showFuelStatusBorder && currentFuelStatus === 'caution'
       ? '#f59e0b'
@@ -355,21 +398,21 @@ export const FuelCalculatorDisplay = ({
         ? '#ef4444'
         : undefined;
 
-  const paddingClass = derivedCompactMode !== 'off' ? '' : 'p-2';
-
+  // The widget is a stack of cards, one per box of its layout, like the
+  // session panels of Standings; a Pit Wall or Gantry frame closes it up.
   return (
-    <div
-      className={`relative w-full flex flex-col box-border transition-colors duration-300 overlay-panel text-white overflow-hidden ${paddingClass}`}
-      style={{
-        ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 0}%`,
-        borderColor: borderColorValue,
-      }}
-    >
-      {layoutTree ? (
-        <RecursiveWidgetRenderer node={layoutTree} />
-      ) : (
-        <div className="text-red-400">Layout Error</div>
-      )}
-    </div>
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        data-panel-stack
+        className={`relative w-full flex flex-col box-border text-white overflow-hidden rounded-xl transition-[outline-color] duration-300 ${borderColorValue ? 'outline outline-1 -outline-offset-1' : ''}`}
+        style={{ outlineColor: borderColorValue }}
+      >
+        {layoutTree ? (
+          <RecursiveWidgetRenderer node={layoutTree} />
+        ) : (
+          <div className="text-red-400">Layout Error</div>
+        )}
+      </div>
+    </IconContext.Provider>
   );
 };

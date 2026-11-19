@@ -27,7 +27,7 @@ export const PitRefuelTarget = memo(
   ({ amount, isVirtualEnergy }: PitRefuelTargetProps) => (
     <div
       data-testid="pit-refuel-target"
-      className="flex items-center justify-center gap-1 text-xs py-1 px-2 bg-slate-700 rounded tabular-nums"
+      className="flex items-center justify-center gap-1 text-xs py-1 px-2 rounded-full border border-white/9 tabular-nums"
       title={
         isVirtualEnergy
           ? 'Virtual energy the next stop fills to'

@@ -23,9 +23,9 @@ Every rule here belongs to one of two surfaces.
 The Pit Wall window sits inside `ThemeManager` too, so a widget hosted in a Pit
 Wall panel uses the overlay scale and palette, exactly as it does on track. A
 Pit Wall or Gantry frame is the hosted widget's panel: inside it the widget's
-`overlay-panel` loses its own edge and corners (the edge turns transparent),
-so there is one box, not two; a warning colour the widget sets on its edge (the
-Fuel Calculator's) still shows. A widget drawn as a stack of panels (the
+`overlay-panel` loses its own edge and corners (`shadow-none`,
+`rounded-none`), so there is one box, not two; a border the widget draws itself
+(the flag contour) and the Fuel Calculator's warning outline still show. A widget drawn as a stack of panels (the
 session bars above and below Standings and Relative, `SessionPanels`, marked
 `data-panel-stack`) closes up inside a frame: its panels sit flush, as bands of
 one box.
@@ -50,19 +50,32 @@ The app is dark only (`color-scheme: dark`).
 
 ### 3.1 Panel and rows
 
-| Element          | Classes                                                                                                                                                      |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Widget panel     | `overlay-panel` (`theme.css`): `bg-slate-950/(--bg-opacity)`, a 1px `border-white/9` edge, `rounded-xl` (12px); `p-2` (compact mode drops it), `text-white`  |
-| Rows             | No background. A hairline between them: `border-t overlay-divider first:border-t-0`; on a table row, on its cells (`[&>td]:border-t [&>td]:overlay-divider`) |
-| The player's row | An amber tint (`bg-amber-500/(--player-row-opacity)` in Standings and Relative) and `text-amber-300`, the position included                                  |
-| Divider          | `overlay-divider` (a `white/5` border colour), between sections of one panel                                                                                 |
-| Chip / scrim     | `bg-slate-950/NN` (behind a chip, a warning pill, a readout over a graphic)                                                                                  |
-| Inner tile       | Avoid a tile inside a panel: group with space and a divider. Where one is needed, `bg-slate-900/70`, `rounded-md`                                            |
+| Element          | Classes                                                                                                                                                                                           |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Widget panel     | `overlay-panel` (`theme.css`): `bg-slate-950/(--bg-opacity)`, a 1px edge drawn as an inset `white/9` shadow so it takes no room, `rounded-xl` (12px); `p-2` (compact mode drops it), `text-white` |
+| Rows             | No background. A hairline between them: `border-t overlay-divider first:border-t-0`; on a table row, on its cells (`[&>td]:border-t [&>td]:overlay-divider`)                                      |
+| The player's row | An amber tint (`bg-amber-500/(--player-row-opacity)` in Standings and Relative) and `text-amber-300`, the position included                                                                       |
+| Divider          | `overlay-divider` (a `white/5` border colour), between sections of one panel                                                                                                                      |
+| Selected row     | `overlay-selected` (`bg-slate-800/60 rounded-md`): the chosen or recommended line of a table or column of a strip (the Fuel Calculator's average, its best pit lap)                               |
+| Bar track        | `bg-slate-900/70`, `rounded-full` when thin, `rounded-md` when tall (Pitlane Helper); the fill inside takes its meaning's colour                                                                  |
+| Chip / scrim     | `bg-slate-950/NN` (behind a chip, a warning pill, a readout over a graphic)                                                                                                                       |
+| Inner tile       | Avoid a tile inside a panel: group with space and a divider. Where one is needed, `bg-slate-900/70`, `rounded-md`                                                                                 |
 
 `--bg-opacity` comes from the widget's own `background.opacity` setting
 (0–100). At low opacity the game is the ground, so values stay `text-white`.
-An inline border (the flag contour, the Fuel Calculator's warning) takes the
-place of the hairline edge while it shows.
+An inline border (the flag contour) adds its own width while it shows. The
+edge itself takes none, so a layout sized before panels had edges, or a stack of
+several panels, keeps fitting its frame.
+
+A widget made of several sections can draw each as a card of its own instead,
+an `overlay-panel` per section in a stack (`data-panel-stack`) with no panel
+around them. The Fuel Calculator draws a card for each section stacked down
+its layout; boxes side by side share one card, a hairline between them. The
+cards have no padding of their own (the sub-widgets pad themselves), so they
+take no more room than the single panel did and a saved layout keeps fitting
+its frame. Its fuel warning draws one outline in its colour round the whole
+stack. A safe fuel state is the normal one, so it is neutral (white values, a
+light bar); caution and danger take amber and red.
 
 Graphic widgets (Radar, Track Map, Minimap, Blind Spot Monitor, the Flag light
 board) draw their own shapes and have no panel. The Tachometer's and Shift
@@ -97,18 +110,19 @@ So: **overlay neutrals are written in `slate-*` only.** `gray-*`, `zinc-*`,
 
 These hold in every palette.
 
-| Meaning                                  | Class                                             | Note                                                         |
-| ---------------------------------------- | ------------------------------------------------- | ------------------------------------------------------------ |
-| The player ("you")                       | `text-amber-300`; a focused row `bg-amber-500/20` | Keep amber for "you"                                         |
-| Session's fastest lap                    | `text-purple-400`                                 | Timing-screen convention                                     |
-| A driver's personal best                 | `text-green-400`                                  |                                                              |
-| Gain, good outcome (fits in the tank, …) | `text-green-400`                                  | With a sign or an arrow                                      |
-| Loss, warning, error, urgent countdown   | `text-red-400`                                    | With a sign, an arrow or words                               |
-| Lapped car                               | `text-blue-400`                                   |                                                              |
-| Marked or voided lap                     | `text-white/60`                                   |                                                              |
-| Text on a tinted badge                   | the light shade of its hue                        | e.g. `bg-red-900 text-red-200`, `bg-red-500/20 text-red-300` |
+| Meaning                                                                 | Class                                             | Note                                                           |
+| ----------------------------------------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------- |
+| The player ("you")                                                      | `text-amber-300`; a focused row `bg-amber-500/20` | Keep amber for "you"                                           |
+| Session's fastest lap                                                   | `text-purple-400`                                 | Timing-screen convention                                       |
+| A driver's personal best                                                | `text-green-400`                                  |                                                                |
+| Gain, good outcome (spare fuel at the end, …)                           | `text-green-400`                                  | With a sign or an arrow                                        |
+| Caution, within reach (fuel tight, a place at risk, a target reachable) | `text-amber-400`                                  | Not `amber-300`, which is "you"; red when it turns into a loss |
+| Loss, warning, error, urgent countdown                                  | `text-red-400`                                    | With a sign, an arrow or words                                 |
+| Lapped car                                                              | `text-blue-400`                                   |                                                                |
+| Marked or voided lap                                                    | `text-white/60`                                   |                                                                |
+| Text on a tinted badge                                                  | the light shade of its hue                        | e.g. `bg-red-900 text-red-200`, `bg-red-500/20 text-red-300`   |
 
-Colour is for these meanings only. A neutral value (an amount to add, a level
+Colour is for these meanings only. A neutral value (an amount to add that fits, a level
 in the tank) stays white even when it is good news.
 
 ### 3.4 Sim colours stay exact
@@ -137,7 +151,7 @@ Font size setting picks the offset, from 7px (`4xs`) to 22px (`9xl`).
 | `text-xl` … `text-9xl` | 15px … 23px                | Emphasised numbers, large deltas                    |
 | `text-display-sm`      | 22px (offset × 2)          | The value a small widget exists to show             |
 | `text-display-md`      | 27.5px (offset × 2.5)      | Gear, a headline delta                              |
-| `text-display-lg`      | 38.5px (offset × 3.5)      | The one number of a large widget (laps to go)       |
+| `text-display-lg`      | 38.5px (offset × 3.5)      | The one number of a large widget                    |
 
 Rules:
 
@@ -274,7 +288,7 @@ Do not bundle or fetch Segoe UI; elsewhere the platform UI face stands in.
 
 ## 6. Shape, borders and depth
 
-- Radii: overlay panels `rounded-xl` (12px, part of `overlay-panel`); readout boxes in the Tachometer and Shift Light `rounded-sm`; fields, buttons and licence badges `rounded-md`; larger settings panels and Pit Wall panels `rounded-lg`; dots, thumbs, bars that fill, a class's colour bar, status pills and scrollbars `rounded-full`.
+- Radii: overlay panels `rounded-xl` (12px, part of `overlay-panel`); readout boxes in the Tachometer and Shift Light `rounded-sm`; fields, buttons and licence badges `rounded-md`; larger settings panels and Pit Wall panels `rounded-lg`; dots, thumbs, thin bars and their tracks, a class's colour bar, status pills and scrollbars `rounded-full`; tall bar tracks (Pitlane Helper) `rounded-md`.
 - Separate with hairlines and space, not depth. Shadows only for layers that float over the page (menus, popovers, the profile-switch notice).
 - Scrollbars in `.settings-shell`: 6px, thumb `white/12%` (hover `white/24%`), transparent track.
 

@@ -69,10 +69,10 @@ export const ConsumptionGraphWidget = ({
       className={`flex-1 flex flex-col justify-center min-w-[120px] w-full min-h-[85px] transition-opacity duration-500 ${isDummy ? 'opacity-60' : 'opacity-100'}`}
     >
       <div
-        className="text-slate-400 uppercase mb-1 flex justify-between items-center px-1"
+        className="overlay-label mb-1 flex justify-between items-center px-1"
         style={{ fontSize: titleSize }}
       >
-        <span className="font-bold tracking-tight">Fuel History</span>
+        <span>Fuel History</span>
         {isDummy && (
           <span
             className="text-amber-500 font-bold animate-pulse"
@@ -84,7 +84,7 @@ export const ConsumptionGraphWidget = ({
       </div>
 
       <div
-        className={`${heightClass} relative bg-slate-950/40 rounded border border-slate-700/50 mx-1 overflow-hidden`}
+        className={`${heightClass} relative rounded-md bg-slate-900/70 mx-1 overflow-hidden`}
         style={{ height: graphHeight }}
       >
         {consumptionGraphType === 'histogram'
@@ -135,13 +135,12 @@ export const ConsumptionGraphWidget = ({
                       <div
                         key={i}
                         className={`flex-1 min-w-[3px] max-w-[12px] rounded-t-[1px] transition-all duration-300 relative group ${
-                          isHigh
-                            ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.4)]'
-                            : 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.4)]'
+                          // Over the average (or the target) is a loss: red;
+                          // under it, green. Muted and without a glow.
+                          isHigh ? 'bg-red-400/70' : 'bg-green-400/60'
                         }`}
                         style={{ height: `${heightPct}%` }}
                       >
-                        <div className="w-full h-full bg-white/10" />
                         {/* Difference Label */}
                         {manualTarget && manualTarget > 0 && (
                           <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
@@ -201,10 +200,9 @@ export const ConsumptionGraphWidget = ({
                       d={d}
                       fill="none"
                       stroke="#10b981"
-                      strokeWidth="4"
+                      strokeWidth="3"
                       strokeLinejoin="round"
                       strokeLinecap="round"
-                      className="drop-shadow-[0_0_5px_rgba(16,185,129,0.5)]"
                     />
                   </svg>
                 </div>
@@ -216,10 +214,7 @@ export const ConsumptionGraphWidget = ({
         className="text-slate-200 text-center mt-1.5 flex items-center justify-center gap-1.5"
         style={{ fontSize: legendValueSize, fontWeight: 'bold' }}
       >
-        <span
-          className="text-slate-500 font-normal uppercase"
-          style={{ fontSize: legendLabelSize }}
-        >
+        <span className="overlay-label" style={{ fontSize: legendLabelSize }}>
           Avg
         </span>
         {formatFuel(avgFuel, fuelUnits)}

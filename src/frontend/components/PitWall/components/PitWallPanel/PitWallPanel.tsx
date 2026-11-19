@@ -185,10 +185,9 @@ export const PitWallPanel = memo(
       <div
         className={
           // The frame is the widget's panel here: its own edge and corners
-          // would draw a second box inside this one. The edge turns
-          // transparent rather than zero width, so a warning colour the widget
-          // sets on it (the Fuel Calculator's) still shows.
-          `${edit ? 'invisible relative ' : ''}min-h-0 flex-1 [&_.overlay-panel]:rounded-none [&_.overlay-panel]:border-transparent [&_[data-panel-stack]]:gap-0`
+          // would draw a second box inside this one. A border the widget draws
+          // itself (the flag contour) still shows.
+          `${edit ? 'invisible relative ' : ''}min-h-0 flex-1 [&_.overlay-panel]:rounded-none [&_.overlay-panel]:shadow-none [&_[data-panel-stack]]:gap-0 [&_[data-panel-stack]]:rounded-none`
         }
         inert={edit ? true : undefined}
       >

@@ -21,7 +21,8 @@ interface FuelCalculatorWidgetProps {
 const getConfidenceConfig = (confidence: string) => {
   switch (confidence) {
     case 'high':
-      return { color: 'text-green-400', bg: 'bg-green-500', pulse: '' };
+      // Confident is the normal state: the number stays white, the dot says it.
+      return { color: 'text-white', bg: 'bg-green-500', pulse: '' };
     case 'medium':
       return {
         color: 'text-amber-400',
@@ -68,14 +69,15 @@ export const FuelCalculatorHeader: React.FC<FuelCalculatorWidgetProps> = ({
   // Confidence logic (mapping from existing data)
   const confidence = fuelData.confidence || 'low';
   const confConfig = getConfidenceConfig(confidence);
-  let lapsText = `${Math.ceil(fuelData.lapsRemaining)} LAPS`;
+  let lapsText = `${Math.ceil(fuelData.lapsRemaining)}`;
   if (confidence === 'medium')
-    lapsText = `~${Math.ceil(fuelData.lapsRemaining)} LAPS`;
+    lapsText = `~${Math.ceil(fuelData.lapsRemaining)}`;
   if (confidence === 'low' || confidence === 'very-low')
-    lapsText = `${Math.floor(fuelData.lapsRemaining)}-${Math.ceil(fuelData.lapsRemaining + 2)} LAPS`;
+    lapsText = `${Math.floor(fuelData.lapsRemaining)}-${Math.ceil(fuelData.lapsRemaining + 2)}`;
 
   // If no data (avgLaps is 0), show --
-  if ((fuelData.avgLaps || 0) <= 0) {
+  const hasLaps = (fuelData.avgLaps || 0) > 0;
+  if (!hasLaps) {
     lapsText = '--';
   }
 
@@ -87,11 +89,14 @@ export const FuelCalculatorHeader: React.FC<FuelCalculatorWidgetProps> = ({
         : 'px-2 py-1';
 
   return (
+    // The header keeps its size and layout from before the redesign, so a
+    // layout sized for it keeps fitting: the laps at the value size, Next pit
+    // and Stops beside them on one line.
     <div className={paddingClass}>
       <div className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-end gap-x-3">
         <div>
           <div
-            className="flex items-center gap-1 text-slate-500 font-semibold tracking-wide uppercase"
+            className="flex items-center gap-1 overlay-label"
             style={{ fontSize: labelFontSize }}
           >
             {/* The icon says which budget the whole widget is counting. */}
@@ -106,22 +111,30 @@ export const FuelCalculatorHeader: React.FC<FuelCalculatorWidgetProps> = ({
             )}
             <span>To go</span>
           </div>
+          {/* The laps at the value size, the unit smaller and grey, one run
+              of text beside the dot that wraps as the old "104-106 LAPS"
+              did in a narrow column. */}
           <div
             className={`flex items-center gap-1 ${confConfig.color} font-bold tabular-nums`}
             style={{ fontSize: valueFontSize }}
             title={`${confidence} confidence`}
           >
             <span
-              className={`w-1.5 h-1.5 rounded-full ${confConfig.bg} ${confConfig.pulse}`}
+              className={`w-1.5 h-1.5 shrink-0 rounded-full ${confConfig.bg} ${confConfig.pulse}`}
             />
-            {lapsText}
+            <span>
+              {lapsText}
+              {hasLaps && (
+                <span className="text-[0.75em] font-semibold text-slate-400">
+                  {' '}
+                  laps
+                </span>
+              )}
+            </span>
           </div>
         </div>
         <div className="flex items-baseline gap-1 whitespace-nowrap pb-px">
-          <span
-            className="text-slate-500 font-semibold tracking-wide uppercase"
-            style={{ fontSize: labelFontSize }}
-          >
+          <span className="overlay-label" style={{ fontSize: labelFontSize }}>
             Next pit
           </span>
           <span
@@ -132,10 +145,7 @@ export const FuelCalculatorHeader: React.FC<FuelCalculatorWidgetProps> = ({
           </span>
         </div>
         <div className="flex items-baseline gap-1 whitespace-nowrap pb-px">
-          <span
-            className="text-slate-500 font-semibold tracking-wide uppercase"
-            style={{ fontSize: labelFontSize }}
-          >
+          <span className="overlay-label" style={{ fontSize: labelFontSize }}>
             Stops
           </span>
           <span

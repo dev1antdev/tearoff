@@ -55,24 +55,22 @@ export const FuelCalculatorTimeEmpty: React.FC<FuelCalculatorWidgetProps> = ({
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  // Fuel status border color
+  // The value takes the fuel state's colour: white while safe.
   const status = fuelData.fuelStatus || 'safe';
   const statusColors = getFuelStatusColors(status);
-  const borderColor = statusColors.border;
 
   return (
     <div
-      className={`rounded border ${borderColor} ${compactMode === 'ultra' ? '' : compactMode === 'compact' ? 'p-1' : 'p-2'}`}
+      className={
+        compactMode === 'ultra' ? '' : compactMode === 'compact' ? 'p-1' : 'p-2'
+      }
     >
       <div className="flex items-center justify-between">
-        <span
-          className="text-slate-400 uppercase"
-          style={{ fontSize: labelFontSize }}
-        >
+        <span className="overlay-label" style={{ fontSize: labelFontSize }}>
           Time Empty
         </span>
         <span
-          className="font-mono font-bold text-white tracking-widest"
+          className={`font-bold tabular-nums ${statusColors.text}`}
           style={{ fontSize: valueFontSize }}
         >
           {formatTime(secondsLeft)}

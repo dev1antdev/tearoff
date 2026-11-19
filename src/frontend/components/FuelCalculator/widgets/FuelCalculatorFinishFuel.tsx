@@ -45,12 +45,9 @@ export const FuelCalculatorFinishFuel: React.FC<
 
   return (
     <div
-      className={`${padding} flex items-center justify-between border-t border-slate-600/30`}
+      className={`${padding} flex items-center justify-between border-t overlay-divider`}
     >
-      <span
-        className="font-semibold tracking-wide text-slate-400 uppercase"
-        style={{ fontSize: labelFontSize }}
-      >
+      <span className="overlay-label" style={{ fontSize: labelFontSize }}>
         {fuelUnits === '%' ? 'Energy at end' : 'Fuel at end'}
       </span>
       <span

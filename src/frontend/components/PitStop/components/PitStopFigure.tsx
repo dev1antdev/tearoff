@@ -5,7 +5,7 @@ export type FigureTone = 'normal' | 'good' | 'caution' | 'bad' | 'none';
 const TONE_CLASS: Record<FigureTone, string> = {
   normal: 'text-white',
   good: 'text-green-400',
-  caution: 'text-amber-300',
+  caution: 'text-amber-400',
   bad: 'text-red-400',
   none: 'text-slate-500',
 };
