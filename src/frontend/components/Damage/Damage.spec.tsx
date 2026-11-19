@@ -120,7 +120,7 @@ describe('Damage', () => {
         'healthy',
         'healthy',
       ]);
-      expect(classOf('damage-zone-0')).toContain('stroke-slate-500');
+      expect(classOf('damage-zone-0')).toContain('stroke-slate-900');
       expect(classOf('damage-wheel-0')).toContain('fill-slate-600');
     });
 
@@ -144,7 +144,7 @@ describe('Damage', () => {
 
       expect(zoneLevels()).toEqual(['1', '0', '0', '0', '0', '0', '0', '0']);
       expect(classOf('damage-zone-0')).toContain('stroke-amber-400');
-      expect(classOf('damage-zone-1')).toContain('stroke-slate-500');
+      expect(classOf('damage-zone-1')).toContain('stroke-slate-900');
     });
 
     it('reads the aero figure in the car and the two beside it', () => {
@@ -170,7 +170,7 @@ describe('Damage', () => {
 
       expect(
         screen.getByTestId('damage-impact').getAttribute('transform')
-      ).toBe('rotate(13 31 40)');
+      ).toBe('rotate(13 23 50)');
     });
   });
 
@@ -377,7 +377,7 @@ describe('Damage', () => {
 
       expect(isDrawn()).toBe(true);
       for (let zone = 0; zone < 8; zone += 1) {
-        expect(classOf(`damage-zone-${zone}`)).toContain('stroke-slate-600');
+        expect(classOf(`damage-zone-${zone}`)).toContain('stroke-slate-800');
       }
       expect(wheelStates()).toEqual([
         'unknown',

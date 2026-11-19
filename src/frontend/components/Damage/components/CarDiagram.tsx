@@ -6,78 +6,96 @@ import type {
 } from '@irdashies/domain/damage/damageDisplay';
 
 /**
- * The car from above, nose up, in a 62 by 80 picture: a thin outline in eight
- * pieces, one per body zone, and a wheel inside each corner. Tearoff's own
- * drawing: a narrow nose, arches over the wheels, a waist at the cockpit and
- * a square tail.
+ * The car from above, nose up, in a 46 by 100 picture, about a real car's
+ * proportions: Tearoff's own drawing of eight body panels with a gap between
+ * each, a wheel inside each corner and the cockpit in the middle.
  *
- * The zones run clockwise from the nose, as the snapshot has them: front,
- * front right, right, rear right, rear, rear left, left, front left. Each
- * piece starts where the one before it ends, so together they are the whole
- * outline; a damaged piece is drawn thicker, in its level's colour.
+ * The panels run clockwise from the nose, as the snapshot has its zones:
+ * front, front right, right, rear right, rear, rear left, left, front left.
+ * The wings bulge over the wheels and the doors pull in at the waist. Each
+ * path is the middle line of its panel; the panel is drawn as a band along it.
  */
 const ZONE_PATHS = [
-  'M24 3.5Q31 2 38 3.5',
-  'M38 3.5C46 4.5 51 8 54 13Q57.5 19 56.5 27',
-  'M56.5 27C52 33 52 46 56.5 52',
-  'M56.5 52Q59.5 60 58.5 70Q57.5 77 50 77.5L44 77.5',
-  'M44 77.5L18 77.5',
-  'M18 77.5L12 77.5Q4.5 77 3.5 70Q2.5 60 5.5 52',
-  'M5.5 52C10 46 10 33 5.5 27',
-  'M5.5 27Q4.5 19 8 13C11 8 16 4.5 24 3.5',
+  'M15.5 5Q23 2 30.5 5',
+  'M36.5 6.6C40.5 8.2 43.2 12.5 43.5 18.5C43.7 23.5 43.2 27 42.2 29.8',
+  'M41.2 35.5C39.8 43 39.8 55 41.2 62.5',
+  'M42.2 68.2C43.4 71.5 43.8 78 43.7 85.5C43.6 91.5 41 95.5 36.5 96.6',
+  'M30 97.2L16 97.2',
+  'M9.5 96.6C5 95.5 2.4 91.5 2.3 85.5C2.2 78 2.6 71.5 3.8 68.2',
+  'M4.8 62.5C6.2 55 6.2 43 4.8 35.5',
+  'M3.8 29.8C2.8 27 2.3 23.5 2.5 18.5C2.8 12.5 5.5 8.2 9.5 6.6',
 ] as const;
 
-/** The whole outline as one shape, for the body's faint fill. */
-const BODY_PATH = `${ZONE_PATHS[0]}${ZONE_PATHS.slice(1)
-  .map((path) => path.replace(/^M[\d.]+ [\d.]+/, ''))
-  .join('')}Z`;
+/** The panels joined into one shape, for the body's faint fill. */
+const BODY_PATH = `${ZONE_PATHS.map((path, index) =>
+  index === 0 ? path : path.replace(/^M/, 'L')
+).join('')}Z`;
 
 /** Top-left corner of each wheel: LF, RF, LR, RR. */
 const WHEEL_ORIGINS = [
-  [11, 12],
-  [41, 12],
-  [11, 53],
-  [41, 53],
+  [7, 14],
+  [33.5, 14],
+  [7, 70],
+  [33.5, 70],
 ] as const;
-const WHEEL_WIDTH = 10;
-const WHEEL_HEIGHT = 16;
+const WHEEL_WIDTH = 5.5;
+const WHEEL_HEIGHT = 14;
 
-const CENTRE_X = 31;
-const CENTRE_Y = 40;
+const CENTRE_X = 23;
+const CENTRE_Y = 50;
 
 /**
  * A wedge 15 degrees wide from the middle of the car to past its nose; the
  * picture's edge trims it, and a rotation points it at the impact. It starts
  * 14 units out, clear of the figure in the middle.
  */
-const IMPACT_WEDGE = 'M29.17 26.12L24.2 -11.6H37.8L32.83 26.12Z';
+const IMPACT_WEDGE = 'M21.16 36L14.84 -12H31.16L24.84 36Z';
 
 /**
  * The cockpit, narrower at the windscreen: where the figure sits, and what
  * makes the outline a car.
  */
-const CABIN_PATH = 'M19 29Q31 25 43 29L44.5 49Q31 52 17.5 49Z';
+const CABIN_PATH = 'M14.5 36.5Q23 32 31.5 36.5L33 62Q23 65.5 13 62Z';
 
 /** Side of the overheating icon, which sits under the figure. */
-const WARNING_SIZE = 10;
+const WARNING_SIZE = 8;
 
-/** Without a car the outline is drawn, and nothing is said about it. */
-const NO_CAR_CLASS = 'stroke-slate-600 stroke-1';
+/** A panel is a band: an outline 4.4 wide, its inside 3 wide over it. */
+const EDGE = 'stroke-[4.4] [stroke-linecap:round]';
+const INSIDE = 'stroke-[3] [stroke-linecap:round]';
 
-/** A damaged piece of outline: thicker, its ends rounded. */
-const HIT = 'stroke-[3] [stroke-linecap:round]';
+interface PanelStyle {
+  /** The panel's edge; none for a panel that has come off. */
+  edge: string | null;
+  inside: string;
+}
 
 /**
- * The levels the sim gives a zone: whole, dented, badly damaged, gone. An
- * intact piece is the thin neutral outline; a piece that has come off is
- * dashed, the outline broken.
+ * The levels the sim gives a zone: whole, dented, badly damaged, gone. A whole
+ * panel is dark with a thin grey edge; a damaged one is filled with its
+ * level's colour; one that has come off is a dashed red line, square-ended so
+ * the gaps stay open.
  */
-const ZONE_CLASS: Record<string, string> = {
-  '0': 'stroke-slate-500 stroke-1',
-  '1': `stroke-amber-400 ${HIT}`,
-  '2': `stroke-red-500 ${HIT}`,
-  // Square ends, or the round caps would close the gaps.
-  '3': 'stroke-red-500 stroke-[3] [stroke-dasharray:3_3]',
+const PANEL: Record<string, PanelStyle> = {
+  '0': {
+    edge: `stroke-slate-600 ${EDGE}`,
+    inside: `stroke-slate-900 ${INSIDE}`,
+  },
+  '1': {
+    edge: `stroke-amber-400 ${EDGE}`,
+    inside: `stroke-amber-400 ${INSIDE}`,
+  },
+  '2': { edge: `stroke-red-500 ${EDGE}`, inside: `stroke-red-500 ${INSIDE}` },
+  '3': {
+    edge: null,
+    inside: 'stroke-red-500 stroke-[3] [stroke-dasharray:2_2]',
+  },
+};
+
+/** Without a car the panels are drawn dimmer, and nothing is said. */
+const NO_CAR: PanelStyle = {
+  edge: `stroke-slate-700 ${EDGE}`,
+  inside: `stroke-slate-800 ${INSIDE}`,
 };
 
 /**
@@ -154,12 +172,12 @@ export const CarDiagram = memo(
     // The figure and the warning share the middle: each is centred alone,
     // and they stack when both are there.
     const stacked = warning && readingValue !== null;
-    const readingY = stacked ? CENTRE_Y - 5 : CENTRE_Y;
+    const readingY = stacked ? CENTRE_Y - 4.5 : CENTRE_Y;
     const warningY = stacked ? CENTRE_Y + 1 : CENTRE_Y - WARNING_SIZE / 2;
 
     return (
       <svg
-        viewBox="0 0 62 80"
+        viewBox="0 0 46 100"
         className="h-full w-auto"
         role="img"
         aria-label="Car damage diagram"
@@ -173,17 +191,17 @@ export const CarDiagram = memo(
 
         {ZONE_PATHS.map((path, zone) => {
           const level = available ? (zones[zone] ?? '0') : '0';
-          const tone = available
-            ? (ZONE_CLASS[level] ?? ZONE_CLASS['0'])
-            : NO_CAR_CLASS;
+          const panel = available ? (PANEL[level] ?? PANEL['0']) : NO_CAR;
           return (
-            <path
-              key={path}
-              d={path}
-              data-testid={`damage-zone-${zone}`}
-              data-level={level}
-              className={`fill-none ${tone}${level === '3' ? pulse : ''}`}
-            />
+            <g key={path} className="fill-none">
+              {panel.edge && <path d={path} className={panel.edge} />}
+              <path
+                d={path}
+                data-testid={`damage-zone-${zone}`}
+                data-level={level}
+                className={`${panel.inside}${level === '3' ? pulse : ''}`}
+              />
+            </g>
           );
         })}
 
@@ -208,7 +226,7 @@ export const CarDiagram = memo(
               y={y}
               width={WHEEL_WIDTH}
               height={WHEEL_HEIGHT}
-              rx={2.5}
+              rx={2}
               data-testid={`damage-wheel-${wheel}`}
               data-state={state}
               className={`${WHEEL_CLASS[state]}${
@@ -227,7 +245,8 @@ export const CarDiagram = memo(
             aria-label={`${readingLabel} ${readingValue}`}
             data-testid="damage-reading"
             data-tone={readingTone}
-            className={`text-2xs font-bold tabular-nums ${READING_CLASS[readingTone]}`}
+            // The overlay's smallest step, but never wider than the cockpit.
+            className={`text-[length:min(var(--text-2xs),9px)] font-bold tabular-nums ${READING_CLASS[readingTone]}`}
           >
             {readingValue}
           </text>
