@@ -1,5 +1,6 @@
 import { PropsWithChildren } from 'react';
 import { useGeneralSettings } from '@irdashies/context';
+import { DEFAULT_FONT_TYPE } from '@irdashies/types';
 
 /**
  * Check if we're on the settings page by looking at the URL hash.
@@ -25,7 +26,7 @@ export const ThemeManager = ({ children }: PropsWithChildren) => {
         relative w-full h-full overflow-hidden overlay-window
         overlay-theme-${fontSize ?? 'sm'}
         overlay-theme-color-${colorPalette ?? 'default'}
-        overlay-theme-font-face-${fontType ?? 'lato'}
+        overlay-theme-font-face-${fontType ?? DEFAULT_FONT_TYPE}
         overlay-theme-font-weight-${fontWeight ?? 'normal'}
       `}
     >

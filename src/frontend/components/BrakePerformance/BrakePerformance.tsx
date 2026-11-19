@@ -204,7 +204,7 @@ export const BrakePerformance = () => {
 
   return (
     <div
-      className="flex h-full w-full flex-col justify-center gap-1.5 overflow-hidden rounded bg-slate-800/(--bg-opacity) p-2 font-medium tabular-nums text-white"
+      className="flex h-full w-full flex-col justify-center gap-1.5 overflow-hidden overlay-panel p-2 font-medium tabular-nums text-white"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

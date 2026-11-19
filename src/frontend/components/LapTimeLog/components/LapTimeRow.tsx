@@ -113,8 +113,6 @@ export const LapTimeRow = memo(
     const deltaIsRed =
       time !== undefined && time > 0 && delta !== undefined && delta > 0;
 
-    const opacity = settings?.foreground?.opacity ?? 0;
-
     const getLapColor = () => {
       if (live) return 'text-slate-300';
       if (isDirty) return 'text-slate-400';
@@ -128,8 +126,7 @@ export const LapTimeRow = memo(
 
     return (
       <div
-        className={`${!isCompact ? 'p-1' : ''} odd:bg-slate-800/[var(--fg-alpha)] even:bg-slate-900/[var(--fg-alpha)] ${stintEdge ? EDGE_CLASS[stintEdge] : ''}`}
-        style={{ '--fg-alpha': `${opacity / 3}%` } as React.CSSProperties}
+        className={`${!isCompact ? 'p-1' : ''} ${stintEdge ? EDGE_CLASS[stintEdge] : 'border-t overlay-divider first:border-t-0'}`}
       >
         <div
           className={`flex w-full items-center text-[1em] ${isUltra ? 'py-px px-1' : 'py-0.5 px-2'}`}

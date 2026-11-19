@@ -2,7 +2,11 @@ import { useState } from 'react';
 import { ToggleSwitch } from '../components/ToggleSwitch';
 import { OverlayPauseSetting } from '../components/OverlayPauseSetting';
 import { useAvailableSimulators, useDashboard } from '@irdashies/context';
-import { SIMULATOR_IDS, SIMULATOR_LABELS } from '@irdashies/types';
+import {
+  DEFAULT_FONT_TYPE,
+  SIMULATOR_IDS,
+  SIMULATOR_LABELS,
+} from '@irdashies/types';
 import type { GeneralSettingsType } from '@irdashies/types';
 import { BaseSettingsSection } from '../components/BaseSettingsSection';
 
@@ -83,7 +87,7 @@ export const GeneralSettings = ({ previewMode }: GeneralSettingsProps = {}) => {
   const { bridge, currentDashboard, onDashboardUpdated } = useDashboard();
   const availableSimulators = useAvailableSimulators();
   const [settings, setSettings] = useState<GeneralSettingsType>({
-    fontType: currentDashboard?.generalSettings?.fontType ?? 'lato',
+    fontType: currentDashboard?.generalSettings?.fontType ?? DEFAULT_FONT_TYPE,
     fontSize: currentDashboard?.generalSettings?.fontSize ?? 'sm',
     fontWeight: currentDashboard?.generalSettings?.fontWeight ?? 'normal',
     colorPalette: currentDashboard?.generalSettings?.colorPalette ?? 'default',
@@ -376,7 +380,7 @@ export const GeneralSettings = ({ previewMode }: GeneralSettingsProps = {}) => {
             <div className="min-w-0">
               <select
                 aria-label="Overlay font"
-                value={settings.fontType ?? 'lato'}
+                value={settings.fontType ?? DEFAULT_FONT_TYPE}
                 onChange={(e) =>
                   handleFontChange(
                     e.target.value as NonNullable<
@@ -458,13 +462,13 @@ export const GeneralSettings = ({ previewMode }: GeneralSettingsProps = {}) => {
             <figcaption className="flex flex-wrap items-baseline justify-between gap-2 text-xs text-slate-400">
               <span>Overlay font sample</span>
               <span>
-                {FONT_PRESETS[settings.fontType ?? 'lato']} /{' '}
+                {FONT_PRESETS[settings.fontType ?? DEFAULT_FONT_TYPE]} /{' '}
                 {FONT_WEIGHT_PRESETS[resolvedFontWeight]} /{' '}
                 {FONT_SIZE_PRESETS[settings.fontSize ?? 'sm']}
               </span>
             </figcaption>
             <p
-              className={`overlay-window overlay-theme-${settings.fontSize ?? 'sm'} overlay-theme-font-face-${settings.fontType ?? 'lato'} overlay-theme-font-weight-${resolvedFontWeight} text-base break-words text-slate-200`}
+              className={`overlay-window overlay-theme-${settings.fontSize ?? 'sm'} overlay-theme-font-face-${settings.fontType ?? DEFAULT_FONT_TYPE} overlay-theme-font-weight-${resolvedFontWeight} text-base break-words text-slate-200`}
             >
               Tearoff overlay text 0123456789
             </p>

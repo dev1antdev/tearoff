@@ -129,7 +129,7 @@ describe('individual window setting', () => {
   it('shows the selected overlay font configuration without saving on mount', () => {
     render(<GeneralSettings />);
     const sample = screen.getByRole('figure', { name: 'Overlay font sample' });
-    expect(sample).toHaveTextContent('Lato / Normal / Medium');
+    expect(sample).toHaveTextContent('Figtree / Normal / Medium');
     expect(mocks.update).not.toHaveBeenCalled();
     fireEvent.change(screen.getByRole('combobox', { name: 'Overlay font' }), {
       target: { value: 'inter' },

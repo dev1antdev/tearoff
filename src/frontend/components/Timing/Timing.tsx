@@ -153,7 +153,7 @@ export const TimingView = ({ settings, readings }: TimingViewProps) => {
   return (
     <div
       data-testid="timing"
-      className="flex h-full w-full flex-col gap-1.5 rounded bg-slate-800/(--bg-opacity) p-2 font-medium text-white"
+      className="flex h-full w-full flex-col gap-1.5 overlay-panel p-2 font-medium text-white"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
         fontSize: `${(BASE_FONT_PX * settings.scale) / 100}px`,

@@ -284,7 +284,7 @@ export const CarSystems = () => {
 
   return (
     <div
-      className={`w-full bg-slate-800/(--bg-opacity) rounded text-white font-medium ${isCompact ? 'p-1' : 'p-2'} ${fade}`}
+      className={`w-full overlay-panel text-white font-medium ${isCompact ? 'p-1' : 'p-2'} ${fade}`}
       style={{
         ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 80}%`,
       }}

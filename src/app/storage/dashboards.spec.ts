@@ -699,6 +699,49 @@ describe('dashboards', () => {
     });
   });
 
+  describe('Lato to Figtree default font', () => {
+    it('moves a profile still on Lato, the old default, to Figtree once', () => {
+      const result = withDashboardDefaults({
+        widgets: [],
+        generalSettings: { fontType: 'lato', fontSize: 'lg' },
+      });
+
+      expect(result.generalSettings).toMatchObject({
+        fontType: 'figtree',
+        fontSize: 'lg',
+        figtreeDefaultApplied: true,
+      });
+      expect(withDashboardDefaults(result)).toEqual(result);
+    });
+
+    it('keeps Lato when it was picked after the move', () => {
+      const result = withDashboardDefaults({
+        widgets: [],
+        generalSettings: { fontType: 'lato', figtreeDefaultApplied: true },
+      });
+
+      expect(result.generalSettings?.fontType).toBe('lato');
+    });
+
+    it('keeps any other font and marks the profile as moved', () => {
+      const result = withDashboardDefaults({
+        widgets: [],
+        generalSettings: { fontType: 'inter' },
+      });
+
+      expect(result.generalSettings).toMatchObject({
+        fontType: 'inter',
+        figtreeDefaultApplied: true,
+      });
+    });
+
+    it('gives a profile with no font Figtree', () => {
+      const result = withDashboardDefaults({ widgets: [] });
+
+      expect(result.generalSettings?.fontType).toBe('figtree');
+    });
+  });
+
   describe('configuration reset', () => {
     it('resets shared scales, including migrated standings and custom instances, while preserving the layout', () => {
       const layout = { x: 20, y: 40, width: 400, height: 300 };

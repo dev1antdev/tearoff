@@ -81,7 +81,7 @@ export const Battle = () => {
 
   return (
     <div
-      className={`w-full bg-slate-800/(--bg-opacity) rounded-sm ${!isCompact ? 'p-2' : ''} overflow-hidden text-white`}
+      className={`w-full overlay-panel ${!isCompact ? 'p-2' : ''} overflow-hidden text-white`}
       style={{
         ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 80}%`,
       }}

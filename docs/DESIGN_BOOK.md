@@ -21,7 +21,11 @@ Every rule here belongs to one of two surfaces.
 | **App chrome** | Where the driver configures and watches: Settings, the Pit Wall's header and panels' frames, the Gantry bars | `.settings-shell` (in `SettingsLayout`, the Pit Wall and Gantry chrome pieces) | No: its own type and palette                                     |
 
 The Pit Wall window sits inside `ThemeManager` too, so a widget hosted in a Pit
-Wall panel uses the overlay scale and palette, exactly as it does on track.
+Wall panel uses the overlay scale and palette, exactly as it does on track. A
+Pit Wall or Gantry frame is the hosted widget's panel: inside it the widget's
+`overlay-panel` loses its own edge and corners (the edge turns transparent),
+so there is one box, not two; a warning colour the widget sets on its edge (the
+Fuel Calculator's) still shows.
 
 The app is dark only (`color-scheme: dark`).
 
@@ -43,19 +47,25 @@ The app is dark only (`color-scheme: dark`).
 
 ### 3.1 Panel and rows
 
-| Element      | Classes                                                                               |
-| ------------ | ------------------------------------------------------------------------------------- |
-| Widget panel | `bg-slate-800/(--bg-opacity) rounded-sm`, `p-2` (compact mode drops it), `text-white` |
-| Table rows   | `odd:bg-slate-800/(--row-opacity) even:bg-slate-900/(--row-opacity)`                  |
-| Divider      | `border-slate-700`                                                                    |
-| Chip / scrim | `bg-slate-950/NN` (behind a chip, a warning pill, a readout over a graphic)           |
-| Inner tile   | `bg-slate-900/70` or `bg-slate-700/40`, `rounded` or `rounded-md`                     |
+| Element          | Classes                                                                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Widget panel     | `overlay-panel` (`theme.css`): `bg-slate-950/(--bg-opacity)`, a 1px `border-white/9` edge, `rounded-xl` (12px); `p-2` (compact mode drops it), `text-white`  |
+| Rows             | No background. A hairline between them: `border-t overlay-divider first:border-t-0`; on a table row, on its cells (`[&>td]:border-t [&>td]:overlay-divider`) |
+| The player's row | An amber tint (`bg-yellow-500/(--player-row-opacity)` in Standings and Relative) and `text-amber-300`                                                        |
+| Divider          | `overlay-divider` (a `white/5` border colour), between sections of one panel                                                                                 |
+| Chip / scrim     | `bg-slate-950/NN` (behind a chip, a warning pill, a readout over a graphic)                                                                                  |
+| Inner tile       | Avoid a tile inside a panel: group with space and a divider. Where one is needed, `bg-slate-900/70`, `rounded-md`                                            |
 
 `--bg-opacity` comes from the widget's own `background.opacity` setting
 (0–100). At low opacity the game is the ground, so values stay `text-white`.
+An inline border (the flag contour, the Fuel Calculator's warning) takes the
+place of the hairline edge while it shows.
 
 Graphic widgets (Radar, Track Map, Minimap, Blind Spot Monitor, the Flag light
-board) draw their own shapes and have no panel.
+board) draw their own shapes and have no panel. The Tachometer's and Shift
+Light's readout boxes are near-black chips (`bg-slate-950/(--bg-opacity)`). The
+Timing Tower and the Broadcast graphics keep their own panels (fixed size, own
+themes).
 
 ### 3.2 Neutrals follow the palette
 
@@ -72,12 +82,13 @@ The driver picks one of four palettes. Each remaps `--color-slate-*` under
 So: **overlay neutrals are written in `slate-*` only.** `gray-*`, `zinc-*`,
 `neutral-*`, `black`, or a hex neutral does not follow the palette.
 
-| Text role                            | Class                                                          |
-| ------------------------------------ | -------------------------------------------------------------- |
-| Values                               | `text-white`                                                   |
-| Supporting values                    | `text-slate-200`, `text-slate-300`                             |
-| Column headers, labels, muted values | `text-slate-400` (about 5.6:1 on `slate-800`)                  |
-| Units, placeholders, empty values    | `text-slate-500` (about 3:1 on `slate-800`: never for content) |
+| Text role                            | Class                                                                            |
+| ------------------------------------ | -------------------------------------------------------------------------------- |
+| Values                               | `text-white`                                                                     |
+| Supporting values                    | `text-slate-200`, `text-slate-300`                                               |
+| Column headers, labels, muted values | `text-slate-400` (about 6.5:1 on `slate-950`)                                    |
+| Labels over or beside a value        | `overlay-label`: `text-2xs`, semibold, upper case, `tracking-wider`, `slate-400` |
+| Units, placeholders, empty values    | `text-slate-500` (about 3.5:1 on `slate-950`: never for content)                 |
 
 ### 3.3 Meanings
 
@@ -93,6 +104,9 @@ These hold in every palette.
 | Lapped car                               | `text-blue-400`                                   |                                                              |
 | Marked or voided lap                     | `text-white/60`                                   |                                                              |
 | Text on a tinted badge                   | the light shade of its hue                        | e.g. `bg-red-900 text-red-200`, `bg-red-500/20 text-red-300` |
+
+Colour is for these meanings only. A neutral value (an amount to add, a level
+in the tank) stays white even when it is good news.
 
 ### 3.4 Sim colours stay exact
 
@@ -116,7 +130,10 @@ Font size setting picks the offset, from 7px (`4xs`) to 22px (`9xl`).
 | `text-sm`              | 12px                       | Table rows (Standings, Relative)                    |
 | `text-base`            | 13px                       | Standalone values in small widgets                  |
 | `text-lg`              | 14px                       | Emphasised readouts                                 |
-| `text-xl` … `text-9xl` | 15px … 23px                | Headline numbers, gear, large deltas                |
+| `text-xl` … `text-9xl` | 15px … 23px                | Emphasised numbers, large deltas                    |
+| `text-display-sm`      | 22px (offset × 2)          | The value a small widget exists to show             |
+| `text-display-md`      | 27.5px (offset × 2.5)      | Gear, a headline delta                              |
+| `text-display-lg`      | 38.5px (offset × 3.5)      | The one number of a large widget (laps to go)       |
 
 Rules:
 
@@ -126,9 +143,33 @@ Rules:
 - **Fixed-size by design:** the Timing Tower (its columns have fixed widths, so its text is fixed with them) and the Broadcast graphics (they have their own themes on the Broadcast settings page). Make anything else fixed only with a reason written next to it.
 - Widget Scale (50–200%, 5% steps) scales a whole widget on top of the font size.
 
-Faces: Lato by default; Noto Sans, Figtree, Inter and Roboto are the driver's
-alternatives, all from Google Fonts. Weights run from light to extrabold,
-normal by default.
+The display steps scale with the Font size setting too and set a line height
+of 1.
+
+Faces: Figtree by default; Lato, Noto Sans, Inter and Roboto are the driver's
+alternatives, all from Google Fonts. A profile still on Lato, the default
+before Figtree, moves to Figtree once when it loads (`figtreeDefaultApplied`);
+picking Lato afterwards sticks. The canvas widgets (Radar, Minimap) draw their
+text in Lato. Weights run from light to extrabold, normal by default.
+
+### 3.6 Hierarchy, and what overlays avoid
+
+The rules a widget is brought to when its look is redone, one group of widgets
+at a time; a widget not redone yet may still break the first four.
+
+- **Size and brightness, not colour, say what matters.** The value a widget
+  exists for is the largest (a display step); its unit is smaller and
+  `slate-400` beside it (`46.42 L`, `27.4 PSI`). Supporting numbers are smaller
+  again.
+- **One bright spot per row.** Tinted text and a thin outline before a filled
+  background; a fill only for what needs action now (a tow, the brake point).
+- **No stripes, no border around every cell, no tile inside a tile.**
+- **No glow, blur or shadow on anything that changes every frame** (pedals, RPM
+  lights, live deltas). Electron's GPU process already takes the largest share
+  of the app's CPU (`docs/performance/2026-11-14-cpu-sniff.md`). A static
+  element may carry a soft glow.
+- **Thin icons** in overlays: Phosphor `weight="light"`.
+- **Our own drawings.** "You" is amber; car and tyre drawings are Tearoff's own.
 
 ---
 
@@ -229,8 +270,8 @@ Do not bundle or fetch Segoe UI; elsewhere the platform UI face stands in.
 
 ## 6. Shape, borders and depth
 
-- Radii: overlay panels `rounded-sm` (or `rounded`: the same 4px in Tailwind 4), readout boxes in the Tachometer and Shift Light included; fields, buttons and licence badges `rounded-md`; larger settings panels and Pit Wall panels `rounded-lg`; dots, thumbs and scrollbars `rounded-full`.
-- Separate with borders, not depth. Shadows only for layers that float over the page (menus, popovers, the profile-switch notice).
+- Radii: overlay panels `rounded-xl` (12px, part of `overlay-panel`); readout boxes in the Tachometer and Shift Light `rounded-sm`; fields, buttons and licence badges `rounded-md`; larger settings panels and Pit Wall panels `rounded-lg`; dots, thumbs, bars that fill and scrollbars `rounded-full`.
+- Separate with hairlines and space, not depth. Shadows only for layers that float over the page (menus, popovers, the profile-switch notice).
 - Scrollbars in `.settings-shell`: 6px, thumb `white/12%` (hover `white/24%`), transparent track.
 
 ---
@@ -252,14 +293,14 @@ measured against the surface actually behind them (including alpha).
 Measured pairs: `slate-200` on `settings-control` 11.1:1, `settings-boundary`
 on `settings-control` 4.58:1, white on `accent-600` 6.46:1, white on
 `accent-500` 4.83:1, `accent-400` on `slate-800` about 5.1:1. Overlay
-`slate-500` text is about 3:1, which is why it is kept for units and empty
-values.
+`slate-500` text is about 3.5:1 on the `slate-950` panel, which is why it is
+kept for units and empty values.
 
 ---
 
 ## 9. Icons
 
-- Phosphor through `@phosphor-icons/react`. Regular weight by default; `weight="fill"` and `weight="bold"` where an icon has to hold up at overlay size. 16px in buttons and rows; icons take the text colour.
+- Phosphor through `@phosphor-icons/react`. Regular weight in settings; `weight="light"` in overlays as each is redone (section 3.6), with `weight="fill"` or `weight="bold"` only where an icon has to hold up at a small size. 16px in buttons and rows; icons take the text colour.
 - Map icon names chosen at runtime through `src/frontend/utils/phosphorIconMap.ts`.
 - The one custom glyph is the finished-car checkered flag in `DriverStatusBadges.tsx`: Phosphor's `FlagCheckered` cannot be read at badge size.
 

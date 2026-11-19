@@ -202,7 +202,7 @@ export const TrackNotes = () => {
 
   const container = (children: React.ReactNode) => (
     <div
-      className="flex h-full w-full flex-col items-center justify-center gap-0.5 overflow-hidden rounded bg-slate-800/(--bg-opacity) p-2 text-center text-white"
+      className="flex h-full w-full flex-col items-center justify-center gap-0.5 overflow-hidden overlay-panel p-2 text-center text-white"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

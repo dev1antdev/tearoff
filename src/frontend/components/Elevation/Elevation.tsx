@@ -181,7 +181,7 @@ const ElevationProfile = memo(
     return (
       <div
         ref={boxRef}
-        className="relative h-full w-full overflow-hidden rounded bg-slate-800/(--bg-opacity) text-white"
+        className="relative h-full w-full overflow-hidden overlay-panel text-white"
         style={{ ['--bg-opacity' as string]: `${backgroundOpacity}%` }}
       >
         {width > 0 && height > 0 && (

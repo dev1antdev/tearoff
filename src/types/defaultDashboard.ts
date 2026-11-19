@@ -1,6 +1,9 @@
-import type { GeneralSettingsType } from './dashboardLayout';
+import type { FontType, GeneralSettingsType } from './dashboardLayout';
 import type { TypedDashboardWidget, WidgetConfigMap } from './widgetConfigs';
 import { WIDGET_MANIFESTS, getWidgetManifest } from './widgets';
+
+/** The overlay font of a profile that has not picked one. */
+export const DEFAULT_FONT_TYPE: FontType = 'figtree';
 
 export const defaultDashboard: {
   widgets: TypedDashboardWidget[];
@@ -17,7 +20,8 @@ export const defaultDashboard: {
       }) as TypedDashboardWidget
   ),
   generalSettings: {
-    fontType: 'lato',
+    fontType: DEFAULT_FONT_TYPE,
+    figtreeDefaultApplied: true,
     fontSize: 'sm',
     fontWeight: 'normal',
     colorPalette: 'black',

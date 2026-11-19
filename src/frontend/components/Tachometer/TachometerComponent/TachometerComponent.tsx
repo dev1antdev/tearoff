@@ -328,7 +328,7 @@ export const Tachometer = ({
   // Match the RPM readout box exactly (text-2xl / 1.5em tall / px-4) so the
   // oil & water boxes are the same visual size.
   const tempBoxClass =
-    'bg-slate-800/(--bg-opacity) text-2xl flex min-w-[5em] font-mono font-bold px-4 rounded-sm whitespace-nowrap justify-center items-center gap-1';
+    'bg-slate-950/(--bg-opacity) text-2xl flex min-w-[5em] font-mono font-bold px-4 rounded-sm whitespace-nowrap justify-center items-center gap-1';
   const tempBoxStyle = {
     height: '1.5em',
     ['--bg-opacity' as string]: `${opacity ?? 80}%`,
@@ -387,7 +387,7 @@ export const Tachometer = ({
       {/* LED lights */}
       <div
         id="ledcontainer"
-        className={`bg-slate-800/(--bg-opacity) flex relative items-center justify-center rounded-full`}
+        className={`bg-slate-950/(--bg-opacity) flex relative items-center justify-center rounded-full`}
         style={{
           ['--bg-opacity' as string]: `${opacity ?? 80}%`,
           padding: `4px min(40cqh, ${(42.5 / effectiveNumLights).toFixed(2)}cqw)`,
@@ -442,7 +442,7 @@ export const Tachometer = ({
         {shouldShowRpmBox && rpmOrientation === 'horizontal' && (
           <div
             id="rpm-text"
-            className={`bg-slate-800/(--bg-opacity) text-2xl absolute right-[-8em] flex min-w-[6em] font-mono font-bold text-white px-4 mx-2 rounded-sm transition-colors duration-200 whitespace-nowrap justify-center items-center`}
+            className={`bg-slate-950/(--bg-opacity) text-2xl absolute right-[-8em] flex min-w-[6em] font-mono font-bold text-white px-4 mx-2 rounded-sm transition-colors duration-200 whitespace-nowrap justify-center items-center`}
             style={{
               ...getRpmBoxStyle(),
               height: '2em',
@@ -472,7 +472,7 @@ export const Tachometer = ({
       {shouldShowRpmBox && rpmOrientation !== 'horizontal' && (
         <div
           id="rpm-text"
-          className={`bg-slate-800/(--bg-opacity) text-2xl flex min-w-[6em] font-mono font-bold text-white px-4 mx-2 rounded-sm transition-colors duration-200 whitespace-nowrap justify-center items-center`}
+          className={`bg-slate-950/(--bg-opacity) text-2xl flex min-w-[6em] font-mono font-bold text-white px-4 mx-2 rounded-sm transition-colors duration-200 whitespace-nowrap justify-center items-center`}
           style={{
             ...getRpmBoxStyle(),
             height: '1.5em',

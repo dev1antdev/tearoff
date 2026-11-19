@@ -133,7 +133,7 @@ export const FinishProjection = () => {
     <div
       data-testid="finish-projection"
       data-valid={hasTable}
-      className="flex h-full w-full flex-col gap-1.5 overflow-hidden rounded bg-slate-800/(--bg-opacity) p-2 leading-none text-white tabular-nums"
+      className="flex h-full w-full flex-col gap-1.5 overflow-hidden overlay-panel p-2 leading-none text-white tabular-nums"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}
@@ -190,7 +190,7 @@ export const FinishProjection = () => {
       {hasRivals && (
         <div
           data-testid="finish-rivals"
-          className="flex flex-none flex-col gap-0.5 border-t border-slate-600/60 pt-1.5"
+          className="flex flex-none flex-col gap-0.5 border-t overlay-divider pt-1.5"
         >
           <FinishRivalsCaption />
           {rivals.ahead.map(rivalRow)}

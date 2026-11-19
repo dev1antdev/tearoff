@@ -981,7 +981,6 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
         },
       })}
       style={{
-        ['--row-opacity' as string]: `${rowOpacity}%`,
         // Keep the player's existing 20% highlight at the default row opacity.
         ['--player-row-opacity' as string]: `${(rowOpacity * 20) / 70}%`,
         ...(isHighlighted && {
@@ -998,7 +997,7 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
         isPlayer ? 'text-amber-300' : '',
         isPlayer
           ? 'bg-yellow-500/(--player-row-opacity)'
-          : 'odd:bg-slate-800/(--row-opacity) even:bg-slate-900/(--row-opacity) text-sm',
+          : '[&>td]:border-t [&>td]:overlay-divider text-sm',
         !isPlayer && isLapped ? 'text-blue-400' : '',
         !isPlayer && isLappingAhead ? 'text-red-400' : '',
         hidden ? 'invisible' : '',

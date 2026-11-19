@@ -134,7 +134,7 @@ const CrewPanel = ({ settings }: { settings: CrewConfig }) => {
     <div
       data-testid="crew"
       data-car={car.carIdx}
-      className="flex h-full w-full flex-col overflow-hidden rounded bg-slate-800/(--bg-opacity) text-base text-slate-200 tabular-nums"
+      className="flex h-full w-full flex-col overflow-hidden overlay-panel text-base text-slate-200 tabular-nums"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}
@@ -208,7 +208,7 @@ const CrewPanel = ({ settings }: { settings: CrewConfig }) => {
             <div
               data-testid="crew-stints"
               className={`overflow-x-auto pb-1 ${
-                settings.showDrivers ? 'border-t border-slate-700' : ''
+                settings.showDrivers ? 'border-t overlay-divider' : ''
               }`}
             >
               <div

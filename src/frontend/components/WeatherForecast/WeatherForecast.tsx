@@ -326,7 +326,7 @@ export const WeatherForecast = () => {
       // both ends, with its top above where any scrolling reaches. The
       // room above and below it is those margins and no padding of the
       // box, which would push it out of a box it only just fits.
-      className="flex h-full w-full flex-col rounded bg-slate-800/(--bg-opacity) px-2 text-white"
+      className="flex h-full w-full flex-col overlay-panel px-2 text-white"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

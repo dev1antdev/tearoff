@@ -15,7 +15,7 @@ export const TimelineFrame = ({
   children: ReactNode;
 }) => (
   <div
-    className="@container flex h-full w-full min-h-0 flex-col gap-1.5 overflow-hidden rounded-sm bg-slate-800/(--bg-opacity) p-2 text-sm text-white"
+    className="@container flex h-full w-full min-h-0 flex-col gap-1.5 overflow-hidden overlay-panel p-2 text-sm text-white"
     style={{ ['--bg-opacity' as string]: `${opacity}%` }}
   >
     {children}

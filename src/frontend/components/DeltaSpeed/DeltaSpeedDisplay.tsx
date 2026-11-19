@@ -50,7 +50,7 @@ export const DeltaSpeedDisplay = ({
 
   return (
     <div
-      className={`h-full w-full rounded-sm bg-slate-800/(--bg-opacity) ${
+      className={`h-full w-full overlay-panel ${
         density === 'normal' ? 'p-2' : ''
       }`}
       style={{

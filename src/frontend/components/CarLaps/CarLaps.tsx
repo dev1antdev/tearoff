@@ -85,7 +85,7 @@ const CarLapsPanel = ({ settings }: { settings: CarLapsConfig }) => {
     <div
       data-testid="car-laps"
       data-car={car.carIdx}
-      className="flex h-full w-full flex-col overflow-hidden rounded bg-slate-800/(--bg-opacity) text-base text-slate-200 tabular-nums"
+      className="flex h-full w-full flex-col overflow-hidden overlay-panel text-base text-slate-200 tabular-nums"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

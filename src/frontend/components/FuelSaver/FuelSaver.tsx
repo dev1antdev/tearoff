@@ -153,7 +153,7 @@ export const FuelSaver = () => {
   return (
     <div
       data-testid="fuel-saver"
-      className="flex h-full w-full flex-col gap-1.5 overflow-hidden rounded bg-slate-800/(--bg-opacity) p-2 leading-none text-white tabular-nums"
+      className="flex h-full w-full flex-col gap-1.5 overflow-hidden overlay-panel p-2 leading-none text-white tabular-nums"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

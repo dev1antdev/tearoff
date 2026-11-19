@@ -165,7 +165,7 @@ export const ClassFields = () => {
     <div
       data-testid="class-fields"
       className={[
-        'w-full rounded-sm bg-slate-800/(--bg-opacity) p-2 text-white',
+        'w-full overlay-panel p-2 text-white',
         inColumn
           ? 'grid grid-cols-[max-content_minmax(0,1fr)] gap-y-1'
           : 'flex h-full gap-2',

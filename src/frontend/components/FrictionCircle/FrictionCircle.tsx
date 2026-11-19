@@ -103,7 +103,7 @@ export const FrictionCircle = () => {
 
   return (
     <div
-      className="flex h-full w-full items-center justify-center rounded bg-slate-800/(--bg-opacity) p-2 font-medium text-white [container-type:size]"
+      className="flex h-full w-full items-center justify-center overlay-panel p-2 font-medium text-white [container-type:size]"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

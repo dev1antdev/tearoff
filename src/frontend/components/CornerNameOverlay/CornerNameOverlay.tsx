@@ -25,8 +25,8 @@ export const CornerNameOverlay = ({
 
   return (
     <div
-      className="w-full rounded-sm p-2 relative overflow-hidden"
-      style={{ backgroundColor: `rgba(15, 23, 42, ${opacity})` }}
+      className="w-full overlay-panel p-2 relative overflow-hidden"
+      style={{ ['--bg-opacity' as string]: `${opacity * 100}%` }}
     >
       {/* Main content */}
       <div className="flex items-center gap-2">

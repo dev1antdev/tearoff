@@ -152,7 +152,7 @@ export const RaceLog = () => {
   return (
     <div
       data-testid="race-log"
-      className="flex h-full w-full flex-col overflow-hidden rounded bg-slate-800/(--bg-opacity) text-sm text-slate-200 tabular-nums"
+      className="flex h-full w-full flex-col overflow-hidden overlay-panel text-sm text-slate-200 tabular-nums"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

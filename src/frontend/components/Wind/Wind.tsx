@@ -30,8 +30,7 @@ export const Wind = memo(() => {
     (weather.windDirection ?? 0) - (weather.windYaw ?? 0);
   const demoWind = useWindDemoData(isDemoMode, isMetric);
 
-  const containerClassName =
-    'w-full h-full rounded-sm p-2 bg-slate-800/(--bg-opacity)';
+  const containerClassName = 'w-full h-full p-2 overlay-panel';
   const containerStyle = {
     ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 80}%`,
   };

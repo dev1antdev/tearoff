@@ -238,7 +238,7 @@ export const FlagPanel = () => {
       data-testid="flag-panel"
       data-flag={kind}
       data-detail={detail}
-      className="relative isolate flex h-full w-full items-center gap-3 rounded bg-slate-800/(--bg-opacity) p-2 font-medium text-white"
+      className="relative isolate flex h-full w-full items-center gap-3 overlay-panel p-2 font-medium text-white"
       style={{
         ['--bg-opacity' as string]: `${opacity}%`,
         ['--tint-opacity' as string]: `${(tint?.opacity ?? 0) * opacity}%`,

@@ -207,7 +207,7 @@ export const Weather = () => {
 
   return (
     <div
-      className="@container w-full rounded-sm p-2 bg-slate-800/(--bg-opacity)"
+      className="@container w-full p-2 overlay-panel"
       style={{
         ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 80}%`,
       }}

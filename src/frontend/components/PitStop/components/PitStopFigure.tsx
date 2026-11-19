@@ -42,9 +42,7 @@ export const PitStopFigure = memo(
         data-approximate={approximate && !missing}
         className="flex min-w-0 flex-col gap-1"
       >
-        <span className="text-2xs font-medium uppercase leading-none tracking-wide text-slate-400">
-          {label}
-        </span>
+        <span className="overlay-label leading-none">{label}</span>
         <span
           className={`whitespace-nowrap font-bold leading-none ${
             large ? 'text-4xl' : 'text-base'

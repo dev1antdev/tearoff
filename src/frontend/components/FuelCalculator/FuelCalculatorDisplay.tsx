@@ -345,22 +345,21 @@ export const FuelCalculatorDisplay = ({
   const currentFuelStatus = displayData.fuelStatus || 'safe';
   const showFuelStatusBorder = settings.showFuelStatusBorder ?? true;
 
-  // A safe fuel state is the normal state, not an alert. Keep the shell quiet
-  // like Standings/Relative, and reserve colour for a warning that needs action.
+  // A safe fuel state is the normal state, not an alert. Keep the panel's own
+  // edge like Standings/Relative, and reserve colour for a warning that needs
+  // action.
   const borderColorValue =
     showFuelStatusBorder && currentFuelStatus === 'caution'
       ? '#f59e0b'
       : showFuelStatusBorder && currentFuelStatus === 'danger'
         ? '#ef4444'
-        : 'transparent';
+        : undefined;
 
-  const borderWidth =
-    derivedCompactMode !== 'off' ? 'border border-transparent' : 'border';
   const paddingClass = derivedCompactMode !== 'off' ? '' : 'p-2';
 
   return (
     <div
-      className={`relative w-full flex flex-col ${borderWidth} box-border transition-colors duration-300 rounded-sm bg-slate-800/(--bg-opacity) text-white overflow-hidden ${paddingClass}`}
+      className={`relative w-full flex flex-col box-border transition-colors duration-300 overlay-panel text-white overflow-hidden ${paddingClass}`}
       style={{
         ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 0}%`,
         borderColor: borderColorValue,

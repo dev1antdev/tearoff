@@ -105,6 +105,11 @@ export type FontSize =
 
 export interface GeneralSettingsType {
   fontType?: FontType;
+  /**
+   * Set once a profile has been moved off Lato, the default font before
+   * Figtree. A profile that picks Lato after that keeps it.
+   */
+  figtreeDefaultApplied?: boolean;
   fontSize?: FontSize;
   fontWeight?:
     'light' | 'normal' | 'medium' | 'semibold' | 'bold' | 'extrabold';

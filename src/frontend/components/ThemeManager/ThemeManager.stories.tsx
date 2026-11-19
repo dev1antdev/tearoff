@@ -12,7 +12,7 @@ import type {
 } from '@irdashies/types';
 import { useState } from 'react';
 import { WIDGET_MAP } from '../../WidgetIndex';
-import { defaultDashboard } from '@irdashies/types';
+import { DEFAULT_FONT_TYPE, defaultDashboard } from '@irdashies/types';
 
 const meta: Meta<typeof ThemeManager> = {
   component: ThemeManager,
@@ -37,7 +37,7 @@ const createMockBridge = (
     return;
   },
   saveDashboard: (dashboard: DashboardLayout) => {
-    setFontType(dashboard.generalSettings?.fontType || 'lato');
+    setFontType(dashboard.generalSettings?.fontType || DEFAULT_FONT_TYPE);
     setFontSize(dashboard.generalSettings?.fontSize || 'sm');
     setColorPalette(dashboard.generalSettings?.colorPalette || 'default');
     setFontWeight(dashboard.generalSettings?.fontWeight || 'normal');
@@ -414,7 +414,9 @@ export const Primary = {
 
 export const WithFontSizeControls = {
   render: () => {
-    const [fontType, setFontType] = useState<FontType | undefined>('lato');
+    const [fontType, setFontType] = useState<FontType | undefined>(
+      DEFAULT_FONT_TYPE
+    );
     const [fontSize, setFontSize] = useState<FontSize | undefined>('sm');
     const [colorPalette, setColorPalette] =
       useState<GeneralSettingsType['colorPalette']>('default');
@@ -471,7 +473,9 @@ export const WithFontSizeControls = {
 
 export const WithAllAvailableWidgets = {
   render: () => {
-    const [fontType, setFontType] = useState<FontType | undefined>('lato');
+    const [fontType, setFontType] = useState<FontType | undefined>(
+      DEFAULT_FONT_TYPE
+    );
     const [fontSize, setFontSize] = useState<FontSize | undefined>('sm');
     const [colorPalette, setColorPalette] =
       useState<GeneralSettingsType['colorPalette']>('default');

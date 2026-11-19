@@ -238,7 +238,7 @@ export const LapTimeLogDisplay = ({
   return (
     <div className={`h-full flex ${alignment}`}>
       <div
-        className={`w-full text-sm bg-slate-800/(--bg-opacity) rounded-sm text-white ${!isCompact ? 'p-2' : 'p-0.5'}`}
+        className={`w-full text-sm overlay-panel text-white ${!isCompact ? 'p-2' : 'p-0.5'}`}
         style={
           {
             '--bg-opacity': `${settings.background.opacity}%`,

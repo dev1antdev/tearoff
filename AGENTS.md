@@ -245,17 +245,21 @@ import { Icon } from '@phosphor-icons/react';
 **Always use Tailwind** - no custom CSS unless absolutely necessary.
 
 - **Theme**: `theme.css` with CSS variables
-- **Font**: Lato | **Version**: 4.3
+- **Font**: Figtree (overlays; the driver can pick another) | **Version**: 4.3
 
 ### Common Patterns
 
 ```tsx
-// Overlay background with variable opacity
-<div className="bg-slate-800/(--bg-opacity) rounded-sm p-2 text-white">
+// Overlay panel: near-black, see-through by the widget's background opacity
+<div className="overlay-panel p-2 text-white" style={{ ['--bg-opacity' as string]: `${opacity}%` }}>
 
-// State-based styling
-<tr className={['odd:bg-slate-800/70 even:bg-slate-900/70',
+// Rows: no background, a hairline between them; state by text colour
+<div className={['border-t overlay-divider first:border-t-0',
   !onTrack ? 'text-white/60' : '', isPlayer ? 'text-amber-300' : ''].join(' ')}>
+
+// A headline value with its unit and label
+<span className="overlay-label">Fuel</span>
+<span className="text-display-sm">46.42</span> <span className="text-xs text-slate-400">L</span>
 
 // Scrollable content
 <div className="flex flex-col h-full">
@@ -274,9 +278,9 @@ import { getTailwindStyle, getColor } from '@irdashies/utils/colors';
 
 Every overlay widget follows the driver's Font size and Palette settings (Settings > General). Keep it that way:
 
-- **Text size**: the overlay scale only, `text-2xs` (smallest labels) to `text-9xl`. Never `text-[11px]` or a rem size: those ignore the Font size setting. Relative `em` sizes inside a widget are fine. Fixed-size by design: the Timing Tower (fixed columns) and the Broadcast graphics.
+- **Text size**: the overlay scale only, `text-2xs` (smallest labels) to `text-9xl`, plus `text-display-sm/md/lg` for the one headline value of a widget. Never `text-[11px]` or a rem size: those ignore the Font size setting. Relative `em` sizes inside a widget are fine. Fixed-size by design: the Timing Tower (fixed columns) and the Broadcast graphics.
 - **Neutrals**: `slate-*` only. The palette remaps `slate`; `gray`, `zinc`, `black` or a hex do not follow it. Scrims are `bg-slate-950/NN`.
-- **Panel**: `bg-slate-800/(--bg-opacity) rounded-sm`, rows `odd:bg-slate-800/… even:bg-slate-900/…`.
+- **Panel**: `overlay-panel` (near-black, hairline edge, 12px corners); rows without stripes, separated by `border-t overlay-divider`; labels `overlay-label`. Colour only for the meanings below, one bright spot per row, no glow on anything that changes every frame (`docs/DESIGN_BOOK.md` §3.6).
 - **Meanings**: the player `text-amber-300`; session fastest `text-purple-400`; personal best and gains `text-green-400`; losses, warnings and urgent countdowns `text-red-400`; lapped cars `text-blue-400`. Flags and traffic-light readouts (pit speed) use the flag colours from `getFlagColor`.
 - **Sim colours stay exact**: flags, licence badges, class colours and LMU rank colours.
 
