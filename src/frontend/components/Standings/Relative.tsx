@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { IconContext } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import { DriverInfoRow } from './components/DriverInfoRow/DriverInfoRow';
 import {
   useDrivingState,
@@ -423,17 +425,14 @@ export const Relative = () => {
     return <></>;
   }
 
-  // If no player found, render empty table with consistent height
-  if (playerIndex === -1) {
-    return (
-      <FlagContour
-        compactMode={isCompact}
-        flags={{ enabled: flagContourEnabled }}
-        flagColor={flagColor}
-        backgroundOpacity={settings?.background?.opacity ?? 0}
-        borderWidth={borderWidth}
+  // The session's header and footer bars are panels of their own above and
+  // below the table's; the flag contour rings the table's panel. With no
+  // player found the table is empty and keeps its height. The icons are thin.
+  return (
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        className={`flex w-full flex-col ${isCompact ? 'gap-0.5' : 'gap-1.5'}`}
       >
-        <TitleBar titleBarSettings={settings?.titleBar} />
         {settings?.headerBar && (settings.headerBar.enabled ?? false) && (
           <SessionBar
             settings={settings.headerBar}
@@ -441,11 +440,20 @@ export const Relative = () => {
             position="header"
           />
         )}
-        <table
-          className={`w-full table-auto text-sm border-separate ${tableBorderSpacing}`}
+        <FlagContour
+          compactMode={isCompact}
+          flags={{ enabled: flagContourEnabled }}
+          flagColor={flagColor}
+          backgroundOpacity={settings?.background?.opacity ?? 0}
+          borderWidth={borderWidth}
         >
-          <tbody>{rows}</tbody>
-        </table>
+          <TitleBar titleBarSettings={settings?.titleBar} />
+          <table
+            className={`w-full table-auto text-sm border-separate ${tableBorderSpacing}`}
+          >
+            <tbody>{rows}</tbody>
+          </table>
+        </FlagContour>
         {settings?.footerBar && (settings.footerBar.enabled ?? true) && (
           <SessionBar
             settings={settings.footerBar}
@@ -453,38 +461,7 @@ export const Relative = () => {
             position="footer"
           />
         )}
-      </FlagContour>
-    );
-  }
-
-  return (
-    <FlagContour
-      compactMode={isCompact}
-      flags={{ enabled: flagContourEnabled }}
-      flagColor={flagColor}
-      backgroundOpacity={settings?.background?.opacity ?? 0}
-      borderWidth={borderWidth}
-    >
-      <TitleBar titleBarSettings={settings?.titleBar} />
-      {settings?.headerBar && (settings.headerBar.enabled ?? false) && (
-        <SessionBar
-          settings={settings.headerBar}
-          opacity={settings?.foreground?.opacity}
-          position="header"
-        />
-      )}
-      <table
-        className={`w-full table-auto text-sm border-separate ${tableBorderSpacing}`}
-      >
-        <tbody>{rows}</tbody>
-      </table>
-      {settings?.footerBar && (settings.footerBar.enabled ?? true) && (
-        <SessionBar
-          settings={settings.footerBar}
-          opacity={settings?.foreground?.opacity}
-          position="footer"
-        />
-      )}
-    </FlagContour>
+      </div>
+    </IconContext.Provider>
   );
 };

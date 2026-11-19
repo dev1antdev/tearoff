@@ -16,7 +16,7 @@ export const PositionCell = memo(
     isPlayer,
     offTrack,
     tailwindStyles,
-    showBackground = true,
+    showBackground = false,
     compactMode,
   }: PositionCellProps) => {
     const positionColor = offTrack
@@ -24,7 +24,11 @@ export const PositionCell = memo(
       : isPlayer && showBackground
         ? tailwindStyles.classHeader
         : '';
-    const textColor = offTrack ? 'text-yellow-900' : 'text-white';
+    const textColor = offTrack
+      ? 'text-yellow-900'
+      : isPlayer && !showBackground
+        ? 'text-amber-300'
+        : 'text-white';
     const pxClass =
       compactMode === 'ultra'
         ? 'min-w-[2ch]'

@@ -358,8 +358,8 @@ export default defineWidgetManifest({
       badge: false,
       statusBadges: false,
       columnHeaders: { enabled: false },
-      driverPosition: { background: true },
-      driverNumber: { background: true, border: true },
+      driverPosition: { background: false },
+      driverNumber: { background: false, border: true },
       flagContour: {
         enabled: false,
         borderWidth: 5,

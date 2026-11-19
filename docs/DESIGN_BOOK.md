@@ -51,7 +51,7 @@ The app is dark only (`color-scheme: dark`).
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Widget panel     | `overlay-panel` (`theme.css`): `bg-slate-950/(--bg-opacity)`, a 1px `border-white/9` edge, `rounded-xl` (12px); `p-2` (compact mode drops it), `text-white`  |
 | Rows             | No background. A hairline between them: `border-t overlay-divider first:border-t-0`; on a table row, on its cells (`[&>td]:border-t [&>td]:overlay-divider`) |
-| The player's row | An amber tint (`bg-yellow-500/(--player-row-opacity)` in Standings and Relative) and `text-amber-300`                                                        |
+| The player's row | An amber tint (`bg-amber-500/(--player-row-opacity)` in Standings and Relative) and `text-amber-300`, the position included                                  |
 | Divider          | `overlay-divider` (a `white/5` border colour), between sections of one panel                                                                                 |
 | Chip / scrim     | `bg-slate-950/NN` (behind a chip, a warning pill, a readout over a graphic)                                                                                  |
 | Inner tile       | Avoid a tile inside a panel: group with space and a divider. Where one is needed, `bg-slate-900/70`, `rounded-md`                                            |
@@ -113,8 +113,9 @@ in the tank) stays white even when it is good news.
 These come from the simulator's own vocabulary and are not themed.
 
 - **Flags** (`getFlagColor`): green `green-500`, yellow and debris `yellow-400`, blue `blue-500`, red `red-500`, white and chequered white, black and disqualified black, meatball `orange-500`, none `gray-400`. A readout that works like a traffic light (the pit-lane speed: green, amber, red) uses the same -500 shades.
-- **Licence badges** (`DriverRatingBadge`): fill and 2px border per class, white `text-xs`, `rounded-md`. R `red-800`/`red-500`, D `orange-700`/`orange-500`, C `yellow-700`/`yellow-500`, B `green-800`/`green-500`, A `blue-800`/`blue-500`, P `purple-800`/`purple-500`, W `zinc-500`/`zinc-100`.
-- **Class colours** (`getTailwindStyle`): iRacing ranks classes fastest first as yellow, blue, red, cyan, pink, purple, amber, lime; a class renders in the -500 shade on headers and borders and the -800 shade on the car-number chip. Le Mans Ultimate classes keep their exact livery values (Hypercar `#ff000a`, LMP2 `#0690ff`, LMP3 `#763993`, LMGT3 `#00ff6a`, LMGTE `#fff600`); the chip shows them at 30% with a solid border. An unknown class falls back to stone.
+- **Licence badges** (`DriverRatingBadge`): the licence colour as a 1px outline at 70% and a 12% tint, the text in its light shade, `text-xs`, `rounded-md`: R `red-500`/`red-300`, D `orange-500`/`orange-300`, C `yellow-500`/`yellow-300`, B `green-500`/`green-300`, A `blue-500`/`blue-300`, P `purple-500`/`purple-300`, W `zinc-100`. Minimal keeps a faint outline and the coloured text. The iRating beside it is `bg-white/8 text-slate-200`.
+- **Status badges** (`DriverStatusBadges`: PIT, OUT, DNF, …): a 1px outline in the status colour, `rounded-full`.
+- **Class colours** (`getTailwindStyle`): iRacing ranks classes fastest first as yellow, blue, red, cyan, pink, purple, amber, lime; a class renders in the -500 shade as a short bar before the class name and as the car number's left border; the number itself is `slate-400`. Filling the class name, the class info and the number with the class colour (the -500 and -800 shades) are settings, off by default. Le Mans Ultimate classes keep their exact livery values (Hypercar `#ff000a`, LMP2 `#0690ff`, LMP3 `#763993`, LMGT3 `#00ff6a`, LMGTE `#fff600`); the chip shows them at 30% with a solid border. An unknown class falls back to stone.
 - **LMU rank badges** (`LmuRatingBadge`) and the penalty badge's exact `#FF0000`.
 
 ### 3.5 Type scale
@@ -148,7 +149,7 @@ of 1.
 
 Faces: Figtree by default; Lato, Noto Sans, Inter and Roboto are the driver's
 alternatives, all from Google Fonts. A profile still on Lato, the default
-before Figtree, moves to Figtree once when it loads (`figtreeDefaultApplied`);
+before Figtree, moves to Figtree once when it loads (`redesignDefaultsApplied`);
 picking Lato afterwards sticks. The canvas widgets (Radar, Minimap) draw their
 text in Lato. Weights run from light to extrabold, normal by default.
 

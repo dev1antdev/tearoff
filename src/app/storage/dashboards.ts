@@ -89,6 +89,38 @@ const dropRemovedRadarTuning = (
   return { ...merged, tuning: kept };
 };
 
+/**
+ * Standings and Relative cells that were filled with the class colour by
+ * default until the 2.3 overlay look, which leaves them unfilled. A stored
+ * `true` cannot be told from that old default, so it is turned off once, with
+ * the rest of the new look's defaults (see withDashboardDefaults).
+ */
+const OLD_FILL_DEFAULTS = [
+  ['stylingOptions', 'driverPosition', 'background'],
+  ['stylingOptions', 'driverNumber', 'background'],
+  ['classHeaderStyle', 'className', 'colorBackground'],
+  ['classHeaderStyle', 'classInfo', 'colorBackground'],
+] as const;
+
+const isPlainObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const dropOldFillDefaults = (saved: unknown): unknown => {
+  if (!isPlainObject(saved)) return saved;
+  let config = saved;
+  for (const [group, part, key] of OLD_FILL_DEFAULTS) {
+    const groupValue = config[group];
+    if (!isPlainObject(groupValue)) continue;
+    const partValue = groupValue[part];
+    if (!isPlainObject(partValue) || partValue[key] !== true) continue;
+    config = {
+      ...config,
+      [group]: { ...groupValue, [part]: { ...partValue, [key]: false } },
+    };
+  }
+  return config;
+};
+
 const isDashboardChanged = (
   oldDashboard: DashboardLayout | undefined,
   newDashboard: DashboardLayout
@@ -241,13 +273,17 @@ export const withDashboardDefaults = (
   ) {
     generalSettings.colorPalette = 'default';
   }
-  // Lato was the default font before Figtree: a profile still on it moves to
-  // Figtree once. Read from the stored settings, not the merged ones, so the
-  // defaults cannot mark a profile as already moved.
-  if (dashboard.generalSettings?.figtreeDefaultApplied !== true) {
+  // The 2.3 overlay look changed defaults a stored value cannot be told
+  // apart from: Lato was the default font before Figtree, and the Standings
+  // and Relative cells were filled (OLD_FILL_DEFAULTS). A profile moves onto
+  // the new defaults once. Read from the stored settings, not the merged ones,
+  // so the defaults cannot mark a profile as already moved.
+  const movesToNewLook =
+    dashboard.generalSettings?.redesignDefaultsApplied !== true;
+  if (movesToNewLook) {
     if (generalSettings.fontType === 'lato')
       generalSettings.fontType = 'figtree';
-    generalSettings.figtreeDefaultApplied = true;
+    generalSettings.redesignDefaultsApplied = true;
   }
 
   return {
@@ -264,7 +300,9 @@ export const withDashboardDefaults = (
       const saved =
         type === 'laptrace'
           ? migrateLapTraceLayout(widget.config)
-          : widget.config;
+          : movesToNewLook && (type === 'standings' || type === 'relative')
+            ? dropOldFillDefaults(widget.config)
+            : widget.config;
       const merged = deepMergeConfig(defaults, saved) as Record<
         string,
         unknown

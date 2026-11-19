@@ -351,9 +351,9 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
     (config?.driverName?.showStatusBadges ?? true);
   const pitStatusDnf = (dnf || finishState === 'DNF') && !nameShowsRetirement;
   const positionBackground =
-    config?.stylingOptions?.driverPosition?.background ?? true;
+    config?.stylingOptions?.driverPosition?.background ?? false;
   const numberBackground =
-    config?.stylingOptions?.driverNumber?.background ?? true;
+    config?.stylingOptions?.driverNumber?.background ?? false;
   const numberBorder = config?.stylingOptions?.driverNumber?.border ?? true;
 
   const emptyLapDeltaPlaceholders = useMemo(() => {
@@ -996,7 +996,7 @@ export const DriverInfoRow = memo((props: DriverRowInfoProps) => {
         !onTrack || onPitRoad ? 'text-white/60' : '',
         isPlayer ? 'text-amber-300' : '',
         isPlayer
-          ? 'bg-yellow-500/(--player-row-opacity)'
+          ? 'bg-amber-500/(--player-row-opacity)'
           : '[&>td]:border-t [&>td]:overlay-divider text-sm',
         !isPlayer && isLapped ? 'text-blue-400' : '',
         !isPlayer && isLappingAhead ? 'text-red-400' : '',

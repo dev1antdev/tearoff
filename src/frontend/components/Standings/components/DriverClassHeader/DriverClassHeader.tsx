@@ -53,15 +53,20 @@ export const DriverClassHeader = ({
 
   const styles = getTailwindStyle(classColor, highlightColor, isMultiClass);
   const classNameColorBackground =
-    classHeaderStyle?.className?.colorBackground ?? true;
+    classHeaderStyle?.className?.colorBackground ?? false;
   const classInfoColorBackground =
-    classHeaderStyle?.classInfo?.colorBackground ?? true;
+    classHeaderStyle?.classInfo?.colorBackground ?? false;
   const classDividerBottomBorder =
     classHeaderStyle?.classDivider?.bottomBorder ?? false;
 
   const classInfoStyle = classInfoColorBackground
     ? styles.driverIcon
-    : styles.borderColor;
+    : 'text-slate-400';
+  // A shadow lifts white text off a coloured fill; on the panel it only blurs.
+  const textShadow =
+    classNameColorBackground || classInfoColorBackground
+      ? '[text-shadow:1px_1px_1px_rgba(0_0_0/0.2)] '
+      : '';
   const py = compactMode === 'ultra' ? '' : ' py-1';
   const borderClass = classDividerBottomBorder
     ? ` border-b-2 ${styles.borderColor}`
@@ -224,9 +229,7 @@ export const DriverClassHeader = ({
                 colSpan={cell.colSpan}
                 className={`p-0${borderClass}`}
               >
-                <div
-                  className={`[text-shadow:1px_1px_1px_rgba(0_0_0/0.2)] flex items-center`}
-                >
+                <div className={`${textShadow}flex items-center`}>
                   {infoContent}
                 </div>
               </td>
@@ -259,11 +262,7 @@ export const DriverClassHeader = ({
     <tr>
       <td></td>
       <td colSpan={colSpan ?? 4} className={`p-0${borderClass}`}>
-        <div
-          className={`[text-shadow:1px_1px_1px_rgba(0_0_0/0.2)] flex items-center`}
-        >
-          {infoContent}
-        </div>
+        <div className={`${textShadow}flex items-center`}>{infoContent}</div>
       </td>
     </tr>
   );

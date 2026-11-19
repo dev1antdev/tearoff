@@ -131,10 +131,16 @@ export default defineWidgetManifest({
       enabled: false,
     },
     classHeaderStyle: {
+      className: { colorBackground: false },
+      classInfo: { colorBackground: false },
       estimatedLaps: {
         enabled: false,
         numLaps: 5,
       },
+    },
+    stylingOptions: {
+      driverPosition: { background: false },
+      driverNumber: { background: false, border: true },
     },
     driverStandings: {
       buffer: 3,

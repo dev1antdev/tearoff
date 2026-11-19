@@ -22,7 +22,7 @@ const StatusBadge = ({
   additionalClasses = '',
 }: StatusBadgeProps) => {
   const baseClasses =
-    'text-xs border-2 rounded-md text-center text-nowrap px-2 m-0 leading-tight';
+    'text-xs border rounded-full text-center text-nowrap px-2 m-0 leading-tight';
   const animationClass = animate ? 'animate-pulse' : '';
 
   return (
@@ -49,7 +49,7 @@ const CHECKERED_SQUARES = Array.from({ length: 20 }, (_, i) => ({
  * Drawn here rather than taken from Phosphor, an exception to the icon rule
  * in AGENTS.md: Phosphor's FlagCheckered is not visible enough at badge size.
  *
- * As tall as a DT or SG badge beside it, whose colour fills its 2px border
+ * As tall as a DT or SG badge beside it, whose colour fills its 1px border
  * too: StatusBadge's line height plus that border. So the flag matches the
  * badges and the row keeps its height.
  */
@@ -57,7 +57,7 @@ const CheckeredFlagBadge = () => (
   <span className="inline-flex text-xs leading-tight">
     <svg
       viewBox="0 0 5 4"
-      className="h-[calc(1.25em+4px)] w-auto"
+      className="h-[calc(1.25em+2px)] w-auto"
       role="img"
       aria-label="Finished"
       data-testid="finish-flag"
@@ -221,7 +221,7 @@ export const DriverStatusBadges = memo(
         )}
         {slowdown && (
           <span
-            className={`text-orange-500 text-xs border-2 rounded-md text-center text-nowrap px-2 m-0 leading-tight border-slate-500 animate-pulse ${flagBadgeClasses}`}
+            className={`text-orange-500 text-xs border rounded-full text-center text-nowrap px-2 m-0 leading-tight border-slate-500 animate-pulse ${flagBadgeClasses}`}
             style={{
               background:
                 'linear-gradient(to bottom right, black calc(50% - 1px), white calc(50% + 1px))',

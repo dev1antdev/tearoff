@@ -106,10 +106,11 @@ export type FontSize =
 export interface GeneralSettingsType {
   fontType?: FontType;
   /**
-   * Set once a profile has been moved off Lato, the default font before
-   * Figtree. A profile that picks Lato after that keeps it.
+   * Set once a profile has moved onto the defaults of the 2.3 overlay look:
+   * off Lato, the font before Figtree, and off the filled Standings and
+   * Relative cells. A profile that picks them again after that keeps them.
    */
-  figtreeDefaultApplied?: boolean;
+  redesignDefaultsApplied?: boolean;
   fontSize?: FontSize;
   fontWeight?:
     'light' | 'normal' | 'medium' | 'semibold' | 'bold' | 'extrabold';

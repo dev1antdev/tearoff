@@ -64,12 +64,16 @@ export const SessionBar = ({
     isSessionBarItemEnabled(key, effectiveBarSettings, position)
   );
 
+  // Inside a widget the bar is a panel of its own, see-through by the session
+  // bar opacity, its items in equal columns with a hairline between the ones
+  // that draw (an item with nothing to show renders nothing, so no stray
+  // line). Standalone (the Information Bar) it sits in that widget's panel.
   return (
     <div
-      className={`${pxClass} ${pyClass} bg-slate-900/(--fg-opacity) flex items-center text-sm ${standalone ? `w-full justify-between ${gapClass}` : 'justify-between'} ${!isCompact && !isUltra && !standalone ? (position === 'header' ? 'mb-3' : 'mt-3') : ''}`}
-      style={{
-        ['--fg-opacity' as string]: `${opacity}%`,
-      }}
+      className={`${pxClass} ${pyClass} flex items-center text-sm ${standalone ? `w-full justify-between ${gapClass}` : 'overlay-panel justify-between [&>*]:flex-1 [&>*+*]:border-l [&>*+*]:overlay-divider'}`}
+      style={
+        standalone ? undefined : { ['--bg-opacity' as string]: `${opacity}%` }
+      }
     >
       {enabledKeys.map((key) => {
         const ItemComponent = SESSION_BAR_ITEM_COMPONENTS[key];

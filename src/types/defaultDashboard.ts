@@ -21,7 +21,7 @@ export const defaultDashboard: {
   ),
   generalSettings: {
     fontType: DEFAULT_FONT_TYPE,
-    figtreeDefaultApplied: true,
+    redesignDefaultsApplied: true,
     fontSize: 'sm',
     fontWeight: 'normal',
     colorPalette: 'black',

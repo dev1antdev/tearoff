@@ -840,7 +840,7 @@ const StandingsSettingsPage = ({ widgetId }: { widgetId: string }) => {
                         description="Show a colored background on the class name badge"
                         enabled={
                           settings.config.classHeaderStyle?.className
-                            ?.colorBackground ?? true
+                            ?.colorBackground ?? false
                         }
                         onToggle={(newValue) =>
                           handleConfigChange({
@@ -856,7 +856,7 @@ const StandingsSettingsPage = ({ widgetId }: { widgetId: string }) => {
                         description="Show a colored background on the SOF and driver count badges"
                         enabled={
                           settings.config.classHeaderStyle?.classInfo
-                            ?.colorBackground ?? true
+                            ?.colorBackground ?? false
                         }
                         onToggle={(newValue) =>
                           handleConfigChange({
@@ -1025,7 +1025,7 @@ const StandingsSettingsPage = ({ widgetId }: { widgetId: string }) => {
                         description="Highlight the player's position cell with a colored background"
                         enabled={
                           settings.config.stylingOptions?.driverPosition
-                            ?.background ?? true
+                            ?.background ?? false
                         }
                         onToggle={(newValue) =>
                           handleConfigChange({
@@ -1044,7 +1044,7 @@ const StandingsSettingsPage = ({ widgetId }: { widgetId: string }) => {
                         description="Show a colored background on the car number cell"
                         enabled={
                           settings.config.stylingOptions?.driverNumber
-                            ?.background ?? true
+                            ?.background ?? false
                         }
                         onToggle={(newValue) =>
                           handleConfigChange({

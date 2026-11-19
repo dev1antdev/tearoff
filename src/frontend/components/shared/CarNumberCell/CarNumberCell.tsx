@@ -28,7 +28,7 @@ export const CarNumberCell = memo(
     return (
       <td
         data-column="carNumber"
-        className={`w-auto ${colorClass} ${borderClass} text-white text-right ${pxClass} whitespace-nowrap`}
+        className={`w-auto ${colorClass} ${borderClass} ${showBackground ? 'text-white' : 'text-slate-400'} text-right ${pxClass} whitespace-nowrap`}
       >
         <span className="inline-block min-w-[4ch]">{`#${carNumber}`}</span>
       </td>

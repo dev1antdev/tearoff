@@ -62,7 +62,7 @@ describe('ClassLabel', () => {
     );
   });
 
-  it('draws only a border in the class colour when not filled', () => {
+  it('draws a short bar in the class colour before the name when not filled', () => {
     render(
       <ClassLabel
         name="LMP2"
@@ -73,8 +73,11 @@ describe('ClassLabel', () => {
       />
     );
 
-    expect(screen.getByTestId('class-label').className).toBe(
-      'border-[#0690ff] font-bold whitespace-nowrap px-2'
-    );
+    const label = screen.getByTestId('class-label');
+    expect(label).toHaveTextContent('LMP2');
+    expect(label.className).not.toContain('bg-[#0690ff]');
+    expect(label.className).toContain('px-2');
+    const bar = label.querySelector('[aria-hidden]');
+    expect(bar?.className).toContain('bg-[#0690ff]');
   });
 });
