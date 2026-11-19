@@ -25,7 +25,7 @@ export const ThemeManager = ({ children }: PropsWithChildren) => {
         relative w-full h-full overflow-hidden overlay-window
         overlay-theme-${fontSize ?? 'sm'}
         overlay-theme-color-${colorPalette ?? 'default'}
-        overlay-theme-font-face-${fontType ?? 'lato'}
+        overlay-theme-font-face-${fontType ?? 'figtree'}
         overlay-theme-font-weight-${fontWeight ?? 'normal'}
       `}
     >

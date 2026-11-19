@@ -217,7 +217,7 @@ const RaceChartsPanel = ({ settings }: { settings: RaceChartsConfig }) => {
       data-testid="race-charts"
       data-car={own.carIdx}
       data-tab={tab}
-      className="flex h-full w-full flex-col overflow-hidden rounded bg-slate-800/(--bg-opacity) text-slate-200 tabular-nums"
+      className="flex h-full w-full flex-col overflow-hidden overlay-panel text-slate-200 tabular-nums"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

@@ -17,7 +17,8 @@ export const defaultDashboard: {
       }) as TypedDashboardWidget
   ),
   generalSettings: {
-    fontType: 'lato',
+    fontType: 'figtree',
+    figtreeDefaultApplied: true,
     fontSize: 'sm',
     fontWeight: 'normal',
     colorPalette: 'black',

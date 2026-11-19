@@ -138,7 +138,7 @@ export const Hybrid = () => {
 
   return (
     <div
-      className="flex h-full w-full flex-col justify-center gap-1.5 rounded bg-slate-800/(--bg-opacity) p-2 font-medium text-white"
+      className="flex h-full w-full flex-col justify-center gap-1.5 overlay-panel p-2 font-medium text-white"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

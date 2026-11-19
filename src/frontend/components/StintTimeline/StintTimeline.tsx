@@ -64,7 +64,7 @@ export const StintTimeline = () => {
     <div
       data-testid="stint-timeline"
       data-valid={model !== null}
-      className="flex h-full w-full flex-col overflow-y-auto rounded bg-slate-800/(--bg-opacity) p-3 text-sm text-slate-200 tabular-nums"
+      className="flex h-full w-full flex-col overflow-y-auto overlay-panel p-3 text-sm text-slate-200 tabular-nums"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

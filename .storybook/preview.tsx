@@ -24,7 +24,7 @@ const overlayThemeDecorator: Decorator = (Story, context) => {
   const palette = String(context.globals.overlayPalette ?? 'black');
   return (
     <div
-      className={`contents overlay-window overlay-theme-${size} overlay-theme-color-${palette} overlay-theme-font-face-lato overlay-theme-font-weight-normal`}
+      className={`contents overlay-window overlay-theme-${size} overlay-theme-color-${palette} overlay-theme-font-face-figtree overlay-theme-font-weight-normal`}
     >
       <Story />
     </div>

@@ -195,7 +195,7 @@ export const PitStop = () => {
     <div
       data-testid="pit-stop"
       data-mode={mode}
-      className={`flex h-full w-full flex-col gap-2 overflow-hidden rounded bg-slate-800/(--bg-opacity) p-2 leading-none text-white tabular-nums ${
+      className={`flex h-full w-full flex-col gap-2 overflow-hidden overlay-panel p-2 leading-none text-white tabular-nums ${
         mode === 'idle' ? 'opacity-60' : ''
       }`}
       style={{

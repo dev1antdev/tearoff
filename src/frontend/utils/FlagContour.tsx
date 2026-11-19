@@ -17,7 +17,7 @@ export const FlagContour = ({
   backgroundOpacity = 0,
   borderWidth = 5,
 }: FlagContourProps) => {
-  const containerClassName = `w-full bg-slate-800/(--bg-opacity) rounded-sm ${
+  const containerClassName = `w-full overlay-panel ${
     !compactMode ? 'p-2' : ''
   } overflow-hidden ${flags.enabled ? 'border-solid' : ''}`;
 

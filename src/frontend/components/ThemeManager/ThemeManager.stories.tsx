@@ -37,7 +37,7 @@ const createMockBridge = (
     return;
   },
   saveDashboard: (dashboard: DashboardLayout) => {
-    setFontType(dashboard.generalSettings?.fontType || 'lato');
+    setFontType(dashboard.generalSettings?.fontType || 'figtree');
     setFontSize(dashboard.generalSettings?.fontSize || 'sm');
     setColorPalette(dashboard.generalSettings?.colorPalette || 'default');
     setFontWeight(dashboard.generalSettings?.fontWeight || 'normal');
@@ -414,7 +414,7 @@ export const Primary = {
 
 export const WithFontSizeControls = {
   render: () => {
-    const [fontType, setFontType] = useState<FontType | undefined>('lato');
+    const [fontType, setFontType] = useState<FontType | undefined>('figtree');
     const [fontSize, setFontSize] = useState<FontSize | undefined>('sm');
     const [colorPalette, setColorPalette] =
       useState<GeneralSettingsType['colorPalette']>('default');
@@ -471,7 +471,7 @@ export const WithFontSizeControls = {
 
 export const WithAllAvailableWidgets = {
   render: () => {
-    const [fontType, setFontType] = useState<FontType | undefined>('lato');
+    const [fontType, setFontType] = useState<FontType | undefined>('figtree');
     const [fontSize, setFontSize] = useState<FontSize | undefined>('sm');
     const [colorPalette, setColorPalette] =
       useState<GeneralSettingsType['colorPalette']>('default');

@@ -153,7 +153,7 @@ export const ClassRivals = () => {
       ref={fitPanel}
       data-testid="class-rivals"
       data-valid={hasRows}
-      className="flex h-full w-full flex-col overflow-hidden rounded bg-slate-800/(--bg-opacity) text-base text-slate-200 tabular-nums"
+      className="flex h-full w-full flex-col overflow-hidden overlay-panel text-base text-slate-200 tabular-nums"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

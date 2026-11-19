@@ -80,7 +80,7 @@ export const Damage = () => {
   return (
     <div
       data-testid="damage"
-      className="flex h-full w-full flex-col gap-1.5 overflow-hidden rounded bg-slate-800/(--bg-opacity) p-2 leading-none text-white"
+      className="flex h-full w-full flex-col gap-1.5 overflow-hidden overlay-panel p-2 leading-none text-white"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

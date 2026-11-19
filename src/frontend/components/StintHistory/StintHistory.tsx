@@ -210,7 +210,7 @@ export const StintHistoryDisplay = ({
 
   return (
     <div
-      className="h-full w-full overflow-hidden rounded bg-slate-800/(--bg-opacity) p-2 text-sm text-white"
+      className="h-full w-full overflow-hidden overlay-panel p-2 text-sm text-white"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

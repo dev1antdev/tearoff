@@ -116,7 +116,7 @@ export const LiftCoast = () => {
 
   return (
     <div
-      className="h-full w-full rounded bg-slate-800/(--bg-opacity) p-2"
+      className="h-full w-full overlay-panel p-2"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

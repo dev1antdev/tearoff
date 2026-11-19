@@ -37,7 +37,7 @@ layer(base);
   --color-settings-hover: #343d49;
   --color-settings-boundary: #8794a6;
   --color-settings-track: #8794a6;
-  --font-sans: 'Lato', sans-serif;
+  --font-sans: 'Figtree', sans-serif;
   --color-accent-100: var(--color-blue-100);
   --color-accent-200: var(--color-blue-200);
   --color-accent-300: var(--color-blue-300);
@@ -55,6 +55,14 @@ layer(base);
   --text-md: 13px;
   --text-base: 14px;
   --text-lg: 18px;
+  /* Headline numbers in overlays: the value a widget exists to show. The
+     overlay window scales them with the Font size setting (below). */
+  --text-display-sm: 22px;
+  --text-display-sm--line-height: 1;
+  --text-display-md: 28px;
+  --text-display-md--line-height: 1;
+  --text-display-lg: 40px;
+  --text-display-lg--line-height: 1;
 
   @keyframes pulse-border {
     0% {
@@ -210,6 +218,18 @@ layer(base);
   }
 }
 
+/* The overlay panel (docs/DESIGN_BOOK.md §3.1): near-black, see-through by
+   the widget's background.opacity, a hairline edge and 12px corners. An
+   inline border (the flag contour, a fuel warning) still wins over the edge. */
+@utility overlay-panel {
+  @apply rounded-xl border border-white/9 bg-slate-950/(--bg-opacity);
+}
+
+/* A label over or beside a value: small capitals, spaced, muted. */
+@utility overlay-label {
+  @apply text-2xs font-semibold tracking-wider text-slate-400 uppercase;
+}
+
 html {
   color-scheme: dark;
 }
@@ -335,6 +355,9 @@ html {
   --text-7xl: calc(var(--theme-offset) + 10px);
   --text-8xl: calc(var(--theme-offset) + 11px);
   --text-9xl: calc(var(--theme-offset) + 12px);
+  --text-display-sm: calc(var(--theme-offset) * 2);
+  --text-display-md: calc(var(--theme-offset) * 2.5);
+  --text-display-lg: calc(var(--theme-offset) * 3.5);
 }
 
 /* 2. Assign the starting value (the 'xs' value) for each theme */

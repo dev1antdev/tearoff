@@ -112,7 +112,7 @@ export const SystemPerformance = () => {
     <div
       data-testid="system-performance"
       data-layout={settings.layout}
-      className="flex h-full w-full flex-col justify-center overflow-hidden rounded bg-slate-800/(--bg-opacity) p-2 text-sm leading-none text-white"
+      className="flex h-full w-full flex-col justify-center overflow-hidden overlay-panel p-2 text-sm leading-none text-white"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

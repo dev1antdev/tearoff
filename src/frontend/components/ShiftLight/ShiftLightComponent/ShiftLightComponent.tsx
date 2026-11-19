@@ -151,7 +151,7 @@ export const ShiftLight = ({
       {shouldShowRpmBox && (
         <div
           data-testid="shiftlight-box"
-          className={`bg-slate-800/(--bg-opacity) flex relative items-center justify-center rounded-sm`}
+          className={`bg-slate-950/(--bg-opacity) flex relative items-center justify-center rounded-sm`}
           style={{
             ['--bg-opacity' as string]: `${opacity ?? 80}%`,
             padding: `1px`,
@@ -161,7 +161,7 @@ export const ShiftLight = ({
 
           <div
             id="rpm-text"
-            className={`bg-slate-800/(--bg-opacity) text-2xl flex relative font-mono font-bold text-white px-4 mx-2 rounded-sm transition-colors duration-200 whitespace-nowrap justify-center items-center`}
+            className={`bg-slate-950/(--bg-opacity) text-2xl flex relative font-mono font-bold text-white px-4 mx-2 rounded-sm transition-colors duration-200 whitespace-nowrap justify-center items-center`}
             style={{
               ...getRpmBoxStyle(),
               height: '3em',

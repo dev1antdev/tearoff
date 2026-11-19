@@ -477,8 +477,8 @@ export default defineWidgetManifest({
     },
     'driverRow.opacity': {
       type: 'number',
-      label: 'Driver Row Opacity',
-      description: 'Adjust driver row backgrounds and the player highlight',
+      label: 'Player Highlight Opacity',
+      description: 'How strongly your own row is tinted',
       min: 0,
       max: 100,
       step: 1,

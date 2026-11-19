@@ -21,7 +21,7 @@ const STATUS_CHIP: Record<RacePlanStintStatus, string> = {
 
 const rowClass = (status: RacePlanStintStatus, mine: boolean) =>
   [
-    'odd:bg-slate-800/40',
+    'border-t border-white/5 first:border-t-0',
     status === 'current' ? 'bg-sky-900/50! font-semibold' : '',
     status === 'done' ? 'text-white/50' : '',
     status === 'dropped' ? 'text-white/40' : '',

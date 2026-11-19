@@ -341,7 +341,7 @@ export const Standings = () => {
   return (
     <div className="w-full h-full overflow-hidden">
       <div
-        className={`bg-slate-800/(--bg-opacity) rounded-sm text-white ${!isCompact ? 'p-2' : ''}`}
+        className={`overlay-panel text-white ${!isCompact ? 'p-2' : ''}`}
         style={{
           ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 0}%`,
         }}

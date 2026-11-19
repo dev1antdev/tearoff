@@ -161,7 +161,7 @@ export const Cruise = () => {
 
   return (
     <div
-      className="flex h-full w-full gap-1 rounded bg-slate-800/(--bg-opacity) p-2 text-white"
+      className="flex h-full w-full gap-1 overlay-panel p-2 text-white"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}

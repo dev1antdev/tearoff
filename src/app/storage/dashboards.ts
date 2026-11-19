@@ -241,6 +241,14 @@ export const withDashboardDefaults = (
   ) {
     generalSettings.colorPalette = 'default';
   }
+  // Lato was the default font before Figtree: a profile still on it moves to
+  // Figtree once. Read from the stored settings, not the merged ones, so the
+  // defaults cannot mark a profile as already moved.
+  if (dashboard.generalSettings?.figtreeDefaultApplied !== true) {
+    if (generalSettings.fontType === 'lato')
+      generalSettings.fontType = 'figtree';
+    generalSettings.figtreeDefaultApplied = true;
+  }
 
   return {
     ...dashboard,

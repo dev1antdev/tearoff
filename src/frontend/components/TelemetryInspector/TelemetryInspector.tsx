@@ -185,7 +185,7 @@ export const TelemetryInspector = (config?: TelemetryInspectorConfig) => {
   if (properties.length === 0) {
     return (
       <div
-        className="w-full rounded-sm p-2 bg-slate-800/(--bg-opacity)"
+        className="w-full p-2 overlay-panel"
         style={{
           ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 80}%`,
         }}
@@ -201,7 +201,7 @@ export const TelemetryInspector = (config?: TelemetryInspectorConfig) => {
 
   return (
     <div
-      className="w-full rounded-sm p-2 bg-slate-800/(--bg-opacity)"
+      className="w-full p-2 overlay-panel"
       style={{
         ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 80}%`,
       }}

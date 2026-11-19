@@ -336,7 +336,7 @@ export const Traffic = () => {
     <div
       data-testid="traffic"
       data-block="closing"
-      className="flex h-full w-full flex-col gap-1.5 rounded bg-slate-800/(--bg-opacity) p-2 font-medium text-white"
+      className="flex h-full w-full flex-col gap-1.5 overlay-panel p-2 font-medium text-white"
       style={{ ['--bg-opacity' as string]: `${opacity}%` }}
     >
       {settings.showMirror &&
