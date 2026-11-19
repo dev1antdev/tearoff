@@ -57,13 +57,16 @@ const PeakLine = memo(({ peak, delta, deltaClass, best }: PeakLineProps) => (
     </div>
     {delta && (
       <span
-        className={`rounded-md px-1.5 py-0.5 text-xs font-semibold leading-none ${deltaClass}`}
+        className={`rounded-full px-1.5 py-0.5 text-xs font-semibold leading-none ${deltaClass}`}
       >
         {delta}
       </span>
     )}
     <div className="ml-auto flex items-baseline gap-1 text-xs leading-none text-purple-400">
-      <span className="text-[0.85em] font-semibold uppercase tracking-wider">
+      <span
+        className="overlay-label text-purple-400"
+        style={{ fontSize: '0.85em' }}
+      >
         Best
       </span>
       <span className="font-semibold">{best}</span>

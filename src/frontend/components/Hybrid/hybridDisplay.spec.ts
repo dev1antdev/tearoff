@@ -95,8 +95,8 @@ describe('the figures', () => {
 
 describe('the colours', () => {
   it('is green for a lap that gains and amber for one that loses', () => {
-    expect(netToneClass(2.3)).toBe('text-emerald-300');
-    expect(netToneClass(0)).toBe('text-emerald-300');
+    expect(netToneClass(2.3)).toBe('text-green-400');
+    expect(netToneClass(0)).toBe('text-green-400');
     expect(netToneClass(-0.1)).toBe('text-amber-400');
     expect(netToneClass(null)).toBe('text-slate-500');
   });

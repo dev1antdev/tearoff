@@ -40,7 +40,7 @@ interface StateChipProps {
  */
 const StateChip = memo(({ state }: StateChipProps) => {
   const base =
-    'flex flex-none items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold tracking-wider leading-none';
+    'flex flex-none items-center gap-1 rounded-full px-1.5 py-0.5 text-xs font-semibold tracking-wider leading-none';
   // Tinted rather than filled: the state changes with every corner.
   if (state === 2) {
     return (

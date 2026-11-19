@@ -121,7 +121,7 @@ export const lapUse = (
 /** Green for a lap that ends with more charge than it began, amber for less. */
 export const netToneClass = (net: number | null): string => {
   if (net === null) return 'text-slate-500';
-  return net >= 0 ? 'text-emerald-300' : 'text-amber-400';
+  return net >= 0 ? 'text-green-400' : 'text-amber-400';
 };
 
 /** Seconds to a tenth, without the unit. */

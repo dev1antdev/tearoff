@@ -96,7 +96,7 @@ export const SystemColumn = memo(
       ? 'bg-yellow-500 text-slate-900'
       : subdued
         ? 'text-slate-500'
-        : 'text-slate-400';
+        : '';
     // Lit at once and let go slowly: the transition is only on the resting
     // state, so it runs on the way back and not on the way in.
     const valueColour = flash
@@ -111,19 +111,17 @@ export const SystemColumn = memo(
     // brake bias column take the width it actually needs.
     return (
       <div className="flex flex-auto min-w-0 flex-col items-center gap-0.5">
-        {/* A label in small spaced capitals: written out rather than
-            overlay-label, whose own grey would fight the working fill. */}
         <div className="flex w-full min-w-0 items-center justify-center gap-1">
           {!working && (
             <span
               aria-hidden="true"
-              className={`h-[0.9em] w-0.5 flex-none rounded-full ${chip} ${
+              className={`h-[1em] w-1 shrink-0 rounded-full ${chip} ${
                 subdued ? 'opacity-40' : ''
               }`}
             />
           )}
           <span
-            className={`truncate rounded-md px-1 py-0.5 text-2xs font-semibold uppercase leading-none tracking-wider ${labelColour}`}
+            className={`overlay-label truncate rounded-full px-1 py-0.5 leading-none ${labelColour}`}
           >
             {short}
           </span>
@@ -132,7 +130,7 @@ export const SystemColumn = memo(
             same balance the Pitlane Helper strikes between its big readouts
             and their small captions. */}
         <div
-          className={`${isCompact ? 'text-base' : 'text-[1.35em] py-0.5'} px-2 text-center font-semibold tabular-nums whitespace-nowrap leading-none rounded ${valueColour}`}
+          className={`${isCompact ? 'text-base' : 'text-[1.35em] py-0.5'} px-2 text-center font-semibold tabular-nums whitespace-nowrap leading-none rounded-lg ${valueColour}`}
         >
           {text ?? BLANK}
           {scale !== undefined && (

@@ -271,7 +271,7 @@ describe('Hybrid', () => {
       show({ netLapEstimatePct: 2.35 });
       render(<Hybrid />);
 
-      expect(screen.getByText('+2.4')).toHaveClass('text-emerald-300');
+      expect(screen.getByText('+2.4')).toHaveClass('text-green-400');
     });
 
     it('follows the decimals set', () => {
