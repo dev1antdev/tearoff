@@ -31,6 +31,7 @@ export default defineWidgetManifest({
     showToe: true,
     toeDisplay: 'axle',
     showSuspension: false,
+    layout: 'column',
     showOnlyWhenOnTrack: true,
     sessionVisibility: {
       race: true,
@@ -162,6 +163,17 @@ export default defineWidgetManifest({
       type: 'boolean',
       label: 'Show Suspension Travel',
       description: 'Damper position at each corner, in millimetres.',
+    },
+    layout: {
+      type: 'enum',
+      label: 'Layout',
+      description:
+        'The blocks one under another, in two rows, or all in one row, for a widget as wide as a strip.',
+      options: [
+        { value: 'column', label: 'Column' },
+        { value: 'twoRows', label: 'Two Rows' },
+        { value: 'oneRow', label: 'One Row' },
+      ],
     },
     showOnlyWhenOnTrack: {
       type: 'boolean',

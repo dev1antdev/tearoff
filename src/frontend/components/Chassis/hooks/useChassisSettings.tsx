@@ -45,6 +45,10 @@ export const useChassisSettings = (): ChassisConfig => {
       trackFront: positive(saved.trackFront, DEFAULTS.trackFront),
       trackRear: positive(saved.trackRear, DEFAULTS.trackRear),
       toeDisplay: saved.toeDisplay === 'wheel' ? 'wheel' : 'axle',
+      layout:
+        saved.layout === 'twoRows' || saved.layout === 'oneRow'
+          ? saved.layout
+          : 'column',
       background: { ...DEFAULTS.background, ...saved.background },
       sessionVisibility: {
         ...DEFAULTS.sessionVisibility,

@@ -102,6 +102,7 @@ export const ChassisSettings = () => {
               {activeTab === 'options' && (
                 <>
                   <SettingsSection title="Display" scaleWidgetId={SETTING_ID}>
+                    <SettingProp path="layout" />
                     <SettingProp path="background.opacity" />
                   </SettingsSection>
 

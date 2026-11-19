@@ -330,4 +330,44 @@ describe('Chassis', () => {
       expect(useWheelDynamicsSnapshot).toHaveBeenLastCalledWith(true);
     });
   });
+
+  describe('the layout', () => {
+    // The hairline above a block is its ::before, the one beside it its ::after.
+    const rules = (container: HTMLElement, id: string) => {
+      const className = row(container, id)?.className ?? '';
+      return {
+        above: className.includes('before:h-px'),
+        before: className.includes('after:w-px'),
+      };
+    };
+
+    it('stacks the blocks, a hairline between each, by default', () => {
+      const container = draw();
+
+      expect(rules(container, 'ride')).toEqual({ above: false, before: false });
+      expect(rules(container, 'rake')).toEqual({ above: true, before: false });
+      expect(rules(container, 'toe')).toEqual({ above: true, before: false });
+    });
+
+    it('lays them in one row, a hairline before each but the first', () => {
+      const container = draw(wheels(), { layout: 'oneRow' });
+
+      expect(container.firstElementChild?.className).toContain('flex-row');
+      expect(rules(container, 'ride')).toEqual({ above: false, before: false });
+      expect(rules(container, 'camber')).toEqual({
+        above: false,
+        before: true,
+      });
+    });
+
+    it('fills two rows column by column, ruled between rows and columns', () => {
+      const container = draw(wheels(), { layout: 'twoRows' });
+
+      // Ride and rake share the first column; roll heads the second.
+      expect(rules(container, 'ride')).toEqual({ above: false, before: false });
+      expect(rules(container, 'rake')).toEqual({ above: true, before: false });
+      expect(rules(container, 'roll')).toEqual({ above: false, before: true });
+      expect(rules(container, 'camber')).toEqual({ above: true, before: true });
+    });
+  });
 });

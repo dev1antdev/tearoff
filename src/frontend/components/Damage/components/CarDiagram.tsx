@@ -2,7 +2,8 @@ import { memo } from 'react';
 import { ThermometerHotIcon } from '@phosphor-icons/react';
 import type {
   IntegrityTone,
-  WheelState,
+  SuspensionState,
+  TyreState,
 } from '@irdashies/domain/damage/damageDisplay';
 
 /**
@@ -40,6 +41,18 @@ const WHEEL_ORIGINS = [
 ] as const;
 const WHEEL_WIDTH = 5.5;
 const WHEEL_HEIGHT = 14;
+
+/**
+ * Each corner's suspension, apart from its wheel: a wishbone, a small
+ * triangle from the wheel's inner side towards the middle of the car. LF,
+ * RF, LR, RR.
+ */
+const WISHBONES = [
+  '13.5,17.5 13.5,24.5 18,21',
+  '32.5,17.5 32.5,24.5 28,21',
+  '13.5,73.5 13.5,80.5 18,77',
+  '32.5,73.5 32.5,80.5 28,77',
+] as const;
 
 const CENTRE_X = 23;
 const CENTRE_Y = 50;
@@ -106,17 +119,26 @@ const NO_CAR: PanelStyle = {
 const DETACHED_CLASS =
   'fill-slate-950 stroke-red-500 stroke-[1.5] [stroke-dasharray:2_1.5]';
 
-/** A healthy wheel is neutral: colour is for damage. */
-const WHEEL_CLASS: Record<WheelState, string> = {
+/** The wheel shows the tyre alone; a sound one is neutral. */
+const WHEEL_CLASS: Record<TyreState, string> = {
   unknown: 'fill-slate-800',
   healthy: 'fill-slate-600',
-  light: 'fill-amber-400',
-  medium: 'fill-orange-500',
-  heavy: 'fill-red-500',
-  destroyed: 'fill-red-800',
   detached: DETACHED_CLASS,
   // The rim of a tyre with no air in it, and nothing inside.
   punctured: 'fill-none stroke-red-500 stroke-2',
+};
+
+/**
+ * A sound wishbone is a thin grey outline; a damaged one is filled with the
+ * damage scale.
+ */
+const WISHBONE_CLASS: Record<SuspensionState, string> = {
+  unknown: 'fill-none stroke-slate-700',
+  healthy: 'fill-none stroke-slate-500',
+  light: 'fill-amber-400 stroke-amber-400',
+  medium: 'fill-orange-500 stroke-orange-500',
+  heavy: 'fill-red-500 stroke-red-500',
+  destroyed: 'fill-red-800 stroke-red-800',
 };
 
 const READING_CLASS: Record<IntegrityTone, string> = {
@@ -130,10 +152,14 @@ export interface CarDiagramProps {
   available: boolean;
   /** The eight zone levels, clockwise from the nose, one digit each. */
   zones: string;
-  leftFront: WheelState;
-  rightFront: WheelState;
-  leftRear: WheelState;
-  rightRear: WheelState;
+  leftFront: TyreState;
+  rightFront: TyreState;
+  leftRear: TyreState;
+  rightRear: TyreState;
+  leftFrontSuspension: SuspensionState;
+  rightFrontSuspension: SuspensionState;
+  leftRearSuspension: SuspensionState;
+  rightRearSuspension: SuspensionState;
   /** Degrees clockwise from the nose to the last impact; null for none. */
   impactDegrees: number | null;
   /** The figure in the middle; null leaves the middle empty. */
@@ -159,6 +185,10 @@ export const CarDiagram = memo(
     rightFront,
     leftRear,
     rightRear,
+    leftFrontSuspension,
+    rightFrontSuspension,
+    leftRearSuspension,
+    rightRearSuspension,
     impactDegrees,
     readingValue,
     readingLabel,
@@ -167,6 +197,12 @@ export const CarDiagram = memo(
     flash,
   }: CarDiagramProps) => {
     const wheels = [leftFront, rightFront, leftRear, rightRear];
+    const suspension = [
+      leftFrontSuspension,
+      rightFrontSuspension,
+      leftRearSuspension,
+      rightRearSuspension,
+    ];
     const pulse = flash ? ' animate-pulse' : '';
     const warning = available && overheating;
     // The figure and the warning share the middle: each is centred alone,
@@ -216,6 +252,19 @@ export const CarDiagram = memo(
             className="fill-red-500/85 stroke-slate-950/80 stroke-[0.75]"
           />
         )}
+
+        {WISHBONES.map((points, corner) => {
+          const state = available ? suspension[corner] : 'unknown';
+          return (
+            <polygon
+              key={points}
+              points={points}
+              data-testid={`damage-suspension-${corner}`}
+              data-state={state}
+              className={`stroke-[0.8] [stroke-linejoin:round] ${WISHBONE_CLASS[state]}`}
+            />
+          );
+        })}
 
         {WHEEL_ORIGINS.map(([x, y], wheel) => {
           const state = available ? wheels[wheel] : 'unknown';
