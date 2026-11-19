@@ -94,10 +94,10 @@ arc that turns with the wheel and the angle in its centre; the wheel pictures
 and the ring with the gear inside remain styles. Gear and speed are in the
 overlay font, the unit a grey label.
 
-Car systems: a system's own colour (Car Systems' dials) is a short bar before
-its label, as a class colour is, and the label is the small grey capitals; the
-label fills `yellow-500` only while the system works, and the value `amber-400`
-for a moment after the driver moves its dial. The Hybrid's motor state is a
+Car systems: a system's own colour (Car Systems' dials) is a short bar under its
+label, which is the small grey capitals; the label fills `yellow-500` only
+while the system works, and the value `amber-400` for a moment after the driver
+moves its dial. The Hybrid's motor state is a
 tinted pill (deploy orange, regeneration emerald), and a charge in range is a
 neutral bar, as safe fuel is; low and high take red and amber. The Lift and
 Coast lights are the rev lights' rounded segments in the sim's own colours,

@@ -88,9 +88,9 @@ export const SystemColumn = memo(
     // here" - and the value below tells them apart: a number the driver set to
     // zero, or a blank for a system the car does not have.
     const subdued = unsupported || isOff;
-    // The system's colour is a short bar before its label, as a class's is;
-    // the label fills only while the system works, in the colour the input
-    // bar gives the brake while ABS works.
+    // The system's colour is a short bar under its label; the label fills
+    // only while the system works, in the colour the input bar gives the
+    // brake while ABS works.
     const working = active && !unsupported;
     const labelColour = working
       ? 'bg-yellow-500 text-slate-900'
@@ -111,20 +111,21 @@ export const SystemColumn = memo(
     // brake bias column take the width it actually needs.
     return (
       <div className="flex flex-auto min-w-0 flex-col items-center gap-0.5">
-        <div className="flex w-full min-w-0 items-center justify-center gap-1">
-          {!working && (
-            <span
-              aria-hidden="true"
-              className={`h-[1em] w-1 shrink-0 rounded-full ${chip} ${
-                subdued ? 'opacity-40' : ''
-              }`}
-            />
-          )}
+        {/* The bar sits under the label, not beside it, and stays while the
+            system works: the header is no wider than the old chip, and does
+            not change size when the label fills. */}
+        <div className="flex w-full min-w-0 flex-col items-center gap-0.5">
           <span
-            className={`overlay-label truncate rounded-full px-1 py-0.5 leading-none ${labelColour}`}
+            className={`overlay-label max-w-full truncate rounded-full px-1 py-0.5 leading-none ${labelColour}`}
           >
             {short}
           </span>
+          <span
+            aria-hidden="true"
+            className={`h-0.5 w-3 rounded-full ${chip} ${
+              subdued ? 'opacity-40' : ''
+            }`}
+          />
         </div>
         {/* The value carries the glance, so it outweighs its own label - the
             same balance the Pitlane Helper strikes between its big readouts
