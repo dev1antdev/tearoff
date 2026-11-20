@@ -5,6 +5,7 @@ import type { Rival, RivalCar } from '@irdashies/domain';
 import { getTailwindStyle } from '@irdashies/utils/colors';
 import { formatGap, formatTime } from '@irdashies/utils/time';
 import { speedFromKph, type SpeedUnit } from '@irdashies/utils/units';
+import { CarNumberCell } from '../../shared/CarNumberCell/CarNumberCell';
 import { Compound } from '../../shared/Compound/Compound';
 import { DriverStatusBadges } from '../../shared/DriverStatusBadges/DriverStatusBadges';
 import { LastTimeCell } from '../../shared/LastTimeCell/LastTimeCell';
@@ -40,7 +41,7 @@ export interface RivalRowProps {
   rowIndex: number;
 }
 
-const MUTED = 'text-white/55';
+const MUTED = 'text-slate-400';
 const FIGURE = 'whitespace-nowrap tabular-nums';
 
 /**
@@ -73,10 +74,10 @@ export const RivalRow = ({
   const rowClasses = [
     outOfIt ? 'text-white/60' : '',
     isFocus ? 'text-amber-300 bg-amber-500/20' : '',
-    !isFocus
-      ? rowIndex % 2 === 0
-        ? 'bg-slate-800/70'
-        : 'bg-slate-900/70'
+    // A hairline over each row after the first, drawn inside the cells so
+    // the rows are no taller; none on the tinted focus row.
+    !isFocus && rowIndex > 0
+      ? '[&>td]:shadow-[inset_0_1px_0_rgb(255_255_255/0.05)]'
       : '',
   ]
     .filter(Boolean)
@@ -87,12 +88,12 @@ export const RivalRow = ({
   for (const key of columns) {
     switch (key) {
       case 'position': {
-        // As the standings draw it: a plain number, the class colour behind
-        // the focus car's, yellow for a car off the track.
+        // As the standings draw it: a plain number, the focus car's in its
+        // amber, yellow for a car off the track.
         const background = car?.offTrack
           ? 'bg-yellow-400 text-yellow-900'
           : isFocus
-            ? `${tailwindStyles.classHeader} text-white`
+            ? ''
             : 'text-white';
         cells.push(
           <td
@@ -114,13 +115,17 @@ export const RivalRow = ({
         break;
       case 'carNumber':
         cells.push(
-          <td
-            key={key}
-            data-column="carNumber"
-            className={`w-0 ${car ? `${tailwindStyles.driverIcon} border-l-4` : ''} text-white text-right px-1 whitespace-nowrap`}
-          >
-            {car ? `#${car.carNumber}` : ''}
-          </td>
+          car ? (
+            // As the standings draw it: grey, beside its class colour.
+            <CarNumberCell
+              key={key}
+              carNumber={car.carNumber}
+              tailwindStyles={tailwindStyles}
+              showBackground={false}
+            />
+          ) : (
+            <td key={key} data-column="carNumber" className="w-0" />
+          )
         );
         break;
       case 'driverName':
@@ -200,7 +205,7 @@ export const RivalRow = ({
             <span
               className={
                 car?.pitRequested
-                  ? 'inline-block min-w-5 px-1 rounded-sm bg-green-600 text-white'
+                  ? 'inline-block min-w-5 px-1 rounded-full ring-1 ring-inset ring-green-500 text-green-300'
                   : MUTED
               }
             >

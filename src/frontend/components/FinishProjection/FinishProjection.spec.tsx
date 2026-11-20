@@ -241,8 +241,9 @@ describe('FinishProjection', () => {
         within(now).getByLabelText('A few seconds quicker is one lap more')
       ).toBeTruthy();
       expect(within(planned).queryByLabelText(/A few seconds/)).toBeNull();
+      // A caution, not the player's amber.
       expect(within(now).getByTestId('finish-laps').className).toContain(
-        'text-amber-300'
+        'text-amber-400'
       );
     });
 

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { FlagCheckeredIcon } from '@phosphor-icons/react';
+import { FlagCheckeredIcon, IconContext } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import {
   useDrivingState,
   useFinishProjectionSnapshot,
@@ -130,80 +131,87 @@ export const FinishProjection = () => {
   };
 
   return (
-    <div
-      data-testid="finish-projection"
-      data-valid={hasTable}
-      className="flex h-full w-full flex-col gap-1.5 overflow-hidden overlay-panel p-2 leading-none text-white tabular-nums"
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
-      <div className="flex flex-none items-center justify-between gap-2 text-xs">
-        <div className="flex min-w-0 items-center gap-1 font-medium uppercase tracking-wide text-slate-400">
-          <FlagCheckeredIcon size="1.2em" aria-hidden />
-          <span className="truncate">{length ? length.label : 'Finish'}</span>
-          {length && (
-            <span
-              data-testid="finish-projection-length"
-              className="font-bold normal-case tracking-normal text-slate-200"
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        data-testid="finish-projection"
+        data-valid={hasTable}
+        className="flex h-full w-full flex-col gap-1.5 overflow-hidden overlay-panel p-2 leading-none text-white tabular-nums"
+        style={{
+          ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+        }}
+      >
+        <div className="flex flex-none items-center justify-between gap-2 text-xs">
+          <div className="flex min-w-0 items-center gap-1 overlay-label text-xs">
+            <FlagCheckeredIcon size="1.2em" aria-hidden />
+            <span className="truncate">{length ? length.label : 'Finish'}</span>
+            {length && (
+              <span
+                data-testid="finish-projection-length"
+                className="font-bold normal-case tracking-normal text-slate-200"
+              >
+                {length.value}
+              </span>
+            )}
+          </div>
+          {hasTable && projection.lapLostPerLap !== null && (
+            <div
+              data-testid="finish-projection-lap-lost"
+              className="flex-none text-slate-400"
             >
-              {length.value}
-            </span>
+              Loses{' '}
+              <span className="font-bold text-slate-200">
+                {projection.lapLostPerLap.toFixed(2)}
+              </span>{' '}
+              lap/lap
+            </div>
           )}
         </div>
-        {hasTable && projection.lapLostPerLap !== null && (
+
+        {hasTable ? (
+          <FinishTable
+            columns={projection.columns}
+            unit={
+              snapshot.energy
+                ? refuelUnit(
+                    snapshot.energy.isVirtualEnergy,
+                    settings.fuelUnits
+                  )
+                : null
+            }
+            refuelDisplay={settings.refuelDisplay}
+            showExtraRefuel={settings.showExtraRefuel}
+            extraLaps={settings.extraLaps}
+            showLapFractions={settings.showLapFractions}
+          />
+        ) : (
           <div
-            data-testid="finish-projection-lap-lost"
-            className="flex-none text-slate-400"
+            data-testid="finish-projection-reason"
+            className="flex min-h-0 flex-1 items-center justify-center text-xs text-slate-400 opacity-60"
           >
-            Loses{' '}
-            <span className="font-bold text-slate-200">
-              {projection.lapLostPerLap.toFixed(2)}
-            </span>{' '}
-            lap/lap
+            {finishReasonText(snapshot?.reason)}
+          </div>
+        )}
+
+        {hasRivals && (
+          <div
+            data-testid="finish-rivals"
+            // A hairline between the rows, none either side of the player's
+            // place, which is its own line.
+            className="flex flex-none flex-col gap-0.5 border-t overlay-divider pt-1.5 overlay-rules-y [--rule-gap:0.125rem] [&>[data-testid=finish-rivals-player]]:before:hidden [&>[data-testid=finish-rivals-player]+*]:before:hidden"
+          >
+            <FinishRivalsCaption />
+            {rivals.ahead.map(rivalRow)}
+            {rivals.ahead.length > 0 && rivals.behind.length > 0 && (
+              // Where the player is in the class order.
+              <div
+                data-testid="finish-rivals-player"
+                className="h-px bg-amber-300/50"
+              />
+            )}
+            {rivals.behind.map(rivalRow)}
           </div>
         )}
       </div>
-
-      {hasTable ? (
-        <FinishTable
-          columns={projection.columns}
-          unit={
-            snapshot.energy
-              ? refuelUnit(snapshot.energy.isVirtualEnergy, settings.fuelUnits)
-              : null
-          }
-          refuelDisplay={settings.refuelDisplay}
-          showExtraRefuel={settings.showExtraRefuel}
-          extraLaps={settings.extraLaps}
-          showLapFractions={settings.showLapFractions}
-        />
-      ) : (
-        <div
-          data-testid="finish-projection-reason"
-          className="flex min-h-0 flex-1 items-center justify-center text-xs text-slate-400 opacity-60"
-        >
-          {finishReasonText(snapshot?.reason)}
-        </div>
-      )}
-
-      {hasRivals && (
-        <div
-          data-testid="finish-rivals"
-          className="flex flex-none flex-col gap-0.5 border-t overlay-divider pt-1.5"
-        >
-          <FinishRivalsCaption />
-          {rivals.ahead.map(rivalRow)}
-          {rivals.ahead.length > 0 && rivals.behind.length > 0 && (
-            // Where the player is in the class order.
-            <div
-              data-testid="finish-rivals-player"
-              className="h-px bg-amber-300/50"
-            />
-          )}
-          {rivals.behind.map(rivalRow)}
-        </div>
-      )}
-    </div>
+    </IconContext.Provider>
   );
 };

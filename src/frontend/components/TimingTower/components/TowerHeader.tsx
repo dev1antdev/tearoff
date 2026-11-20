@@ -11,12 +11,12 @@ import { getTailwindStyle } from '@irdashies/utils/colors';
 import type { TowerTab } from '../towerRows';
 
 const BUTTON =
-  'flex items-center gap-1.5 rounded-sm border px-2 py-0.5 text-[11px] leading-5 whitespace-nowrap transition-colors';
+  'flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-[11px] leading-5 whitespace-nowrap transition-colors';
 const buttonClass = (on: boolean) =>
   `${BUTTON} ${
     on
-      ? 'border-slate-400 bg-slate-600 font-semibold text-white'
-      : 'border-slate-700 bg-slate-800/80 text-slate-300 hover:bg-slate-700'
+      ? 'border-white/20 bg-slate-800 font-semibold text-white'
+      : 'border-white/5 text-slate-300 hover:bg-slate-800/60'
   }`;
 
 /**
@@ -185,7 +185,7 @@ export const TowerHeader = memo(
         data-testid="tower-header"
         data-words={words}
         data-rows={rows}
-        className="flex-none border-b border-slate-700 px-2 py-1.5"
+        className="flex-none border-b overlay-divider px-2 py-1.5"
       >
         <div
           ref={fit.target}

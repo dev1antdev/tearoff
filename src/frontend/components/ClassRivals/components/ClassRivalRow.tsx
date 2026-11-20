@@ -90,7 +90,7 @@ export const ClassRivalCaptions = memo(
     <div
       data-testid="class-rivals-captions"
       // Stays put while the cars scroll under it, so it is opaque.
-      className={`${ROW} sticky top-0 z-10 border-b border-slate-600 bg-slate-800 py-1.5 text-xs font-medium uppercase leading-none tracking-wide text-slate-400`}
+      className={`${ROW} sticky top-0 z-10 border-b overlay-divider bg-slate-950 py-1.5 overlay-label leading-none`}
       style={classRivalGrid(columns)}
     >
       <span>P</span>
@@ -204,7 +204,7 @@ export const ClassRivalRow = memo(
         data-own={own}
         data-assumed={assumed}
         className={`${ROW} border-b overlay-divider py-1.5 leading-none ${
-          own ? 'bg-amber-300/10 text-amber-300' : 'text-slate-200'
+          own ? 'bg-amber-500/20 text-amber-300' : 'text-slate-200'
         }`}
         style={classRivalGrid({
           stops: showStops,
@@ -218,12 +218,14 @@ export const ClassRivalRow = memo(
         <span className={own ? 'font-bold' : 'text-slate-400'}>
           {classPosition > 0 ? classPosition : ''}
         </span>
+        {/* As the standings draw a number: grey, after its class colour. */}
         <ClassLabel
           name={number ? `#${number}` : '#'}
           color={classColor}
           highlightColor={highlightColor}
           isMultiClass={isMultiClass}
-          className="justify-self-start rounded-sm px-1.5 py-0.5 text-xs leading-none text-white [text-shadow:0_1px_2px_rgb(0_0_0/0.7)]"
+          filled={false}
+          className="justify-self-start text-xs leading-none font-normal text-slate-400"
         />
         <span className={`min-w-0 truncate ${own ? 'font-bold' : ''}`}>
           {name}

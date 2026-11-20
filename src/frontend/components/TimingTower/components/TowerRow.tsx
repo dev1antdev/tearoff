@@ -26,13 +26,14 @@ const DENSE = 'compact';
 /** What a figure reads while it cannot be known. */
 const UNKNOWN = '--';
 
+/** The status badges' outlines (`DriverStatusBadges`), drawn inside. */
 const TAG_CLASS: Readonly<Record<TowerTag, string>> = {
-  PIT: 'bg-orange-900 text-orange-200',
-  OUT: 'bg-green-900 text-green-200',
-  GAR: 'bg-slate-700 text-slate-300',
-  AWAY: 'bg-slate-700 text-slate-300',
-  DNF: 'bg-red-900 text-red-200',
-  DQ: 'bg-red-900 text-red-200',
+  PIT: 'ring-yellow-500',
+  OUT: 'ring-green-700',
+  GAR: 'ring-slate-500',
+  AWAY: 'ring-slate-500',
+  DNF: 'ring-red-500',
+  DQ: 'ring-red-500',
 };
 
 export interface TowerRowProps {
@@ -204,6 +205,7 @@ export const TowerRow = memo((props: TowerRowProps) => {
             key={id}
             carNumber={carNumber}
             tailwindStyles={tailwindStyles}
+            showBackground={false}
             compactMode={DENSE}
           />
         );
@@ -219,7 +221,7 @@ export const TowerRow = memo((props: TowerRowProps) => {
                   <span
                     data-testid="tower-tag"
                     title={TOWER_TAG_TITLES[tag]}
-                    className={`shrink-0 rounded-sm px-1 text-[10px] leading-4 font-bold tracking-wider ${TAG_CLASS[tag]}`}
+                    className={`shrink-0 rounded-full px-1.5 text-[10px] leading-4 font-bold tracking-wider text-white ring-1 ring-inset ${TAG_CLASS[tag]}`}
                   >
                     {tag}
                   </span>
@@ -391,10 +393,8 @@ export const TowerRow = memo((props: TowerRowProps) => {
       className={[
         // Two lines with the team under the name, one without.
         team !== undefined ? 'h-[34px]' : 'h-[26px]',
-        'border-b border-slate-800/80',
-        isOwn
-          ? 'bg-amber-400/15 text-amber-300'
-          : 'odd:bg-slate-800/50 even:bg-slate-900/50',
+        'border-b overlay-divider',
+        isOwn ? 'bg-amber-500/20 text-amber-300' : '',
         dimmed && !isOwn ? 'text-white/60' : '',
       ].join(' ')}
     >

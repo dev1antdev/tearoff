@@ -1,5 +1,10 @@
 import { memo, useMemo } from 'react';
-import { MinusCircleIcon, WrenchIcon } from '@phosphor-icons/react';
+import {
+  IconContext,
+  MinusCircleIcon,
+  WrenchIcon,
+} from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import {
   useDrivingState,
   useSessionVisibility,
@@ -24,7 +29,7 @@ interface ClassFieldChipProps {
   active: number;
   /** Running cars in the pit lane or stopped at their box. */
   inPitLane: number;
-  /** Outlined: the class of the focus car. */
+  /** Selected: the class of the focus car. */
   outlined: boolean;
   showTotal: boolean;
   showInactive: boolean;
@@ -62,22 +67,24 @@ const ClassFieldChip = memo(
         data-class={name}
         data-focus={outlined ? 'true' : undefined}
         className={[
-          'min-w-0 overflow-hidden rounded-sm',
+          'min-w-0 overflow-hidden',
           inColumn
             ? 'col-span-2 grid grid-cols-subgrid'
             : 'flex flex-auto items-stretch',
-          outlined ? 'ring-1 ring-white/60' : '',
+          // The focus car's class is the selected one.
+          outlined ? 'overlay-selected' : '',
         ].join(' ')}
       >
+        {/* As the standings name a class: a short bar in its colour. */}
         <ClassLabel
           name={name}
           color={color}
           highlightColor={highlightColor}
           isMultiClass={isMultiClass}
-          // The shadow keeps white readable on the lighter class colours.
-          className="flex shrink-0 items-center px-2 text-sm [text-shadow:1px_1px_1px_rgb(0_0_0/0.2)]"
+          filled={false}
+          className="flex shrink-0 items-center pl-2 text-sm"
         />
-        <div className="flex min-w-0 flex-auto items-center gap-1.5 bg-slate-900/70 px-2 py-0.5 leading-none whitespace-nowrap tabular-nums">
+        <div className="flex min-w-0 flex-auto items-center gap-1.5 px-2 py-0.5 leading-none whitespace-nowrap tabular-nums">
           <span className="flex items-baseline">
             <span
               data-testid="class-field-active"
@@ -97,11 +104,11 @@ const ClassFieldChip = memo(
           {showInactive && inactive > 0 && (
             <span
               data-testid="class-field-inactive"
-              className="flex items-center gap-0.5 text-xs text-amber-300"
+              className="flex items-center gap-0.5 text-xs text-amber-400"
             >
               <MinusCircleIcon
                 aria-label="Out of the running"
-                size={12}
+                size="1em"
                 weight="fill"
               />
               {inactive}
@@ -112,7 +119,7 @@ const ClassFieldChip = memo(
               data-testid="class-field-pit"
               className="flex items-center gap-0.5 text-xs text-white/60"
             >
-              <WrenchIcon aria-label="In the pit lane" size={12} />
+              <WrenchIcon aria-label="In the pit lane" size="1em" />
               {inPitLane}
             </span>
           )}
@@ -162,35 +169,37 @@ export const ClassFields = () => {
   const outlineFocus = settings.highlightOwnClass && shown.length > 1;
 
   return (
-    <div
-      data-testid="class-fields"
-      className={[
-        'w-full overlay-panel p-2 text-white',
-        inColumn
-          ? 'grid grid-cols-[max-content_minmax(0,1fr)] gap-y-1'
-          : 'flex h-full gap-2',
-      ].join(' ')}
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
-      {shown.map((field) => (
-        <ClassFieldChip
-          key={field.classId}
-          name={field.name}
-          color={field.color}
-          highlightColor={highlightColor}
-          isMultiClass={isMultiClass}
-          total={field.total}
-          active={field.active}
-          inPitLane={field.inPitLane}
-          outlined={outlineFocus && field.isFocusClass}
-          showTotal={settings.showTotal}
-          showInactive={settings.showInactive}
-          showInPitLane={settings.showInPitLane}
-          inColumn={inColumn}
-        />
-      ))}
-    </div>
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        data-testid="class-fields"
+        className={[
+          'w-full overlay-panel p-2 text-white',
+          inColumn
+            ? 'grid grid-cols-[max-content_minmax(0,1fr)] gap-y-1 overlay-rules-y [--rule-gap:0.25rem]'
+            : 'flex h-full gap-2 overlay-rules-x [--rule-gap:0.5rem]',
+        ].join(' ')}
+        style={{
+          ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+        }}
+      >
+        {shown.map((field) => (
+          <ClassFieldChip
+            key={field.classId}
+            name={field.name}
+            color={field.color}
+            highlightColor={highlightColor}
+            isMultiClass={isMultiClass}
+            total={field.total}
+            active={field.active}
+            inPitLane={field.inPitLane}
+            outlined={outlineFocus && field.isFocusClass}
+            showTotal={settings.showTotal}
+            showInactive={settings.showInactive}
+            showInPitLane={settings.showInPitLane}
+            inColumn={inColumn}
+          />
+        ))}
+      </div>
+    </IconContext.Provider>
   );
 };

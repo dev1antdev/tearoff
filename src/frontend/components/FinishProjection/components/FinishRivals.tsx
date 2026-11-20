@@ -88,12 +88,14 @@ export const FinishRivalRow = memo(
       <span className="w-5 flex-none text-right text-slate-400">
         {classPosition > 0 ? classPosition : ''}
       </span>
+      {/* As the standings draw a number: grey, after its class colour. */}
       <ClassLabel
         name={number ? `#${number}` : '#'}
         color={classColor}
         highlightColor={highlightColor}
         isMultiClass={isMultiClass}
-        className="flex-none rounded-sm px-1.5 py-0.5 text-xs leading-none text-white [text-shadow:0_1px_2px_rgb(0_0_0/0.7)]"
+        filled={false}
+        className="flex-none py-0.5 font-normal text-slate-400"
       />
       <span className="min-w-0 flex-1 truncate text-slate-200">{name}</span>
       {inPit && <DriverStatusBadges pit className="flex-none" />}

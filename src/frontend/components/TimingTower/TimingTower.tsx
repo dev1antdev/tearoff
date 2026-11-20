@@ -190,7 +190,7 @@ const TowerTable = ({ settings }: { settings: TimingTowerConfig }) => {
   return (
     <div
       data-testid="timing-tower"
-      className="flex h-full w-full flex-col overflow-hidden rounded-sm bg-slate-800/(--bg-opacity) text-white tabular-nums"
+      className="flex h-full w-full flex-col overflow-hidden overlay-panel text-white tabular-nums"
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}
@@ -244,7 +244,7 @@ const TowerTable = ({ settings }: { settings: TimingTowerConfig }) => {
                     scope="col"
                     data-column={id}
                     title={column.title}
-                    className={`sticky top-0 z-10 bg-slate-900 px-1 py-1.5 text-[11px] font-normal tracking-wider whitespace-nowrap text-slate-400 uppercase ${ALIGN_CLASS[column.align]}`}
+                    className={`sticky top-0 z-10 bg-slate-950 px-1 py-1.5 text-[11px] font-normal tracking-wider whitespace-nowrap text-slate-400 uppercase ${ALIGN_CLASS[column.align]}`}
                   >
                     {column.label}
                   </th>

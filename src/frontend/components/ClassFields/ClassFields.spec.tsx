@@ -107,7 +107,10 @@ describe('ClassFields', () => {
       'LMP3',
       'LMGT3',
     ]);
-    expect(labels[0].className).toContain('border-l-4');
+    // A short bar in the class colour before the name, as the standings
+    // draw a class by default.
+    expect(labels[0].className).not.toContain('border-l-4');
+    expect(labels[0].querySelector('[aria-hidden]')).not.toBeNull();
   });
 
   it('shows the cars running alone with the total off', () => {
@@ -136,7 +139,8 @@ describe('ClassFields', () => {
 
     const out = within(chip('LMGT3')).getByTestId('class-field-inactive');
     expect(out.textContent).toBe('2');
-    expect(out.className).toContain('text-amber-300');
+    // A caution, not the player's amber.
+    expect(out.className).toContain('text-amber-400');
     expect(out.querySelector('svg')?.getAttribute('aria-label')).toBe(
       'Out of the running'
     );
@@ -159,13 +163,13 @@ describe('ClassFields', () => {
     expect(within(chip('LMP3')).queryByTestId('class-field-pit')).toBeNull();
   });
 
-  it('outlines the class of the focus car', () => {
+  it('selects the class of the focus car', () => {
     render(<ClassFields />);
 
     expect(chip('LMGT3').dataset.focus).toBe('true');
-    expect(chip('LMGT3').className).toContain('ring-1');
+    expect(chip('LMGT3').className).toContain('overlay-selected');
     expect(chip('LMP2').dataset.focus).toBeUndefined();
-    expect(chip('LMP2').className).not.toContain('ring-1');
+    expect(chip('LMP2').className).not.toContain('overlay-selected');
   });
 
   it('outlines nothing with the highlight off', () => {
