@@ -1,4 +1,5 @@
 import { memo, type ReactNode } from 'react';
+import type { ChassisConfig } from '@irdashies/types';
 import {
   useDrivingState,
   useSessionVisibility,
@@ -18,6 +19,31 @@ import {
   wheelToeFigure,
 } from './chassisDisplay';
 
+type ChassisLayout = ChassisConfig['layout'];
+
+/**
+ * How the blocks are laid out, by the Layout setting: a column, or rows. A
+ * row wraps, since a block never shrinks below its figures: a window too
+ * narrow for its layout takes another line rather than draw one figure over
+ * another.
+ */
+const CONTAINER_CLASS: Record<ChassisLayout, string> = {
+  column: 'flex flex-col gap-1.5',
+  twoRows: 'flex flex-col justify-center gap-1.5',
+  oneRow: 'flex flex-col justify-center',
+};
+const ROW_CLASS = 'flex flex-row flex-wrap gap-x-3 gap-y-1.5';
+
+/**
+ * The hairlines between blocks: a line in the middle of the gap, drawn by a
+ * pseudo-element, so it adds no size and is no shadow on figures that change
+ * every frame.
+ */
+const RULE_ABOVE =
+  'before:absolute before:inset-x-0 before:top-[-0.1875rem] before:h-px before:bg-white/5';
+const RULE_BEFORE =
+  'after:absolute after:inset-y-0 after:left-[-0.375rem] after:w-px after:bg-white/5';
+
 interface RowProps {
   /** Names the row for the specs: "ride", "rake". */
   id: string;
@@ -26,28 +52,71 @@ interface RowProps {
   unit?: string;
   /** A row of two lines, front above rear, takes twice the height. */
   twoLines?: boolean;
+  layout: ChassisLayout;
+  /** A hairline above the block, and one before it. */
+  ruleAbove: boolean;
+  ruleBefore: boolean;
   children: ReactNode;
 }
 
-/** One row: a small caption at the left, its figures at the right. */
-const Row = ({ id, caption, unit, twoLines = false, children }: RowProps) => (
-  <div
-    data-testid={`chassis-${id}`}
-    className={`flex min-h-0 items-center gap-2 ${twoLines ? 'flex-2' : 'flex-1'}`}
-  >
-    <div className="w-[4.9em] flex-none whitespace-nowrap text-[0.7em] font-semibold uppercase leading-none text-slate-300">
-      {caption}
-      {unit && (
-        <span className="ml-[0.35em] font-medium normal-case text-slate-400">
-          {unit}
-        </span>
-      )}
+/**
+ * One block: in a column, a small caption at the left and its figures at
+ * the right; in rows, the caption above its figures.
+ */
+const Row = ({
+  id,
+  caption,
+  unit,
+  twoLines = false,
+  layout,
+  ruleAbove,
+  ruleBefore,
+  children,
+}: RowProps) => {
+  const stacked = layout !== 'column';
+  // A column shares out its height, two lines taking twice; a single row
+  // gives each block its figures' width and shares out what is left, twice
+  // as much to the ride height, whose bars have no width of their own.
+  const size =
+    layout === 'column'
+      ? twoLines
+        ? 'flex-2'
+        : 'flex-1'
+      : id === 'ride'
+        ? 'flex-[2_1_auto]'
+        : 'flex-auto';
+  return (
+    <div
+      data-testid={`chassis-${id}`}
+      className={`relative flex min-h-0 ${
+        stacked
+          ? 'flex-col justify-center gap-[0.35em]'
+          : 'min-w-0 items-center gap-2'
+      } ${size} ${ruleAbove ? RULE_ABOVE : ''} ${ruleBefore ? RULE_BEFORE : ''}`}
+      // In a row the bars need room the figures do not ask for.
+      style={stacked && id === 'ride' ? { minWidth: '9em' } : undefined}
+    >
+      {/* The label without its letter spacing, in the row's em size, so
+        CAMBER fits the column. */}
+      <div
+        className={`overlay-label whitespace-nowrap leading-none tracking-normal ${
+          stacked ? '' : 'w-[4.9em] flex-none'
+        }`}
+        style={{ fontSize: '0.7em' }}
+      >
+        {caption}
+        {unit && (
+          <span className="ml-[0.35em] font-medium normal-case text-slate-400">
+            {unit}
+          </span>
+        )}
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col justify-center gap-[0.35em]">
+        {children}
+      </div>
     </div>
-    <div className="flex min-w-0 flex-1 flex-col justify-center gap-[0.35em]">
-      {children}
-    </div>
-  </div>
-);
+  );
+};
 
 interface BarProps {
   /** 0..1. */
@@ -64,10 +133,10 @@ interface BarProps {
  */
 const Bar = memo(({ fill, warn, side }: BarProps) => (
   <div
-    className={`flex h-[0.4em] overflow-hidden rounded-sm ${warn ? 'bg-red-500' : 'bg-slate-900/70'} ${side === 'left' ? 'justify-end' : 'justify-start'}`}
+    className={`flex h-[0.4em] overflow-hidden rounded-full ${warn ? 'bg-red-500' : 'bg-slate-900/70'} ${side === 'left' ? 'justify-end' : 'justify-start'}`}
   >
     <div
-      className={`h-full ${warn ? 'bg-red-500' : 'bg-green-500'}`}
+      className={`h-full rounded-full ${warn ? 'bg-red-500' : 'bg-slate-300'}`}
       style={{ width: `${Math.round(fill * 100)}%` }}
     />
   </div>
@@ -203,109 +272,166 @@ export const Chassis = () => {
     camberFigure(live?.camberDeg?.[wheel])
   );
   const camberClassName = (wheel: number) =>
-    cambers[wheel].positive ? 'text-amber-300' : '';
+    cambers[wheel].positive ? 'text-amber-400' : '';
 
-  return (
-    <div
-      className="flex h-full w-full flex-col gap-1.5 overlay-panel p-2 font-medium text-white"
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
-      {rideHeightRow !== 'hidden' && (
-        <Row id="ride" caption="Ride" unit="mm" twoLines>
-          {[0, 2].map((left) => (
-            <RideHeightLine
-              key={left}
-              leftText={corners[left].text}
-              leftFill={corners[left].fill}
-              leftBottoming={corners[left].bottoming}
-              rightText={corners[left + 1].text}
-              rightFill={corners[left + 1].fill}
-              rightBottoming={corners[left + 1].bottoming}
-            />
-          ))}
-        </Row>
-      )}
-
-      {rakeRow !== 'hidden' && (
-        <Row id="rake" caption="Rake">
-          <Pair
-            left={rake.angle}
-            right={rake.millimetres || NO_READING}
-            leftClassName={`font-bold ${rake.low ? 'text-sky-400' : ''}`}
-            rightClassName="text-slate-300"
-          />
-        </Row>
-      )}
-
-      {rollRow !== 'hidden' && (
-        <Row id="roll" caption="Roll">
-          <Pair
-            left={rollFigure(live?.rollMm?.[0], settings.trackFront)}
-            right={rollFigure(live?.rollMm?.[1], settings.trackRear)}
-            leftLabel="F"
-            rightLabel="R"
-            trailing={
-              settings.showRollShare
-                ? rollShareFigure(
-                    live?.rollShareFront,
-                    settings.trackFront,
-                    settings.trackRear
-                  )
-                : undefined
-            }
-          />
-        </Row>
-      )}
-
-      {camberRow !== 'hidden' && (
-        <Row id="camber" caption="Camber" twoLines>
-          {[0, 2].map((left) => (
-            <Pair
-              key={left}
-              left={cambers[left].text}
-              right={cambers[left + 1].text}
-              leftClassName={camberClassName(left)}
-              rightClassName={camberClassName(left + 1)}
-            />
-          ))}
-        </Row>
-      )}
-
-      {toeRow !== 'hidden' &&
-        (settings.toeDisplay === 'wheel' ? (
-          <Row id="toe" caption="Toe" twoLines>
-            {[0, 2].map((left) => (
+  const blocks: Omit<RowProps, 'layout' | 'ruleAbove' | 'ruleBefore'>[] = [];
+  if (rideHeightRow !== 'hidden') {
+    blocks.push({
+      id: 'ride',
+      caption: 'Ride',
+      unit: 'mm',
+      twoLines: true,
+      children: [0, 2].map((left) => (
+        <RideHeightLine
+          key={left}
+          leftText={corners[left].text}
+          leftFill={corners[left].fill}
+          leftBottoming={corners[left].bottoming}
+          rightText={corners[left + 1].text}
+          rightFill={corners[left + 1].fill}
+          rightBottoming={corners[left + 1].bottoming}
+        />
+      )),
+    });
+  }
+  if (rakeRow !== 'hidden') {
+    blocks.push({
+      id: 'rake',
+      caption: 'Rake',
+      children: (
+        <Pair
+          left={rake.angle}
+          right={rake.millimetres || NO_READING}
+          leftClassName={`font-bold ${rake.low ? 'text-sky-400' : ''}`}
+          rightClassName="text-slate-300"
+        />
+      ),
+    });
+  }
+  if (rollRow !== 'hidden') {
+    blocks.push({
+      id: 'roll',
+      caption: 'Roll',
+      children: (
+        <Pair
+          left={rollFigure(live?.rollMm?.[0], settings.trackFront)}
+          right={rollFigure(live?.rollMm?.[1], settings.trackRear)}
+          leftLabel="F"
+          rightLabel="R"
+          trailing={
+            settings.showRollShare
+              ? rollShareFigure(
+                  live?.rollShareFront,
+                  settings.trackFront,
+                  settings.trackRear
+                )
+              : undefined
+          }
+        />
+      ),
+    });
+  }
+  if (camberRow !== 'hidden') {
+    blocks.push({
+      id: 'camber',
+      caption: 'Camber',
+      twoLines: true,
+      children: [0, 2].map((left) => (
+        <Pair
+          key={left}
+          left={cambers[left].text}
+          right={cambers[left + 1].text}
+          leftClassName={camberClassName(left)}
+          rightClassName={camberClassName(left + 1)}
+        />
+      )),
+    });
+  }
+  if (toeRow !== 'hidden') {
+    blocks.push(
+      settings.toeDisplay === 'wheel'
+        ? {
+            id: 'toe',
+            caption: 'Toe',
+            twoLines: true,
+            children: [0, 2].map((left) => (
               <Pair
                 key={left}
                 left={wheelToeFigure(live?.toeDeg?.[left])}
                 right={wheelToeFigure(live?.toeDeg?.[left + 1])}
               />
-            ))}
-          </Row>
-        ) : (
-          <Row id="toe" caption="Toe">
-            <Pair
-              left={axleToeFigure(live?.toeTotalDeg?.[0])}
-              right={axleToeFigure(live?.toeTotalDeg?.[1])}
-              leftLabel="F"
-              rightLabel="R"
-            />
-          </Row>
-        ))}
+            )),
+          }
+        : {
+            id: 'toe',
+            caption: 'Toe',
+            children: (
+              <Pair
+                left={axleToeFigure(live?.toeTotalDeg?.[0])}
+                right={axleToeFigure(live?.toeTotalDeg?.[1])}
+                leftLabel="F"
+                rightLabel="R"
+              />
+            ),
+          }
+    );
+  }
+  if (suspensionRow !== 'hidden') {
+    blocks.push({
+      id: 'suspension',
+      caption: 'Susp',
+      unit: 'mm',
+      twoLines: true,
+      children: [0, 2].map((left) => (
+        <Pair
+          key={left}
+          left={formatMillimetres(live?.suspensionPositionMm?.[left])}
+          right={formatMillimetres(live?.suspensionPositionMm?.[left + 1])}
+        />
+      )),
+    });
+  }
 
-      {suspensionRow !== 'hidden' && (
-        <Row id="suspension" caption="Susp" unit="mm" twoLines>
-          {[0, 2].map((left) => (
-            <Pair
-              key={left}
-              left={formatMillimetres(live?.suspensionPositionMm?.[left])}
-              right={formatMillimetres(live?.suspensionPositionMm?.[left + 1])}
+  const { layout } = settings;
+  // A column is one list; rows are one or two lines of blocks, the first of
+  // two taking half the blocks, rounded up.
+  const half = Math.ceil(blocks.length / 2);
+  const lines =
+    layout === 'column'
+      ? []
+      : layout === 'oneRow'
+        ? [blocks]
+        : [blocks.slice(0, half), blocks.slice(half)];
+  return (
+    <div
+      className={`h-full w-full overlay-panel p-2 font-medium text-white ${CONTAINER_CLASS[layout]}`}
+      style={{
+        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+      }}
+    >
+      {layout === 'column'
+        ? blocks.map((block, index) => (
+            <Row
+              key={block.id}
+              {...block}
+              layout={layout}
+              ruleAbove={index > 0}
+              ruleBefore={false}
             />
+          ))
+        : lines.map((line, lineIndex) => (
+            <div key={lineIndex} className={ROW_CLASS}>
+              {line.map((block, index) => (
+                <Row
+                  key={block.id}
+                  {...block}
+                  layout={layout}
+                  ruleAbove={lineIndex > 0}
+                  ruleBefore={index > 0}
+                />
+              ))}
+            </div>
           ))}
-        </Row>
-      )}
     </div>
   );
 };

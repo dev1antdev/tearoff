@@ -1526,6 +1526,8 @@ export interface ChassisConfig {
   toeDisplay: 'axle' | 'wheel';
   /** Damper position at the four corners. */
   showSuspension: boolean;
+  /** The blocks one under another, in two rows, or all in one row. */
+  layout: 'column' | 'twoRows' | 'oneRow';
   sessionVisibility: SessionVisibilitySettings;
   showOnlyWhenOnTrack: boolean;
 }

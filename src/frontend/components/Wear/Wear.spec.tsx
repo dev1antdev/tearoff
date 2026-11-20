@@ -132,14 +132,14 @@ describe('Wear', () => {
       );
       const tones = all(container, 'wear-tread').map(
         (figure) =>
-          ['text-amber-300', 'text-red-400', 'text-white'].find((tone) =>
+          ['text-amber-400', 'text-red-400', 'text-white'].find((tone) =>
             figure.className.includes(tone)
           ) ?? ''
       );
 
       expect(tones).toEqual([
         'text-white',
-        'text-amber-300',
+        'text-amber-400',
         'text-red-400',
         'text-white',
       ]);
@@ -157,11 +157,11 @@ describe('Wear', () => {
       const [few, enough] = all(container, 'wear-tread-forecast');
 
       expect(few.querySelector('.text-red-400')?.textContent).toBe('5 laps');
-      expect(few.querySelector('.text-amber-300')?.textContent).toBe(
+      expect(few.querySelector('.text-amber-400')?.textContent).toBe(
         '3.20/lap'
       );
       expect(enough.querySelector('.text-red-400')).toBeNull();
-      expect(enough.querySelector('.text-amber-300')).toBeNull();
+      expect(enough.querySelector('.text-amber-400')).toBeNull();
     });
 
     it('draws a forecast that rests on no lap of the tyre as an estimate', () => {
@@ -313,14 +313,14 @@ describe('Wear', () => {
       );
       const tones = all(container, 'wear-brake').map(
         (figure) =>
-          ['text-amber-300', 'text-red-400', 'text-white'].find((tone) =>
+          ['text-amber-400', 'text-red-400', 'text-white'].find((tone) =>
             figure.className.includes(tone)
           ) ?? ''
       );
 
       expect(tones).toEqual([
         'text-white',
-        'text-amber-300',
+        'text-amber-400',
         'text-red-400',
         // No failure thickness: nothing to colour by.
         'text-white',

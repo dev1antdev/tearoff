@@ -8,7 +8,7 @@ export type WearTone = 'plain' | 'caution' | 'bad';
 
 export const TONE_CLASS: Record<WearTone, string> = {
   plain: 'text-white',
-  caution: 'text-amber-300',
+  caution: 'text-amber-400',
   bad: 'text-red-400',
 };
 

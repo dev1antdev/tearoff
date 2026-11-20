@@ -104,6 +104,23 @@ Coast lights are the rev lights' rounded segments in the sim's own colours,
 unlit `slate-800`, with no rim. Cruise's readings sit on the panel, not on
 tiles of their own.
 
+Car state: Damage draws Tearoff's own car from above, long as a real car, in
+eight body panels with a gap between each, one per zone: a whole panel is a
+dark band with a thin `slate-600` edge, a dented one filled `amber-400`, a
+badly damaged one `red-500`, and one that has come off a dashed red line. Each
+corner has its wheel, which shows the tyre alone (grey, a red rim when flat,
+dark and dashed when it has come off), and a wishbone beside it for the
+suspension: a thin grey outline while sound, filled with the damage scale.
+The figure in the middle is laid over the drawing in the overlay's type size. Tyres are blocks filled with the temperature scale, the temperature
+large inside, pressure and wear small beside them. A bar that is in range
+(ride height, what Our Car has aboard) is neutral; only a warning colours it. Chassis
+lays its blocks out in a column, in two rows or in one row; a hairline in the
+middle of the gap separates them, a pseudo-element that adds no size.
+Our Car's damage line is white while the car is sound, `amber-400` for damage
+to watch and `red-400` for a wheel off or flat. A tyre pressure on the driver's
+target stays `green-400`, the one good news shown in colour here, because the
+target is the reading's purpose; low is `sky-400`, high `red-400`.
+
 ### 3.2 Neutrals follow the palette
 
 The driver picks one of four palettes. Each remaps `--color-slate-*` under

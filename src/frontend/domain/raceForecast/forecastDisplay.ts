@@ -353,6 +353,8 @@ export interface DamageLine {
   /** "None", or what is damaged. */
   text: string;
   damaged: boolean;
+  /** A wheel is off or flat: a loss, not just damage to watch. */
+  severe: boolean;
   /** The repair the next stop makes: "no repair time", "repairs 12s". */
   note: string;
 }
@@ -371,6 +373,7 @@ export const damageLine = (
   const wheels = damage.wheels.map(wheelState);
   if (wheels.includes('detached')) parts.push('wheel off');
   else if (wheels.includes('punctured')) parts.push('puncture');
+  const severe = parts.length > 0;
   if (isNumber(damage.aeroIntegrity) && percent(damage.aeroIntegrity) < 100) {
     parts.push(`aero ${percent(damage.aeroIntegrity)} %`);
   }
@@ -388,6 +391,7 @@ export const damageLine = (
   return {
     text: text ? text.charAt(0).toUpperCase() + text.slice(1) : 'None',
     damaged: parts.length > 0,
+    severe,
     note:
       repair !== null
         ? `repairs ${repair} at the stop`

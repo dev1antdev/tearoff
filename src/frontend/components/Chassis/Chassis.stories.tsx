@@ -127,6 +127,46 @@ export const NoseUp: Story = {
   ),
 };
 
+/** The Layout setting: the blocks in two rows, for a wider, lower widget. */
+export const TwoRows: Story = {
+  ...story(
+    wheels({
+      rideHeightMm: [38.4, 63.2, 49.1, 68.5],
+      rakeMm: 8,
+      rollMm: [24.8, 19.4],
+      rollShareFront: 0.56,
+      camberDeg: [-3.42, -0.84, -2.71, -0.62],
+      toeTotalDeg: [-0.14, 0.24],
+    }),
+    { showRollShare: true, layout: 'twoRows' },
+    { width: 600, height: 130 }
+  ),
+};
+
+/** All in one row, for a strip along the screen. */
+export const OneRow: Story = {
+  ...story(
+    wheels({
+      rideHeightMm: [38.4, 63.2, 49.1, 68.5],
+      rakeMm: 8,
+      rollMm: [24.8, 19.4],
+      rollShareFront: 0.56,
+      camberDeg: [-3.42, -0.84, -2.71, -0.62],
+      toeTotalDeg: [-0.14, 0.24],
+    }),
+    { layout: 'oneRow' },
+    { width: 720, height: 70 }
+  ),
+};
+
+/**
+ * One Row chosen in the default window, before it is widened: the blocks
+ * wrap rather than draw over each other.
+ */
+export const OneRowInADefaultWindow: Story = {
+  ...story(wheels(), { layout: 'oneRow' }),
+};
+
 /** Every row on, toe at each wheel: the widget wants more height. */
 export const EveryRow: Story = {
   ...story(

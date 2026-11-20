@@ -94,6 +94,12 @@ const wheelStates = () =>
     (_, index) => screen.getByTestId(`damage-wheel-${index}`).dataset.state
   );
 
+const suspensionStates = () =>
+  Array.from(
+    { length: 4 },
+    (_, index) => screen.getByTestId(`damage-suspension-${index}`).dataset.state
+  );
+
 const classOf = (testId: string) =>
   screen.getByTestId(testId).getAttribute('class') ?? '';
 
@@ -120,8 +126,15 @@ describe('Damage', () => {
         'healthy',
         'healthy',
       ]);
-      expect(classOf('damage-zone-0')).toContain('fill-slate-500');
-      expect(classOf('damage-wheel-0')).toContain('fill-green-500');
+      expect(suspensionStates()).toEqual([
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+      ]);
+      expect(classOf('damage-zone-0')).toContain('stroke-slate-900');
+      expect(classOf('damage-wheel-0')).toContain('fill-slate-600');
+      expect(classOf('damage-suspension-0')).toContain('stroke-slate-500');
     });
 
     it('reads 100% in the car and beside it, with no repair line', () => {
@@ -143,8 +156,8 @@ describe('Damage', () => {
       show(frontDent());
 
       expect(zoneLevels()).toEqual(['1', '0', '0', '0', '0', '0', '0', '0']);
-      expect(classOf('damage-zone-0')).toContain('fill-amber-400');
-      expect(classOf('damage-zone-1')).toContain('fill-slate-500');
+      expect(classOf('damage-zone-0')).toContain('stroke-amber-400');
+      expect(classOf('damage-zone-1')).toContain('stroke-slate-900');
     });
 
     it('reads the aero figure in the car and the two beside it', () => {
@@ -170,7 +183,7 @@ describe('Damage', () => {
 
       expect(
         screen.getByTestId('damage-impact').getAttribute('transform')
-      ).toBe('rotate(13 31 40)');
+      ).toBe('rotate(13 23 50)');
     });
   });
 
@@ -198,26 +211,36 @@ describe('Damage', () => {
       show(wreck());
 
       expect(zoneLevels()).toEqual(['1', '2', '2', '2', '3', '1', '0', '0']);
-      expect(classOf('damage-zone-1')).toContain('fill-red-500');
-      expect(classOf('damage-zone-4')).toContain('fill-slate-950');
+      expect(classOf('damage-zone-1')).toContain('stroke-red-500');
+      expect(classOf('damage-zone-4')).toContain('stroke-dasharray');
       expect(classOf('damage-zone-4')).toContain('stroke-red-500');
     });
 
-    it('draws each wheel in its own state', () => {
+    it('draws each wheel in its own state, and its suspension apart', () => {
       show(wreck());
 
       expect(wheelStates()).toEqual([
-        'light',
+        'healthy',
         'punctured',
-        'heavy',
+        'healthy',
         'detached',
       ]);
-      expect(classOf('damage-wheel-0')).toContain('fill-amber-300');
+      expect(suspensionStates()).toEqual([
+        'light',
+        'medium',
+        'heavy',
+        'destroyed',
+      ]);
+      // A wheel shows its tyre alone; the damage behind it is its wishbone's.
+      expect(classOf('damage-wheel-0')).toContain('fill-slate-600');
+      expect(classOf('damage-suspension-0')).toContain('fill-amber-400');
+      expect(classOf('damage-suspension-2')).toContain('fill-red-500');
       // A flat tyre is an empty red rim.
       expect(classOf('damage-wheel-1')).toContain('fill-none');
       expect(classOf('damage-wheel-1')).toContain('stroke-red-500');
-      expect(classOf('damage-wheel-2')).toContain('fill-red-500');
       expect(classOf('damage-wheel-3')).toContain('fill-slate-950');
+      expect(classOf('damage-wheel-3')).toContain('stroke-dasharray');
+      expect(classOf('damage-wheel-1')).not.toContain('stroke-dasharray');
     });
 
     it('pulses what has come off, and nothing else', () => {
@@ -348,13 +371,20 @@ describe('Damage', () => {
         })
       );
 
+      // The tyres are known from the telemetry; the suspension waits.
       expect(wheelStates()).toEqual([
+        'healthy',
+        'healthy',
+        'healthy',
+        'healthy',
+      ]);
+      expect(suspensionStates()).toEqual([
         'unknown',
         'unknown',
         'unknown',
         'unknown',
       ]);
-      expect(classOf('damage-wheel-0')).toContain('fill-slate-600');
+      expect(classOf('damage-suspension-0')).toContain('stroke-slate-700');
       expect(screen.getByTestId('damage-reading')).toHaveTextContent('100%');
       expect(stat('aero')).toEqual({ text: '--', tone: 'none' });
       expect(stat('suspension').text).toBe('--');
@@ -375,7 +405,7 @@ describe('Damage', () => {
 
       expect(isDrawn()).toBe(true);
       for (let zone = 0; zone < 8; zone += 1) {
-        expect(classOf(`damage-zone-${zone}`)).toContain('fill-slate-600');
+        expect(classOf(`damage-zone-${zone}`)).toContain('stroke-slate-800');
       }
       expect(wheelStates()).toEqual([
         'unknown',

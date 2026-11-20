@@ -43,11 +43,9 @@ export const OurCarTile = memo(
       data-testid={`our-car-${id}`}
       data-tone={tone}
       data-uncertain={uncertain}
-      className="flex min-w-0 flex-col gap-1 rounded-md bg-slate-700/40 px-2.5 py-2"
+      className="flex min-w-0 flex-col gap-1 py-2"
     >
-      <span className="truncate text-xs font-medium uppercase leading-none tracking-wide text-slate-400">
-        {label}
-      </span>
+      <span className="overlay-label truncate leading-none">{label}</span>
       <span
         data-testid={`our-car-${id}-value`}
         className={`truncate font-bold leading-tight ${

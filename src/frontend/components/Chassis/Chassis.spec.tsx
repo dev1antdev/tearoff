@@ -206,7 +206,7 @@ describe('Chassis', () => {
       expect(red).toEqual(['9', '-1']);
       // The whole track of the bar, as a corner on the road has no fill left.
       expect(ride?.querySelectorAll('.bg-red-500')).toHaveLength(4);
-      expect(ride?.querySelectorAll('.bg-green-500')).toHaveLength(2);
+      expect(ride?.querySelectorAll('.bg-slate-300')).toHaveLength(2);
     });
 
     it('draws nothing red with the default bottoming height of 0', () => {
@@ -229,7 +229,7 @@ describe('Chassis', () => {
     it('draws a camber at zero or above in amber', () => {
       const container = draw(wheels({ camberDeg: [-2.6, 0.42, -1.9, -1.48] }));
       const amber = [
-        ...(row(container, 'camber')?.querySelectorAll('.text-amber-300') ??
+        ...(row(container, 'camber')?.querySelectorAll('.text-amber-400') ??
           []),
       ].map((element) => element.textContent);
 
@@ -328,6 +328,60 @@ describe('Chassis', () => {
       });
       draw();
       expect(useWheelDynamicsSnapshot).toHaveBeenLastCalledWith(true);
+    });
+  });
+
+  describe('the layout', () => {
+    // The hairline above a block is its ::before, the one beside it its ::after.
+    const rules = (container: HTMLElement, id: string) => {
+      const className = row(container, id)?.className ?? '';
+      return {
+        above: className.includes('before:h-px'),
+        before: className.includes('after:w-px'),
+      };
+    };
+
+    it('stacks the blocks, a hairline between each, by default', () => {
+      const container = draw();
+
+      expect(rules(container, 'ride')).toEqual({ above: false, before: false });
+      expect(rules(container, 'rake')).toEqual({ above: true, before: false });
+      expect(rules(container, 'toe')).toEqual({ above: true, before: false });
+    });
+
+    it('lays them in one row, a hairline before each but the first', () => {
+      const container = draw(wheels(), { layout: 'oneRow' });
+
+      expect(row(container, 'ride')?.parentElement?.className).toContain(
+        'flex-row'
+      );
+      expect(rules(container, 'ride')).toEqual({ above: false, before: false });
+      expect(rules(container, 'camber')).toEqual({
+        above: false,
+        before: true,
+      });
+    });
+
+    it('fills two rows row by row, ruled between rows and blocks', () => {
+      const container = draw(wheels(), { layout: 'twoRows' });
+
+      // Five blocks: ride, rake and roll above, camber and toe below.
+      expect(rules(container, 'ride')).toEqual({ above: false, before: false });
+      expect(rules(container, 'roll')).toEqual({ above: false, before: true });
+      expect(rules(container, 'camber')).toEqual({
+        above: true,
+        before: false,
+      });
+      expect(rules(container, 'toe')).toEqual({ above: true, before: true });
+    });
+
+    it('wraps a row rather than shrink a block below its figures', () => {
+      const container = draw(wheels(), { layout: 'oneRow' });
+
+      expect(row(container, 'rake')?.parentElement?.className).toContain(
+        'flex-wrap'
+      );
+      expect(row(container, 'rake')?.className).not.toContain('min-w-0');
     });
   });
 });
