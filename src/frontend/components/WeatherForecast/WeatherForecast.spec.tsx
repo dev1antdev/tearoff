@@ -196,15 +196,17 @@ describe('WeatherForecast', () => {
     expect(screen.getByText('No forecast')).toBeInTheDocument();
   });
 
-  it('rings a wet point and not a dry one', () => {
+  it('heads a wet point in the rain colour, and not a dry one', () => {
     mocks.snapshot = recorded({
       nodes: [node(1), node(2, { skyType: 6, rainChance: 0.7 })],
     });
     const { container } = render(<WeatherForecast />);
-    const columns = [...container.querySelectorAll('.grid > div')];
+    const heading = (index: number) =>
+      container.querySelectorAll('.grid > div')[index].firstElementChild
+        ?.className ?? '';
 
-    expect(columns[1].className).not.toContain('ring-sky-400/60');
-    expect(columns[2].className).toContain('ring-sky-400/60');
+    expect(heading(1)).not.toContain('text-sky-300');
+    expect(heading(2)).toContain('text-sky-300');
   });
 
   it('shows the trend arrows in "Now" only while a reading is on the move', () => {

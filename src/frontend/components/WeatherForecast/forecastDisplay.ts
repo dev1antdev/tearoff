@@ -86,7 +86,8 @@ export type SkyGlyph =
 
 export interface SkyAppearance {
   glyph: SkyGlyph;
-  weight: 'regular' | 'fill';
+  /** Thin outline for a lighter sky, the regular stroke for a heavier one. */
+  weight: 'light' | 'regular';
   /** Tailwind text colour. */
   className: string;
   /** What the sim calls it, for a tooltip and for screen readers. */
@@ -94,64 +95,69 @@ export interface SkyAppearance {
 }
 
 const SKY_APPEARANCE: readonly SkyAppearance[] = [
-  { glyph: 'sun', weight: 'fill', className: 'text-amber-300', label: 'Clear' },
+  {
+    glyph: 'sun',
+    weight: 'regular',
+    className: 'text-amber-300',
+    label: 'Clear',
+  },
   {
     glyph: 'cloudSun',
-    weight: 'regular',
+    weight: 'light',
     className: 'text-amber-200',
     label: 'Light clouds',
   },
   {
     glyph: 'cloudSun',
-    weight: 'fill',
+    weight: 'regular',
     className: 'text-slate-200',
     label: 'Partially cloudy',
   },
   {
     glyph: 'cloud',
-    weight: 'regular',
+    weight: 'light',
     className: 'text-slate-200',
     label: 'Mostly cloudy',
   },
   {
     glyph: 'cloud',
-    weight: 'fill',
+    weight: 'regular',
     className: 'text-slate-400',
     label: 'Overcast',
   },
   {
     glyph: 'cloudRain',
-    weight: 'regular',
+    weight: 'light',
     className: 'text-sky-300',
     label: 'Drizzle',
   },
   {
     glyph: 'cloudRain',
-    weight: 'regular',
+    weight: 'light',
     className: 'text-sky-300',
     label: 'Light rain',
   },
   {
     glyph: 'cloudRain',
-    weight: 'fill',
+    weight: 'regular',
     className: 'text-sky-400',
     label: 'Overcast and light rain',
   },
   {
     glyph: 'cloudRain',
-    weight: 'fill',
+    weight: 'regular',
     className: 'text-sky-400',
     label: 'Rain',
   },
   {
     glyph: 'cloudRain',
-    weight: 'fill',
+    weight: 'regular',
     className: 'text-sky-500',
     label: 'Heavy rain',
   },
   {
     glyph: 'cloudLightning',
-    weight: 'fill',
+    weight: 'regular',
     className: 'text-red-400',
     label: 'Storm',
   },
@@ -159,7 +165,7 @@ const SKY_APPEARANCE: readonly SkyAppearance[] = [
 
 const SKY_UNKNOWN: SkyAppearance = {
   glyph: 'unknown',
-  weight: 'regular',
+  weight: 'light',
   className: 'text-white/40',
   label: 'Unknown',
 };

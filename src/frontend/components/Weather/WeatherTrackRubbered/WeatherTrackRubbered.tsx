@@ -10,9 +10,9 @@ export const WeatherTrackRubbered = memo(
   ({ trackRubbered, variant = 'default' }: Props) => {
     if (variant === 'compact') {
       return (
-        <div className="bg-slate-800/70 px-2 py-1 rounded-sm min-w-0">
+        <div className="px-2 py-1 min-w-0">
           <div className="flex items-center gap-x-1.5">
-            <PathIcon size={12} className="flex-none text-white/50" />
+            <PathIcon size={12} className="flex-none text-slate-400" />
             <div
               className="text-sm font-medium capitalize truncate"
               title={trackRubbered ?? 'N/A'}
@@ -26,10 +26,10 @@ export const WeatherTrackRubbered = memo(
 
     if (variant === 'inline') {
       return (
-        <div className="bg-slate-800/70 px-2 py-1 rounded-sm min-w-0">
+        <div className="px-2 py-1 min-w-0">
           <div className="flex items-center gap-x-1.5 text-sm">
-            <PathIcon size={12} className="flex-none text-white/50" />
-            <span className="truncate min-w-0 text-white/60">Rubber</span>
+            <PathIcon size={12} className="flex-none text-slate-400" />
+            <span className="truncate min-w-0 text-slate-400">Rubber</span>
             <div
               className="flex-none whitespace-nowrap text-right font-medium capitalize"
               title={trackRubbered ?? 'N/A'}
@@ -42,10 +42,12 @@ export const WeatherTrackRubbered = memo(
     }
 
     return (
-      <div className="bg-slate-800/70 p-2 rounded-sm w-full min-w-0">
+      <div className="p-2 w-full min-w-0">
         <div className="flex flex-row gap-x-2 items-center text-sm">
-          <PathIcon className="flex-none" />
-          <span className="flex-none @max-[160px]:hidden">Rubber</span>
+          <PathIcon className="flex-none text-slate-400" />
+          <span className="flex-none text-slate-400 @max-[160px]:hidden">
+            Rubber
+          </span>
           <div
             className="flex-1 min-w-0 truncate text-right capitalize"
             title={trackRubbered ?? 'N/A'}

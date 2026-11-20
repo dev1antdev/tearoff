@@ -68,10 +68,11 @@ export const SessionBar = ({
   // bar opacity, its items in equal columns with a hairline between the ones
   // that draw (an item with nothing to show renders nothing, so no stray
   // line). Standalone (the Information Bar) it is a tinted strip, the same
-  // opacity, inside that widget's panel.
+  // opacity, inside that widget's panel, its items in columns with the same
+  // hairlines.
   return (
     <div
-      className={`${pxClass} ${pyClass} flex items-center text-sm ${standalone ? `w-full justify-between ${gapClass} bg-slate-900/(--fg-opacity)` : 'overlay-panel justify-between [&>*]:flex-1 [&>*+*]:border-l [&>*+*]:overlay-divider'}`}
+      className={`${pxClass} ${pyClass} flex items-center text-sm ${standalone ? `w-full justify-between ${gapClass} bg-slate-900/(--fg-opacity) [&>*]:flex-1 [&>*+*]:border-l [&>*+*]:overlay-divider` : 'overlay-panel justify-between [&>*]:flex-1 [&>*+*]:border-l [&>*+*]:overlay-divider'}`}
       style={
         standalone
           ? { ['--fg-opacity' as string]: `${opacity}%` }

@@ -24,11 +24,11 @@ import { WindArrow } from '../shared/WindArrow';
 import { useWeatherForecastSettings } from './hooks/useWeatherForecastSettings';
 import {
   NO_READING,
+  isWetSky,
   forecastTimeLabel,
   formatForecastPercent,
   formatForecastTemperature,
   formatForecastWind,
-  isWetSky,
   rainBarWidth,
   skyAppearance,
   type SkyGlyph,
@@ -121,22 +121,28 @@ const Column = memo(
   }: ColumnProps) => {
     const sky = skyAppearance(skyType);
     const SkyIcon = SKY_ICONS[sky.glyph];
+    // A wet sky ahead takes its heading in the rain colour, so the eye finds
+    // it along the row.
     const wet = !empty && !live && isWetSky(skyType);
 
     return (
       <div
         className={[
-          'flex min-w-0 flex-col items-center gap-0.5 rounded-sm px-1 py-1',
-          live ? 'bg-slate-700/70' : 'bg-slate-800/70',
-          wet ? 'ring-1 ring-sky-400/60' : '',
+          // No tiles: the column for now is the chosen one.
+          'flex min-w-0 flex-col items-center gap-0.5 rounded-md px-1 py-1',
+          live ? 'overlay-selected' : '',
           empty ? 'opacity-50' : '',
         ].join(' ')}
       >
-        <div className="max-w-full truncate text-xs leading-4 tabular-nums text-white/60">
+        <div
+          className={`max-w-full truncate text-xs leading-4 tabular-nums ${
+            wet ? 'text-sky-300' : 'text-slate-400'
+          }`}
+        >
           {heading}
         </div>
         {empty ? (
-          <div className="flex h-6 items-center text-sm text-white/40">
+          <div className="flex h-6 items-center text-sm text-slate-500">
             {NO_READING}
           </div>
         ) : (
@@ -171,7 +177,7 @@ const Column = memo(
               />
             </div>
             {rainValue && (
-              <span className="flex-none text-2xs leading-none tabular-nums text-white/70">
+              <span className="flex-none text-2xs leading-none tabular-nums text-slate-400">
                 {rainValue}
               </span>
             )}
@@ -184,13 +190,13 @@ const Column = memo(
           </div>
         )}
         {humidity && (
-          <div className="flex items-center gap-0.5 text-2xs leading-3 tabular-nums text-white/70">
-            <DropIcon size={10} className="flex-none text-white/50" />
+          <div className="flex items-center gap-0.5 text-2xs leading-3 tabular-nums text-slate-400">
+            <DropIcon size={10} className="flex-none text-slate-400" />
             <span>{humidity}</span>
           </div>
         )}
         {windSpeed && (
-          <div className="flex items-center gap-1 text-2xs leading-3 tabular-nums text-white/70">
+          <div className="flex items-center gap-1 text-2xs leading-3 tabular-nums text-slate-400">
             {windDirection !== null && (
               <WindArrow
                 direction={windDirection}
@@ -332,7 +338,7 @@ export const WeatherForecast = () => {
       }}
     >
       {columns.length === 0 ? (
-        <div className="my-auto text-center text-xs text-white/60">
+        <div className="my-auto text-center text-xs text-slate-400">
           {snapshot?.available ? 'No further forecast' : 'No forecast'}
         </div>
       ) : (

@@ -40,9 +40,9 @@ export const WeatherTrackWetness = memo(
 
     if (variant === 'compact') {
       return (
-        <div className="bg-slate-800/70 px-2 py-1 rounded-sm min-w-0">
+        <div className="px-2 py-1 min-w-0">
           <div className="flex items-center gap-x-1.5">
-            <WavesIcon size={12} className="flex-none text-white/50" />
+            <WavesIcon size={12} className="flex-none text-slate-400" />
             <span className="text-sm font-medium capitalize truncate">
               {trackStateLabel}
             </span>
@@ -53,10 +53,10 @@ export const WeatherTrackWetness = memo(
 
     if (variant === 'inline') {
       return (
-        <div className="bg-slate-800/70 px-2 py-1 rounded-sm min-w-0">
+        <div className="px-2 py-1 min-w-0">
           <div className="flex items-center gap-x-1.5 text-sm">
-            <WavesIcon size={12} className="flex-none text-white/50" />
-            <span className="truncate min-w-0 text-white/60">Wetness</span>
+            <WavesIcon size={12} className="flex-none text-slate-400" />
+            <span className="truncate min-w-0 text-slate-400">Wetness</span>
             <div className="flex-none whitespace-nowrap text-right font-medium capitalize">
               {trackStateLabel}
             </div>
@@ -66,10 +66,10 @@ export const WeatherTrackWetness = memo(
     }
 
     return (
-      <div className="bg-slate-800/70 p-2 rounded-sm w-full min-w-0">
+      <div className="p-2 w-full min-w-0">
         {/* Header row with consistency label styling */}
         <div className="flex flex-row gap-x-2 items-center text-sm mb-2">
-          <WavesIcon className="flex-none" />
+          <WavesIcon className="flex-none text-slate-400" />
           <div className="flex-1 min-w-0 truncate capitalize">
             {trackStateLabel}
           </div>
@@ -78,14 +78,14 @@ export const WeatherTrackWetness = memo(
         {/* Detail row with progress bar */}
         <div className="flex items-center flex-row gap-x-2 px-1">
           <SunIcon size={14} className="text-slate-400 flex-none" />
-          <div className="grow bg-slate-700/50 rounded-full h-2">
+          <div className="grow bg-slate-900/70 rounded-full h-2">
             <div
               role="progressbar"
               aria-valuenow={trackWetnessPct}
               aria-valuemin={0}
               aria-valuemax={100}
               style={{ width: `${trackWetnessPct}%` }}
-              className="bg-blue-500 h-2 rounded-full transition-all duration-1000 ease-in-out shadow-[0_0_8px_rgba(59,130,246,0.5)]"
+              className="bg-blue-500 h-2 rounded-full transition-all duration-1000 ease-in-out"
             ></div>
           </div>
           <DropIcon size={14} className="text-blue-400 flex-none" />

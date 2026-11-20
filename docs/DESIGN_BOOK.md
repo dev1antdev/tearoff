@@ -121,6 +121,15 @@ to watch and `red-400` for a wheel off or flat. A tyre pressure on the driver's
 target stays `green-400`, the one good news shown in colour here, because the
 target is the reading's purpose; low is `sky-400`, high `red-400`.
 
+Conditions: Weather's readings sit on the panel with a hairline between them
+(a pseudo-element in the gap, no size), the icon and caption grey and thin,
+the value white; the wind compass is a thin ring in the wind's own colour.
+The forecast's columns have no tiles: the column for now is the selected one
+(`overlay-selected`), and a wet point ahead takes its heading in `sky-300`;
+a lighter sky is drawn with a thin outline, a heavier one with the regular
+stroke. The Information Bar's items stand in columns with a hairline between
+them, as the session bars above Standings do. Flags keep their exact colours.
+
 ### 3.2 Neutrals follow the palette
 
 The driver picks one of four palettes. Each remaps `--color-slate-*` under

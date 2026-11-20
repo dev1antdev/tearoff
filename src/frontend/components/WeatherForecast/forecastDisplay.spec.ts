@@ -102,17 +102,17 @@ describe('formatForecastWind', () => {
 
 describe('skyAppearance', () => {
   it.each([
-    [0, 'sun', 'fill', 'text-amber-300'],
-    [1, 'cloudSun', 'regular', 'text-amber-200'],
-    [2, 'cloudSun', 'fill', 'text-slate-200'],
-    [3, 'cloud', 'regular', 'text-slate-200'],
-    [4, 'cloud', 'fill', 'text-slate-400'],
-    [5, 'cloudRain', 'regular', 'text-sky-300'],
-    [6, 'cloudRain', 'regular', 'text-sky-300'],
-    [7, 'cloudRain', 'fill', 'text-sky-400'],
-    [8, 'cloudRain', 'fill', 'text-sky-400'],
-    [9, 'cloudRain', 'fill', 'text-sky-500'],
-    [10, 'cloudLightning', 'fill', 'text-red-400'],
+    [0, 'sun', 'regular', 'text-amber-300'],
+    [1, 'cloudSun', 'light', 'text-amber-200'],
+    [2, 'cloudSun', 'regular', 'text-slate-200'],
+    [3, 'cloud', 'light', 'text-slate-200'],
+    [4, 'cloud', 'regular', 'text-slate-400'],
+    [5, 'cloudRain', 'light', 'text-sky-300'],
+    [6, 'cloudRain', 'light', 'text-sky-300'],
+    [7, 'cloudRain', 'regular', 'text-sky-400'],
+    [8, 'cloudRain', 'regular', 'text-sky-400'],
+    [9, 'cloudRain', 'regular', 'text-sky-500'],
+    [10, 'cloudLightning', 'regular', 'text-red-400'],
   ] as const)('draws sky type %s as %s, %s', (sky, glyph, weight, colour) => {
     expect(skyAppearance(sky)).toMatchObject({
       glyph,
