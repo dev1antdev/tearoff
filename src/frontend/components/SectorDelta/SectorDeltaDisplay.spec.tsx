@@ -186,7 +186,7 @@ describe('Sector Delta against its ghost', () => {
   });
 });
 
-/** The accent under a card, by its sector label. */
+/** The tint of a card, by its sector label. */
 const accent = (container: HTMLElement, label: string) =>
   [...container.querySelectorAll('span')].find(
     (span) => span.textContent === label
@@ -210,7 +210,7 @@ describe('Sector Delta against a best lap', () => {
       S3: '+0.000',
     });
     // Quicker than the best lap through a sector is purple.
-    expect(accent(container, 'S1')).toContain('border-purple-400');
+    expect(accent(container, 'S1')).toContain('bg-purple-500/20');
   });
 
   it('shows the plain time before there is a whole lap to compare with', () => {
@@ -227,7 +227,7 @@ describe('Sector Delta against a best lap', () => {
       S2: '39.200',
       S3: '20.500',
     });
-    expect(accent(container, 'S1')).toContain('border-slate-700');
+    expect(accent(container, 'S1')).not.toMatch(/bg-\w+-500/);
   });
 
   it('shows dashes for a sector the lap before has no time for', () => {
@@ -250,7 +250,7 @@ describe('Sector Delta against a best lap', () => {
       S2: '-0.800',
       S3: '--',
     });
-    expect(accent(container, 'S3')).toContain('border-slate-700');
+    expect(accent(container, 'S3')).not.toMatch(/bg-\w+-500/);
   });
 });
 
@@ -276,8 +276,8 @@ describe('Sector Delta against the all-time bests', () => {
       S2: '-0.400',
       S3: '+0.500',
     });
-    expect(accent(container, 'S2')).toContain('border-purple-400');
-    expect(accent(container, 'S1')).not.toContain('border-purple-400');
+    expect(accent(container, 'S2')).toContain('bg-purple-500/20');
+    expect(accent(container, 'S1')).not.toContain('bg-purple-500/20');
   });
 
   it('compares with the sectors of the all-time best lap', () => {
@@ -314,7 +314,7 @@ describe('Sector Delta against the all-time bests', () => {
         S2: '39.200',
         S3: '20.500',
       });
-      expect(accent(container, 'S2')).toContain('border-slate-700');
+      expect(accent(container, 'S2')).not.toMatch(/bg-\w+-500/);
       unmount();
     }
   });

@@ -133,6 +133,14 @@ stroke. The Information Bar's items stand in columns with a hairline in the midd
 each gap (a pseudo-element, so the bar is no wider); it keeps its tinted strip inside
 its panel on purpose, the strip being what its Foreground Opacity setting sets. Flags keep their exact colours.
 
+Timing: readings sit on the panel with a hairline between them (a
+pseudo-element in the gap, no size). A sector's colour (session best purple,
+personal best green, slower yellow, red) is a light tint of its reading, not a
+bar under it. Deltas are signed, a gain `green-400`, a loss `red-400`. A
+yellow flag on a lap is the flag's yellow. The Lap Timer's current and
+predicted lap keep their tinted tiles: they are what its Foreground Opacity
+setting sets.
+
 ### 3.2 Neutrals follow the palette
 
 The driver picks one of four palettes. Each remaps `--color-slate-*` under

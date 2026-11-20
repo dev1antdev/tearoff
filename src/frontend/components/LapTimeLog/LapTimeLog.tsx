@@ -253,7 +253,7 @@ export const LapTimeLogDisplay = ({
           {settings.showCurrentLap && (
             <div
               id="current-lap"
-              className={`text-[1.8em] min-h-[2em] w-full p-1 ${bgColor} flex relative items-center justify-center rounded-sm transition-colors duration-500 ease-in-out`}
+              className={`text-[1.8em] min-h-[2em] w-full p-1 ${bgColor} flex relative items-center justify-center rounded-md transition-colors duration-500 ease-in-out`}
               style={
                 {
                   '--fg-alpha': `${settings.foreground.opacity}%`,
@@ -279,7 +279,7 @@ export const LapTimeLogDisplay = ({
           {settings.showPredictedLap && (
             <div
               id="predicted-lap"
-              className={`text-[1.3em] min-h-[2em] w-full p-1 ${dirty ? 'text-slate-400' : 'text-white'} bg-slate-900/[var(--fg-alpha)] flex relative items-center justify-center rounded-sm`}
+              className={`text-[1.3em] min-h-[2em] w-full p-1 ${dirty ? 'text-slate-400' : 'text-white'} bg-slate-900/[var(--fg-alpha)] flex relative items-center justify-center rounded-md`}
               style={
                 {
                   '--fg-alpha': `${settings.foreground.opacity / 2}%`,

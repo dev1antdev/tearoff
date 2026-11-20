@@ -29,19 +29,23 @@ import { DEMO_TIMING_READINGS, type TimingReadings } from './timingReadings';
 /** The text size every `em` in the panel is measured from, at 100 % scale. */
 const BASE_FONT_PX = 14;
 
+/**
+ * A hairline in the middle of each gap, drawn by a pseudo-element so it adds
+ * no size: between the readings of a row, and between the rows.
+ */
+const RULE_BESIDE =
+  '[&>*+*]:relative [&>*+*]:after:absolute [&>*+*]:after:inset-y-0 [&>*+*]:after:-left-[0.1875rem] [&>*+*]:after:w-px [&>*+*]:after:bg-white/5';
+const RULE_ABOVE =
+  '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-x-0 [&>*+*]:before:-top-[0.1875rem] [&>*+*]:before:h-px [&>*+*]:before:bg-white/5';
+
 /** The first row carries the two largest figures and takes a larger share. */
-const ROW_LARGE = 'flex min-h-0 flex-[5] gap-1.5';
-const ROW_NORMAL = 'flex min-h-0 flex-[4] gap-1.5';
+const ROW_LARGE = `flex min-h-0 flex-[5] gap-1.5 ${RULE_BESIDE}`;
+const ROW_NORMAL = `flex min-h-0 flex-[4] gap-1.5 ${RULE_BESIDE}`;
 /** More than four sector tiles sit closer together, to leave them width. */
 const ROW_DENSE = 'flex min-h-0 flex-[4] gap-1';
 
-const TILE = 'bg-slate-900/70 px-2.5 py-1';
-const LAP_TILE = 'bg-sky-500/20 px-2.5 py-1 ring-1 ring-inset ring-sky-400/30';
-const BEST_TILE =
-  'bg-purple-500/20 px-2.5 py-1 ring-1 ring-inset ring-purple-400/30';
-/** The player's best is the session's as well: the tint deepens. */
-const BEST_TILE_SESSION =
-  'bg-purple-500/30 px-2.5 py-1 ring-1 ring-inset ring-purple-400';
+/** The readings sit on the panel; no tiles inside it. */
+const TILE = 'px-2.5 py-1';
 
 const LARGE = 'text-[1.9em]';
 const MEDIUM = 'text-[1.4em]';
@@ -55,8 +59,6 @@ const DENSE_SECTOR_TILES = 5;
 
 /** A figure that is not there. */
 const PLACEHOLDER = 'text-slate-500';
-/** Labels on the two tinted tiles are a step lighter, to hold their own. */
-const TINTED_LABEL = 'text-slate-300';
 
 const DELTA_TONE_CLASS: Record<DeltaTone, string> = {
   faster: 'text-green-400',
@@ -73,12 +75,13 @@ const LAP_TONE_CLASS: Record<LapTimeTone, string> = {
   none: PLACEHOLDER,
 };
 
-const SECTOR_ACCENT: Record<SectorColor, string> = {
-  purple: 'border-purple-400',
-  green: 'border-green-400',
-  yellow: 'border-yellow-400',
-  red: 'border-red-500',
-  default: 'border-slate-700',
+/** A sector's colour is a light tint of its reading, not a frame. */
+const SECTOR_TINT: Record<SectorColor, string> = {
+  purple: 'bg-purple-500/15',
+  green: 'bg-green-500/15',
+  yellow: 'bg-yellow-500/15',
+  red: 'bg-red-500/15',
+  default: '',
 };
 
 const sectorValueClass = (state: SectorTileState, color: SectorColor) => {
@@ -91,9 +94,7 @@ const sectorValueClass = (state: SectorTileState, color: SectorColor) => {
 
 /** Sector tiles lose their side padding as the row fills up. */
 const sectorBoxClass = (dense: boolean, color: SectorColor) =>
-  `@container flex-1 border-b-[3px] bg-slate-900/70 py-1 ${
-    dense ? 'px-1' : 'px-2.5'
-  } ${SECTOR_ACCENT[color]}`;
+  `@container flex-1 py-1 ${dense ? 'px-1' : 'px-2.5'} ${SECTOR_TINT[color]}`;
 
 export interface TimingViewProps {
   settings: TimingConfig;
@@ -153,7 +154,7 @@ export const TimingView = ({ settings, readings }: TimingViewProps) => {
   return (
     <div
       data-testid="timing"
-      className="flex h-full w-full flex-col gap-1.5 overlay-panel p-2 font-medium text-white"
+      className={`flex h-full w-full flex-col gap-1.5 overlay-panel p-2 font-medium text-white ${RULE_ABOVE}`}
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
         fontSize: `${(BASE_FONT_PX * settings.scale) / 100}px`,
@@ -166,8 +167,7 @@ export const TimingView = ({ settings, readings }: TimingViewProps) => {
               testId="timing-lap"
               label="Lap"
               value={lap === null ? '--' : String(lap)}
-              boxClassName={`flex-[2] ${LAP_TILE}`}
-              labelClassName={TINTED_LABEL}
+              boxClassName={`flex-[2] ${TILE}`}
               valueClassName={`${LARGE} ${lap === null ? PLACEHOLDER : 'text-white'}${dim}`}
             />
           )}
@@ -177,7 +177,7 @@ export const TimingView = ({ settings, readings }: TimingViewProps) => {
               label={lapVoid ? 'Delta · Invalid' : 'Delta'}
               value={formatDelta(delta, deltaDecimals)}
               boxClassName={`flex-[3] ${TILE}`}
-              labelClassName={lapVoid ? 'text-amber-300' : undefined}
+              labelClassName={lapVoid ? 'text-amber-400' : undefined}
               valueClassName={`${LARGE} ${
                 lapVoid && delta !== null
                   ? 'text-slate-400'
@@ -202,10 +202,7 @@ export const TimingView = ({ settings, readings }: TimingViewProps) => {
               testId="timing-best-lap"
               label="Best Lap"
               value={formatLapTime(bestLapTime, lapTimeDecimals)}
-              boxClassName={`flex-1 ${
-                bestIsSessionBest ? BEST_TILE_SESSION : BEST_TILE
-              }`}
-              labelClassName={TINTED_LABEL}
+              boxClassName={`flex-1 ${TILE}`}
               valueClassName={`${MEDIUM} ${
                 bestLapTime === null ? 'text-purple-300/40' : 'text-purple-300'
               }${dim}`}

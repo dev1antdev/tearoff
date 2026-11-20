@@ -73,13 +73,11 @@ export const SectorTargetView = memo(
   }: SectorTargetViewProps) => (
     <div
       data-testid="sector-target"
-      className="flex items-center justify-between gap-2 rounded-sm bg-slate-800/60 px-2 py-0.5 leading-tight text-white tabular-nums"
+      className="flex items-center justify-between gap-2 px-2 py-0.5 leading-tight text-white tabular-nums"
     >
       <span className="inline-flex min-w-0 items-center gap-1">
         <TargetIcon size={12} className="shrink-0 text-slate-400" />
-        <span className="text-2xs font-semibold uppercase text-slate-400">
-          {label}
-        </span>
+        <span className="overlay-label">{label}</span>
         <span
           data-testid="sector-target-value"
           className={`text-sm font-bold ${

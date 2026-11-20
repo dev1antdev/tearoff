@@ -165,11 +165,11 @@ export const LapTimeRow = memo(
                   <FlagIcon
                     data-mark={caution ? 'caution' : 'yellow'}
                     weight="fill"
-                    className="text-amber-300"
+                    className="text-yellow-400"
                   />
                 )}
                 {caution && (
-                  <span className="text-[0.7em] font-bold leading-none text-amber-300">
+                  <span className="text-[0.7em] font-bold leading-none text-yellow-400">
                     FCY
                   </span>
                 )}
@@ -185,7 +185,7 @@ export const LapTimeRow = memo(
           {wear !== undefined && (
             <span data-testid="lap-wear" className={WEAR_CELL_CLASS}>
               <span
-                className={`text-[0.85em] tabular-nums ${wearHigh ? 'text-amber-300' : ''}`}
+                className={`text-[0.85em] tabular-nums ${wearHigh ? 'text-amber-400' : ''}`}
               >
                 {wear}
               </span>

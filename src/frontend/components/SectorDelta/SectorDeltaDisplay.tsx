@@ -26,35 +26,16 @@ import { computeGhostSectorColor } from './sectorColorUtils';
 
 type SectorDeltaProps = SectorDeltaConfig;
 
-const SECTOR_CARD: Record<
-  SectorColor,
-  { bg: string; accent: string; text: string }
-> = {
-  purple: {
-    bg: 'bg-slate-800/80',
-    accent: 'border-b-[5px] border-purple-400',
-    text: 'text-white',
-  },
-  green: {
-    bg: 'bg-slate-800/80',
-    accent: 'border-b-[5px] border-green-400',
-    text: 'text-white',
-  },
-  yellow: {
-    bg: 'bg-slate-800/80',
-    accent: 'border-b-[5px] border-yellow-400',
-    text: 'text-white',
-  },
-  red: {
-    bg: 'bg-slate-800/80',
-    accent: 'border-b-[5px] border-red-500',
-    text: 'text-white',
-  },
-  default: {
-    bg: 'bg-slate-800/40',
-    accent: 'border-b-[5px] border-slate-700',
-    text: 'text-slate-400',
-  },
+/**
+ * A sector's colour is a light tint of its card, not a bar under it: no tile
+ * for a sector with nothing to say.
+ */
+const SECTOR_CARD: Record<SectorColor, { tint: string; text: string }> = {
+  purple: { tint: 'bg-purple-500/20', text: 'text-white' },
+  green: { tint: 'bg-green-500/20', text: 'text-white' },
+  yellow: { tint: 'bg-yellow-500/20', text: 'text-white' },
+  red: { tint: 'bg-red-500/20', text: 'text-white' },
+  default: { tint: '', text: 'text-slate-400' },
 };
 
 function timeFormatToDecimalPlaces(timeFormat: TimeFormat): number {
@@ -195,10 +176,9 @@ export const SectorDeltaDisplay = ({
       <div
         key={cardKey}
         className={[
-          'relative flex flex-col items-center justify-center rounded-sm px-2 py-1 overflow-hidden',
+          'relative flex flex-col items-center justify-center rounded-md px-2 py-1 overflow-hidden',
           isWindowed ? 'flex-none' : 'flex-1 min-w-0',
-          cardStyle.bg,
-          cardStyle.accent,
+          cardStyle.tint,
         ].join(' ')}
         style={isWindowed ? { width: slotWidth } : undefined}
       >
@@ -223,7 +203,7 @@ export const SectorDeltaDisplay = ({
             <WarningIcon
               size={10}
               weight="fill"
-              className="text-amber-300 shrink-0"
+              className="text-amber-400 shrink-0"
             />
           )}
         </span>

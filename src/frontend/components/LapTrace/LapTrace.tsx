@@ -263,7 +263,7 @@ export const LapTrace = (props: LapTraceProps) => {
           {referenceLap?.source.label ?? 'Lap Trace'}
         </span>
         {referenceLap && referenceLap.lapTimeSec > 0 && (
-          <span className="text-amber-300 font-semibold tabular-nums">
+          <span className="text-white font-semibold tabular-nums">
             {formatTime(referenceLap.lapTimeSec)}
           </span>
         )}
