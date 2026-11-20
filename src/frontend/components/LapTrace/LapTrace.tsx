@@ -1,3 +1,5 @@
+import { IconContext } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import { useMemo, type ReactNode } from 'react';
 import type { LapTraceConfig } from '@irdashies/types';
 import {
@@ -243,68 +245,70 @@ export const LapTrace = (props: LapTraceProps) => {
   }
 
   return (
-    <div
-      // overflow-hidden keeps everything inside the layout rectangle: the
-      // header and the panels are fixed-height, so a widget resized shorter
-      // than their total would otherwise spill the trace outside its box.
-      className="flex h-full flex-col overflow-hidden overlay-panel p-1.5 text-white"
-      style={{
-        ['--bg-opacity' as string]: `${config.background.opacity * 100}%`,
-      }}
-    >
-      <div className="flex-none flex items-baseline gap-2 text-xs leading-none mb-1">
-        {/* An imported lap (Garage 61 or .ibt) is labelled with its driver - car - track
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        // overflow-hidden keeps everything inside the layout rectangle: the
+        // header and the panels are fixed-height, so a widget resized shorter
+        // than their total would otherwise spill the trace outside its box.
+        className="flex h-full flex-col overflow-hidden overlay-panel p-1.5 text-white"
+        style={{
+          ['--bg-opacity' as string]: `${config.background.opacity * 100}%`,
+        }}
+      >
+        <div className="flex-none flex items-baseline gap-2 text-xs leading-none mb-1">
+          {/* An imported lap (Garage 61 or .ibt) is labelled with its driver - car - track
             info, which can be longer than the widget. Use a smaller font size and cap
             width so lap time stays readable. */}
-        <span
-          className="text-slate-400 uppercase tracking-wide max-w-[65%] truncate text-2xs"
-          title={referenceLap?.source.label ?? undefined}
-        >
-          {referenceLap?.source.label ?? 'Lap Trace'}
-        </span>
-        {referenceLap && referenceLap.lapTimeSec > 0 && (
-          <span className="text-amber-300 font-semibold tabular-nums">
-            {formatTime(referenceLap.lapTimeSec)}
+          <span
+            className="overlay-label max-w-[65%] truncate"
+            title={referenceLap?.source.label ?? undefined}
+          >
+            {referenceLap?.source.label ?? 'Lap Trace'}
           </span>
-        )}
-      </div>
+          {referenceLap && referenceLap.lapTimeSec > 0 && (
+            <span className="text-white font-semibold tabular-nums">
+              {formatTime(referenceLap.lapTimeSec)}
+            </span>
+          )}
+        </div>
 
-      {referenceLap ? (
-        <>
-          <LapTraceLayout
-            tree={tree}
-            barsVertical={!isBrakeCueHorizontal(barSide)}
-            renderElement={renderElement}
-          />
-          {!showBars && brakeCue}
-        </>
-      ) : (
-        <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-1 text-center">
-          <span className="text-slate-400 text-xs">
-            {referenceError ?? 'Drive a clean lap to record a reference'}
-          </span>
-          {/* A reference that failed to load is the more serious problem and
+        {referenceLap ? (
+          <>
+            <LapTraceLayout
+              tree={tree}
+              barsVertical={!isBrakeCueHorizontal(barSide)}
+              renderElement={renderElement}
+            />
+            {!showBars && brakeCue}
+          </>
+        ) : (
+          <div className="flex-1 min-h-0 flex flex-col items-center justify-center gap-1 text-center">
+            <span className="text-slate-400 text-xs">
+              {referenceError ?? 'Drive a clean lap to record a reference'}
+            </span>
+            {/* A reference that failed to load is the more serious problem and
               keeps the line above to itself; below it goes either the live
               recording progress or, once the lap in progress has been written
               off, why it can no longer be recorded. Showing a bar fill towards
               a reference that will never be saved is the thing to avoid. */}
-          {!referenceError &&
-            trackLengthM > 0 &&
-            (isWatchingOwnCarTelemetry ? (
-              // A team-mate's lap is never the reference, whatever else
-              // could be said of it.
-              <span className="text-slate-500 text-2xs">
-                {WATCHED_LAP_MESSAGE}
-              </span>
-            ) : invalidReason ? (
-              <span className="text-slate-500 text-2xs">
-                {invalidLapMessage(invalidReason)}
-              </span>
-            ) : (
-              <RecordingProgress />
-            ))}
-        </div>
-      )}
-    </div>
+            {!referenceError &&
+              trackLengthM > 0 &&
+              (isWatchingOwnCarTelemetry ? (
+                // A team-mate's lap is never the reference, whatever else
+                // could be said of it.
+                <span className="text-slate-500 text-2xs">
+                  {WATCHED_LAP_MESSAGE}
+                </span>
+              ) : invalidReason ? (
+                <span className="text-slate-500 text-2xs">
+                  {invalidLapMessage(invalidReason)}
+                </span>
+              ) : (
+                <RecordingProgress />
+              ))}
+          </div>
+        )}
+      </div>
+    </IconContext.Provider>
   );
 };

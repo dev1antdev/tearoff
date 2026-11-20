@@ -37,13 +37,13 @@ export const SessionBar = ({
 
   const pyClass = isUltra ? 'py-0' : isCompact ? 'py-1' : 'py-2';
   const gapClass = isUltra ? 'gap-x-2' : isCompact ? 'gap-x-4' : 'gap-x-6';
-  // Standalone, a hairline in the middle of each gap, drawn by a
-  // pseudo-element so the bar is no wider than its gaps make it.
-  const ruleOffset = isUltra
-    ? '[&>*+*]:before:-left-1'
+  // Standalone, a hairline in the middle of each gap, so the bar is no wider
+  // than its gaps make it.
+  const ruleGap = isUltra
+    ? '[--rule-gap:0.5rem]'
     : isCompact
-      ? '[&>*+*]:before:-left-2'
-      : '[&>*+*]:before:-left-3';
+      ? '[--rule-gap:1rem]'
+      : '[--rule-gap:1.5rem]';
   const pxClass = standalone
     ? isUltra
       ? 'px-2'
@@ -79,7 +79,7 @@ export const SessionBar = ({
   // hairlines.
   return (
     <div
-      className={`${pxClass} ${pyClass} flex items-center justify-between text-sm [&>*]:flex-1 ${standalone ? `w-full ${gapClass} bg-slate-900/(--fg-opacity) [&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-y-0 [&>*+*]:before:w-px [&>*+*]:before:bg-white/5 ${ruleOffset}` : 'overlay-panel [&>*+*]:border-l [&>*+*]:overlay-divider'}`}
+      className={`${pxClass} ${pyClass} flex items-center justify-between text-sm [&>*]:flex-1 ${standalone ? `w-full ${gapClass} bg-slate-900/(--fg-opacity) overlay-rules-x ${ruleGap}` : 'overlay-panel [&>*+*]:border-l [&>*+*]:overlay-divider'}`}
       style={
         standalone
           ? { ['--fg-opacity' as string]: `${opacity}%` }

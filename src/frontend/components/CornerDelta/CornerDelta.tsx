@@ -48,7 +48,7 @@ interface SpeedCellProps {
 /** The speed at one end of the corner, and how it compares. */
 const SpeedCell = memo(
   ({ label, unit, speed, driven, delta, tone }: SpeedCellProps) => (
-    <div className="flex min-w-0 flex-1 flex-col gap-0.5 rounded-sm bg-slate-900/50 px-2 py-1 leading-tight">
+    <div className="flex min-w-0 flex-1 flex-col gap-0.5 px-2 py-1 leading-tight">
       <span className="overlay-label">
         {label} <span className="normal-case text-slate-500">{unit}</span>
       </span>
@@ -169,7 +169,7 @@ export const CornerDeltaView = ({
         >
           {last ? labelOf(last) : 'No corner yet'}
         </span>
-        <span className="flex-none text-2xs uppercase tracking-wide text-slate-400">
+        <span className="overlay-label flex-none">
           {REFERENCE_LABELS[reference]}
         </span>
       </div>
@@ -180,7 +180,8 @@ export const CornerDeltaView = ({
         {formatTimeDelta(reading.timeDeltaSec, decimals)}
       </div>
       {(showEntrySpeed || showExitSpeed) && (
-        <div className="flex gap-1.5">
+        // Entry and exit on the panel, a hairline between them.
+        <div className="flex gap-1.5 overlay-rules-x">
           {showEntrySpeed && (
             <SpeedCell
               label="Entry"
@@ -208,7 +209,7 @@ export const CornerDeltaView = ({
           data-testid="corner-delta-history"
           className="flex flex-col gap-0.5 border-t overlay-divider pt-1 text-xs leading-tight tabular-nums text-slate-300"
         >
-          <div className="text-2xs uppercase tracking-wide text-slate-500">
+          <div className="overlay-label">
             <HistoryRow
               label="Earlier"
               time="Time"

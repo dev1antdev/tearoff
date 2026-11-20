@@ -161,16 +161,16 @@ describe('TimingView', () => {
     expect(value(container, 'best-lap').textContent).toBe('-:--.---');
     for (const name of ['sector-1', 'sector-2', 'sector-3']) {
       expect(value(container, name).textContent).toBe('--');
-      expect(tile(container, name).className).toContain('border-slate-700');
+      expect(tile(container, name).className).not.toMatch(/bg-\w+-500\/15/);
     }
   });
 
-  it('tints the lap tile blue and the best lap tile purple', () => {
+  it('sets no reading on a tile, the best lap green as a personal best', () => {
     const container = view();
 
-    expect(tile(container, 'lap').className).toContain('bg-sky-500/20');
-    expect(tile(container, 'best-lap').className).toContain('bg-purple-500/20');
-    expect(tone(container, 'best-lap')).toContain('text-purple-300');
+    expect(tile(container, 'lap').className).not.toContain('bg-');
+    expect(tile(container, 'best-lap').className).not.toContain('bg-');
+    expect(tone(container, 'best-lap')).toContain('text-green-400');
   });
 
   it('colours the delta green ahead, red behind and white level', () => {
@@ -230,28 +230,23 @@ describe('TimingView', () => {
         '[aria-label="Session best"]'
       ) !== null;
 
-    it('deepens and wears a crown when it is also the session best', () => {
+    it('wears a crown when it is also the session best', () => {
       const container = view({
         bestLapTime: 103.611,
         sessionBestLapTime: 103.611,
       });
 
       expect(crowned(container)).toBe(true);
-      // The full-strength ring, not the faint one of the plain tile.
-      expect(tile(container, 'best-lap').className).toMatch(
-        /ring-purple-400(\s|$)/
-      );
+      // The session's best too: the session-best purple of a lap time.
+      expect(tone(container, 'best-lap')).toContain('text-purple-400');
     });
 
     it('is plain when someone else holds the session best', () => {
       const container = view();
 
       expect(crowned(container)).toBe(false);
-      expect(tile(container, 'best-lap').className).toContain(
-        'ring-purple-400/30'
-      );
-      // Its own purple, never the session-best purple of a lap time.
-      expect(tone(container, 'best-lap')).not.toContain('text-purple-400');
+      // A personal best, not the session's.
+      expect(tone(container, 'best-lap')).toContain('text-green-400');
     });
 
     it('is not crowned before the session has a best in scope', () => {
@@ -264,7 +259,7 @@ describe('TimingView', () => {
       const container = view({ delta: -0.214, lapVoid: true });
 
       expect(label(container, 'delta').textContent).toBe('Delta · Invalid');
-      expect(label(container, 'delta').className).toContain('text-amber-300');
+      expect(label(container, 'delta').className).toContain('text-amber-400');
       expect(value(container, 'delta').textContent).toBe('-0.214');
       expect(tone(container, 'delta')).toContain('text-slate-400');
       expect(tone(container, 'delta')).not.toContain('text-green-400');
@@ -275,7 +270,7 @@ describe('TimingView', () => {
 
       expect(label(container, 'delta').textContent).toBe('Delta');
       expect(label(container, 'delta').className).not.toContain(
-        'text-amber-300'
+        'text-amber-400'
       );
     });
   });
@@ -287,14 +282,14 @@ describe('TimingView', () => {
       // A best: purple figure, purple accent.
       expect(tone(container, 'sector-1')).toContain('text-purple-300');
       expect(tile(container, 'sector-1').className).toContain(
-        'border-purple-400'
+        'bg-purple-500/20'
       );
       // The previous lap's: the figure steps back, the accent stays.
       expect(tone(container, 'sector-2')).toContain('text-slate-400');
       expect(tile(container, 'sector-2').className).toContain(
-        'border-green-400'
+        'bg-green-500/20'
       );
-      expect(tile(container, 'sector-3').className).toContain('border-red-500');
+      expect(tile(container, 'sector-3').className).toContain('bg-red-500/20');
     });
 
     it('draw a fresh time that is no best in white', () => {
@@ -308,7 +303,7 @@ describe('TimingView', () => {
 
       expect(tone(container, 'sector-1')).toContain('text-white');
       expect(tile(container, 'sector-1').className).toContain(
-        'border-yellow-400'
+        'bg-yellow-500/20'
       );
     });
 
@@ -735,7 +730,7 @@ describe('Timing', () => {
     expect(tone(container, 'sector-1')).toContain('text-purple-300');
     expect(value(container, 'sector-2').textContent).toBe('40.312');
     expect(tone(container, 'sector-2')).toContain('text-slate-400');
-    expect(tile(container, 'sector-2').className).toContain('border-green-400');
+    expect(tile(container, 'sector-2').className).toContain('bg-green-500/20');
     expect(value(container, 'sector-3').textContent).toBe('32.738');
   });
 

@@ -40,7 +40,7 @@ export const TimingTile = memo(
   }: TimingTileProps) => (
     <div
       data-testid={testId}
-      className={`flex min-w-0 flex-col justify-center gap-[0.3em] rounded ${boxClassName}`}
+      className={`flex min-w-0 flex-col justify-center gap-[0.3em] rounded-md ${boxClassName}`}
     >
       <span
         data-testid={`${testId}-label`}
@@ -65,7 +65,7 @@ export const TimingTile = memo(
             aria-label="Did not count"
             weight="fill"
             size="1.2em"
-            className="-my-[0.1em] flex-none text-amber-300"
+            className="-my-[0.1em] flex-none text-amber-400"
           />
         )}
       </span>
@@ -78,7 +78,7 @@ export const TimingTile = memo(
             aria-label="Did not count"
             weight="fill"
             size="0.6em"
-            className="flex-none text-amber-300"
+            className="flex-none text-amber-400"
           />
         )}
       </span>

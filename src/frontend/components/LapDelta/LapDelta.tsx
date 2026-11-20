@@ -128,7 +128,7 @@ interface TimeRowProps {
 
 const TimeRow = memo(({ label, value }: TimeRowProps) => (
   <div className="flex items-baseline justify-between gap-2">
-    <span className="text-slate-400">{label}</span>
+    <span className="overlay-label">{label}</span>
     <span className="font-semibold">{value}</span>
   </div>
 ));

@@ -1,4 +1,5 @@
-import { GhostIcon, WarningIcon } from '@phosphor-icons/react';
+import { GhostIcon, WarningIcon, IconContext } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import {
   trackStateSelectors,
   useSectorDeltas,
@@ -23,39 +24,13 @@ import {
   SectorTargetView,
 } from './components/SectorTargetRow';
 import { computeGhostSectorColor } from './sectorColorUtils';
+import { SECTOR_TINT } from '../shared/sectorTint';
 
 type SectorDeltaProps = SectorDeltaConfig;
 
-const SECTOR_CARD: Record<
-  SectorColor,
-  { bg: string; accent: string; text: string }
-> = {
-  purple: {
-    bg: 'bg-slate-800/80',
-    accent: 'border-b-[5px] border-purple-400',
-    text: 'text-white',
-  },
-  green: {
-    bg: 'bg-slate-800/80',
-    accent: 'border-b-[5px] border-green-400',
-    text: 'text-white',
-  },
-  yellow: {
-    bg: 'bg-slate-800/80',
-    accent: 'border-b-[5px] border-yellow-400',
-    text: 'text-white',
-  },
-  red: {
-    bg: 'bg-slate-800/80',
-    accent: 'border-b-[5px] border-red-500',
-    text: 'text-white',
-  },
-  default: {
-    bg: 'bg-slate-800/40',
-    accent: 'border-b-[5px] border-slate-700',
-    text: 'text-slate-400',
-  },
-};
+/** A sector's figure is white once it has a colour, grey without one. */
+const sectorText = (color: SectorColor) =>
+  color === 'default' ? 'text-slate-400' : 'text-white';
 
 function timeFormatToDecimalPlaces(timeFormat: TimeFormat): number {
   if (timeFormat === 'seconds-full' || timeFormat === 'full') return 3;
@@ -189,26 +164,24 @@ export const SectorDeltaDisplay = ({
       : sectorCardReading(displayTime, reference, i).referenceTime;
 
     const fallback = formatDelta(displayTime, refTime, timeFormat);
-    const cardStyle = SECTOR_CARD[colorKey];
 
     return (
       <div
         key={cardKey}
         className={[
-          'relative flex flex-col items-center justify-center rounded-sm px-2 py-1 overflow-hidden',
+          'relative flex flex-col items-center justify-center rounded-md px-2 py-1 overflow-hidden',
           isWindowed ? 'flex-none' : 'flex-1 min-w-0',
-          cardStyle.bg,
-          cardStyle.accent,
+          SECTOR_TINT[colorKey],
         ].join(' ')}
         style={isWindowed ? { width: slotWidth } : undefined}
       >
-        <span className="text-xs font-semibold text-slate-400 leading-none mb-0.5">
+        <span className="overlay-label leading-none mb-0.5">
           S{sector.SectorNum + 1}
         </span>
         <span
           className={[
             'inline-flex items-center gap-1 text-sm font-bold leading-none tabular-nums',
-            cardStyle.text,
+            sectorText(colorKey),
             isCurrent ? 'opacity-70' : '',
           ].join(' ')}
         >
@@ -223,7 +196,7 @@ export const SectorDeltaDisplay = ({
             <WarningIcon
               size={10}
               weight="fill"
-              className="text-amber-300 shrink-0"
+              className="text-amber-400 shrink-0"
             />
           )}
         </span>
@@ -288,33 +261,39 @@ export const SectorDeltaDisplay = ({
   };
 
   return (
-    <div
-      className="flex flex-col gap-1 p-1 overlay-panel"
-      style={{ ['--bg-opacity' as string]: `${opacity * 100}%` }}
-    >
-      {showTargetLap && renderTarget()}
-      <div className="flex flex-row items-center gap-1">
-        {useGhost && (
-          <div className="flex items-center justify-center px-1 text-slate-400 flex-shrink-0">
-            <GhostIcon size={14} weight="fill" />
-          </div>
-        )}
-
-        {isWindowed ? (
-          <div ref={containerRef} className="flex-1 overflow-hidden relative">
-            <div ref={stripRef} className="flex flex-row gap-1">
-              {extendedIndices.map((sectorIdx, slotPosition) =>
-                renderCard(sectorIdx, slotPosition, slotPosition === centerSlot)
-              )}
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        className="flex flex-col gap-1 p-1 overlay-panel"
+        style={{ ['--bg-opacity' as string]: `${opacity * 100}%` }}
+      >
+        {showTargetLap && renderTarget()}
+        <div className="flex flex-row items-center gap-1">
+          {useGhost && (
+            <div className="flex items-center justify-center px-1 text-slate-400 flex-shrink-0">
+              <GhostIcon size={14} weight="fill" />
             </div>
-            <div className="absolute inset-y-0 left-1/2 w-px bg-sky-400/60 pointer-events-none" />
-          </div>
-        ) : (
-          sectors.map((sector, i) =>
-            renderCard(i, sector.SectorNum, i === currentSectorIdx)
-          )
-        )}
+          )}
+
+          {isWindowed ? (
+            <div ref={containerRef} className="flex-1 overflow-hidden relative">
+              <div ref={stripRef} className="flex flex-row gap-1">
+                {extendedIndices.map((sectorIdx, slotPosition) =>
+                  renderCard(
+                    sectorIdx,
+                    slotPosition,
+                    slotPosition === centerSlot
+                  )
+                )}
+              </div>
+              <div className="absolute inset-y-0 left-1/2 w-px bg-sky-400/60 pointer-events-none" />
+            </div>
+          ) : (
+            sectors.map((sector, i) =>
+              renderCard(i, sector.SectorNum, i === currentSectorIdx)
+            )
+          )}
+        </div>
       </div>
-    </div>
+    </IconContext.Provider>
   );
 };
