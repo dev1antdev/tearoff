@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState, type RefObject } from 'react';
-import { getColor } from '@irdashies/utils/colors';
+import { getColor, rgbToHex } from '@irdashies/utils/colors';
 
 /**
  * What a canvas widget paints with that the driver's settings change: the
@@ -24,6 +24,26 @@ export const withAlpha = (color: string, alpha: number): string =>
 
 const SHADES = [200, 300, 400, 500, 600, 900, 950] as const;
 
+/** The default Black palette's greys, as hex. */
+const BLACK_PALETTE = {
+  200: '#dedede',
+  300: '#bebebe',
+  400: '#8f8f8f',
+  500: '#636363',
+  600: '#484848',
+  900: '#030303',
+  950: '#000000',
+} as const;
+
+/**
+ * The default look, Black and Figtree: before the overlay has been read, and
+ * where there is none (tests, the Radar's settings preview).
+ */
+export const DEFAULT_CANVAS_THEME: CanvasTheme = {
+  slate: (shade) => BLACK_PALETTE[shade],
+  font: 'Figtree, sans-serif',
+};
+
 /**
  * A CSS colour as `#rrggbb`, painted once on a one-pixel canvas and read
  * back. The palette's colours are `oklch(…)`, which a canvas parses more
@@ -41,8 +61,7 @@ export const toHex = (
   // A stand-in canvas (a test's) may paint nothing to read back.
   const pixel = probe.getImageData(0, 0, 1, 1)?.data;
   if (!pixel) return color;
-  const [r, g, b] = pixel;
-  return `#${[r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+  return rgbToHex(pixel);
 };
 
 export const readCanvasTheme = (from: Element): CanvasTheme => {
@@ -62,10 +81,10 @@ export const readCanvasTheme = (from: Element): CanvasTheme => {
  * The canvas theme of the overlay `ref` sits in. Read again when the
  * overlay's classes change (the palette and the font are classes on
  * `.overlay-window`) and once the web fonts have loaded, since a canvas
- * paints in another face until they have. Null until the element mounts.
+ * paints in another face until they have. The default look until it mounts.
  */
 export const useCanvasTheme = (ref: RefObject<Element | null>) => {
-  const [theme, setTheme] = useState<CanvasTheme | null>(null);
+  const [theme, setTheme] = useState(DEFAULT_CANVAS_THEME);
   useLayoutEffect(() => {
     const element = ref.current;
     if (!element) return;

@@ -1,9 +1,18 @@
-import { getColor } from '@irdashies/utils/colors';
+import {
+  getColor,
+  getTailwindStyle,
+  textColorOn,
+  colorNumToHex,
+} from '@irdashies/utils/colors';
 import { TrackDrawing, TrackDriver, TurnLabels } from './TrackCanvas';
+import type { Driver } from '@irdashies/types';
 import type { Sector } from '@irdashies/types';
 import type { SectorColor } from '@irdashies/context';
 import type { LapSpan } from '@irdashies/domain/track';
-import type { CanvasTheme } from '@irdashies/domain/widgetPresentation/canvasTheme';
+import {
+  DEFAULT_CANVAS_THEME,
+  type CanvasTheme,
+} from '@irdashies/domain/widgetPresentation/canvasTheme';
 
 /** What the map paints in the palette's neutrals and the overlay's font. */
 export interface MapInk {
@@ -17,22 +26,11 @@ export interface MapInk {
   font: string;
 }
 
-/** Until the overlay has been read (and in tests): the old fixed colours. */
-const DEFAULT_MAP_INK: MapInk = {
-  road: 'white',
-  edge: 'black',
-  pit: '#999999',
-  label: 'white',
-  scrim: 'black',
-  font: 'sans-serif',
-};
-
 /**
  * The map's neutrals from the palette: a light road on a dark edge, or the
  * other way round when the driver inverts the track colours.
  */
-export const mapInk = (theme: CanvasTheme | null, invert: boolean): MapInk => {
-  if (!theme) return DEFAULT_MAP_INK;
+export const mapInk = (theme: CanvasTheme, invert: boolean): MapInk => {
   const light = theme.slate(300);
   const dark = theme.slate(950);
   return {
@@ -43,6 +41,31 @@ export const mapInk = (theme: CanvasTheme | null, invert: boolean): MapInk => {
     scrim: dark,
     font: theme.font,
   };
+};
+
+const DEFAULT_MAP_INK = mapInk(DEFAULT_CANVAS_THEME, false);
+
+/**
+ * Each car's marker fill and number colour, by car index: you in amber or
+ * your highlight colour, the rest in their class colour, the number dark on
+ * a light fill.
+ */
+export const markerColors = (
+  drivers: readonly { driver: Driver; isPlayer: boolean }[],
+  highlightColor: number | undefined
+) => {
+  const isMultiClass =
+    new Set(drivers.map(({ driver }) => driver.CarClassID)).size > 1;
+  const colors: Record<number, { fill: string; text: string }> = {};
+  for (const { driver, isPlayer } of drivers) {
+    const fill = isPlayer
+      ? ((highlightColor ? colorNumToHex(highlightColor) : undefined) ??
+        getColor('amber'))
+      : getTailwindStyle(driver.CarClassColor, undefined, isMultiClass)
+          .canvasFill;
+    colors[driver.CarIdx] = { fill, text: textColorOn(fill) };
+  }
+  return colors;
 };
 
 export interface TextMetricsCache {

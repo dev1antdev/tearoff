@@ -285,6 +285,13 @@ export const getColor = (
   from: Element = document.documentElement
 ) => getComputedStyle(from).getPropertyValue(`--color-${color}-${value}`);
 
+/** `#rrggbb` from red, green and blue, 0 to 255. */
+export const rgbToHex = (rgb: ArrayLike<number>): string =>
+  `#${Array.from(rgb)
+    .slice(0, 3)
+    .map((c) => Math.round(c).toString(16).padStart(2, '0'))
+    .join('')}`;
+
 const DARK_TEXT = '#0f172a';
 const LIGHT_TEXT = '#ffffff';
 

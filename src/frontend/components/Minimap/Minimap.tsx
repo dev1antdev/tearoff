@@ -9,10 +9,9 @@ import {
   useSessionVisibility,
 } from '@irdashies/context';
 import { useSessionTrackGeometry } from '@irdashies/domain/track';
-import { colorNumToHex } from '@irdashies/utils/colors';
+import { colorNumToHex, textColorOn } from '@irdashies/utils/colors';
 import { useMinimapSettings } from './hooks/useMinimapSettings';
 import { MinimapCanvas, type MinimapCar } from './MinimapCanvas';
-import { textColorOn } from '@irdashies/utils/colors';
 import { NEUTRAL_MARKER, markerLabel } from './minimapModel';
 
 /** Ring round the focus car when no highlight colour is set. */

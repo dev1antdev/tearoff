@@ -57,26 +57,15 @@ const TRACK_EDGE = 2;
 const START_FINISH_COLOR = '#ef4444';
 
 /** The map's neutrals and type: what the palette and the font change. */
-const inkOf = (theme: CanvasTheme | null) =>
-  theme
-    ? {
-        disc: theme.slate(950),
-        track: theme.slate(300),
-        trackEdge: withAlpha(theme.slate(950), 0.6),
-        ring: withAlpha(theme.slate(300), 0.3),
-        message: theme.slate(400),
-        markerEdge: withAlpha(theme.slate(950), 0.8),
-        font: theme.font,
-      }
-    : {
-        disc: 'rgb(15 23 42)',
-        track: '#ffffff',
-        trackEdge: 'rgb(2 6 23 / 0.6)',
-        ring: 'rgb(255 255 255 / 0.3)',
-        message: 'rgb(226 232 240 / 0.85)',
-        markerEdge: 'rgb(2 6 23 / 0.8)',
-        font: 'Lato, sans-serif',
-      };
+const inkOf = (theme: CanvasTheme) => ({
+  disc: theme.slate(950),
+  track: theme.slate(300),
+  trackEdge: withAlpha(theme.slate(950), 0.6),
+  ring: withAlpha(theme.slate(300), 0.3),
+  message: theme.slate(400),
+  markerEdge: withAlpha(theme.slate(950), 0.8),
+  font: theme.font,
+});
 const PIT_ALPHA = 0.4;
 /** The focus marker is drawn a little larger than the rest. */
 const FOCUS_SCALE = 1.15;

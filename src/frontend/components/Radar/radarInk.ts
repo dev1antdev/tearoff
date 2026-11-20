@@ -1,4 +1,5 @@
 import {
+  DEFAULT_CANVAS_THEME,
   withAlpha,
   type CanvasTheme,
 } from '@irdashies/domain/widgetPresentation/canvasTheme';
@@ -23,25 +24,8 @@ export interface RadarInk {
   noticeBackdrop: string;
 }
 
-/** Until the overlay has been read, and in tests: the old fixed shades. */
-export const DEFAULT_RADAR_INK: RadarInk = {
-  font: 'Lato, sans-serif',
-  roadEdge: '#e2e8f0',
-  roadSurface: '#475569',
-  backdrop: '#0f172a',
-  guide: 'rgba(148, 163, 184, 0.35)',
-  guideText: 'rgba(203, 213, 225, 0.6)',
-  dark: '#0f172a',
-  darkSoft: 'rgba(15, 23, 42, 0.25)',
-  halo: 'rgba(15, 23, 42, 0.85)',
-  bodyEdge: 'rgba(15, 23, 42, 0.9)',
-  light: '#e2e8f0',
-  noticeBackdrop: 'rgba(15, 23, 42, 0.8)',
-};
-
 /** The radar's ink in the overlay's palette and font. */
-export const radarInkFrom = (theme: CanvasTheme | null): RadarInk => {
-  if (!theme) return DEFAULT_RADAR_INK;
+export const radarInkFrom = (theme: CanvasTheme): RadarInk => {
   const dark = theme.slate(900);
   return {
     font: theme.font,
@@ -59,6 +43,9 @@ export const radarInkFrom = (theme: CanvasTheme | null): RadarInk => {
     noticeBackdrop: withAlpha(dark, 0.8),
   };
 };
+
+/** Where no overlay has been read: the settings preview, tests. */
+export const DEFAULT_RADAR_INK = radarInkFrom(DEFAULT_CANVAS_THEME);
 
 /**
  * The ink of the frame being drawn. `drawRadar` sets it from its scene before

@@ -7,11 +7,7 @@ import {
   type TrackDrawing,
 } from '@irdashies/domain/track';
 export type { TrackDrawing } from '@irdashies/domain/track';
-import {
-  getColor,
-  getTailwindStyle,
-  textColorOn,
-} from '@irdashies/utils/colors';
+import { getColor } from '@irdashies/utils/colors';
 import { useCanvasTheme } from '@irdashies/domain/widgetPresentation/canvasTheme';
 import { validateImageDataUrl } from '@irdashies/utils/imageDataUrl';
 import { shouldShowTrack } from '@irdashies/domain/track/tracks/brokenTracks';
@@ -28,6 +24,7 @@ import {
   drawLapSpans,
   compareDriverDrawOrder,
   mapInk,
+  markerColors,
   type PositionedTrackDriver,
 } from './trackDrawingUtils';
 import {
@@ -201,33 +198,12 @@ const LoadedTrackCanvas = ({
   // Fall back to deriving identities from drivers when not provided (e.g. stories)
   const resolvedIdentities = driverIdentities ?? drivers;
 
-  // Calculate if this is a multi-class race — depends on stable identities
-  const isMultiClass = useMemo(() => {
-    if (!resolvedIdentities || resolvedIdentities.length === 0) return false;
-    const uniqueClassIds = new Set(
-      resolvedIdentities.map(({ driver }) => driver.CarClassID)
-    );
-    return uniqueClassIds.size > 1;
-  }, [resolvedIdentities]);
-
-  // Memoize color calculations — depends on stable identities, so this
-  // only recomputes when the driver roster actually changes.
-  const driverColors = useMemo(() => {
-    const colors: Record<number, { fill: string; text: string }> = {};
-
-    resolvedIdentities?.forEach(({ driver, isPlayer }) => {
-      // You in amber, a number dark on a light fill.
-      const fill = isPlayer
-        ? highlightColor
-          ? `#${highlightColor.toString(16).padStart(6, '0')}`
-          : getColor('amber')
-        : getTailwindStyle(driver.CarClassColor, undefined, isMultiClass)
-            .canvasFill;
-      colors[driver.CarIdx] = { fill, text: textColorOn(fill) };
-    });
-
-    return colors;
-  }, [resolvedIdentities, isMultiClass, highlightColor]);
+  // Memoized on stable identities, so this only recomputes when the driver
+  // roster actually changes.
+  const driverColors = useMemo(
+    () => markerColors(resolvedIdentities, highlightColor),
+    [resolvedIdentities, highlightColor]
+  );
 
   // Get start/finish line calculations
   const startFinishLine = useStartFinishLine({

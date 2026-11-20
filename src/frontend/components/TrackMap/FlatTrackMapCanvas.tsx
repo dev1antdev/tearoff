@@ -1,18 +1,18 @@
 import { useWidgetScale } from '@irdashies/domain/widgetPresentation/WidgetScale';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TrackDriver, TrackDrawing } from './TrackCanvas';
-import {
-  getColor,
-  getTailwindStyle,
-  textColorOn,
-} from '@irdashies/utils/colors';
+import { getColor } from '@irdashies/utils/colors';
 import { useCanvasTheme } from '@irdashies/domain/widgetPresentation/canvasTheme';
 import { useCarIdxOffTrack, usePaintingPaused } from '@irdashies/context';
 import {
   progressToFlatX,
   useProgressAnimation,
 } from '@irdashies/domain/track/useProgressAnimation';
-import { getCachedTextVisualOffset, mapInk } from './trackDrawingUtils';
+import {
+  getCachedTextVisualOffset,
+  mapInk,
+  markerColors,
+} from './trackDrawingUtils';
 import type { LapSpan } from '@irdashies/domain/track';
 
 const NO_SPANS: readonly LapSpan[] = [];
@@ -76,28 +76,10 @@ export const FlatTrackMapCanvas = ({
     undefined
   );
 
-  const isMultiClass = useMemo(() => {
-    if (!drivers || drivers.length === 0) return false;
-    const uniqueClassIds = new Set(
-      drivers.map(({ driver }) => driver.CarClassID)
-    );
-    return uniqueClassIds.size > 1;
-  }, [drivers]);
-
-  const driverColors = useMemo(() => {
-    const colors: Record<number, { fill: string; text: string }> = {};
-    drivers?.forEach(({ driver, isPlayer }) => {
-      // As on the track map: you in amber, a number dark on a light fill.
-      const fill = isPlayer
-        ? highlightColor
-          ? `#${highlightColor.toString(16).padStart(6, '0')}`
-          : getColor('amber')
-        : getTailwindStyle(driver.CarClassColor, undefined, isMultiClass)
-            .canvasFill;
-      colors[driver.CarIdx] = { fill, text: textColorOn(fill) };
-    });
-    return colors;
-  }, [drivers, isMultiClass, highlightColor]);
+  const driverColors = useMemo(
+    () => markerColors(drivers, highlightColor),
+    [drivers, highlightColor]
+  );
 
   const orderedDrivers = useMemo(
     () =>
