@@ -26,7 +26,8 @@ const LABEL_PADDING_PX = 8;
 const TICK_CLEARANCE = 0.06;
 
 /** A rival's bars: one shade, and the other after each driver change. */
-const RIVAL_FILL = ['fill-slate-500', 'fill-slate-400'];
+// Restrained, so our own car's driver colours are the bright spot.
+const RIVAL_FILL = ['fill-slate-700', 'fill-slate-600'];
 
 /**
  * The colour of one of our own car's drivers, by the one rule Crew and

@@ -2,10 +2,11 @@ import { memo } from 'react';
 import type { RacePlanClashLevel, RacePlanStrip } from '@irdashies/domain';
 import type { RacePlanStintStatus } from '@irdashies/types';
 
+// Restrained neutrals, the stint in the car the lightest; sky is rain.
 const SEGMENT_CLASS: Record<RacePlanStintStatus, string> = {
-  done: 'bg-slate-500',
-  current: 'bg-sky-500',
-  upcoming: 'bg-slate-600',
+  done: 'bg-slate-600',
+  current: 'bg-slate-400',
+  upcoming: 'bg-slate-700',
   unassigned: 'bg-amber-500/50',
   dropped: 'bg-transparent',
 };
@@ -31,7 +32,7 @@ const StripSegment = memo(
     <div
       title={`Stint ${number}`}
       className={[
-        'absolute inset-y-0 border-r border-slate-900',
+        'absolute inset-y-0 border-r border-slate-950',
         SEGMENT_CLASS[status],
         mine ? 'ring-2 ring-inset ring-amber-300' : '',
       ].join(' ')}
@@ -39,7 +40,7 @@ const StripSegment = memo(
     >
       {clashLevel && (
         <div
-          className={`absolute inset-x-0 top-0 h-1 ${clashLevel === 'clash' ? 'bg-red-500' : 'bg-amber-300'}`}
+          className={`absolute inset-x-0 top-0 h-1 ${clashLevel === 'clash' ? 'bg-red-500' : 'bg-amber-400'}`}
         />
       )}
     </div>
@@ -67,7 +68,7 @@ export const TimelineStrip = memo(
         ))}
         {strip.nowPct !== null && (
           <div
-            className="absolute inset-y-0 w-0.5 bg-white shadow-[0_0_2px_rgba(0,0,0,0.8)]"
+            className="absolute inset-y-0 w-0.5 bg-white"
             style={{ left: `${strip.nowPct}%` }}
             title="Now"
           />

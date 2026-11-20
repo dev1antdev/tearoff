@@ -196,7 +196,7 @@ const Readout = ({ model, lap, anchor }: ReadoutProps) => {
   return (
     <div
       data-testid="race-charts-readout"
-      className="pointer-events-none absolute z-10 max-w-[17rem] rounded-sm border border-slate-600 bg-slate-900/95 px-2 py-1.5 text-xs leading-snug shadow-lg"
+      className="pointer-events-none absolute z-10 max-w-[17rem] rounded-md border border-slate-600 bg-slate-900/95 px-2 py-1.5 text-xs leading-snug shadow-lg"
       style={anchor}
     >
       <div className="mb-0.5 font-bold tracking-wide text-slate-400">

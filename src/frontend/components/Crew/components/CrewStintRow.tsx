@@ -70,7 +70,7 @@ export const CrewStintCaptions = memo(
   ({ energyCaption }: CrewStintCaptionsProps) => (
     <div
       data-testid="crew-stint-captions"
-      className={`${ROW} py-1.5 text-xs leading-none font-medium tracking-wide text-slate-400 uppercase`}
+      className={`${ROW} py-1.5 overlay-label leading-none`}
       style={crewStintGrid(energyCaption !== undefined)}
     >
       <span>#</span>

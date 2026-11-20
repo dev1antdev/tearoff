@@ -11,18 +11,19 @@ const STATUS_LABEL: Record<RacePlanStintStatus, string> = {
   dropped: 'Dropped',
 };
 
+// Status pills: tinted, the stint in the car the one bright neutral.
 const STATUS_CHIP: Record<RacePlanStintStatus, string> = {
-  done: 'bg-slate-700 text-slate-300',
-  current: 'bg-sky-600 text-white',
-  upcoming: 'bg-slate-700 text-slate-100',
-  unassigned: 'bg-amber-500/30 text-amber-200',
-  dropped: 'bg-red-900/60 text-red-200',
+  done: 'bg-white/8 text-slate-400',
+  current: 'bg-slate-200 text-slate-950',
+  upcoming: 'bg-white/8 text-slate-200',
+  unassigned: 'bg-amber-500/20 text-amber-400',
+  dropped: 'bg-red-500/20 text-red-300',
 };
 
 const rowClass = (status: RacePlanStintStatus, mine: boolean) =>
   [
     'border-t overlay-divider first:border-t-0',
-    status === 'current' ? 'bg-sky-900/50! font-semibold' : '',
+    status === 'current' ? 'overlay-selected font-semibold' : '',
     status === 'done' ? 'text-white/50' : '',
     status === 'dropped' ? 'text-white/40' : '',
     mine && status !== 'done' && status !== 'dropped' ? 'text-amber-300' : '',
@@ -72,7 +73,7 @@ export const StintRow = memo(
               title="Rebuilt after a stop"
               aria-label="Rebuilt after a stop"
               role="img"
-              className="flex-none text-sky-300"
+              className="flex-none text-slate-400"
             >
               <ArrowsClockwiseIcon size={12} />
             </span>
@@ -82,7 +83,7 @@ export const StintRow = memo(
               title={clashText}
               aria-label={clashText}
               role="img"
-              className={`flex-none ${clashLevel === 'clash' ? 'text-red-400' : 'text-amber-300'}`}
+              className={`flex-none ${clashLevel === 'clash' ? 'text-red-400' : 'text-amber-400'}`}
             >
               <WarningIcon size={14} weight="fill" />
             </span>
@@ -97,7 +98,7 @@ export const StintRow = memo(
       </td>
       <td className="hidden px-1 py-0.5 @2xs:table-cell">
         <span
-          className={`whitespace-nowrap rounded-sm px-1 text-xs font-normal ${STATUS_CHIP[status]}`}
+          className={`whitespace-nowrap rounded-full px-1 text-xs font-normal ${STATUS_CHIP[status]}`}
         >
           {STATUS_LABEL[status]}
         </span>

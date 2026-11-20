@@ -14,7 +14,8 @@ const TAB_LABELS: Record<RaceChartsTab, string> = {
 const lapsLabel = (laps: RaceChartsLaps): string =>
   laps === 0 ? 'All' : `${laps}`;
 
-const GROUP = 'flex flex-none overflow-hidden rounded border border-slate-600';
+const GROUP =
+  'flex flex-none overflow-hidden rounded-md border border-slate-600';
 
 const buttonClass = (on: boolean): string =>
   `px-2.5 py-0.5 leading-5 ${
@@ -63,7 +64,7 @@ export const ChartControls = memo(
       data-testid="race-charts-controls"
       // Asked for its own width by the row inside it. Sized in pixels: the
       // page's own type scale is not the overlay's.
-      className="@container flex-none border-b border-slate-700 text-sm"
+      className="@container flex-none border-b overlay-divider text-sm"
     >
       <div className="flex items-center gap-x-3 gap-y-0.5 px-2 py-1 @max-[399px]:flex-wrap">
         <div role="group" aria-label="Chart" className={GROUP}>
@@ -96,7 +97,7 @@ export const ChartControls = memo(
             // Never cut short while the caption can be: it is the warning.
             <span
               data-testid="race-charts-missing"
-              className="flex-none whitespace-nowrap text-amber-200"
+              className="flex-none whitespace-nowrap text-amber-400"
             >
               {missing}
             </span>

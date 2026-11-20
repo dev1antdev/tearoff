@@ -100,7 +100,7 @@ export const StrategyTimeline = ({
       )}
       <div className="min-h-0 flex-1 overflow-y-auto">
         <table className="w-full border-collapse text-left text-xs">
-          <thead className="sticky top-0 bg-slate-800 text-slate-400">
+          <thead className="sticky top-0 bg-slate-950 [&_th]:overlay-label">
             <tr>
               <th className="px-1 text-right font-normal">#</th>
               <th className="px-1 font-normal">Driver</th>

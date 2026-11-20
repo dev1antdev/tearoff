@@ -148,7 +148,7 @@ const CrewPanel = ({ settings }: { settings: CrewConfig }) => {
           </span>
         )}
         {history.missingLaps > 0 && (
-          <span data-testid="crew-missing" className="text-amber-200">
+          <span data-testid="crew-missing" className="text-amber-400">
             {view && !notice ? ' · ' : ''}
             {count(history.missingLaps, 'lap')} not recorded
           </span>

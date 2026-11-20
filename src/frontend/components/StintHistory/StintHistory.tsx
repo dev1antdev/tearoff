@@ -1,5 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import {
+  IconContext,
   DiscIcon,
   FlagCheckeredIcon,
   GarageIcon,
@@ -8,6 +9,7 @@ import {
   TireIcon,
   UserSwitchIcon,
 } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import {
   useDashboard,
   useDrivingState,
@@ -24,7 +26,7 @@ import { DEMO_STINT_HISTORY } from './demoData';
 
 const WEAR_TONE_CLASS: Record<StintRow['wearTone'], string> = {
   none: '',
-  caution: 'text-amber-300',
+  caution: 'text-amber-400',
   bad: 'text-red-400',
 };
 
@@ -36,6 +38,9 @@ interface Column {
   align: 'text-left' | 'text-right' | 'justify-self-center';
   cell: (row: StintRow) => ReactNode;
 }
+
+const HAIRLINE =
+  'bg-[linear-gradient(rgb(255_255_255/0.05),rgb(255_255_255/0.05))] bg-[length:100%_1px] bg-no-repeat';
 
 /** The second line of a cell: a figure that explains the one above it. */
 const Below = ({ children }: { children: ReactNode }) => (
@@ -204,61 +209,63 @@ export const StintHistoryDisplay = ({
   teamMateDriving = false,
 }: StintHistoryDisplayProps) => {
   const columns = columnsOf(settings, rows[0]?.budget ?? budget ?? 'fuel');
-  // Finished stints alternate between two shades, wherever the stint under
-  // way sits among them.
-  const finished = rows.filter((row) => !row.current);
 
   return (
-    <div
-      className="h-full w-full overflow-hidden overlay-panel p-2 text-sm text-white"
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
+    <IconContext.Provider value={OVERLAY_ICONS}>
       <div
-        className="grid w-full justify-between gap-x-[0.7em] whitespace-nowrap tabular-nums leading-tight"
-        style={{ gridTemplateColumns: `repeat(${columns.length}, auto)` }}
+        className="h-full w-full overflow-hidden overlay-panel p-2 text-sm text-white"
+        style={{
+          ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+        }}
       >
         <div
-          data-testid="stint-header"
-          className="col-span-full grid grid-cols-subgrid items-end px-1 pb-0.5 text-[0.75em] uppercase leading-none text-slate-400"
+          className="grid w-full justify-between gap-x-[0.7em] whitespace-nowrap tabular-nums leading-tight"
+          style={{ gridTemplateColumns: `repeat(${columns.length}, auto)` }}
         >
-          {columns.map((column) => (
-            <div key={column.id} className={column.align}>
-              {column.caption}
-            </div>
-          ))}
-        </div>
-        {teamMateDriving && (
           <div
-            data-testid="stint-note"
-            className="col-span-full flex items-center gap-[0.4em] rounded-sm bg-slate-700/50 px-1 py-0.5 text-[0.8em] uppercase text-slate-300"
+            data-testid="stint-header"
+            className="col-span-full grid grid-cols-subgrid items-end px-1 pb-0.5 overlay-label text-[0.75em] leading-none"
           >
-            <UserSwitchIcon />
-            <span>Team-mate driving · your stints</span>
+            {columns.map((column) => (
+              <div key={column.id} className={column.align}>
+                {column.caption}
+              </div>
+            ))}
           </div>
-        )}
-        {rows.map((row) => {
-          const shade = row.current
-            ? 'bg-slate-700/50 font-bold'
-            : `text-slate-300 ${finished.indexOf(row) % 2 === 0 ? 'bg-slate-800/70' : 'bg-slate-900/70'}`;
-          return (
+          {teamMateDriving && (
             <div
-              key={row.id}
-              data-testid="stint-row"
-              data-current={row.current}
-              className={`col-span-full grid grid-cols-subgrid items-center rounded-sm px-1 py-0.5 ${shade}`}
+              data-testid="stint-note"
+              className="col-span-full flex items-center gap-[0.4em] px-1 py-0.5 overlay-label text-[0.8em] text-slate-300"
             >
-              {columns.map((column) => (
-                <div key={column.id} className={column.align}>
-                  {column.cell(row)}
-                </div>
-              ))}
+              <UserSwitchIcon />
+              <span>Team-mate driving · your stints</span>
             </div>
-          );
-        })}
+          )}
+          {rows.map((row, index) => {
+            // No stripes: the stint under way is the selected line, and a
+            // hairline above the others is their top pixel of background, so
+            // no row is taller.
+            const shade = row.current
+              ? 'overlay-selected font-bold'
+              : `text-slate-300 ${index > 0 && !rows[index - 1].current ? HAIRLINE : ''}`;
+            return (
+              <div
+                key={row.id}
+                data-testid="stint-row"
+                data-current={row.current}
+                className={`col-span-full grid grid-cols-subgrid items-center px-1 py-0.5 ${shade}`}
+              >
+                {columns.map((column) => (
+                  <div key={column.id} className={column.align}>
+                    {column.cell(row)}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
       </div>
-    </div>
+    </IconContext.Provider>
   );
 };
 
