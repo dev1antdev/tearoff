@@ -1,7 +1,7 @@
 import type { RadarStyle } from './radarDrawTypes';
 import { formatDistance } from './radarStyle';
 import { MIN_TEXT_PX } from './radarDrawShared';
-import { ink } from './radarInk';
+import { ink, type RadarInk } from './radarInk';
 
 export const GUIDE_DASH = [4, 4];
 
@@ -47,7 +47,7 @@ export class RadarRingsLayer {
   private spacing = -1;
   private metric: boolean | undefined;
   /** The ink the layer was drawn in: a palette or font change redraws it. */
-  private inked = '';
+  private inked: RadarInk | undefined;
   private readonly fonts =
     typeof document === 'undefined' ? undefined : document.fonts;
   private readonly invalidate = () => {
@@ -77,7 +77,7 @@ export class RadarRingsLayer {
       this.range !== style.range ||
       this.spacing !== style.ringSpacing ||
       this.metric !== style.metric ||
-      this.inked !== ink.guide + ink.guideText + ink.font
+      this.inked !== ink
     ) {
       const canvas = (this.canvas ??= this.createCanvas());
       canvas.width = canvas.height = Math.round(size * this.pixelRatio);
@@ -92,7 +92,7 @@ export class RadarRingsLayer {
       this.range = style.range;
       this.spacing = style.ringSpacing;
       this.metric = style.metric;
-      this.inked = ink.guide + ink.guideText + ink.font;
+      this.inked = ink;
     }
     // Copy device pixels 1:1, including fractional DPR/widget-scale ratios.
     // The caller's existing device-space disc clip stays in effect.

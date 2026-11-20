@@ -48,13 +48,14 @@ export const radarInkFrom = (theme: CanvasTheme): RadarInk => {
 export const DEFAULT_RADAR_INK = radarInkFrom(DEFAULT_CANVAS_THEME);
 
 /**
- * The ink of the frame being drawn. `drawRadar` sets it from its scene before
- * it paints anything and the helpers it calls read it, as `projector` and
- * `pose` are scratch for that one frame: drawing is synchronous, so two
- * radars (the widget and the settings preview) cannot mix theirs.
+ * The ink of the frame being drawn. `drawRadar` points it at its scene's
+ * (memoized, so no copy per frame) before it paints anything and the helpers
+ * it calls read it, as `projector` and `pose` are scratch for that one frame:
+ * drawing is synchronous, so two radars (the widget and the settings preview)
+ * cannot mix theirs.
  */
-export const ink: RadarInk = { ...DEFAULT_RADAR_INK };
+export let ink: RadarInk = DEFAULT_RADAR_INK;
 
 export const paintWith = (next: RadarInk) => {
-  Object.assign(ink, next);
+  ink = next;
 };

@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { readCanvasTheme, toHex, withAlpha } from './canvasTheme';
+import { act, renderHook } from '@testing-library/react';
+import {
+  readCanvasTheme,
+  toHex,
+  useCanvasTheme,
+  withAlpha,
+} from './canvasTheme';
 
 describe('readCanvasTheme', () => {
   afterEach(() => document.body.replaceChildren());
@@ -17,6 +23,41 @@ describe('readCanvasTheme', () => {
     // As read: this test's DOM has no canvas to turn it into hex with.
     expect(theme.slate(300)).toBe('oklch(0.8 0 0)');
     expect(theme.font).toBe('Figtree, sans-serif');
+  });
+});
+
+describe('useCanvasTheme', () => {
+  const previousFonts = Object.getOwnPropertyDescriptor(document, 'fonts');
+  afterEach(() => {
+    document.body.replaceChildren();
+    if (previousFonts) Object.defineProperty(document, 'fonts', previousFonts);
+    else Reflect.deleteProperty(document, 'fonts');
+  });
+
+  it('reads the font again when one finishes loading after the first read', async () => {
+    const fonts = Object.assign(new EventTarget(), {
+      ready: Promise.resolve(),
+    });
+    Object.defineProperty(document, 'fonts', {
+      configurable: true,
+      value: fonts,
+    });
+    const canvas = document.createElement('canvas');
+    canvas.style.fontFamily = 'Figtree, sans-serif';
+    document.body.append(canvas);
+
+    // Stable, as a useRef is.
+    const ref = { current: canvas };
+    const { result } = renderHook(() => useCanvasTheme(ref));
+    await act(() => fonts.ready);
+    expect(result.current.font).toBe('Figtree, sans-serif');
+
+    // The driver picks Inter; it loads after the first read.
+    canvas.style.fontFamily = 'Inter, sans-serif';
+    act(() => {
+      fonts.dispatchEvent(new Event('loadingdone'));
+    });
+    expect(result.current.font).toBe('Inter, sans-serif');
   });
 });
 

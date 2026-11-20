@@ -80,8 +80,9 @@ export const readCanvasTheme = (from: Element): CanvasTheme => {
 /**
  * The canvas theme of the overlay `ref` sits in. Read again when the
  * overlay's classes change (the palette and the font are classes on
- * `.overlay-window`) and once the web fonts have loaded, since a canvas
- * paints in another face until they have. The default look until it mounts.
+ * `.overlay-window`) and whenever web fonts finish loading, a face picked
+ * later included, since a canvas paints in another face until they have.
+ * The default look until it mounts.
  */
 export const useCanvasTheme = (ref: RefObject<Element | null>) => {
   const [theme, setTheme] = useState(DEFAULT_CANVAS_THEME);
@@ -91,12 +92,15 @@ export const useCanvasTheme = (ref: RefObject<Element | null>) => {
     let live = true;
     const read = () => live && setTheme(readCanvasTheme(element));
     read();
-    void document.fonts?.ready.then(read);
+    const fonts = document.fonts;
+    void fonts?.ready.then(read);
+    fonts?.addEventListener('loadingdone', read);
     const overlay = element.closest('.overlay-window');
     const observer = overlay ? new MutationObserver(read) : undefined;
     if (overlay) observer?.observe(overlay, { attributeFilter: ['class'] });
     return () => {
       live = false;
+      fonts?.removeEventListener('loadingdone', read);
       observer?.disconnect();
     };
   }, [ref]);
