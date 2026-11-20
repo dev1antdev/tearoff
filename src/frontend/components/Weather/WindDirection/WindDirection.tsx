@@ -100,7 +100,7 @@ export const WindDirection = memo(
           className={`px-2 py-1 min-w-0 transition-colors duration-300 ${windIntensityClass}`}
         >
           <div className="flex items-center gap-x-1.5 text-sm">
-            <span className="truncate min-w-0 text-slate-400">Wind</span>
+            <span className="overlay-label truncate min-w-0">Wind</span>
             <WindArrow
               normalizedAngle={normalizedAngle}
               className="flex-none size-5 stroke-current box-border fill-none origin-center transform-gpu transition-transform duration-1000 ease-out"
@@ -118,7 +118,7 @@ export const WindDirection = memo(
       <div className="p-2 w-full min-w-0">
         <div className="flex flex-row gap-x-2 items-center text-sm mb-3">
           <WindIcon className="flex-none text-slate-400" />
-          <span className="truncate min-w-0 flex-1 text-slate-400 @max-[120px]:hidden">
+          <span className="overlay-label truncate min-w-0 flex-1 @max-[120px]:hidden">
             Wind
           </span>
         </div>
@@ -133,7 +133,8 @@ export const WindDirection = memo(
               strokeWidth="stroke-[1.5]"
             />
 
-            <div className="absolute w-full h-full flex justify-center items-center text-[32px]">
+            {/* An overlay step, so it follows the Font size setting. */}
+            <div className="absolute w-full h-full flex justify-center items-center text-display-sm">
               {displaySpeed}
             </div>
           </div>

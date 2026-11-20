@@ -225,7 +225,7 @@ describe('WeatherForecast', () => {
     // More rain is the caution.
     expect(
       screen.getByLabelText('Rain rising').getAttribute('class')
-    ).toContain('text-amber-300');
+    ).toContain('text-amber-400');
 
     configure({ trend: { enabled: false } });
     rerender(<WeatherForecast />);

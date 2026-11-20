@@ -29,7 +29,7 @@ export const WeatherTrackRubbered = memo(
         <div className="px-2 py-1 min-w-0">
           <div className="flex items-center gap-x-1.5 text-sm">
             <PathIcon size={12} className="flex-none text-slate-400" />
-            <span className="truncate min-w-0 text-slate-400">Rubber</span>
+            <span className="overlay-label truncate min-w-0">Rubber</span>
             <div
               className="flex-none whitespace-nowrap text-right font-medium capitalize"
               title={trackRubbered ?? 'N/A'}
@@ -45,7 +45,7 @@ export const WeatherTrackRubbered = memo(
       <div className="p-2 w-full min-w-0">
         <div className="flex flex-row gap-x-2 items-center text-sm">
           <PathIcon className="flex-none text-slate-400" />
-          <span className="flex-none text-slate-400 @max-[160px]:hidden">
+          <span className="overlay-label flex-none @max-[160px]:hidden">
             Rubber
           </span>
           <div

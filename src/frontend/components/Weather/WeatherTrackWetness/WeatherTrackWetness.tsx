@@ -56,7 +56,7 @@ export const WeatherTrackWetness = memo(
         <div className="px-2 py-1 min-w-0">
           <div className="flex items-center gap-x-1.5 text-sm">
             <WavesIcon size={12} className="flex-none text-slate-400" />
-            <span className="truncate min-w-0 text-slate-400">Wetness</span>
+            <span className="overlay-label truncate min-w-0">Wetness</span>
             <div className="flex-none whitespace-nowrap text-right font-medium capitalize">
               {trackStateLabel}
             </div>
@@ -85,10 +85,11 @@ export const WeatherTrackWetness = memo(
               aria-valuemin={0}
               aria-valuemax={100}
               style={{ width: `${trackWetnessPct}%` }}
-              className="bg-blue-500 h-2 rounded-full transition-all duration-1000 ease-in-out"
+              // The forecast's rain colours: blue is a lapped car.
+              className="bg-sky-400 h-2 rounded-full transition-all duration-1000 ease-in-out"
             ></div>
           </div>
-          <DropIcon size={14} className="text-blue-400 flex-none" />
+          <DropIcon size={14} className="text-sky-300 flex-none" />
         </div>
       </div>
     );

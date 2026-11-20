@@ -8,9 +8,11 @@ import {
   CloudSunIcon,
   CloudWarningIcon,
   DropIcon,
+  IconContext,
   SunIcon,
   type Icon,
 } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import {
   sessionBarSelectors,
   useDrivingState,
@@ -75,7 +77,7 @@ const TrendArrow = ({
 interface ColumnProps {
   /** "Now", "~12m", "~15:40", or a dash. */
   heading: string;
-  /** The live column: a lighter card, and the one that carries trends. */
+  /** The live column: the selected one, and the one that carries trends. */
   live: boolean;
   /** An empty slot: dashes, to hold the row's width. */
   empty: boolean;
@@ -129,7 +131,7 @@ const Column = memo(
       <div
         className={[
           // No tiles: the column for now is the chosen one.
-          'flex min-w-0 flex-col items-center gap-0.5 rounded-md px-1 py-1',
+          'flex min-w-0 flex-col items-center gap-0.5 px-1 py-1',
           live ? 'overlay-selected' : '',
           empty ? 'opacity-50' : '',
         ].join(' ')}
@@ -183,7 +185,7 @@ const Column = memo(
             )}
             <TrendArrow
               trend={rainTrend}
-              risingClass="text-amber-300"
+              risingClass="text-amber-400"
               fallingClass="text-green-400"
               label="Rain"
             />
@@ -325,38 +327,40 @@ export const WeatherForecast = () => {
   const lead = settings.reverse ? slots - columns.length : 0;
 
   return (
-    <div
-      // What it holds is centred by its own margins and not by this box:
-      // in a box too short for it, margins leave it at the top, from where
-      // a panel can scroll down it. Centred by the box it would be cut at
-      // both ends, with its top above where any scrolling reaches. The
-      // room above and below it is those margins and no padding of the
-      // box, which would push it out of a box it only just fits.
-      className="flex h-full w-full flex-col overlay-panel px-2 text-white"
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
-      {columns.length === 0 ? (
-        <div className="my-auto text-center text-xs text-slate-400">
-          {snapshot?.available ? 'No further forecast' : 'No forecast'}
-        </div>
-      ) : (
-        <div
-          data-testid="weather-forecast-columns"
-          className="my-auto grid gap-1"
-          style={{
-            gridTemplateColumns: `repeat(${slots}, minmax(0, 1fr))`,
-          }}
-        >
-          {Array.from({ length: lead }, (_, index) => (
-            <div key={`lead-${index}`} aria-hidden="true" />
-          ))}
-          {ordered.map(({ key, ...column }) => (
-            <Column key={key} {...column} />
-          ))}
-        </div>
-      )}
-    </div>
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        // What it holds is centred by its own margins and not by this box:
+        // in a box too short for it, margins leave it at the top, from where
+        // a panel can scroll down it. Centred by the box it would be cut at
+        // both ends, with its top above where any scrolling reaches. The
+        // room above and below it is those margins and no padding of the
+        // box, which would push it out of a box it only just fits.
+        className="flex h-full w-full flex-col overlay-panel px-2 text-white"
+        style={{
+          ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+        }}
+      >
+        {columns.length === 0 ? (
+          <div className="my-auto text-center text-xs text-slate-400">
+            {snapshot?.available ? 'No further forecast' : 'No forecast'}
+          </div>
+        ) : (
+          <div
+            data-testid="weather-forecast-columns"
+            className="my-auto grid gap-1"
+            style={{
+              gridTemplateColumns: `repeat(${slots}, minmax(0, 1fr))`,
+            }}
+          >
+            {Array.from({ length: lead }, (_, index) => (
+              <div key={`lead-${index}`} aria-hidden="true" />
+            ))}
+            {ordered.map(({ key, ...column }) => (
+              <Column key={key} {...column} />
+            ))}
+          </div>
+        )}
+      </div>
+    </IconContext.Provider>
   );
 };

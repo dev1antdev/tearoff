@@ -123,12 +123,15 @@ target is the reading's purpose; low is `sky-400`, high `red-400`.
 
 Conditions: Weather's readings sit on the panel with a hairline between them
 (a pseudo-element in the gap, no size), the icon and caption grey and thin,
-the value white; the wind compass is a thin ring in the wind's own colour.
+the value white, captions `overlay-label`; the wind compass is a thin ring in
+the wind's own colour, its speed an overlay step. Track wetness is drawn in the
+forecast's rain colours (`sky`), not blue, which is a lapped car.
 The forecast's columns have no tiles: the column for now is the selected one
 (`overlay-selected`), and a wet point ahead takes its heading in `sky-300`;
 a lighter sky is drawn with a thin outline, a heavier one with the regular
 stroke. The Information Bar's items stand in columns with a hairline between
-them, as the session bars above Standings do. Flags keep their exact colours.
+them, as the session bars above Standings do; it keeps its tinted strip inside
+its panel on purpose, the strip being what its Foreground Opacity setting sets. Flags keep their exact colours.
 
 ### 3.2 Neutrals follow the palette
 
