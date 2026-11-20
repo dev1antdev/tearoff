@@ -109,7 +109,7 @@ const ClassFieldChip = memo(
             >
               <MinusCircleIcon
                 aria-label="Out of the running"
-                size="1em"
+                size={12}
                 weight="fill"
               />
               {inactive}
@@ -120,7 +120,7 @@ const ClassFieldChip = memo(
               data-testid="class-field-pit"
               className="flex items-center gap-0.5 text-xs text-white/60"
             >
-              <WrenchIcon aria-label="In the pit lane" size="1em" />
+              <WrenchIcon aria-label="In the pit lane" size={12} />
               {inPitLane}
             </span>
           )}

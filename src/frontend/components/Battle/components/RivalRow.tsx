@@ -5,7 +5,6 @@ import type { Rival, RivalCar } from '@irdashies/domain';
 import { getTailwindStyle } from '@irdashies/utils/colors';
 import { formatGap, formatTime } from '@irdashies/utils/time';
 import { speedFromKph, type SpeedUnit } from '@irdashies/utils/units';
-import { CarNumberCell } from '../../shared/CarNumberCell/CarNumberCell';
 import { Compound } from '../../shared/Compound/Compound';
 import { DriverStatusBadges } from '../../shared/DriverStatusBadges/DriverStatusBadges';
 import { LastTimeCell } from '../../shared/LastTimeCell/LastTimeCell';
@@ -116,17 +115,15 @@ export const RivalRow = ({
         break;
       case 'carNumber':
         cells.push(
-          car ? (
-            // As the standings draw it: grey, beside its class colour.
-            <CarNumberCell
-              key={key}
-              carNumber={car.carNumber}
-              tailwindStyles={tailwindStyles}
-              showBackground={false}
-            />
-          ) : (
-            <td key={key} data-column="carNumber" className="w-0" />
-          )
+          <td
+            key={key}
+            data-column="carNumber"
+            // CarNumberCell's look, grey after the class colour, at Battle's
+            // own width: the shared cell keeps 4ch, more than "#7" needs.
+            className={`w-0 ${car ? `${tailwindStyles.borderColor} border-l-4` : ''} text-slate-400 text-right px-1 whitespace-nowrap`}
+          >
+            {car ? `#${car.carNumber}` : ''}
+          </td>
         );
         break;
       case 'driverName':
