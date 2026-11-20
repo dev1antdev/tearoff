@@ -21,7 +21,8 @@ export const useRejoinSettings = () => {
   const { currentDashboard } = useDashboard();
 
   const saved = currentDashboard?.widgets.find((w) => w.id === 'rejoin') as
-    RejoinIndicatorWidgetSettings | undefined;
+    | RejoinIndicatorWidgetSettings
+    | undefined;
 
   if (saved && typeof saved === 'object') {
     // Merge saved config with defaults to support older dashboards missing keys
