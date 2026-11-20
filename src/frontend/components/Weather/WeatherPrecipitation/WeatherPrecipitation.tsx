@@ -32,7 +32,7 @@ export const WeatherPrecipitation = memo(
         <div className="px-2 py-1 min-w-0">
           <div className="flex items-center gap-x-1.5 text-sm">
             <CloudRainIcon size={12} className="flex-none text-slate-400" />
-            <span className="overlay-label truncate min-w-0">
+            <span className="truncate min-w-0 text-slate-400">
               Precipitation
             </span>
             <div className="flex-none whitespace-nowrap text-right font-medium">

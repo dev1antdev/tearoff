@@ -100,7 +100,7 @@ export const WindDirection = memo(
           className={`px-2 py-1 min-w-0 transition-colors duration-300 ${windIntensityClass}`}
         >
           <div className="flex items-center gap-x-1.5 text-sm">
-            <span className="overlay-label truncate min-w-0">Wind</span>
+            <span className="truncate min-w-0 text-slate-400">Wind</span>
             <WindArrow
               normalizedAngle={normalizedAngle}
               className="flex-none size-5 stroke-current box-border fill-none origin-center transform-gpu transition-transform duration-1000 ease-out"
