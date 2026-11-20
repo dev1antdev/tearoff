@@ -73,7 +73,7 @@ export const GarageCover = () => {
   }
 
   return (
-    <div className="w-full h-full flex items-center justify-center rounded-xl bg-slate-950">
+    <div className="w-full h-full flex items-center justify-center overlay-panel [--bg-opacity:100%]">
       <img
         src={imageUrl || logoSvg}
         alt="Garage Cover"

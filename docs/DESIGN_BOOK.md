@@ -207,11 +207,11 @@ The utility overlays follow the same rules. System Performance's labels,
 icons and units are `slate-400` and a reading over its warning is a caution,
 `amber-400`. Track Notes draws its icons neutral (a pace note `slate-300`, a
 track note `slate-400`) and a pit-lane note as a caution, `amber-400`, not
-sky (rain) or `amber-300` (you). Garage Cover sits on a near-black,
-`rounded-xl` box. Heart Rate is HypeRate's own page; its sample preview is an
+sky (rain) or `amber-300` (you). Garage Cover sits on an overlay panel,
+opaque. Heart Rate is HypeRate's own page; its sample preview is an
 overlay panel. Stream Chat keeps the platforms' and the chatters' own colours.
-The Widget Group's layout editor draws each member as a near-black,
-`rounded-xl` tile, as its panel looks on the overlay.
+The Widget Group's layout editor draws each member as an opaque overlay
+panel, as it looks on the overlay.
 
 ### 3.2 Neutrals follow the palette
 

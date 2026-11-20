@@ -18,8 +18,6 @@ export default {
         isInGarage: true,
         isGarageVisible: true,
         isOnTrack: false,
-        notInSession: false,
-        dataStale: false,
       },
     }),
     (Story) => (
