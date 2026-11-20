@@ -1,10 +1,13 @@
 import { memo, type ReactNode } from 'react';
 import {
+  IconContext,
   InfoIcon,
   UserIcon,
   WarningIcon,
   WrenchIcon,
 } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
+import { DRIFT_CLASS } from '../../shared/driftTone';
 import type { RacePlanDriftLevel, RacePlanStopRow } from '@irdashies/domain';
 
 export const TimelineFrame = ({
@@ -18,7 +21,9 @@ export const TimelineFrame = ({
     className="@container flex h-full w-full min-h-0 flex-col gap-1.5 overflow-hidden overlay-panel p-2 text-sm text-white"
     style={{ ['--bg-opacity' as string]: `${opacity}%` }}
   >
-    {children}
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      {children}
+    </IconContext.Provider>
   </div>
 );
 
@@ -40,13 +45,6 @@ export const TimelineBanner = memo(({ text }: { text: string }) => (
   </div>
 ));
 TimelineBanner.displayName = 'TimelineBanner';
-
-const DRIFT_CLASS: Record<RacePlanDriftLevel, string> = {
-  // A caution, not you: amber-300 is the overlays' colour for you.
-  behind: 'text-amber-400',
-  ahead: 'text-green-400',
-  'on-plan': 'text-slate-300',
-};
 
 interface TimelineHeaderProps {
   title: string | null;
@@ -85,7 +83,7 @@ export const StopsList = memo(({ stops }: { stops: RacePlanStopRow[] }) => {
       <span className="overlay-label">Unplanned stops</span>
       {stops.map((stop) => (
         <div key={stop.key} className="flex items-center gap-1 text-slate-200">
-          <WrenchIcon size={12} className="flex-none text-amber-300" />
+          <WrenchIcon size={12} className="flex-none text-amber-400" />
           <span className="min-w-0 flex-1 truncate">{stop.text}</span>
           <span className="flex-none tabular-nums text-slate-400">
             {stop.duration}

@@ -40,7 +40,7 @@ const StripSegment = memo(
     >
       {clashLevel && (
         <div
-          className={`absolute inset-x-0 top-0 h-1 ${clashLevel === 'clash' ? 'bg-red-500' : 'bg-amber-300'}`}
+          className={`absolute inset-x-0 top-0 h-1 ${clashLevel === 'clash' ? 'bg-red-500' : 'bg-amber-400'}`}
         />
       )}
     </div>

@@ -13,7 +13,7 @@ export const CREW_DRIVER_GRID =
 export type DriveTimeTone = 'owed' | 'over' | 'quiet';
 
 const TONE_CLASS: Record<DriveTimeTone, string> = {
-  owed: 'text-amber-300',
+  owed: 'text-amber-400',
   over: 'text-red-400',
   quiet: 'text-slate-400',
 };

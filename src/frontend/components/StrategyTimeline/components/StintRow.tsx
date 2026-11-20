@@ -23,7 +23,7 @@ const STATUS_CHIP: Record<RacePlanStintStatus, string> = {
 const rowClass = (status: RacePlanStintStatus, mine: boolean) =>
   [
     'border-t overlay-divider first:border-t-0',
-    status === 'current' ? 'bg-slate-800/60! font-semibold' : '',
+    status === 'current' ? 'overlay-selected font-semibold' : '',
     status === 'done' ? 'text-white/50' : '',
     status === 'dropped' ? 'text-white/40' : '',
     mine && status !== 'done' && status !== 'dropped' ? 'text-amber-300' : '',
@@ -83,7 +83,7 @@ export const StintRow = memo(
               title={clashText}
               aria-label={clashText}
               role="img"
-              className={`flex-none ${clashLevel === 'clash' ? 'text-red-400' : 'text-amber-300'}`}
+              className={`flex-none ${clashLevel === 'clash' ? 'text-red-400' : 'text-amber-400'}`}
             >
               <WarningIcon size={14} weight="fill" />
             </span>

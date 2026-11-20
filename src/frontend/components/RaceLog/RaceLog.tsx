@@ -17,7 +17,8 @@ import {
   type RaceLogKindGroup,
 } from '@irdashies/domain/raceLog';
 import type { RaceLogKinds, RaceLogScope } from '@irdashies/types';
-import { getTailwindStyle } from '@irdashies/utils/colors';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
+import { IconContext } from '@phosphor-icons/react';
 import { RaceLogFilters } from './components/RaceLogFilters';
 import { RaceLogRow, type RaceLogRowProps } from './components/RaceLogRow';
 import { useKeepScroll } from './hooks/useKeepScroll';
@@ -27,12 +28,9 @@ import { useRaceLogSettings } from './hooks/useRaceLogSettings';
 interface GridCar {
   carNumber: string;
   classId: number;
-  /** The bar before its number, in its class colour. */
-  badgeClass: string;
+  /** Its class colour, for the bar before its number. */
+  classColor: number | undefined;
 }
-
-/** A car the session no longer names: a number that is not known. */
-const UNKNOWN_BADGE = 'border-slate-500';
 
 /** The switches as one word: what tells one setting of them from another. */
 const kindsKey = (kinds: RaceLogKinds): string =>
@@ -95,9 +93,7 @@ export const RaceLog = () => {
       cars.set(driver.CarIdx, {
         carNumber: driver.CarNumber,
         classId: driver.CarClassID,
-        // The class colour as the Standings takes it from the session.
-        badgeClass: getTailwindStyle(driver.CarClassColor, undefined, true)
-          .borderColor,
+        classColor: driver.CarClassColor,
       });
     }
     return cars;
@@ -119,7 +115,7 @@ export const RaceLog = () => {
         time: raceEventTime(event, settings.time),
         mark: raceEventMark(event),
         carNumber: event.carIdx === null ? '' : (car?.carNumber ?? NO_VALUE),
-        badgeClass: car?.badgeClass ?? UNKNOWN_BADGE,
+        classColor: car?.classColor,
         text: figure ? text.slice(0, text.length - figure.length) : text,
         figure,
         own: event.carIdx !== null && event.carIdx === own.carIdx,
@@ -150,59 +146,61 @@ export const RaceLog = () => {
         : 'Nothing of the kinds and cars switched on.';
 
   return (
-    <div
-      data-testid="race-log"
-      className="flex h-full w-full flex-col overflow-hidden overlay-panel text-sm text-slate-200 tabular-nums"
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
-      {settings.showFilters && (
-        <RaceLogFilters
-          scope={scope}
-          {...kinds}
-          unseen={scroll.unseen}
-          onScope={onScope}
-          onKind={onKind}
-          onToTop={scroll.toTop}
-        />
-      )}
+    <IconContext.Provider value={OVERLAY_ICONS}>
       <div
-        ref={scroll.ref}
-        onScroll={scroll.onScroll}
-        data-testid="race-log-list"
-        className="min-h-0 flex-1 overflow-y-auto [overflow-anchor:none] [scrollbar-color:rgb(255_255_255/0.2)_transparent] [scrollbar-width:thin]"
+        data-testid="race-log"
+        className="flex h-full w-full flex-col overflow-hidden overlay-panel text-sm text-slate-200 tabular-nums"
+        style={{
+          ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+        }}
       >
-        {rows.length === 0 ? (
-          <p
-            data-testid="race-log-empty"
-            className={`flex items-center justify-center p-3 text-center text-xs text-slate-400 ${
-              offerEarlier ? '' : 'h-full'
-            }`}
-          >
-            {empty}
-          </p>
-        ) : (
-          <ol className="grid grid-cols-[max-content_max-content_minmax(0,1fr)] gap-x-2 py-1">
-            {rows.map((row) => (
-              <RaceLogRow key={row.seq} {...row} />
-            ))}
-          </ol>
+        {settings.showFilters && (
+          <RaceLogFilters
+            scope={scope}
+            {...kinds}
+            unseen={scroll.unseen}
+            onScope={onScope}
+            onKind={onKind}
+            onToTop={scroll.toTop}
+          />
         )}
-        {offerEarlier && (
-          <div className="flex justify-center px-2 pb-2 pt-1">
-            <button
-              type="button"
-              data-testid="race-log-earlier"
-              disabled={loading}
-              onClick={loadEarlier}
-              className="rounded-md border border-slate-600 px-2 py-0.5 text-xs text-slate-300 hover:bg-slate-700/70 disabled:opacity-50"
+        <div
+          ref={scroll.ref}
+          onScroll={scroll.onScroll}
+          data-testid="race-log-list"
+          className="min-h-0 flex-1 overflow-y-auto [overflow-anchor:none] [scrollbar-color:rgb(255_255_255/0.2)_transparent] [scrollbar-width:thin]"
+        >
+          {rows.length === 0 ? (
+            <p
+              data-testid="race-log-empty"
+              className={`flex items-center justify-center p-3 text-center text-xs text-slate-400 ${
+                offerEarlier ? '' : 'h-full'
+              }`}
             >
-              {loading ? 'Reading earlier events' : 'Earlier events'}
-            </button>
-          </div>
-        )}
+              {empty}
+            </p>
+          ) : (
+            <ol className="grid grid-cols-[max-content_max-content_minmax(0,1fr)] gap-x-2 py-1">
+              {rows.map((row) => (
+                <RaceLogRow key={row.seq} {...row} />
+              ))}
+            </ol>
+          )}
+          {offerEarlier && (
+            <div className="flex justify-center px-2 pb-2 pt-1">
+              <button
+                type="button"
+                data-testid="race-log-earlier"
+                disabled={loading}
+                onClick={loadEarlier}
+                className="rounded-md border border-slate-600 px-2 py-0.5 text-xs text-slate-300 hover:bg-slate-700/70 disabled:opacity-50"
+              >
+                {loading ? 'Reading earlier events' : 'Earlier events'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </IconContext.Provider>
   );
 };

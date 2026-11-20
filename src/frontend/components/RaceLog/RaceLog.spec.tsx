@@ -183,8 +183,9 @@ describe('RaceLog', () => {
       .filter((row) => row.getAttribute('data-own') === 'true');
     expect(own.map((row) => row.getAttribute('data-seq'))).toEqual(['4', '3']);
     for (const row of own) {
-      expect(row.querySelector('[data-testid="race-log-car"]')).toHaveClass(
-        'text-amber-300'
+      // Over the shared number's grey.
+      expect(row.querySelector('[data-testid="car-number"]')).toHaveClass(
+        'text-amber-300!'
       );
       expect(row.querySelector('[data-testid="race-log-text"]')).toHaveClass(
         'text-amber-300'
@@ -192,7 +193,7 @@ describe('RaceLog', () => {
     }
     // Another car's number is grey after its class bar, as in the standings.
     const other = screen.getAllByTestId('race-log-row')[0];
-    expect(other.querySelector('[data-testid="race-log-car"]')).toHaveClass(
+    expect(other.querySelector('[data-testid="car-number"]')).toHaveClass(
       'text-slate-400'
     );
     expect(
@@ -214,7 +215,7 @@ describe('RaceLog', () => {
   it('puts each car’s number on its class colour', () => {
     render(<RaceLog />);
 
-    const badges = screen.getAllByTestId('race-log-car');
+    const badges = screen.getAllByTestId('car-number');
     // #92 and #77 share a class; #8 is of another.
     expect(badges[0].className).toContain('#0690ff');
     expect(badges[3].className).toContain('#0690ff');

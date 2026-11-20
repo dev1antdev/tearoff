@@ -7,6 +7,7 @@ import {
   type Icon,
 } from '@phosphor-icons/react';
 import type { RaceEventMark } from '@irdashies/domain/raceLog';
+import { CarNumber } from '../../shared/CarNumberCell/CarNumberCell';
 
 /** What stands at the head of a line that is about the whole field. */
 const MARKS: Record<
@@ -37,8 +38,8 @@ export interface RaceLogRowProps {
   mark: RaceEventMark;
   /** The car's number; empty for a line about the whole field. */
   carNumber: string;
-  /** The classes of the number's badge, in the car's class colour. */
-  badgeClass: string;
+  /** The car's class colour; undefined for a car the session no longer names. */
+  classColor: number | undefined;
   /** What happened, up to the figure that ends it. */
   text: string;
   /** A figure that ends the line and is set apart; empty for none. */
@@ -61,7 +62,7 @@ export const RaceLogRow = memo(
     time,
     mark,
     carNumber,
-    badgeClass,
+    classColor,
     text,
     figure,
     own,
@@ -86,16 +87,13 @@ export const RaceLogRow = memo(
             />
           </span>
         ) : (
-          <span
-            data-testid="race-log-car"
-            // As the standings draw a number: grey, after a bar in its class
-            // colour; yours amber.
-            className={`border-l-4 pl-1 text-right leading-snug ${badgeClass} ${
-              own ? 'text-amber-300' : 'text-slate-400'
-            }`}
-          >
-            #{carNumber}
-          </span>
+          <CarNumber
+            carNumber={carNumber}
+            color={classColor}
+            isMultiClass
+            // Yours amber, as the line about it is.
+            className={`text-right leading-snug ${own ? 'text-amber-300!' : ''}`}
+          />
         )}
         <span
           data-testid="race-log-text"

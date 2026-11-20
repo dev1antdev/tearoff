@@ -12,6 +12,7 @@ import type {
   RacePlanDriftLevel,
   RacePlanFuelLevel,
 } from '@irdashies/domain';
+import { DRIFT_CLASS } from '../../shared/driftTone';
 
 interface StintPlanFrameProps {
   opacity: number;
@@ -158,12 +159,6 @@ export const NextRow = memo(({ label, driverName, start }: NextRowProps) => (
   </div>
 ));
 NextRow.displayName = 'NextRow';
-
-const DRIFT_CLASS: Record<RacePlanDriftLevel, string> = {
-  behind: 'text-amber-400',
-  ahead: 'text-green-400',
-  'on-plan': 'text-slate-300',
-};
 
 export const DriftRow = memo(
   ({ text, level }: { text: string; level: RacePlanDriftLevel }) => (

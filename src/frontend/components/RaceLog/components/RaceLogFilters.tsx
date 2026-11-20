@@ -98,7 +98,7 @@ export const RaceLogFilters = memo(
                   : 'border-slate-700 text-slate-500 hover:text-slate-300'
               }`}
             >
-              <KindIcon size={14} weight={on ? 'fill' : 'light'} />
+              <KindIcon size={14} weight={on ? 'fill' : undefined} />
             </button>
           );
         })}
@@ -108,7 +108,7 @@ export const RaceLogFilters = memo(
           type="button"
           data-testid="race-log-unseen"
           onClick={onToTop}
-          className="ml-auto flex items-center gap-1 rounded-full bg-slate-200 px-1.5 py-0.5 font-semibold leading-snug text-slate-950 hover:bg-white"
+          className="ml-auto flex items-center gap-1 rounded-md bg-slate-200 px-1.5 py-0.5 font-semibold leading-snug text-slate-950 hover:bg-white"
         >
           <ArrowLineUpIcon size={12} weight="bold" />
           {unseen} new
