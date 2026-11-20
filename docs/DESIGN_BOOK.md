@@ -208,8 +208,11 @@ icons and units are `slate-400` and a reading over its warning is a caution,
 `amber-400`. Track Notes draws its icons neutral (a pace note `slate-300`, a
 track note `slate-400`) and a pit-lane note as a caution, `amber-400`, not
 sky (rain) or `amber-300` (you). Garage Cover sits on an overlay panel,
-opaque. Heart Rate is HypeRate's own page; its sample preview is an
-overlay panel. Stream Chat keeps the platforms' and the chatters' own colours.
+opaque. Heart Rate is HypeRate's own page; its sample preview copies HypeRate's red
+heart on an overlay panel. Stream Chat keeps the platforms' and the chatters'
+own colours, and its own Font size in pixels, as Timing keeps its Text Scale:
+the overlay's would resize every saved chat. Track Notes' icons are filled,
+as an outline is lost at their size, and sized by their line's text.
 The Widget Group's layout editor draws each member as an opaque overlay
 panel, as it looks on the overlay.
 
@@ -419,7 +422,7 @@ Do not bundle or fetch Segoe UI; elsewhere the platform UI face stands in.
 
 ## 6. Shape, borders and depth
 
-- Radii: overlay panels `rounded-xl` (12px, part of `overlay-panel`); rev light segments `rounded-[30%]`; a fill or flash box inside an overlay panel (the Delta Speed fill, the Shift Light readout) `rounded-lg`; fields, buttons and licence badges `rounded-md`; larger settings panels and Pit Wall panels `rounded-lg`; dots, thumbs, thin bars and their tracks, a class's colour bar, status pills and scrollbars `rounded-full`; tall bar tracks (Pitlane Helper) `rounded-md`.
+- Radii: overlay panels `rounded-xl` (12px, part of `overlay-panel`); rev light segments `rounded-[30%]`; a fill or flash box inside an overlay panel (the Delta Speed fill, the Shift Light readout) `rounded-lg`; fields, buttons and licence badges `rounded-md`; larger settings panels and Pit Wall panels `rounded-lg`; dots, thumbs, thin bars and their tracks, a class's colour bar, status pills and scrollbars `rounded-full`; tall bar tracks (Pitlane Helper) `rounded-md`. In Settings, the Widget Group editor's member tiles are drawn as the overlay panel (`overlay-panel`, opaque), so a tile reads as the widget it stands for.
 - Separate with hairlines and space, not depth. Shadows only for layers that float over the page (menus, popovers, the profile-switch notice).
 - Scrollbars in `.settings-shell`: 6px, thumb `white/12%` (hover `white/24%`), transparent track.
 

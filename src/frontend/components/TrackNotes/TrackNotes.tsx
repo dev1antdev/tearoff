@@ -1,5 +1,6 @@
 import { memo, useEffect, useState } from 'react';
 import {
+  IconContext,
   MapPinIcon,
   NavigationArrowIcon,
   WrenchIcon,
@@ -19,6 +20,7 @@ import {
 import type { TrackNote } from '@irdashies/types';
 import { useCurrentNotes } from './hooks/useCurrentNotes';
 import { useTrackNotesSettings } from './hooks/useTrackNotesSettings';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 
 const NO_NOTES: readonly TrackNote[] = [];
 /** What the pit road line says on a track with no note written for it. */
@@ -119,11 +121,9 @@ const NoteLine = memo(
         } ${kind === 'pit' ? 'text-amber-400' : ''}`}
         data-testid={`track-notes-${kind}`}
       >
-        <LineIcon
-          size={large ? 14 : 12}
-          weight="fill"
-          className={`flex-none ${ICON_CLASS[kind]}`}
-        />
+        {/* Filled: an outline is lost at this size. Sized by the line's text,
+            so it follows the Font size. */}
+        <LineIcon weight="fill" className={`flex-none ${ICON_CLASS[kind]}`} />
         <span className={`min-w-0 truncate ${uppercase ? 'uppercase' : ''}`}>
           {text}
         </span>
@@ -208,7 +208,9 @@ export const TrackNotes = () => {
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
       }}
     >
-      {children}
+      <IconContext.Provider value={OVERLAY_ICONS}>
+        {children}
+      </IconContext.Provider>
     </div>
   );
 
