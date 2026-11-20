@@ -69,7 +69,7 @@ export const WindDirection = memo(
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 60 60"
-            className="absolute overflow-visible stroke-current stroke-[3] w-full h-full box-border fill-none origin-center transform-gpu transition-transform duration-1000 ease-out"
+            className="absolute overflow-visible stroke-current stroke-[1.5] w-full h-full box-border fill-none origin-center transform-gpu transition-transform duration-1000 ease-out"
             style={{
               rotate: `calc(${normalizedAngle} * 1rad + 0.5turn)`,
             }}

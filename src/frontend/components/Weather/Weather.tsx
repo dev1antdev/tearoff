@@ -20,7 +20,12 @@ import { useWeatherSettings } from './hooks/useWeatherSettings';
 import { WeatherHumidity } from './WeatherHumidity/WeatherHumidity';
 import { WeatherPrecipitation } from './WeatherPrecipitation/WeatherPrecipitation';
 import { useMemo } from 'react';
-import { RoadHorizonIcon, ThermometerIcon } from '@phosphor-icons/react';
+import {
+  IconContext,
+  RoadHorizonIcon,
+  ThermometerIcon,
+} from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 
 type WeatherColumnId =
   | 'trackTemp'
@@ -30,6 +35,12 @@ type WeatherColumnId =
   | 'precipitation'
   | 'wetness'
   | 'trackState';
+
+/** Hairlines between the readings, by layout (gap-2 down, gap-1 across). */
+const RULE_ABOVE =
+  '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-x-0 [&>*+*]:before:-top-1 [&>*+*]:before:h-px [&>*+*]:before:bg-white/5';
+const RULE_BESIDE =
+  '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-y-0 [&>*+*]:before:-left-0.5 [&>*+*]:before:w-px [&>*+*]:before:bg-white/5';
 
 export const Weather = () => {
   const { isDemoMode } = useDashboard();
@@ -206,21 +217,25 @@ export const Weather = () => {
   if (!isSessionVisible) return <></>;
 
   return (
-    <div
-      className="@container w-full p-2 overlay-panel"
-      style={{
-        ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 80}%`,
-      }}
-    >
+    <IconContext.Provider value={OVERLAY_ICONS}>
       <div
-        className={
-          layout === 'horizontal'
-            ? 'flex flex-row flex-wrap w-full gap-1'
-            : 'flex flex-col w-full gap-2'
-        }
+        className="@container w-full p-2 overlay-panel"
+        style={{
+          ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 80}%`,
+        }}
       >
-        {visibleColumnIds.map(renderColumn)}
+        <div
+          // A hairline in the middle of each gap, drawn by a pseudo-element so
+          // it adds no size: beside each reading in a row, above it in a column.
+          className={
+            layout === 'horizontal'
+              ? `flex flex-row flex-wrap w-full gap-1 ${RULE_BESIDE}`
+              : `flex flex-col w-full gap-2 ${RULE_ABOVE}`
+          }
+        >
+          {visibleColumnIds.map(renderColumn)}
+        </div>
       </div>
-    </div>
+    </IconContext.Provider>
   );
 };

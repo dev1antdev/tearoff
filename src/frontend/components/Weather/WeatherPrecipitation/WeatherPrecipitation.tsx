@@ -18,12 +18,9 @@ export const WeatherPrecipitation = memo(
 
     if (variant === 'compact') {
       return (
-        <div
-          className="bg-slate-800/70 px-2 py-1 rounded-sm min-w-0"
-          title="Precipitation"
-        >
+        <div className="px-2 py-1 min-w-0" title="Precipitation">
           <div className="flex items-center gap-x-1.5">
-            <CloudRainIcon size={12} className="flex-none text-white/50" />
+            <CloudRainIcon size={12} className="flex-none text-slate-400" />
             <div className="text-sm font-medium truncate">{value}</div>
           </div>
         </div>
@@ -32,10 +29,10 @@ export const WeatherPrecipitation = memo(
 
     if (variant === 'inline') {
       return (
-        <div className="bg-slate-800/70 px-2 py-1 rounded-sm min-w-0">
+        <div className="px-2 py-1 min-w-0">
           <div className="flex items-center gap-x-1.5 text-sm">
-            <CloudRainIcon size={12} className="flex-none text-white/50" />
-            <span className="truncate min-w-0 text-white/60">
+            <CloudRainIcon size={12} className="flex-none text-slate-400" />
+            <span className="truncate min-w-0 text-slate-400">
               Precipitation
             </span>
             <div className="flex-none whitespace-nowrap text-right font-medium">
@@ -47,13 +44,15 @@ export const WeatherPrecipitation = memo(
     }
 
     return (
-      <div className="bg-slate-800/70 p-2 rounded-sm w-full min-w-0">
+      <div className="p-2 w-full min-w-0">
         <div className="flex flex-row gap-x-2 items-center text-sm">
-          <CloudRainIcon className="flex-none" />
-          <span className="truncate min-w-0 flex-1 @max-[120px]:hidden">
+          <CloudRainIcon className="flex-none text-slate-400" />
+          <span className="overlay-label truncate min-w-0 flex-1 @max-[120px]:hidden">
             Precipitation
           </span>
-          <div className="flex-none whitespace-nowrap text-right">{value}</div>
+          <div className="flex-none whitespace-nowrap text-right font-semibold">
+            {value}
+          </div>
         </div>
       </div>
     );

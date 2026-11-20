@@ -8,9 +8,11 @@ import {
   CloudSunIcon,
   CloudWarningIcon,
   DropIcon,
+  IconContext,
   SunIcon,
   type Icon,
 } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import {
   sessionBarSelectors,
   useDrivingState,
@@ -24,11 +26,11 @@ import { WindArrow } from '../shared/WindArrow';
 import { useWeatherForecastSettings } from './hooks/useWeatherForecastSettings';
 import {
   NO_READING,
+  isWetSky,
   forecastTimeLabel,
   formatForecastPercent,
   formatForecastTemperature,
   formatForecastWind,
-  isWetSky,
   rainBarWidth,
   skyAppearance,
   type SkyGlyph,
@@ -75,7 +77,7 @@ const TrendArrow = ({
 interface ColumnProps {
   /** "Now", "~12m", "~15:40", or a dash. */
   heading: string;
-  /** The live column: a lighter card, and the one that carries trends. */
+  /** The live column: the selected one, and the one that carries trends. */
   live: boolean;
   /** An empty slot: dashes, to hold the row's width. */
   empty: boolean;
@@ -121,22 +123,28 @@ const Column = memo(
   }: ColumnProps) => {
     const sky = skyAppearance(skyType);
     const SkyIcon = SKY_ICONS[sky.glyph];
+    // A wet sky ahead takes its heading in the rain colour, so the eye finds
+    // it along the row.
     const wet = !empty && !live && isWetSky(skyType);
 
     return (
       <div
         className={[
-          'flex min-w-0 flex-col items-center gap-0.5 rounded-sm px-1 py-1',
-          live ? 'bg-slate-700/70' : 'bg-slate-800/70',
-          wet ? 'ring-1 ring-sky-400/60' : '',
+          // No tiles: the column for now is the chosen one.
+          'flex min-w-0 flex-col items-center gap-0.5 px-1 py-1',
+          live ? 'overlay-selected' : '',
           empty ? 'opacity-50' : '',
         ].join(' ')}
       >
-        <div className="max-w-full truncate text-xs leading-4 tabular-nums text-white/60">
+        <div
+          className={`max-w-full truncate text-xs leading-4 tabular-nums ${
+            wet ? 'text-sky-300' : 'text-slate-400'
+          }`}
+        >
           {heading}
         </div>
         {empty ? (
-          <div className="flex h-6 items-center text-sm text-white/40">
+          <div className="flex h-6 items-center text-sm text-slate-500">
             {NO_READING}
           </div>
         ) : (
@@ -171,26 +179,26 @@ const Column = memo(
               />
             </div>
             {rainValue && (
-              <span className="flex-none text-2xs leading-none tabular-nums text-white/70">
+              <span className="flex-none text-2xs leading-none tabular-nums text-slate-400">
                 {rainValue}
               </span>
             )}
             <TrendArrow
               trend={rainTrend}
-              risingClass="text-amber-300"
+              risingClass="text-amber-400"
               fallingClass="text-green-400"
               label="Rain"
             />
           </div>
         )}
         {humidity && (
-          <div className="flex items-center gap-0.5 text-2xs leading-3 tabular-nums text-white/70">
-            <DropIcon size={10} className="flex-none text-white/50" />
+          <div className="flex items-center gap-0.5 text-2xs leading-3 tabular-nums text-slate-400">
+            <DropIcon size={10} className="flex-none text-slate-400" />
             <span>{humidity}</span>
           </div>
         )}
         {windSpeed && (
-          <div className="flex items-center gap-1 text-2xs leading-3 tabular-nums text-white/70">
+          <div className="flex items-center gap-1 text-2xs leading-3 tabular-nums text-slate-400">
             {windDirection !== null && (
               <WindArrow
                 direction={windDirection}
@@ -319,38 +327,40 @@ export const WeatherForecast = () => {
   const lead = settings.reverse ? slots - columns.length : 0;
 
   return (
-    <div
-      // What it holds is centred by its own margins and not by this box:
-      // in a box too short for it, margins leave it at the top, from where
-      // a panel can scroll down it. Centred by the box it would be cut at
-      // both ends, with its top above where any scrolling reaches. The
-      // room above and below it is those margins and no padding of the
-      // box, which would push it out of a box it only just fits.
-      className="flex h-full w-full flex-col overlay-panel px-2 text-white"
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
-      {columns.length === 0 ? (
-        <div className="my-auto text-center text-xs text-white/60">
-          {snapshot?.available ? 'No further forecast' : 'No forecast'}
-        </div>
-      ) : (
-        <div
-          data-testid="weather-forecast-columns"
-          className="my-auto grid gap-1"
-          style={{
-            gridTemplateColumns: `repeat(${slots}, minmax(0, 1fr))`,
-          }}
-        >
-          {Array.from({ length: lead }, (_, index) => (
-            <div key={`lead-${index}`} aria-hidden="true" />
-          ))}
-          {ordered.map(({ key, ...column }) => (
-            <Column key={key} {...column} />
-          ))}
-        </div>
-      )}
-    </div>
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        // What it holds is centred by its own margins and not by this box:
+        // in a box too short for it, margins leave it at the top, from where
+        // a panel can scroll down it. Centred by the box it would be cut at
+        // both ends, with its top above where any scrolling reaches. The
+        // room above and below it is those margins and no padding of the
+        // box, which would push it out of a box it only just fits.
+        className="flex h-full w-full flex-col overlay-panel px-2 text-white"
+        style={{
+          ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+        }}
+      >
+        {columns.length === 0 ? (
+          <div className="my-auto text-center text-xs text-slate-400">
+            {snapshot?.available ? 'No further forecast' : 'No forecast'}
+          </div>
+        ) : (
+          <div
+            data-testid="weather-forecast-columns"
+            className="my-auto grid gap-1"
+            style={{
+              gridTemplateColumns: `repeat(${slots}, minmax(0, 1fr))`,
+            }}
+          >
+            {Array.from({ length: lead }, (_, index) => (
+              <div key={`lead-${index}`} aria-hidden="true" />
+            ))}
+            {ordered.map(({ key, ...column }) => (
+              <Column key={key} {...column} />
+            ))}
+          </div>
+        )}
+      </div>
+    </IconContext.Provider>
   );
 };

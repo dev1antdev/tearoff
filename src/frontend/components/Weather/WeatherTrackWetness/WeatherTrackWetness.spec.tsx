@@ -20,7 +20,9 @@ describe('WeatherTrackWetness', () => {
     ];
 
     testCases.forEach(({ moisture, expected }) => {
-      const { rerender } = render(<WeatherTrackWetness trackMoisture={moisture} />);
+      const { rerender } = render(
+        <WeatherTrackWetness trackMoisture={moisture} />
+      );
       expect(screen.getByText(expected)).toBeInTheDocument();
       rerender(<></>); // Clean up between tests
     });
@@ -34,7 +36,9 @@ describe('WeatherTrackWetness', () => {
     ];
 
     testCases.forEach(({ moisture, expected }) => {
-      const { rerender, container } = render(<WeatherTrackWetness trackMoisture={moisture} />);
+      const { rerender, container } = render(
+        <WeatherTrackWetness trackMoisture={moisture} />
+      );
       const progressBar = container.querySelector('[style*="width"]');
       expect(progressBar).toHaveStyle(`width: ${expected}`);
       rerender(<></>); // Clean up between tests
@@ -46,4 +50,4 @@ describe('WeatherTrackWetness', () => {
     // Since Phosphor icons are rendered as SVGs, we can check for their presence
     expect(container.querySelectorAll('svg')).toHaveLength(3);
   });
-}); 
+});
