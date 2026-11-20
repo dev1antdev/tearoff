@@ -150,8 +150,10 @@ export const FasterCarsFromBehindDisplay = memo(
             role="group"
             aria-label={classDescription}
             title={classDescription}
-            // The class as the standings draw it: a bar in its colour.
-            className={`flex shrink-0 self-stretch flex-col items-center justify-center overflow-hidden border-l-4 text-xs font-semibold text-slate-300 ${classStyle.borderColor} ${density.classBlock}`}
+            // The class as the standings draw it: a bar in its colour. The
+            // bar sits outside the block's width and in the gap after it, so
+            // the class code keeps all the room it had.
+            className={`-mr-1 box-content flex shrink-0 self-stretch flex-col items-center justify-center overflow-hidden border-l-4 text-xs font-semibold text-slate-300 ${classStyle.borderColor} ${density.classBlock}`}
           >
             <span className="block max-w-full px-0.5 font-mono">
               {formatClassLabel(className)}

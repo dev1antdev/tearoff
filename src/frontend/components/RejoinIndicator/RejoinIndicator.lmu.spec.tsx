@@ -107,6 +107,16 @@ describe('the Rejoin Indicator on a recorded LMU race', () => {
     expect(stop.querySelector('.outline-red-500')).not.toBeNull();
   });
 
+  it('staged: a Care Gap under the Stop Gap still calls a gap over it clear', () => {
+    // 2.45 s is over the 1 s care gap: Clear, as the widget always read,
+    // although it is under the 3 s stop gap.
+    const container = rejoin(staged(race, crawling), {
+      careGap: 1,
+      stopGap: 3,
+    });
+    expect(container.textContent).toContain('Clear');
+  });
+
   it('staged: slow in the pit lane, stays hidden', () => {
     expect(rejoin(staged(race, crawlingInPitLane)).textContent).toBe('');
   });

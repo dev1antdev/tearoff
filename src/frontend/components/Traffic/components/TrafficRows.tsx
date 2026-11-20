@@ -196,11 +196,18 @@ export const MirrorRow = memo(
             </span>
           )}
         </span>
+        {/* An urgent gap keeps a dark scrim of its own whatever the panel's
+            opacity, so the red reads over a bright scene. Drawn as an outline
+            past the figure, so it takes no room. */}
         <span
           data-testid="traffic-gap"
           className={`min-w-[3.2ch] flex-none text-right leading-none font-bold tabular-nums ${
             isHead ? 'text-xl' : 'text-base'
-          } ${urgent ? 'text-red-400' : ''}`}
+          } ${
+            urgent
+              ? 'rounded-sm bg-slate-950/70 text-red-400 outline-2 outline-slate-950/70'
+              : ''
+          }`}
         >
           {gap}
           <span className="text-[0.6em] font-semibold text-slate-400"> s</span>

@@ -278,11 +278,12 @@ describe('Traffic', () => {
       expect(one(container, 'traffic-gap')?.className).not.toContain('red');
     });
 
-    it('turns the gap of traffic red under a second', () => {
+    it('turns the gap of traffic red under a second, on a scrim of its own', () => {
       const container = show(traffic({ behind: [car({ gapS: 0.6 })] }));
-      expect(one(container, 'traffic-gap')?.className).toContain(
-        'text-red-400'
-      );
+      const gap = one(container, 'traffic-gap');
+      expect(gap?.className).toContain('text-red-400');
+      // Readable over the scene whatever the panel's opacity.
+      expect(gap?.className).toContain('bg-slate-950/70');
     });
 
     it('leaves the rival out when the setting says so', () => {

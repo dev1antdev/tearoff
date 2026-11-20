@@ -13,12 +13,9 @@ import {
 } from '@irdashies/context';
 import { useDriverRelatives, type Standings } from '@irdashies/domain';
 import { useRejoinSettings } from './hooks/useRejoinSettings';
-import { getDemoRejoinData } from './demoData';
+import { getDemoRejoinData, rejoinStateOf } from './demoData';
 import { speedFromMs } from '@irdashies/utils/units';
-import {
-  stateOf,
-  type RejoinState,
-} from '@irdashies/domain/traffic/pitExitTraffic';
+import type { RejoinState } from '@irdashies/domain/traffic/pitExitTraffic';
 import { REJOIN_LOOK } from '../shared/rejoinLook';
 
 export const RejoinIndicator = () => {
@@ -82,10 +79,9 @@ export const RejoinIndicator = () => {
   const gap = Math.abs(carBehind?.delta ?? Number.POSITIVE_INFINITY);
   const gapLabel = Number.isFinite(gap) ? gap.toFixed(1) : '--';
 
-  const state = stateOf(
+  const state = rejoinStateOf(
     Number.isFinite(gap) ? gap : undefined,
-    settings.config.careGap,
-    settings.config.stopGap
+    settings.config
   );
 
   // Player on pit road uses previously read telemetry
@@ -137,8 +133,10 @@ export const RejoinIndicatorDisplay = ({
       className={`w-full flex items-center justify-between overlay-panel [--bg-opacity:100%] p-2 font-bold text-white ${look.outline}`}
     >
       <div className="text-lg tabular-nums">{gapLabel}</div>
-      {/* Partly into the panel's padding, clear of the outline. */}
-      <div className={`-mr-1 px-2 text-lg ${look.pill}`}>
+      {/* Two steps under the gap and partly into the panel's padding, clear
+          of the outline: the widest state, Do Not Rejoin, then takes no more
+          width than the bare word did, so a window sized to it still fits. */}
+      <div className={`-mr-1 px-1.5 text-sm ${look.pill}`}>
         {state && REJOIN_WORD[state]}
       </div>
     </div>
