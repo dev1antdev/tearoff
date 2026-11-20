@@ -42,7 +42,8 @@ export const TimelineBanner = memo(({ text }: { text: string }) => (
 TimelineBanner.displayName = 'TimelineBanner';
 
 const DRIFT_CLASS: Record<RacePlanDriftLevel, string> = {
-  behind: 'text-amber-300',
+  // A caution, not you: amber-300 is the overlays' colour for you.
+  behind: 'text-amber-400',
   ahead: 'text-green-400',
   'on-plan': 'text-slate-300',
 };

@@ -6,7 +6,7 @@ import type { RacePlanStintStatus } from '@irdashies/types';
 const SEGMENT_CLASS: Record<RacePlanStintStatus, string> = {
   done: 'bg-slate-600',
   current: 'bg-slate-400',
-  upcoming: 'bg-slate-800',
+  upcoming: 'bg-slate-700',
   unassigned: 'bg-amber-500/50',
   dropped: 'bg-transparent',
 };

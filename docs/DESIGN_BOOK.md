@@ -186,6 +186,19 @@ card), the class a bar in its colour, its proximity bar on a `slate-800` track
 flag's `blue-500`, not sky, which is rain. Slow Car Ahead's bars sit on a bar track; the Blind Spot Monitor stays
 a graphic, its track in the palette's darkest neutral.
 
+Strategy and race history (Crew and Stints, Stint History, Stint Timeline,
+Strategy Timeline, Race Log, Race Charts) are tables and timelines on the
+panel. A table has no stripes, a hairline between rows (in a grid, the row's top
+pixel of background, so no row is taller), the line under way
+`overlay-selected`, and its captions `overlay-label` (at the table's own `em`
+size where it is sized in `em`). The Strategy Timeline's statuses are tinted
+pills, `rounded-full`, the stint in the car the one bright neutral; its strip
+and its current row are neutrals, not sky (rain); behind plan is a caution,
+`amber-400`. The Race Log writes a car's number grey after a bar in its class
+colour, yours amber. Timelines and charts keep the driver and class colours;
+rivals' stints are dark greys, so our own car's driver colours are the bright
+spot. Their button groups are `rounded-md`.
+
 ### 3.2 Neutrals follow the palette
 
 The driver picks one of four palettes. Each remaps `--color-slate-*` under
