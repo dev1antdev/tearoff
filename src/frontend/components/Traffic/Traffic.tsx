@@ -1,9 +1,11 @@
 import { useMemo } from 'react';
 import {
   CheckCircleIcon,
+  IconContext,
   TimerIcon,
   TrafficConeIcon,
 } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import {
   useCurrentSessionType,
   useDrivingState,
@@ -44,6 +46,7 @@ import {
 import type { LapPlace } from '@irdashies/shared';
 import { DriverName, extractDriverName } from '../shared/DriverName/DriverName';
 import { CarChip, ContactTile, MirrorRow } from './components/TrafficRows';
+import { REJOIN_LOOK } from '../shared/rejoinLook';
 import { useTrafficSettings } from './hooks/useTrafficSettings';
 
 /** A car this close behind is on you. */
@@ -63,12 +66,6 @@ const selectLanePct = (snapshot: TrackStateSnapshot): number =>
   snapshot.onPitRoad ? Math.round(snapshot.lapDistPct * 1000) / 1000 : -1;
 const selectLaneSpeed = (snapshot: TrackStateSnapshot): number =>
   snapshot.onPitRoad ? Math.round(snapshot.speed) : 0;
-
-const REJOIN_BACKGROUND: Record<RejoinState, string> = {
-  clear: 'bg-green-700',
-  caution: 'bg-amber-600',
-  danger: 'bg-red-700',
-};
 
 const REJOIN_WORD: Record<RejoinState, string> = {
   clear: 'Clear',
@@ -207,79 +204,88 @@ export const Traffic = () => {
       ...rejoin.behind.map((row) => ({ row, ahead: false })),
     ];
     return (
-      <div
-        data-testid="traffic"
-        data-block={rejoin.mode}
-        data-state={rejoin.state}
-        className={`flex h-full w-full flex-col gap-1.5 rounded p-2 font-medium text-white ${REJOIN_BACKGROUND[rejoin.state]}`}
-      >
-        <div className="flex items-center gap-1.5 leading-none">
-          <TrafficConeIcon weight="fill" size="1.1em" aria-hidden="true" />
-          <span className="text-sm font-extrabold tracking-wide uppercase">
-            {rejoin.mode === 'exit' ? 'Pit exit' : 'Rejoin'}
-          </span>
-          <span
-            data-testid="traffic-rejoin-state"
-            className="rounded bg-slate-950/25 px-1.5 py-0.5 text-xs font-bold uppercase"
-          >
-            {REJOIN_WORD[rejoin.state]}
-          </span>
-          {rejoin.toExitS !== null && (
+      <IconContext.Provider value={OVERLAY_ICONS}>
+        <div
+          data-testid="traffic"
+          data-block={rejoin.mode}
+          data-state={rejoin.state}
+          // Opaque, as the coloured block was, so the warning reads over any
+          // scene; the state's word and the outline carry its colour.
+          className={`flex h-full w-full flex-col gap-1.5 overlay-panel [--bg-opacity:100%] p-2 font-medium text-white ${REJOIN_LOOK[rejoin.state].outline}`}
+        >
+          <div className="flex items-center gap-1.5 leading-none">
+            <TrafficConeIcon weight="fill" size="1.1em" aria-hidden="true" />
+            <span className="text-sm font-extrabold tracking-wide uppercase">
+              {rejoin.mode === 'exit' ? 'Pit exit' : 'Rejoin'}
+            </span>
             <span
-              data-testid="traffic-to-exit"
-              className="ml-auto text-xs tabular-nums"
+              data-testid="traffic-rejoin-state"
+              className={`rounded px-1.5 py-0.5 text-xs font-bold uppercase ${REJOIN_LOOK[rejoin.state].pill}`}
             >
-              exit line in {rejoin.toExitS.toFixed(0)} s
+              {REJOIN_WORD[rejoin.state]}
             </span>
-          )}
-          {!rejoin.atExit && snapshot.inPitLane && (
-            <span className="ml-auto text-xs text-white/80">
-              exit not measured yet
-            </span>
+            {rejoin.toExitS !== null && (
+              <span
+                data-testid="traffic-to-exit"
+                className="ml-auto text-xs tabular-nums"
+              >
+                exit line in {rejoin.toExitS.toFixed(0)} s
+              </span>
+            )}
+            {!rejoin.atExit && snapshot.inPitLane && (
+              <span className="ml-auto text-xs text-slate-400">
+                exit not measured yet
+              </span>
+            )}
+          </div>
+          {rows.length === 0 ? (
+            <div
+              data-testid="traffic-rejoin-clear"
+              className="flex flex-1 items-center gap-1.5 text-lg font-bold"
+            >
+              <CheckCircleIcon
+                weight="fill"
+                className="text-green-400"
+                aria-hidden="true"
+              />
+              Nobody within {settings.behindWindow} s
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5 overlay-rules-y">
+              {rows.map(({ row, ahead }) => {
+                const car = chip(row.carIdx);
+                return (
+                  <div
+                    key={row.carIdx}
+                    data-testid="traffic-rejoin-row"
+                    data-side={ahead ? 'ahead' : 'behind'}
+                    className={`flex min-w-0 items-center gap-2 px-1.5 py-0.5 ${
+                      ahead ? 'text-slate-300' : ''
+                    }`}
+                  >
+                    <CarChip
+                      number={car.number}
+                      classColor={car.classColor}
+                      highlightColor={highlightColor}
+                      isMultiClass={isMultiClass}
+                    />
+                    <span className="min-w-0 flex-1 truncate text-sm">
+                      {car.label}
+                    </span>
+                    <span className="flex-none text-2xs font-bold uppercase">
+                      {ahead ? 'goes by first' : 'arrives behind'}
+                    </span>
+                    <span className="min-w-[4.5ch] flex-none text-right text-lg leading-none font-bold tabular-nums">
+                      {signedSeconds(row.offsetS)}
+                      <span className="text-[0.6em] font-semibold"> s</span>
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
-        {rows.length === 0 ? (
-          <div
-            data-testid="traffic-rejoin-clear"
-            className="flex flex-1 items-center gap-1.5 text-lg font-bold"
-          >
-            <CheckCircleIcon weight="fill" aria-hidden="true" />
-            Nobody within {settings.behindWindow} s
-          </div>
-        ) : (
-          rows.map(({ row, ahead }) => {
-            const car = chip(row.carIdx);
-            return (
-              <div
-                key={row.carIdx}
-                data-testid="traffic-rejoin-row"
-                data-side={ahead ? 'ahead' : 'behind'}
-                className={`flex min-w-0 items-center gap-2 rounded bg-slate-950/25 px-1.5 py-0.5 ${
-                  ahead ? 'text-white/75' : ''
-                }`}
-              >
-                <CarChip
-                  number={car.number}
-                  classColor={car.classColor}
-                  highlightColor={highlightColor}
-                  isMultiClass={isMultiClass}
-                  ringed
-                />
-                <span className="min-w-0 flex-1 truncate text-sm">
-                  {car.label}
-                </span>
-                <span className="flex-none text-2xs font-bold uppercase">
-                  {ahead ? 'goes by first' : 'arrives behind'}
-                </span>
-                <span className="min-w-[4.5ch] flex-none text-right text-lg leading-none font-bold tabular-nums">
-                  {signedSeconds(row.offsetS)}
-                  <span className="text-[0.6em] font-semibold"> s</span>
-                </span>
-              </div>
-            );
-          })
-        )}
-      </div>
+      </IconContext.Provider>
     );
   }
 
@@ -333,130 +339,138 @@ export const Traffic = () => {
   }
 
   return (
-    <div
-      data-testid="traffic"
-      data-block="closing"
-      className="flex h-full w-full flex-col gap-1.5 overlay-panel p-2 font-medium text-white"
-      style={{ ['--bg-opacity' as string]: `${opacity}%` }}
-    >
-      {settings.showMirror &&
-        (rows.length === 0 ? (
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        data-testid="traffic"
+        data-block="closing"
+        className="flex h-full w-full flex-col gap-1.5 overlay-panel p-2 font-medium text-white"
+        style={{ ['--bg-opacity' as string]: `${opacity}%` }}
+      >
+        {settings.showMirror &&
+          (rows.length === 0 ? (
+            <div
+              data-testid="traffic-clear"
+              className="flex items-center gap-1.5 px-1.5 py-1.5 text-sm leading-none text-slate-400"
+            >
+              <CheckCircleIcon
+                weight="fill"
+                className="text-green-500"
+                aria-hidden="true"
+              />
+              Clear behind
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5 overlay-rules-y">
+              {rows.map((car, index) => {
+                const facts = chip(car.carIdx);
+                return (
+                  <MirrorRow
+                    key={car.carIdx}
+                    number={facts.number}
+                    label={facts.label}
+                    classColor={facts.classColor}
+                    highlightColor={highlightColor}
+                    isMultiClass={isMultiClass}
+                    relation={car.relation}
+                    gap={gapText(car.gapS)}
+                    urgent={
+                      isTrafficRelation(car.relation) &&
+                      car.gapS !== null &&
+                      car.gapS < URGENT_GAP_S
+                    }
+                    level={closingLevel(car.closingS)}
+                    perLap={
+                      settings.showClosingRate
+                        ? closingPerLapText(car.closingS, snapshot.lapS)
+                        : null
+                    }
+                    lapsAhead={car.lapsAhead}
+                    isHead={index === 0}
+                    more={index === rows.length - 1 ? hiddenTraffic : 0}
+                  />
+                );
+              })}
+            </div>
+          ))}
+
+        {forecast && (
           <div
-            data-testid="traffic-clear"
-            className="flex items-center gap-1.5 rounded bg-slate-900/70 px-1.5 py-1.5 text-sm leading-none text-slate-400"
+            data-testid="traffic-forecast"
+            className="flex min-w-0 items-center gap-1.5 px-1 text-sm leading-tight"
           >
-            <CheckCircleIcon
-              weight="fill"
-              className="text-green-500"
+            <TimerIcon
+              className={`flex-none ${
+                forecast.etaS <= IMMINENT_S
+                  ? 'text-amber-400'
+                  : 'text-slate-400'
+              }`}
               aria-hidden="true"
             />
-            Clear behind
-          </div>
-        ) : (
-          rows.map((car, index) => {
-            const facts = chip(car.carIdx);
-            return (
-              <MirrorRow
-                key={car.carIdx}
-                number={facts.number}
-                label={facts.label}
-                classColor={facts.classColor}
+            {/* Named where it is not the car in the first row. */}
+            {forecast.carIdx !== rows[0]?.carIdx && forecastCar.number && (
+              <CarChip
+                number={forecastCar.number}
+                classColor={forecastCar.classColor}
                 highlightColor={highlightColor}
                 isMultiClass={isMultiClass}
-                relation={car.relation}
-                gap={gapText(car.gapS)}
-                urgent={
-                  isTrafficRelation(car.relation) &&
-                  car.gapS !== null &&
-                  car.gapS < URGENT_GAP_S
-                }
-                level={closingLevel(car.closingS)}
-                perLap={
-                  settings.showClosingRate
-                    ? closingPerLapText(car.closingS, snapshot.lapS)
-                    : null
-                }
-                lapsAhead={car.lapsAhead}
-                isHead={index === 0}
-                more={index === rows.length - 1 ? hiddenTraffic : 0}
               />
-            );
-          })
-        ))}
-
-      {forecast && (
-        <div
-          data-testid="traffic-forecast"
-          className="flex min-w-0 items-center gap-1.5 px-1 text-sm leading-tight"
-        >
-          <TimerIcon
-            weight="bold"
-            className={`flex-none ${
-              forecast.etaS <= IMMINENT_S ? 'text-amber-300' : 'text-slate-400'
-            }`}
-            aria-hidden="true"
-          />
-          {/* Named where it is not the car in the first row. */}
-          {forecast.carIdx !== rows[0]?.carIdx && forecastCar.number && (
-            <CarChip
-              number={forecastCar.number}
-              classColor={forecastCar.classColor}
-              highlightColor={highlightColor}
-              isMultiClass={isMultiClass}
-            />
-          )}
-          <span className="min-w-0 truncate">
-            <span
-              data-testid="traffic-forecast-time"
-              className={`font-semibold ${
-                forecast.etaS <= IMMINENT_S ? 'text-amber-300' : ''
-              }`}
-            >
-              {forecastTimeText(forecast, snapshot.lapS)}
-            </span>
-            {place && (
-              <span
-                data-testid="traffic-forecast-place"
-                className="text-slate-300"
-              >
-                , {place}
-              </span>
             )}
-          </span>
-        </div>
-      )}
+            <span className="min-w-0 truncate">
+              <span
+                data-testid="traffic-forecast-time"
+                className={`font-semibold ${
+                  forecast.etaS <= IMMINENT_S ? 'text-amber-400' : ''
+                }`}
+              >
+                {forecastTimeText(forecast, snapshot.lapS)}
+              </span>
+              {place && (
+                <span
+                  data-testid="traffic-forecast-place"
+                  className="text-slate-300"
+                >
+                  , {place}
+                </span>
+              )}
+            </span>
+          </div>
+        )}
 
-      {columns.length > 0 && (
-        <div
-          className="mt-auto grid gap-1.5"
-          style={{
-            gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`,
-          }}
-        >
-          {columns.map(({ key, caption, pick, blue }) => {
-            const facts = pick ? chip(pick.carIdx) : NO_CAR;
-            const laps = contactLapsText(pick?.laps ?? null, settings.maxLaps);
-            return (
-              <ContactTile
-                key={key}
-                caption={caption}
-                number={pick ? facts.number || String(pick.carIdx) : ''}
-                classColor={facts.classColor}
-                highlightColor={highlightColor}
-                isMultiClass={isMultiClass}
-                laps={laps}
-                gap={gapText(pick?.gapS ?? null)}
-                thisLap={
-                  settings.highlightThisLap &&
-                  laps !== '--' &&
-                  pick?.thisLap === true
-                }
-                blue={blue}
-              />
-            );
-          })}
-        </div>
-      )}
-    </div>
+        {columns.length > 0 && (
+          <div
+            className="mt-auto grid gap-1.5 overlay-rules-x"
+            style={{
+              gridTemplateColumns: `repeat(${columns.length}, minmax(0, 1fr))`,
+            }}
+          >
+            {columns.map(({ key, caption, pick, blue }) => {
+              const facts = pick ? chip(pick.carIdx) : NO_CAR;
+              const laps = contactLapsText(
+                pick?.laps ?? null,
+                settings.maxLaps
+              );
+              return (
+                <ContactTile
+                  key={key}
+                  caption={caption}
+                  number={pick ? facts.number || String(pick.carIdx) : ''}
+                  classColor={facts.classColor}
+                  highlightColor={highlightColor}
+                  isMultiClass={isMultiClass}
+                  laps={laps}
+                  gap={gapText(pick?.gapS ?? null)}
+                  thisLap={
+                    settings.highlightThisLap &&
+                    laps !== '--' &&
+                    pick?.thisLap === true
+                  }
+                  blue={blue}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </IconContext.Provider>
   );
 };

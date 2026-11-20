@@ -88,18 +88,23 @@ describe('the Rejoin Indicator on a recorded LMU race', () => {
     // 2.45 s by the sim's time into the lap, which is over the care gap.
     expect(container.textContent).toContain('2.4s');
     expect(container.textContent).toContain('Clear');
-    expect(container.querySelector('.bg-green-700')).not.toBeNull();
+    // Calm: the word tinted, no outline round the panel.
+    expect(container.querySelector('.text-green-300')).not.toBeNull();
+    expect(container.querySelector('[class*="outline-"]')).toBeNull();
   });
 
   it('staged: grades that gap by the thresholds set', () => {
     const caution = rejoin(staged(race, crawling), { careGap: 3, stopGap: 1 });
     expect(caution.textContent).toContain('Caution');
-    expect(caution.querySelector('.bg-amber-600')).not.toBeNull();
+    // The word filled, the panel ringed in the caution's colour.
+    expect(caution.querySelector('.bg-amber-500')).not.toBeNull();
+    expect(caution.querySelector('.outline-amber-400')).not.toBeNull();
     cleanup();
 
     const stop = rejoin(staged(race, crawling), { careGap: 4, stopGap: 3 });
     expect(stop.textContent).toContain('Do Not Rejoin');
-    expect(stop.querySelector('.bg-red-700')).not.toBeNull();
+    expect(stop.querySelector('.bg-red-600')).not.toBeNull();
+    expect(stop.querySelector('.outline-red-500')).not.toBeNull();
   });
 
   it('staged: slow in the pit lane, stays hidden', () => {

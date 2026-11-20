@@ -65,16 +65,15 @@ export const BlindSpotMonitorIndicator = ({
       <div
         className={`absolute inset-y-0 rounded-full ${side === 'left' ? 'left-0' : 'right-0'} overflow-hidden`}
         style={{
+          // The palette's darkest neutral, as an overlay panel is; the border
+          // is the same ground, an inset round the moving bar.
           backgroundColor:
             bgOpacity !== undefined && bgOpacity > 0
-              ? `rgba(0, 0, 0, ${bgOpacity / 100})`
+              ? `color-mix(in oklab, var(--color-slate-950) ${bgOpacity}%, transparent)`
               : 'transparent',
           borderStyle: 'solid',
           borderWidth: `${borderSize ?? 1}px`,
-          borderColor:
-            bgOpacity !== undefined && bgOpacity > 0
-              ? `rgba(0, 0, 0, ${bgOpacity / 100})`
-              : 'transparent',
+          borderColor: 'transparent',
           width: widthPx,
         }}
       >
@@ -92,7 +91,7 @@ export const BlindSpotMonitorIndicator = ({
           <div
             className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 ${
               side === 'left' ? 'rotate-180' : ''
-            } bg-slate-950/70 px-2 py-0.5 rounded-full text-amber-500 text-xs font-semibold whitespace-nowrap animate-blink text-shadow-md`}
+            } bg-slate-950/70 px-2 py-0.5 rounded-full text-amber-400 text-xs font-semibold whitespace-nowrap animate-blink`}
             style={{
               writingMode: 'vertical-rl',
               textOrientation: 'mixed',

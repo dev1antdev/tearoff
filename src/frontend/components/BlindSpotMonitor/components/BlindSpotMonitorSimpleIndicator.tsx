@@ -50,7 +50,7 @@ export const BlindSpotMonitorSimpleIndicator = memo(
           fontSize: `${Math.round(size * 0.5)}px`,
           fontWeight: 700,
           fontFamily: 'inherit',
-          color: '#1e293b',
+          color: 'var(--color-slate-900)',
         }}
       >
         {showCount && carCount}

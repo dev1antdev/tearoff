@@ -155,6 +155,18 @@ between classes, and the focus car's class `overlay-selected`. Finish
 Projection's column for now is `overlay-selected`; a margin near a lap's edge
 is a caution, `amber-400`.
 
+Traffic alerts are calm until they warn. A rejoin or pit-exit warning (Rejoin
+Indicator, Traffic's pit exit block) is an opaque panel, not a block of
+colour: the state's word is the one bright spot (`REJOIN_LOOK`), filled for a
+caution (`amber-500`) or a danger (`red-600`) and tinted when clear, and a
+caution or a danger rings the panel in its colour (a 2px outline inside the
+edge, as the Fuel Calculator's warning). Traffic's mirror rows and contact
+columns have no tiles, a hairline between them; a car coming to lap you keeps
+its blue outline, and a meeting inside the lap is a caution. Faster Cars From
+Behind draws each car as an opaque card of its own, the class a bar in its
+colour. Slow Car Ahead's bars sit on a bar track; the Blind Spot Monitor stays
+a graphic, its track in the palette's darkest neutral.
+
 ### 3.2 Neutrals follow the palette
 
 The driver picks one of four palettes. Each remaps `--color-slate-*` under

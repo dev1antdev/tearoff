@@ -179,7 +179,8 @@ describe('FasterCarsFromBehind', () => {
     const cards = screen.getAllByRole('listitem');
     expect(within(cards[0]).getByText('Further Driver')).toBeInTheDocument();
     expect(within(cards[1]).getByText(car.name)).toBeInTheDocument();
-    expect(cards[1]).toHaveClass('bg-slate-800');
+    expect(cards[1]).toHaveClass('bg-slate-900');
+    expect(cards[0]).not.toHaveClass('bg-slate-900');
   });
 
   it('respects name cleanup and optional badge and gap visibility', () => {

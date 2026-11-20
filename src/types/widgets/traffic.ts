@@ -58,7 +58,7 @@ export default defineWidgetManifest({
       type: 'boolean',
       label: 'Show Cars Behind',
       description:
-        'The cars closing from behind, nearest first: number in the class colour, gap, and an arrow for how fast it is closing.',
+        'The cars closing from behind, nearest first: number by its class colour, gap, and an arrow for how fast it is closing.',
     },
     mirrorRows: {
       type: 'enum',

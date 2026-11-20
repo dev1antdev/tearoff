@@ -15,6 +15,8 @@ import { useDriverRelatives, type Standings } from '@irdashies/domain';
 import { useRejoinSettings } from './hooks/useRejoinSettings';
 import { getDemoRejoinData } from './demoData';
 import { speedFromMs } from '@irdashies/utils/units';
+import type { RejoinState } from '@irdashies/domain/traffic/pitExitTraffic';
+import { REJOIN_LOOK } from '../shared/rejoinLook';
 
 export const RejoinIndicator = () => {
   const { isDemoMode } = useDashboard();
@@ -85,13 +87,13 @@ export const RejoinIndicator = () => {
   const cfg = settings
     ? settings.config
     : { careGap: Number.POSITIVE_INFINITY, stopGap: Number.POSITIVE_INFINITY };
-  const status = !Number.isFinite(gap)
-    ? { label: 'Clear', color: 'green' }
+  const status: RejoinStatus = !Number.isFinite(gap)
+    ? 'Clear'
     : gap >= cfg.careGap
-      ? { label: 'Clear', color: 'green' }
+      ? 'Clear'
       : gap >= cfg.stopGap
-        ? { label: 'Caution', color: 'amber' }
-        : { label: 'Do Not Rejoin', color: 'red' };
+        ? 'Caution'
+        : 'Do Not Rejoin';
 
   // Player on pit road uses previously read telemetry
   const playerOnPitRoad =
@@ -116,21 +118,15 @@ export const RejoinIndicator = () => {
   if (isHiddenByNoCarBehind) return null;
   if (isHiddenBySessionStart) return null;
 
-  const statusBg =
-    status.color === 'green'
-      ? 'bg-green-700'
-      : status.color === 'amber'
-        ? 'bg-amber-600'
-        : 'bg-red-700';
+  return <RejoinIndicatorDisplay gap={`${gapLabel}s`} status={status} />;
+};
 
-  return (
-    <div
-      className={`w-full flex justify-between rounded-sm p-2 font-bold text-white ${statusBg}`}
-    >
-      <div className="text-lg">{gapLabel}s</div>
-      <div className="text-lg">{status.label}</div>
-    </div>
-  );
+type RejoinStatus = 'Clear' | 'Caution' | 'Do Not Rejoin';
+
+const STATE_OF: Record<RejoinStatus, RejoinState> = {
+  Clear: 'clear',
+  Caution: 'caution',
+  'Do Not Rejoin': 'danger',
 };
 
 export const RejoinIndicatorDisplay = ({
@@ -138,23 +134,22 @@ export const RejoinIndicatorDisplay = ({
   status,
 }: {
   gap?: number | string;
-  status?: 'Clear' | 'Caution' | 'Do Not Rejoin';
+  status?: RejoinStatus;
 }) => {
-  const statusBg =
-    status === 'Clear'
-      ? 'bg-green-700'
-      : status === 'Caution'
-        ? 'bg-amber-600'
-        : 'bg-red-700';
-
+  // An unknown state is drawn as the danger, as the red block was.
+  const look = REJOIN_LOOK[status ? STATE_OF[status] : 'danger'];
   const gapLabel = gap ?? '--s';
 
+  // Opaque, as the coloured block was, so the warning reads over any scene.
   return (
     <div
-      className={`w-full flex justify-between rounded-sm p-2 font-bold text-white ${statusBg}`}
+      className={`w-full flex items-center justify-between overlay-panel [--bg-opacity:100%] p-2 font-bold text-white ${look.outline}`}
     >
-      <div className="text-lg">{gapLabel}</div>
-      <div className="text-lg">{status}</div>
+      <div className="text-lg tabular-nums">{gapLabel}</div>
+      {/* Into the panel's padding, so the word sits where it did. */}
+      <div className={`-mr-1.5 rounded-md px-1.5 text-lg ${look.pill}`}>
+        {status}
+      </div>
     </div>
   );
 };

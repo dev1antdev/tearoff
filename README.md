@@ -1060,7 +1060,7 @@ Displays a custom image overlay when you are in the garage. Perfect for streamin
 
 ### Rejoin Indicator
 
-Displays a safety indicator showing the gap to the car behind and whether it's safe to rejoin the track after leaving the pits or garage. Provides clear visual feedback with color-coded status (Clear/Caution/Do Not Rejoin).
+Displays a safety indicator showing the gap to the car behind and whether it's safe to rejoin the track after leaving the pits or garage. Provides clear visual feedback with a color-coded status word (Clear/Caution/Do Not Rejoin); Caution and Do Not Rejoin also ring the panel in their colour.
 
 **Features:**
 
@@ -1270,12 +1270,12 @@ Who is coming, and when. In a multi-class race it stands in for the mirror: the 
 
 **Features:**
 
-- The cars behind you inside 500 m and 8 s, nearest first: car number on its class colour, driver or class, the gap in seconds and an arrow for how fast it is closing, with the seconds a lap it gains
+- The cars behind you inside 500 m and 8 s, nearest first: car number beside a bar in its class colour, driver or class, the gap in seconds and an arrow for how fast it is closing, with the seconds a lap it gains
 - Cars are told apart by the rule the Flag Panel uses for a blue: a car a lap or more ahead is lapping you and is outlined in blue with its laps, a faster class is traffic whatever the laps, and a car of your own class on your lap within three seconds is shown muted as a rival, not as traffic. Further traffic queued behind the rows is counted
 - A forecast for the car that reaches you soonest: "in about 18 s, at Turn 6". It is an estimate and says so: nothing is forecast until the gap has closed steadily for six seconds and by at least half a second; it becomes a range ("in 14 to 40 s") when the closing rate has swung, and disappears when the car stops closing; a corner is named only for an arrival no further off than the closing was measured for (twenty seconds), and only when the earliest and latest arrival fall on the same corner or neighbouring ones; an arrival a lap or more off is given in laps
 - The gap is the interval a timing line would read: how long ago you were where the other car is now, measured from your own running rather than from distance, so it does not shrink in every braking zone
 - A table of laps until you meet three cars: the one ahead you are catching soonest, the race leader coming round to lap you, and the one behind that catches you soonest, each with its gap now. A meeting inside the lap under way is highlighted
-- In the pit lane the widget becomes the pit exit: who goes past the exit before you get there and who arrives just behind, in seconds, on green, amber or red. It reads where the pit exit is on the lap from the data the Pitlane Helper learns, and stays for a few seconds after you rejoin
+- In the pit lane the widget becomes the pit exit: who goes past the exit before you get there and who arrives just behind, in seconds, under a state word in green, amber or red; amber and red also ring the block in their colour. It reads where the pit exit is on the lap from the data the Pitlane Helper learns, and stays for a few seconds after you rejoin
 - The same block when you are slower than 29 km/h on the track or off it, with the car arriving behind
 - Rows, labels, corner names or numbers, which columns to show, the windows and gaps of the pit exit block, background opacity, session visibility and an option to show only when on track
 
