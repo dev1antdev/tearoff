@@ -459,10 +459,10 @@ The field at a glance: one chip per class with the cars still running and the ca
 
 **Features:**
 
-- Each class as the Standings draw it, its name on the class colour, followed by the cars still running of the cars entered: "12/14"
+- Each class as the Standings draw it, its name after a short bar in the class colour, followed by the cars still running of the cars entered: "12/14"
 - A car is out once it is parked in its garage, has retired or been disqualified, or has left the session. A car stopped at its pit box is still running, and so is a car that has finished: the end of the race is not counted as cars going out
 - Classes ordered by the overall place of each class's leader, so the strip reads as a legend of the race, or fastest class first as the Standings list them
-- Your own class outlined; while you watch a car during a team-mate's stint, the class of the car you are watching
+- Your own class shaded; while you watch a car during a team-mate's stint, the class of the car you are watching
 - Optional count of the cars out, and of the class's cars in the pit lane
 - A row or a column, and a limit on the classes shown that always keeps your own
 - Adjustable background opacity, session visibility and an option to show only when on track
@@ -477,7 +477,7 @@ Where the overlay Standings is trimmed to the cars around you, the tower lists e
 
 **Features:**
 
-- A tab for each class and one for **All**. It opens on the class of your own car, in class order with places and gaps in class; **All** is the whole field in overall order, each number on its class colour, with places overall, the gap to the leader of the race and the interval to the car one row up. A session of one class has no tabs
+- A tab for each class and one for **All**. It opens on the class of your own car, in class order with places and gaps in class; **All** is the whole field in overall order, each number beside a bar in its class colour, with places overall, the gap to the leader of the race and the interval to the car one row up. A session of one class has no tabs
 - Your own car in amber. That is your own entry, which stays yours while a team-mate drives it and while the camera is on another car. The list keeps its row in view, as the order changes and when you change tab, until you scroll the list yourself
 - Columns, in this order, each of which can be switched off: **P**, **#**, **Driver** with the team under the name, **Gap**, **Int**, **Last**, **Best**, **Avg 5**, **Avg 10**, **vs stint**, **Sect**, **Stops**, **Stint**, **Energy**, **Tyres**
 - After the driver's name, a tag: **PIT** in the pit lane, **OUT** on the lap a car leaves it on, **GAR** in its garage, **AWAY** when it is not in the world, **DNF** and **DQ**
@@ -864,7 +864,7 @@ Every running car of your class in a race, in the order of their places with you
 
 **Features:**
 
-- Place, number on the class colour, driver and the gap to you now
+- Place, number beside a bar in its class colour, driver and the gap to you now
 - Stops made, the lap of the last one with its time in the pit lane, and the laps since. A car in the pit lane says so
 - Next: the lap each car's next stop is due, marked `~` as the estimate it is. Your own row shows your pit window
 - Net gap: the gap once both of you have made the stops you still owe, green when you end ahead and red when behind. No extra time is added to a stop, which the legend says: it is Finish Projection's After column with Extra Time at 0

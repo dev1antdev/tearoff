@@ -1,7 +1,7 @@
 import { memo, useMemo, type CSSProperties, type Ref } from 'react';
 import { splitTyreLaps } from '@irdashies/domain/classTyres';
 import type { ForecastTone } from '@irdashies/domain/raceForecast';
-import { ClassLabel } from '../../shared/ClassLabel/ClassLabel';
+import { CarNumber } from '../../shared/CarNumberCell/CarNumberCell';
 import { Compound } from '../../shared/Compound/Compound';
 
 const TONE_CLASS: Record<ForecastTone, string> = {
@@ -218,14 +218,12 @@ export const ClassRivalRow = memo(
         <span className={own ? 'font-bold' : 'text-slate-400'}>
           {classPosition > 0 ? classPosition : ''}
         </span>
-        {/* As the standings draw a number: grey, after its class colour. */}
-        <ClassLabel
-          name={number ? `#${number}` : '#'}
+        <CarNumber
+          carNumber={number}
           color={classColor}
           highlightColor={highlightColor}
           isMultiClass={isMultiClass}
-          filled={false}
-          className="justify-self-start text-xs leading-none font-normal text-slate-400"
+          className="justify-self-start text-xs leading-none"
         />
         <span className={`min-w-0 truncate ${own ? 'font-bold' : ''}`}>
           {name}

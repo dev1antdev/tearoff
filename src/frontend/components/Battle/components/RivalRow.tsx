@@ -74,10 +74,11 @@ export const RivalRow = ({
   const rowClasses = [
     outOfIt ? 'text-white/60' : '',
     isFocus ? 'text-amber-300 bg-amber-500/20' : '',
-    // A hairline over each row after the first, drawn inside the cells so
-    // the rows are no taller; none on the tinted focus row.
+    // A hairline over each row after the first, painted as the cells' top
+    // pixel of background so the rows are no taller (and no shadow on
+    // figures that change); none on the tinted focus row.
     !isFocus && rowIndex > 0
-      ? '[&>td]:shadow-[inset_0_1px_0_rgb(255_255_255/0.05)]'
+      ? '[&>td]:bg-[linear-gradient(rgb(255_255_255/0.05),rgb(255_255_255/0.05))] [&>td]:bg-[length:100%_1px] [&>td]:bg-no-repeat'
       : '',
   ]
     .filter(Boolean)

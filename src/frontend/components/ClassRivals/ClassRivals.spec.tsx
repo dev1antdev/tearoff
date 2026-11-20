@@ -118,7 +118,7 @@ describe('ClassRivals (staged)', () => {
     );
     expect(rows()).toHaveLength(14);
     expect(
-      rows().map((row) => within(row).getByTestId('class-label').textContent)
+      rows().map((row) => within(row).getByTestId('car-number').textContent)
     ).toEqual([
       '#33',
       '#46',
@@ -334,7 +334,7 @@ describe('ClassRivals (staged)', () => {
     it('cuts the list to a number of cars each side', () => {
       show({}, { carsAhead: 2, carsBehind: 1 });
       expect(
-        rows().map((row) => within(row).getByTestId('class-label').textContent)
+        rows().map((row) => within(row).getByTestId('car-number').textContent)
       ).toEqual(['#46', '#91', '#77', '#54']);
     });
 

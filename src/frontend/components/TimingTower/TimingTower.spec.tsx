@@ -364,7 +364,7 @@ describe('what a row says of its car', () => {
     expect(
       rowOf(container, '23').querySelector('[data-testid="tower-tag"]')
         ?.className
-    ).toContain('ring-yellow-500');
+    ).toContain('border-yellow-500');
     expect(tag(rowOf(container, '77'))).toBeNull();
 
     press('Hypercar');

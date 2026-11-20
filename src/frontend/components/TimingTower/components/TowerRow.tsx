@@ -9,6 +9,7 @@ import { AvgLapTimeCell } from '../../shared/AvgLapTimeCell/AvgLapTimeCell';
 import { CarNumberCell } from '../../shared/CarNumberCell/CarNumberCell';
 import { Compound } from '../../shared/Compound/Compound';
 import { DeltaCell } from '../../shared/DeltaCell/DeltaCell';
+import { STATUS_BORDER } from '../../shared/DriverStatusBadges/DriverStatusBadges';
 import {
   DriverName,
   extractDriverName,
@@ -26,14 +27,17 @@ const DENSE = 'compact';
 /** What a figure reads while it cannot be known. */
 const UNKNOWN = '--';
 
-/** The status badges' outlines (`DriverStatusBadges`), drawn inside. */
+/**
+ * The status badges' outlines. A retirement is the red outline: the tower
+ * has no penalty badge for it to take the place of, as the standings do.
+ */
 const TAG_CLASS: Readonly<Record<TowerTag, string>> = {
-  PIT: 'ring-yellow-500',
-  OUT: 'ring-green-700',
-  GAR: 'ring-slate-500',
-  AWAY: 'ring-slate-500',
-  DNF: 'ring-red-500',
-  DQ: 'ring-red-500',
+  PIT: STATUS_BORDER.pit,
+  OUT: STATUS_BORDER.out,
+  GAR: STATUS_BORDER.garage,
+  AWAY: STATUS_BORDER.garage,
+  DNF: STATUS_BORDER.dnf,
+  DQ: STATUS_BORDER.dnf,
 };
 
 export interface TowerRowProps {
@@ -221,7 +225,7 @@ export const TowerRow = memo((props: TowerRowProps) => {
                   <span
                     data-testid="tower-tag"
                     title={TOWER_TAG_TITLES[tag]}
-                    className={`shrink-0 rounded-full px-1.5 text-[10px] leading-4 font-bold tracking-wider text-white ring-1 ring-inset ${TAG_CLASS[tag]}`}
+                    className={`shrink-0 rounded-full border px-1.5 text-[10px] leading-[14px] font-bold tracking-wider text-white ${TAG_CLASS[tag]}`}
                   >
                     {tag}
                   </span>

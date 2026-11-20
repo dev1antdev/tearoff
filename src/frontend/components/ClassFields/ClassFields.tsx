@@ -67,7 +67,8 @@ const ClassFieldChip = memo(
         data-class={name}
         data-focus={outlined ? 'true' : undefined}
         className={[
-          'min-w-0 overflow-hidden',
+          // Clipped, but for the hairline in the gap beside it.
+          'min-w-0 overflow-clip [overflow-clip-margin:0.25rem]',
           inColumn
             ? 'col-span-2 grid grid-cols-subgrid'
             : 'flex flex-auto items-stretch',

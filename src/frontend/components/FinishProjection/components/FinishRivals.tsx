@@ -3,7 +3,7 @@ import {
   NO_FIGURE,
   type RivalOutcome,
 } from '@irdashies/domain/finishProjection';
-import { ClassLabel } from '../../shared/ClassLabel/ClassLabel';
+import { CarNumber } from '../../shared/CarNumberCell/CarNumberCell';
 import { DriverStatusBadges } from '../../shared/DriverStatusBadges/DriverStatusBadges';
 
 const OUTCOME_CLASS: Record<RivalOutcome, string> = {
@@ -88,14 +88,12 @@ export const FinishRivalRow = memo(
       <span className="w-5 flex-none text-right text-slate-400">
         {classPosition > 0 ? classPosition : ''}
       </span>
-      {/* As the standings draw a number: grey, after its class colour. */}
-      <ClassLabel
-        name={number ? `#${number}` : '#'}
+      <CarNumber
+        carNumber={number}
         color={classColor}
         highlightColor={highlightColor}
         isMultiClass={isMultiClass}
-        filled={false}
-        className="flex-none py-0.5 font-normal text-slate-400"
+        className="flex-none py-0.5"
       />
       <span className="min-w-0 flex-1 truncate text-slate-200">{name}</span>
       {inPit && <DriverStatusBadges pit className="flex-none" />}

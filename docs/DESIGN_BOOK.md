@@ -145,9 +145,11 @@ the current lap when set. Timing keeps its own Text Scale instead of the
 Font size: a general change would resize every saved Timing window.
 
 Rival tables (Battle, Class Rivals, Finish Projection's rivals) are drawn as
-the standings are: no stripes, a hairline between rows (inside the cells where
-a border would make a row taller), the focus row `bg-amber-500/20`, a car
-number grey after its class colour, a pit request a thin green outline. Class
+the standings are: no stripes, a hairline between rows (the cells' top pixel of background
+where a border would make a row taller), the focus row `bg-amber-500/20`, a car
+number grey after a bar in its class colour (`CarNumberCell`, or `CarNumber` in
+a row that is not a table), a pit request a thin green outline. The Timing
+Tower's status tags take the status badges' outlines (`STATUS_BORDER`). Class
 Fields names each class with the short bar, its counts on the panel, a hairline
 between classes, and the focus car's class `overlay-selected`. Finish
 Projection's column for now is `overlay-selected`; a margin near a lap's edge
