@@ -1,3 +1,4 @@
+import type { RejoinState } from '@irdashies/domain/traffic/pitExitTraffic';
 // Demo data for Rejoin Indicator component
 
 export interface RejoinIndicatorSettings {
@@ -18,23 +19,38 @@ export interface RejoinIndicatorSettings {
 
 export interface RejoinIndicatorDemoData {
   gap: string;
-  status: 'Clear' | 'Caution' | 'Do Not Rejoin';
+  state: RejoinState;
 }
 
+/**
+ * The state a gap behind puts a rejoin in, by this widget's own ladder, the
+ * clear threshold first (Traffic's pit-exit state checks danger first). A Care Gap
+ * set below the Stop Gap leaves no caution band rather than turning gaps it
+ * calls clear red, and a Care Gap that is not a number never hides a red the
+ * Stop Gap calls.
+ */
+export const rejoinStateOf = (
+  gap: number | undefined,
+  { careGap, stopGap }: { careGap: number; stopGap: number }
+): RejoinState =>
+  gap === undefined || gap >= careGap
+    ? 'clear'
+    : gap >= stopGap
+      ? 'caution'
+      : 'danger';
+
 // Demo data for rejoin indicator
-export const getDemoRejoinData = (settings: RejoinIndicatorSettings | undefined): RejoinIndicatorDemoData => {
+export const getDemoRejoinData = (
+  settings: RejoinIndicatorSettings | undefined
+): RejoinIndicatorDemoData => {
   // Demo: car behind at 1.5 seconds - should show "Caution" status
   const gap = 1.5;
   const cfg = settings?.config || { careGap: 2, stopGap: 1 };
 
-  const status = gap >= cfg.careGap
-    ? 'Clear'
-    : gap >= cfg.stopGap
-      ? 'Caution'
-      : 'Do Not Rejoin';
+  const state = rejoinStateOf(gap, cfg);
 
   return {
     gap: gap.toFixed(1),
-    status,
+    state,
   };
 };

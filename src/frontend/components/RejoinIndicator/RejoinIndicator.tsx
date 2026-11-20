@@ -13,8 +13,10 @@ import {
 } from '@irdashies/context';
 import { useDriverRelatives, type Standings } from '@irdashies/domain';
 import { useRejoinSettings } from './hooks/useRejoinSettings';
-import { getDemoRejoinData } from './demoData';
+import { getDemoRejoinData, rejoinStateOf } from './demoData';
 import { speedFromMs } from '@irdashies/utils/units';
+import type { RejoinState } from '@irdashies/domain/traffic/pitExitTraffic';
+import { REJOIN_LOOK } from '../shared/rejoinLook';
 
 export const RejoinIndicator = () => {
   const { isDemoMode } = useDashboard();
@@ -37,12 +39,7 @@ export const RejoinIndicator = () => {
   // Generate demo data when in demo mode
   if (isDemoMode) {
     const demoData = getDemoRejoinData(settings);
-    return (
-      <RejoinIndicatorDisplay
-        gap={demoData.gap}
-        status={demoData.status as 'Clear' | 'Caution' | 'Do Not Rejoin'}
-      />
-    );
+    return <RejoinIndicatorDisplay gap={demoData.gap} state={demoData.state} />;
   }
 
   // If we don't have dashboard settings or no focused player, hide
@@ -82,16 +79,10 @@ export const RejoinIndicator = () => {
   const gap = Math.abs(carBehind?.delta ?? Number.POSITIVE_INFINITY);
   const gapLabel = Number.isFinite(gap) ? gap.toFixed(1) : '--';
 
-  const cfg = settings
-    ? settings.config
-    : { careGap: Number.POSITIVE_INFINITY, stopGap: Number.POSITIVE_INFINITY };
-  const status = !Number.isFinite(gap)
-    ? { label: 'Clear', color: 'green' }
-    : gap >= cfg.careGap
-      ? { label: 'Clear', color: 'green' }
-      : gap >= cfg.stopGap
-        ? { label: 'Caution', color: 'amber' }
-        : { label: 'Do Not Rejoin', color: 'red' };
+  const state = rejoinStateOf(
+    Number.isFinite(gap) ? gap : undefined,
+    settings.config
+  );
 
   // Player on pit road uses previously read telemetry
   const playerOnPitRoad =
@@ -116,45 +107,38 @@ export const RejoinIndicator = () => {
   if (isHiddenByNoCarBehind) return null;
   if (isHiddenBySessionStart) return null;
 
-  const statusBg =
-    status.color === 'green'
-      ? 'bg-green-700'
-      : status.color === 'amber'
-        ? 'bg-amber-600'
-        : 'bg-red-700';
+  return <RejoinIndicatorDisplay gap={`${gapLabel}s`} state={state} />;
+};
 
-  return (
-    <div
-      className={`w-full flex justify-between rounded-sm p-2 font-bold text-white ${statusBg}`}
-    >
-      <div className="text-lg">{gapLabel}s</div>
-      <div className="text-lg">{status.label}</div>
-    </div>
-  );
+const REJOIN_WORD: Record<RejoinState, string> = {
+  clear: 'Clear',
+  caution: 'Caution',
+  danger: 'Do Not Rejoin',
 };
 
 export const RejoinIndicatorDisplay = ({
   gap,
-  status,
+  state,
 }: {
   gap?: number | string;
-  status?: 'Clear' | 'Caution' | 'Do Not Rejoin';
+  state?: RejoinState;
 }) => {
-  const statusBg =
-    status === 'Clear'
-      ? 'bg-green-700'
-      : status === 'Caution'
-        ? 'bg-amber-600'
-        : 'bg-red-700';
-
+  // An unknown state is drawn as the danger, as the red block was.
+  const look = REJOIN_LOOK[state ?? 'danger'];
   const gapLabel = gap ?? '--s';
 
+  // Opaque, as the coloured block was, so the warning reads over any scene.
   return (
     <div
-      className={`w-full flex justify-between rounded-sm p-2 font-bold text-white ${statusBg}`}
+      className={`w-full flex items-center justify-between overlay-panel [--bg-opacity:100%] p-2 font-bold text-white ${look.outline}`}
     >
-      <div className="text-lg">{gapLabel}</div>
-      <div className="text-lg">{status}</div>
+      <div className="text-lg tabular-nums">{gapLabel}</div>
+      {/* Two steps under the gap and partly into the panel's padding, clear
+          of the outline: the widest state, Do Not Rejoin, then takes no more
+          width than the bare word did, so a window sized to it still fits. */}
+      <div className={`-mr-1 px-1.5 text-sm ${look.pill}`}>
+        {state && REJOIN_WORD[state]}
+      </div>
     </div>
   );
 };

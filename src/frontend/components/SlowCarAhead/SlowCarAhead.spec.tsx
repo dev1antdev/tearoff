@@ -41,10 +41,10 @@ describe('SlowCarAheadDisplay', () => {
   });
 
   it.each([
-    [true, false, 'bg-red-700'],
+    [true, false, 'bg-red-500'],
     [true, true, 'bg-green-500'],
     [false, true, 'bg-green-500'],
-    [false, false, 'bg-amber-500'],
+    [false, false, 'bg-amber-400'],
   ])(
     'colors bars based on stopped and off-track status',
     (stopped: boolean, offTrack: boolean, cssClass: string) => {

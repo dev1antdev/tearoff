@@ -57,8 +57,10 @@ describe('FasterCarsFromBehind', () => {
       render(<FasterCarsFromBehind />);
 
       const card = screen.getByRole('listitem');
-      expect(card.querySelector('span[aria-hidden]')).toHaveClass(expected);
-      expect(card).not.toHaveClass(expected);
+      // The class as the standings draw it: a bar in its colour.
+      const border = expected.replace('bg-', 'border-');
+      expect(card.querySelector('[role="group"]')).toHaveClass(border);
+      expect(card).not.toHaveClass(border);
       expect(card).not.toHaveClass('animate-pulse');
     }
   );
@@ -179,7 +181,8 @@ describe('FasterCarsFromBehind', () => {
     const cards = screen.getAllByRole('listitem');
     expect(within(cards[0]).getByText('Further Driver')).toBeInTheDocument();
     expect(within(cards[1]).getByText(car.name)).toBeInTheDocument();
-    expect(cards[1]).toHaveClass('bg-slate-800');
+    expect(cards[1]).toHaveClass('bg-slate-900');
+    expect(cards[0]).not.toHaveClass('bg-slate-900');
   });
 
   it('respects name cleanup and optional badge and gap visibility', () => {

@@ -49,9 +49,9 @@ export const SlowCarAheadDisplay = ({
   if (isOffTrack) {
     lineColor = 'bg-green-500';
   } else if (isStopped) {
-    lineColor = 'bg-red-700';
+    lineColor = 'bg-red-500';
   } else {
-    lineColor = 'bg-amber-500';
+    lineColor = 'bg-amber-400';
   }
 
   const lineWidthPct = Math.round((1 - distance / settings.maxDistance) * 100);
@@ -64,7 +64,7 @@ export const SlowCarAheadDisplay = ({
         style={{ height: `${settings.barThickness}px` }}
       >
         <div
-          className={`col-start-1 row-start-1 bg-slate-950/20 rounded-full`}
+          className={`col-start-1 row-start-1 bg-slate-900/70 rounded-full`}
         />
         <div
           id="left-line"
@@ -73,7 +73,7 @@ export const SlowCarAheadDisplay = ({
         />
       </div>
       {/*Distance in the middle*/}
-      <div className="bg-slate-950 px-2 rounded-full">
+      <div className="bg-slate-950 px-2 rounded-full text-white">
         <div className="text-base tabular-nums text-center min-w-[3ch]">
           {Math.round(distance)}
         </div>
@@ -84,7 +84,7 @@ export const SlowCarAheadDisplay = ({
         style={{ height: `${settings.barThickness}px` }}
       >
         <div
-          className={`col-start-1 row-start-1 bg-slate-950/20 rounded-full`}
+          className={`col-start-1 row-start-1 bg-slate-900/70 rounded-full`}
         />
         <div
           id="right-line"

@@ -56,3 +56,31 @@ export const Default: Story = {
     settings: mockConfig(),
   },
 };
+
+/** Inside the warning distance: the bars grow amber as it gets closer. */
+export const SlowCar: Story = {
+  args: {
+    distance: 90,
+    isStopped: false,
+    isOffTrack: false,
+    settings: mockConfig(),
+  },
+};
+
+export const StoppedCar: Story = {
+  args: {
+    distance: 60,
+    isStopped: true,
+    isOffTrack: false,
+    settings: mockConfig(),
+  },
+};
+
+export const OffTrackCar: Story = {
+  args: {
+    distance: 120,
+    isStopped: true,
+    isOffTrack: true,
+    settings: mockConfig(),
+  },
+};

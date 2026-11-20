@@ -142,20 +142,19 @@ export const FasterCarsFromBehindDisplay = memo(
     return (
       <div
         role="listitem"
-        className={`w-full min-w-0 overflow-hidden rounded-sm text-slate-100 ${isClosest ? 'bg-slate-800' : 'bg-slate-900'}`}
+        // An opaque card of its own, as it was, the closest a shade lighter.
+        className={`w-full min-w-0 overflow-hidden overlay-panel [--bg-opacity:100%] rounded-lg text-slate-100 ${isClosest ? 'bg-slate-900' : ''}`}
       >
         <div className={`flex min-w-0 items-center ${density.row}`}>
           <span
             role="group"
             aria-label={classDescription}
             title={classDescription}
-            className={`relative isolate flex shrink-0 self-stretch flex-col items-center justify-center overflow-hidden text-xs font-semibold ${density.classBlock}`}
-            style={{ color: classStyle.canvasFill }}
+            // The class as the standings draw it: a bar in its colour. The
+            // bar sits outside the block's width and in the gap after it, so
+            // the class code keeps all the room it had.
+            className={`-mr-1 box-content flex shrink-0 self-stretch flex-col items-center justify-center overflow-hidden border-l-4 text-xs font-semibold text-slate-300 ${classStyle.borderColor} ${density.classBlock}`}
           >
-            <span
-              aria-hidden="true"
-              className={`absolute inset-0 -z-10 opacity-15 ${classStyle.classHeader}`}
-            />
             <span className="block max-w-full px-0.5 font-mono">
               {formatClassLabel(className)}
             </span>
@@ -196,7 +195,7 @@ export const FasterCarsFromBehindDisplay = memo(
           )}
         </div>
 
-        <div aria-hidden="true" className={`bg-slate-700 ${density.bar}`}>
+        <div aria-hidden="true" className={`bg-slate-800 ${density.bar}`}>
           <div
             className={`h-full w-full origin-left transition-[transform,background-color] duration-200 ease-linear motion-reduce:transition-none ${urgent ? 'bg-red-400' : 'bg-amber-400'}`}
             style={{ transform: `scaleX(${proximity / 100})` }}

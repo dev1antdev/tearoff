@@ -236,7 +236,7 @@ describe('Traffic', () => {
 
       expect(one(container, 'traffic')?.dataset.block).toBe('closing');
       expect(row?.dataset.relation).toBe('lapping');
-      expect(text(row as HTMLElement, 'class-label')).toBe('#22');
+      expect(text(row as HTMLElement, 'car-number')).toBe('#22');
       expect(row?.textContent).toContain('J. Lindqvist');
       expect(text(container, 'traffic-gap')).toBe('4.2 s');
       // 0.17 s a second on an 88 s lap.
@@ -273,16 +273,17 @@ describe('Traffic', () => {
       expect(row?.dataset.relation).toBe('position');
       expect(text(container, 'traffic-tag')).toBe('Rival');
       expect(one(container, 'traffic-laps')).toBeNull();
-      expect(row?.className).not.toContain('ring-sky');
+      expect(row?.className).not.toContain('ring-blue');
       // Under a second is urgent for traffic, not for a car being raced.
       expect(one(container, 'traffic-gap')?.className).not.toContain('red');
     });
 
-    it('turns the gap of traffic red under a second', () => {
+    it('turns the gap of traffic red under a second, on a scrim of its own', () => {
       const container = show(traffic({ behind: [car({ gapS: 0.6 })] }));
-      expect(one(container, 'traffic-gap')?.className).toContain(
-        'text-red-400'
-      );
+      const gap = one(container, 'traffic-gap');
+      expect(gap?.className).toContain('text-red-400');
+      // Readable over the scene whatever the panel's opacity.
+      expect(gap?.className).toContain('bg-slate-950/70');
     });
 
     it('leaves the rival out when the setting says so', () => {
@@ -353,7 +354,7 @@ describe('Traffic', () => {
       // The car in the first row needs no naming.
       expect(
         one(container, 'traffic-forecast')?.querySelector(
-          '[data-testid="class-label"]'
+          '[data-testid="car-number"]'
         )
       ).toBeNull();
     });
@@ -378,7 +379,7 @@ describe('Traffic', () => {
       );
       expect(
         one(container, 'traffic-forecast')?.querySelector(
-          '[data-testid="class-label"]'
+          '[data-testid="car-number"]'
         )?.textContent
       ).toBe('#31');
     });
@@ -458,7 +459,7 @@ describe('Traffic', () => {
 
       expect(tiles).toHaveLength(3);
       expect(tiles[0].textContent).toContain('Catching');
-      expect(text(tiles[0], 'class-label')).toBe('#54');
+      expect(text(tiles[0], 'car-number')).toBe('#54');
       expect(text(tiles[0], 'traffic-contact-laps')).toBe('2.3 L');
       expect(text(tiles[0], 'traffic-contact-gap')).toBe('6.4 s');
       expect(tiles[1].textContent).toContain('Leader');
@@ -468,9 +469,9 @@ describe('Traffic', () => {
     it('marks a meeting inside the lap under way', () => {
       const tiles = all(show(traffic(picks)), 'traffic-contact');
       expect(one(tiles[2], 'traffic-contact-laps')?.className).toContain(
-        'text-amber-300'
+        'text-amber-400'
       );
-      expect(one(tiles[2], 'class-label')?.className).toContain('outline-sky');
+      expect(one(tiles[2], 'car-number')?.className).toContain('outline-blue');
       expect(one(tiles[1], 'traffic-contact-laps')?.className).not.toContain(
         'amber'
       );
@@ -529,7 +530,11 @@ describe('Traffic', () => {
 
       expect(block?.dataset.block).toBe('exit');
       expect(block?.dataset.state).toBe('caution');
-      expect(block?.className).toContain('bg-amber-600');
+      // One bright spot: the state's word, and an outline in its colour.
+      expect(block?.className).toContain('outline-amber-500');
+      expect(one(container, 'traffic-rejoin-state')?.className).toContain(
+        'bg-amber-500'
+      );
       expect(text(container, 'traffic-to-exit')).toBe('exit line in 11 s');
       expect(rows.map((row) => row.dataset.side)).toEqual([
         'ahead',
@@ -553,11 +558,17 @@ describe('Traffic', () => {
         { trackState: inLane }
       );
       expect(one(danger, 'traffic')?.dataset.state).toBe('danger');
-      expect(one(danger, 'traffic')?.className).toContain('bg-red-700');
+      expect(one(danger, 'traffic')?.className).toContain('outline-red-500');
+      expect(one(danger, 'traffic-rejoin-state')?.className).toContain(
+        'bg-red-600'
+      );
       expect(text(danger, 'traffic-rejoin-state')).toBe('Wait');
 
       const clear = show(traffic({ inPitLane: true }), { trackState: inLane });
-      expect(one(clear, 'traffic')?.className).toContain('bg-green-700');
+      expect(one(clear, 'traffic')?.className).not.toContain('outline-');
+      expect(one(clear, 'traffic-rejoin-state')?.className).toContain(
+        'text-green-300'
+      );
       expect(text(clear, 'traffic-rejoin-clear')).toBe('Nobody within 15 s');
     });
 

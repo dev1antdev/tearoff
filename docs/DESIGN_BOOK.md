@@ -25,7 +25,7 @@ Wall panel uses the overlay scale and palette, exactly as it does on track. A
 Pit Wall or Gantry frame is the hosted widget's panel: inside it the widget's
 `overlay-panel` loses its own edge and corners (`shadow-none`,
 `rounded-none`), so there is one box, not two; a border the widget draws itself
-(the flag contour) and the Fuel Calculator's warning outline still show. A widget drawn as a stack of panels (the
+(the flag contour), the Fuel Calculator's warning outline and Traffic's pit-exit ring still show. A widget drawn as a stack of panels (the
 session bars above and below Standings and Relative, `SessionPanels`, marked
 `data-panel-stack`) closes up inside a frame: its panels sit flush, as bands of
 one box.
@@ -154,6 +154,21 @@ Fields names each class with the short bar, its counts on the panel, a hairline
 between classes, and the focus car's class `overlay-selected`. Finish
 Projection's column for now is `overlay-selected`; a margin near a lap's edge
 is a caution, `amber-400`.
+
+Traffic alerts are calm until they warn. A rejoin or pit-exit warning (Rejoin
+Indicator, Traffic's pit exit block) is an opaque panel, not a block of
+colour: the state's word is the one bright spot (`REJOIN_LOOK`), filled for a
+caution (`amber-500`) or a danger (`red-600`) and tinted when clear, and a
+caution or a danger rings the panel in its colour (the Fuel Calculator's
+warning outline colours, 2px inside the edge rather than its 1px, as it
+stands in for a block of colour). Traffic's mirror rows and contact
+columns have no tiles, a hairline between them; a car coming to lap you keeps
+its blue outline, and a meeting inside the lap is a caution. Faster Cars From
+Behind draws each car as an opaque card of its own (`rounded-lg`, a short
+card), the class a bar in its colour, its proximity bar on a `slate-800` track
+(the closest card is `slate-900`). A car coming to lap you is drawn in the blue
+flag's `blue-500`, not sky, which is rain. Slow Car Ahead's bars sit on a bar track; the Blind Spot Monitor stays
+a graphic, its track in the palette's darkest neutral.
 
 ### 3.2 Neutrals follow the palette
 
