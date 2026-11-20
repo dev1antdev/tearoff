@@ -168,7 +168,7 @@ export default defineWidgetManifest({
       type: 'enum',
       label: 'Layout',
       description:
-        'The blocks one under another, in two rows, or all in one row, for a widget as wide as a strip.',
+        'The blocks one under another, in two rows, or all in one row. A row wants a wider, lower widget: resize it after choosing one. A block never shrinks below its figures; a row too wide for the widget wraps.',
       options: [
         { value: 'column', label: 'Column' },
         { value: 'twoRows', label: 'Two Rows' },

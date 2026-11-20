@@ -70,9 +70,6 @@ const IMPACT_WEDGE = 'M21.16 36L14.84 -12H31.16L24.84 36Z';
  */
 const CABIN_PATH = 'M14.5 36.5Q23 32 31.5 36.5L33 62Q23 65.5 13 62Z';
 
-/** Side of the overheating icon, which sits under the figure. */
-const WARNING_SIZE = 8;
-
 /** A panel is a band: an outline 4.4 wide, its inside 3 wide over it. */
 const EDGE = 'stroke-[4.4] [stroke-linecap:round]';
 const INSIDE = 'stroke-[3] [stroke-linecap:round]';
@@ -205,12 +202,6 @@ export const CarDiagram = memo(
     ];
     const pulse = flash ? ' animate-pulse' : '';
     const warning = available && overheating;
-    // The figure and the warning share the middle: each is centred alone,
-    // and they stack when both are there.
-    const stacked = warning && readingValue !== null;
-    // In percent of the picture's height, for the figure laid over it.
-    const readingTop = `${stacked ? CENTRE_Y - 4.5 : CENTRE_Y}%`;
-    const warningY = stacked ? CENTRE_Y + 1 : CENTRE_Y - WARNING_SIZE / 2;
 
     return (
       // The figure is laid over the drawing rather than drawn in it, so it
@@ -288,29 +279,31 @@ export const CarDiagram = memo(
               />
             );
           })}
-
-          {warning && (
-            <ThermometerHotIcon
-              x={CENTRE_X - WARNING_SIZE / 2}
-              y={warningY}
-              size={WARNING_SIZE}
-              weight="fill"
-              role="img"
-              aria-label="Overheating"
-              data-testid="damage-overheating"
-              className="text-red-400"
-            />
-          )}
         </svg>
-        {readingValue !== null && (
-          <div
-            aria-label={`${readingLabel} ${readingValue}`}
-            data-testid="damage-reading"
-            data-tone={readingTone}
-            className={`absolute left-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap text-xs font-bold leading-none tabular-nums ${READING_CLASS[readingTone]}`}
-            style={{ top: readingTop }}
-          >
-            {readingValue}
+        {/* The figure and the overheating warning, laid out together over
+            the cockpit in the overlay's type size, a gap between them. */}
+        {(readingValue !== null || warning) && (
+          <div className="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-[0.2em] text-xs leading-none">
+            {readingValue !== null && (
+              <div
+                aria-label={`${readingLabel} ${readingValue}`}
+                data-testid="damage-reading"
+                data-tone={readingTone}
+                className={`whitespace-nowrap font-bold tabular-nums ${READING_CLASS[readingTone]}`}
+              >
+                {readingValue}
+              </div>
+            )}
+            {warning && (
+              <ThermometerHotIcon
+                size="1em"
+                weight="fill"
+                role="img"
+                aria-label="Overheating"
+                data-testid="damage-overheating"
+                className="text-red-400"
+              />
+            )}
           </div>
         )}
       </div>
