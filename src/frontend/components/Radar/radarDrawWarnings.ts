@@ -3,6 +3,7 @@ import type { RadarArcStyle } from '@irdashies/types';
 import { arcThicknessPx, paintRimArc } from './radarArcs';
 import type { RadarStyle } from './radarDrawTypes';
 import { pose } from './radarDrawShared';
+import { ink } from './radarInk';
 
 export const drawWarningOutline = (
   ctx: CanvasRenderingContext2D,
@@ -68,7 +69,7 @@ export const drawOverlapStrip = (
   ctx.beginPath();
   ctx.moveTo(rear, across);
   ctx.lineTo(-rear, across);
-  ctx.strokeStyle = 'rgba(15, 23, 42, 0.25)';
+  ctx.strokeStyle = ink.darkSoft;
   ctx.stroke();
   ctx.beginPath();
   ctx.moveTo(rear, across);
@@ -80,7 +81,7 @@ export const drawOverlapStrip = (
   ctx.moveTo(notch, across - thickness / 2 - 1);
   ctx.lineTo(notch, across + thickness / 2 + 1);
   ctx.lineWidth = Math.max(1, thickness * 0.4);
-  ctx.strokeStyle = '#0f172a';
+  ctx.strokeStyle = ink.dark;
   ctx.stroke();
   ctx.restore();
 };
@@ -97,12 +98,12 @@ export const drawHintText = (
 ) => {
   // Saved, so the car-number font set up for the loop survives.
   ctx.save();
-  ctx.font = `bold ${fontSize}px Lato, sans-serif`;
+  ctx.font = `bold ${fontSize}px ${ink.font}`;
   ctx.textAlign = align;
   ctx.textBaseline = 'middle';
   ctx.lineWidth = 3;
   ctx.lineJoin = 'round';
-  ctx.strokeStyle = 'rgba(15, 23, 42, 0.85)';
+  ctx.strokeStyle = ink.halo;
   ctx.strokeText(text, x, y);
   ctx.fillStyle = color;
   ctx.fillText(text, x, y);

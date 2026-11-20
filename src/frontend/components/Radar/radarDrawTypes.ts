@@ -1,6 +1,7 @@
 import type { TrackGeometry } from '@irdashies/domain/track';
 import type { DiveHint } from './radarHints';
 import type { RadarArcStyle, RadarHazardKind } from '@irdashies/types';
+import type { RadarInk } from './radarInk';
 
 export interface RadarDrawCar {
   carIdx: number;
@@ -129,6 +130,8 @@ export interface RadarDrawHazard {
 }
 
 export interface RadarScene {
+  /** The palette's neutrals and the overlay font; the old shades if left out. */
+  ink?: RadarInk;
   /** CSS pixels of the square the radar fills. */
   size: number;
   geometry: TrackGeometry | null;

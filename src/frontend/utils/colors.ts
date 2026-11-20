@@ -274,8 +274,43 @@ export const colorNumToHex = (color?: number): string | undefined => {
   return `#${(color & 0xffffff).toString(16).padStart(6, '0')}`;
 };
 
-export const getColor = (color?: string, value = 500) => {
-  const styles = getComputedStyle(document.documentElement);
-  const computedColor = styles.getPropertyValue(`--color-${color}-${value}`);
-  return computedColor;
+/**
+ * A theme colour as CSS can paint it, for a canvas. Read `from` an element
+ * inside the overlay to get the palette's neutrals: the palette remaps
+ * `slate` on `.overlay-window`, not on the document.
+ */
+export const getColor = (
+  color?: string,
+  value = 500,
+  from: Element = document.documentElement
+) => getComputedStyle(from).getPropertyValue(`--color-${color}-${value}`);
+
+/** `#rrggbb` from red, green and blue, 0 to 255. */
+export const rgbToHex = (rgb: ArrayLike<number>): string =>
+  `#${Array.from(rgb)
+    .slice(0, 3)
+    .map((c) => Math.round(c).toString(16).padStart(2, '0'))
+    .join('')}`;
+
+const DARK_TEXT = '#0f172a';
+const LIGHT_TEXT = '#ffffff';
+
+/**
+ * Dark or white text, whichever reads on a fill: a `#rrggbb` hex or the
+ * `oklch(L C H)` the theme's colours are. Dark for a fill it cannot read.
+ */
+export const textColorOn = (fill: string): string => {
+  const oklch = /^oklch\(\s*([\d.]+)(%?)/.exec(fill);
+  if (oklch) {
+    const lightness = Number(oklch[1]) / (oklch[2] ? 100 : 1);
+    return lightness >= 0.74 ? DARK_TEXT : LIGHT_TEXT;
+  }
+  const value = Number.parseInt(fill.slice(1), 16);
+  if (!Number.isFinite(value) || fill.length !== 7) return DARK_TEXT;
+  const red = (value >> 16) & 0xff;
+  const green = (value >> 8) & 0xff;
+  const blue = value & 0xff;
+  return red * 0.299 + green * 0.587 + blue * 0.114 > 150
+    ? DARK_TEXT
+    : LIGHT_TEXT;
 };

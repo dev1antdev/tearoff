@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { usePaintingPaused } from '@irdashies/context';
 import { useWidgetScale } from '@irdashies/domain/widgetPresentation/WidgetScale';
 import {
@@ -17,6 +17,11 @@ import {
   updateView,
 } from './minimapModel';
 import { MinimapRibbon } from './minimapRibbon';
+import {
+  useCanvasTheme,
+  withAlpha,
+  type CanvasTheme,
+} from '@irdashies/domain/widgetPresentation/canvasTheme';
 
 /** One car on the map, in the order its progress is animated. */
 export interface MinimapCar {
@@ -47,13 +52,20 @@ export interface MinimapCanvasProps {
   emptyMessage: string;
 }
 
-const TRACK_COLOR = '#ffffff';
-const TRACK_EDGE_COLOR = 'rgb(2 6 23 / 0.6)';
 /** Metres of dark edge either side of the track ribbon. */
 const TRACK_EDGE = 2;
 const START_FINISH_COLOR = '#ef4444';
-const DISC_RGB = '15 23 42';
-const RING_COLOR = 'rgb(255 255 255 / 0.3)';
+
+/** The map's neutrals and type: what the palette and the font change. */
+const inkOf = (theme: CanvasTheme) => ({
+  disc: theme.slate(950),
+  track: theme.slate(300),
+  trackEdge: withAlpha(theme.slate(950), 0.6),
+  ring: withAlpha(theme.slate(300), 0.3),
+  message: theme.slate(400),
+  markerEdge: withAlpha(theme.slate(950), 0.8),
+  font: theme.font,
+});
 const PIT_ALPHA = 0.4;
 /** The focus marker is drawn a little larger than the rest. */
 const FOCUS_SCALE = 1.15;
@@ -97,6 +109,8 @@ export const MinimapCanvas = ({
   const widgetScale = useWidgetScale();
   const paintingPaused = usePaintingPaused();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const theme = useCanvasTheme(canvasRef);
+  const ink = useMemo(() => inkOf(theme), [theme]);
   // Set when a resize clears the canvas, so the next commit repaints at once
   // even if new positions arrive with it; otherwise the disc blinks.
   const canvasInvalidatedRef = useRef(false);
@@ -150,18 +164,20 @@ export const MinimapCanvas = ({
     context.save();
     context.beginPath();
     context.arc(originX, originY, radius, 0, TAU);
-    context.fillStyle = `rgb(${DISC_RGB} / ${backgroundOpacity / 100})`;
+    context.globalAlpha = backgroundOpacity / 100;
+    context.fillStyle = ink.disc;
     context.fill();
+    context.globalAlpha = 1;
     context.clip();
 
     const focusIndex = cars.findIndex((car) => car.isFocus);
     const shown = Math.min(count, cars.length);
 
     if (!geometry || focusIndex < 0 || focusIndex >= shown) {
-      context.fillStyle = 'rgb(226 232 240 / 0.85)';
+      context.fillStyle = ink.message;
       context.textAlign = 'center';
       context.textBaseline = 'middle';
-      context.font = `600 ${Math.max(10, radius * 0.11)}px Lato, sans-serif`;
+      context.font = `600 ${Math.max(10, radius * 0.11)}px ${ink.font}`;
       context.fillText(geometry ? '' : emptyMessage, originX, originY);
       context.restore();
     } else {
@@ -202,10 +218,10 @@ export const MinimapCanvas = ({
       context.translate(-centre.x, -centre.y);
       context.lineJoin = 'round';
       context.lineCap = 'round';
-      context.strokeStyle = TRACK_EDGE_COLOR;
+      context.strokeStyle = ink.trackEdge;
       context.lineWidth = (trackWidth + TRACK_EDGE * 2) * unitsPerMeter;
       context.stroke(trackPath);
-      context.strokeStyle = TRACK_COLOR;
+      context.strokeStyle = ink.track;
       context.lineWidth = trackWidth * unitsPerMeter;
       context.stroke(trackPath);
 
@@ -240,12 +256,12 @@ export const MinimapCanvas = ({
         context.fillStyle = car.fill;
         context.fill();
         context.lineWidth = car.isFocus ? Math.max(2, markerR * 0.28) : 1;
-        context.strokeStyle = car.isFocus ? focusColor : 'rgb(2 6 23 / 0.8)';
+        context.strokeStyle = car.isFocus ? focusColor : ink.markerEdge;
         context.stroke();
 
         if (car.label) {
           context.fillStyle = car.textColor;
-          context.font = `700 ${labelFontSize(markerR, car.label)}px Lato, sans-serif`;
+          context.font = `700 ${labelFontSize(markerR, car.label)}px ${ink.font}`;
           // A hair low: digits have no descenders, so the visual middle of
           // the text sits above its em box middle.
           context.fillText(car.label, screen.x, screen.y + markerR * 0.06);
@@ -263,7 +279,7 @@ export const MinimapCanvas = ({
 
     context.beginPath();
     context.arc(originX, originY, radius, 0, TAU);
-    context.strokeStyle = RING_COLOR;
+    context.strokeStyle = ink.ring;
     context.lineWidth = 2;
     context.stroke();
   };

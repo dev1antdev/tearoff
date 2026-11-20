@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { getTailwindStyle, colorNumToHex } from './colors';
+import { getTailwindStyle, colorNumToHex, textColorOn } from './colors';
 
 describe('colors', () => {
   describe('getTailwindColor', () => {
@@ -90,6 +90,24 @@ describe('colors', () => {
 
     it('handles black', () => {
       expect(colorNumToHex(0)).toBe('#000000');
+    });
+  });
+
+  describe('textColorOn', () => {
+    it('picks dark text on a light fill and white on a dark one', () => {
+      expect(textColorOn('#ffffff')).toBe('#0f172a');
+      expect(textColorOn('#facc15')).toBe('#0f172a');
+      expect(textColorOn('#1e3a8a')).toBe('#ffffff');
+    });
+
+    it('reads the theme colours, which are oklch', () => {
+      // yellow-500 and red-500 as Tailwind 4 writes them.
+      expect(textColorOn('oklch(79.5% 0.184 86.047)')).toBe('#0f172a');
+      expect(textColorOn('oklch(0.637 0.237 25.331)')).toBe('#ffffff');
+    });
+
+    it('falls back to dark text for a colour it cannot read', () => {
+      expect(textColorOn('red')).toBe('#0f172a');
     });
   });
 });

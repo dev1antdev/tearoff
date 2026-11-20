@@ -1,6 +1,13 @@
 import { RadarRingsLayer } from '../radarDrawRings';
 import { usePaintingPaused } from '@irdashies/context';
-import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  memo,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { perfMetrics } from '@irdashies/utils/perfMetrics';
 import { useWidgetScale } from '@irdashies/domain/widgetPresentation/WidgetScale';
 import type { TrackGeometry } from '@irdashies/domain/track';
@@ -14,6 +21,8 @@ import {
 } from '../radarDraw';
 import { cornerInside, DiveTracker, type DiveHint } from '../radarHints';
 import type { RadarHazard } from '@irdashies/types';
+import { useCanvasTheme } from '@irdashies/domain/widgetPresentation/canvasTheme';
+import { radarInkFrom } from '../radarInk';
 
 export interface RadarFrameCar {
   carIdx: number;
@@ -119,12 +128,16 @@ export const RadarDisplay = memo(
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [size, setSize] = useState(0);
+    // The palette's neutrals and the overlay font, read when they change.
+    const theme = useCanvasTheme(canvasRef);
+    const ink = useMemo(() => radarInkFrom(theme), [theme]);
 
     const latest = useRef({
       frame,
       appearance,
       geometry,
       style,
+      ink,
       extrapolationS,
       laneGapM,
       dive,
@@ -136,12 +149,22 @@ export const RadarDisplay = memo(
         appearance,
         geometry,
         style,
+        ink,
         extrapolationS,
         laneGapM,
         dive,
         at: performance.now(),
       };
-    }, [frame, appearance, geometry, style, extrapolationS, laneGapM, dive]);
+    }, [
+      frame,
+      appearance,
+      geometry,
+      style,
+      ink,
+      extrapolationS,
+      laneGapM,
+      dive,
+    ]);
 
     useLayoutEffect(() => {
       const container = containerRef.current;
@@ -285,6 +308,7 @@ export const RadarDisplay = memo(
             cars,
             follow: followTarget,
             style: look,
+            ink: current.ink,
             time: started / 1000,
             travelled,
             frameMs,

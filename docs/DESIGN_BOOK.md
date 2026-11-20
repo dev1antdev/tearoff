@@ -78,7 +78,23 @@ stack. A safe fuel state is the normal one, so it is neutral (white values, a
 light bar); caution and danger take amber and red.
 
 Graphic widgets (Radar, Track Map, Minimap, Blind Spot Monitor, the Flag light
-board) draw their own shapes and have no panel. The Tachometer's and Shift
+board) draw their own shapes and have no panel. A canvas cannot read CSS
+variables, so the canvas widgets read the palette's neutrals and the overlay's
+font from where they sit (`useCanvasTheme`, again when either changes) and turn
+the colours into hex once, which a canvas parses fastest each frame. The track
+maps draw a light neutral road on a dark edge (`slate-300` on `slate-950`,
+swapped when inverted), cars in their exact class colours with the number dark
+on a light fill (`textColorOn`), you in amber, a car in the pits `slate-500`,
+and turn names in small capitals on a `slate-950` scrim; the moving markers
+have no drop shadow (Minimal Car Markers, on by default). The Minimap's disc
+is the panel's `slate-950`, its road `slate-300`, the car it follows white in
+a ring of your highlight colour. The Radar takes its neutrals from the palette
+too; your own car stays white there, since amber is its close warning, so the
+warning is the one bright spot. Elevation tints the driven part of the lap a
+light neutral, not sky (rain), and its reading carries no shadow; Corner
+Names writes the corner number as a grey label and its progress is a neutral
+bar on a `slate-800` track, as Faster Cars' is. Corner Names keeps its own font size in pixels, as Timing
+keeps its Text Scale. The Tachometer's and Shift
 Light's readout boxes are overlay panels; the Tachometer's rev lights are
 rounded segments, unlit `slate-800`, lit at once in their own colours (the
 car's, or green, yellow, red and purple at the shift point) with no glow, edge
@@ -254,8 +270,9 @@ of 1.
 Faces: Figtree by default; Lato, Noto Sans, Inter and Roboto are the driver's
 alternatives, all from Google Fonts. A profile still on Lato, the default
 before Figtree, moves to Figtree once when it loads (`redesignDefaultsApplied`);
-picking Lato afterwards sticks. The canvas widgets (Radar, Minimap) draw their
-text in Lato. Weights run from light to extrabold, normal by default.
+picking Lato afterwards sticks. The canvas widgets (the track maps, the
+Minimap, the Radar) draw their text in the overlay's face too, read with the
+palette. Weights run from light to extrabold, normal by default.
 
 ### 3.6 Hierarchy, and what overlays avoid
 

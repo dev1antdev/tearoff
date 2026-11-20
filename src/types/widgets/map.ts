@@ -35,7 +35,8 @@ export default defineWidgetManifest({
       practice: true,
       offlineTesting: true,
     },
-    styling: { isMinimalTrack: false, isMinimalCar: false },
+    // No drop shadow on the cars: they move every frame.
+    styling: { isMinimalTrack: false, isMinimalCar: true },
     sectorColoring: { enabled: false },
     playerIcon: { enabled: false, fileName: '' },
   },
@@ -62,7 +63,7 @@ export default defineWidgetManifest({
     invertTrackColors: {
       type: 'boolean',
       label: 'Invert Track Colors',
-      description: 'Swap black and white colors for the track',
+      description: 'Swap the light road and its dark edge',
     },
     'turnLabels.labelType': {
       type: 'enum',

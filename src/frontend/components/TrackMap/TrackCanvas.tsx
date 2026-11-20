@@ -7,7 +7,8 @@ import {
   type TrackDrawing,
 } from '@irdashies/domain/track';
 export type { TrackDrawing } from '@irdashies/domain/track';
-import { getColor, getTailwindStyle } from '@irdashies/utils/colors';
+import { getColor } from '@irdashies/utils/colors';
+import { useCanvasTheme } from '@irdashies/domain/widgetPresentation/canvasTheme';
 import { validateImageDataUrl } from '@irdashies/utils/imageDataUrl';
 import { shouldShowTrack } from '@irdashies/domain/track/tracks/brokenTracks';
 import { TrackDebug } from './TrackDebug';
@@ -22,6 +23,8 @@ import {
   drawSectorDividers,
   drawLapSpans,
   compareDriverDrawOrder,
+  mapInk,
+  markerColors,
   type PositionedTrackDriver,
 } from './trackDrawingUtils';
 import {
@@ -138,7 +141,7 @@ const LoadedTrackCanvas = ({
   invertLeaderColor = false,
   debug,
   isMinimalTrack = false,
-  isMinimalCar = false,
+  isMinimalCar = true,
   sectors,
   sectorColors,
   currentSectorIdx,
@@ -155,6 +158,11 @@ const LoadedTrackCanvas = ({
   const widgetScale = useWidgetScale();
   const paintingPaused = usePaintingPaused();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const theme = useCanvasTheme(canvasRef);
+  const ink = useMemo(
+    () => mapInk(theme, invertTrackColors),
+    [theme, invertTrackColors]
+  );
   const canvasInvalidatedRef = useRef(false);
   const cacheCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const debounceResizeRef = useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -190,40 +198,12 @@ const LoadedTrackCanvas = ({
   // Fall back to deriving identities from drivers when not provided (e.g. stories)
   const resolvedIdentities = driverIdentities ?? drivers;
 
-  // Calculate if this is a multi-class race — depends on stable identities
-  const isMultiClass = useMemo(() => {
-    if (!resolvedIdentities || resolvedIdentities.length === 0) return false;
-    const uniqueClassIds = new Set(
-      resolvedIdentities.map(({ driver }) => driver.CarClassID)
-    );
-    return uniqueClassIds.size > 1;
-  }, [resolvedIdentities]);
-
-  // Memoize color calculations — depends on stable identities, so this
-  // only recomputes when the driver roster actually changes.
-  const driverColors = useMemo(() => {
-    const colors: Record<number, { fill: string; text: string }> = {};
-
-    resolvedIdentities?.forEach(({ driver, isPlayer }) => {
-      if (isPlayer) {
-        if (highlightColor) {
-          const highlightColorHex = `#${highlightColor.toString(16).padStart(6, '0')}`;
-          colors[driver.CarIdx] = { fill: highlightColorHex, text: 'white' };
-        } else {
-          colors[driver.CarIdx] = { fill: getColor('amber'), text: 'white' };
-        }
-      } else {
-        const style = getTailwindStyle(
-          driver.CarClassColor,
-          undefined,
-          isMultiClass
-        );
-        colors[driver.CarIdx] = { fill: style.canvasFill, text: 'white' };
-      }
-    });
-
-    return colors;
-  }, [resolvedIdentities, isMultiClass, highlightColor]);
+  // Memoized on stable identities, so this only recomputes when the driver
+  // roster actually changes.
+  const driverColors = useMemo(
+    () => markerColors(resolvedIdentities, highlightColor),
+    [resolvedIdentities, highlightColor]
+  );
 
   // Get start/finish line calculations
   const startFinishLine = useStartFinishLine({
@@ -357,7 +337,7 @@ const LoadedTrackCanvas = ({
     drawTrack(
       cacheCtx,
       path2DObjects,
-      invertTrackColors,
+      ink,
       trackLineWidth,
       trackOutlineWidth,
       isMinimalTrack
@@ -379,7 +359,8 @@ const LoadedTrackCanvas = ({
           sectors,
           sectorColors,
           trackLineWidth,
-          currentSectorIdx
+          currentSectorIdx,
+          ink.pit
         );
       }
       if (yellowSpans && yellowSpans.length > 0) {
@@ -412,7 +393,7 @@ const LoadedTrackCanvas = ({
     }
 
     drawStartFinishLine(cacheCtx, startFinishLine);
-    drawTurnNames(cacheCtx, trackDrawing.turns, turnLabels);
+    drawTurnNames(cacheCtx, trackDrawing.turns, turnLabels, ink);
 
     cacheCtx.restore();
 
@@ -433,7 +414,7 @@ const LoadedTrackCanvas = ({
     turnLabels,
     canvasSize,
     widgetScale,
-    invertTrackColors,
+    ink,
     trackLineWidth,
     trackOutlineWidth,
     trackmapFontSize,
@@ -513,7 +494,8 @@ const LoadedTrackCanvas = ({
         displayMode,
         driverLivePositions,
         carIdxIsOnPitRoad,
-        hasIconOverlay
+        hasIconOverlay,
+        ink
       );
       ctx.restore();
 
@@ -578,12 +560,8 @@ const LoadedTrackCanvas = ({
         />
         <div
           ref={playerPitBadgeRef}
-          className="absolute top-0 left-0 pointer-events-none flex items-center justify-center font-bold text-white origin-top-left will-change-transform"
-          style={{
-            display: 'none',
-            background: 'rgba(0, 0, 0, 0.6)',
-            borderRadius: '50%',
-          }}
+          className="absolute top-0 left-0 pointer-events-none flex items-center justify-center rounded-full bg-slate-950/60 font-bold text-white origin-top-left will-change-transform"
+          style={{ display: 'none' }}
         >
           P
         </div>

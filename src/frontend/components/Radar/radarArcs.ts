@@ -1,4 +1,5 @@
 import type { RadarArcStyle } from '@irdashies/types';
+import { withAlpha } from '@irdashies/domain/widgetPresentation/canvasTheme';
 
 /** Segments in the `segments` style; they light from the middle out. */
 const SEGMENTS = 3;
@@ -13,13 +14,6 @@ const GLOW_DEPTH = 3.2;
 const GLOW_SPREAD = 1.2;
 /** Where the sector starts fading in, as a share of the radius. */
 const SECTOR_INNER = 0.15;
-
-/** `#rrggbb` with an alpha byte appended; other colours are left alone. */
-const withAlpha = (color: string, alpha: number): string => {
-  if (!/^#[0-9a-f]{6}$/i.test(color)) return color;
-  const byte = Math.round(Math.min(Math.max(alpha, 0), 1) * 255);
-  return `${color}${byte.toString(16).padStart(2, '0')}`;
-};
 
 /**
  * Marks the rim towards `bearing` (radians, canvas angles). `half` is the

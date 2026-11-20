@@ -1,9 +1,9 @@
 import type { RadarDrawFollow } from './radarDrawTypes';
 import { MIN_TEXT_PX, pose } from './radarDrawShared';
 import { formatDistance } from './radarStyle';
+import { ink } from './radarInk';
 
 const FOLLOW_COLOR = '#22c55e';
-export const PACE_CAR_FILL = '#e2e8f0';
 
 const FOLLOW_DASH = [6, 5];
 
@@ -106,7 +106,7 @@ export const drawFollowPointer = (
   ctx.restore();
 
   const fontSize = Math.max(MIN_TEXT_PX, Math.round(radius / 11));
-  ctx.font = `bold ${fontSize}px Lato, sans-serif`;
+  ctx.font = `bold ${fontSize}px ${ink.font}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   const labelDistance = radius - size - fontSize * 1.2;

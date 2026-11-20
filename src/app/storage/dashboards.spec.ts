@@ -829,6 +829,39 @@ describe('dashboards', () => {
       expect(wheelOf(withDashboardDefaults(picked), 'input-2')).toBe('default');
     });
 
+    const markerShadowOf = (result: DashboardLayout) =>
+      (
+        result.widgets.find((w) => w.id === 'map')?.config as {
+          styling: { isMinimalCar: boolean; isMinimalTrack: boolean };
+        }
+      ).styling;
+    const mapWith = (styling: Record<string, unknown>) =>
+      ({
+        widgets: [{ id: 'map', enabled: true, config: { styling } }],
+      }) as unknown as DashboardLayout;
+
+    it('takes the drop shadow off the Track Map markers once', () => {
+      const result = withDashboardDefaults(
+        mapWith({ isMinimalTrack: true, isMinimalCar: false })
+      );
+
+      expect(markerShadowOf(result)).toEqual({
+        isMinimalTrack: true,
+        isMinimalCar: true,
+      });
+      expect(withDashboardDefaults(result)).toEqual(result);
+    });
+
+    it('keeps a marker shadow switched back on after the move', () => {
+      const picked = {
+        ...mapWith({ isMinimalCar: false }),
+        generalSettings: { redesignDefaultsApplied: true },
+      };
+      expect(markerShadowOf(withDashboardDefaults(picked)).isMinimalCar).toBe(
+        false
+      );
+    });
+
     it('keeps a fill the driver switched on in Standings, which never stored one by default', () => {
       const result = withDashboardDefaults({
         widgets: [{ id: 'standings', enabled: true, config: filledConfig }],

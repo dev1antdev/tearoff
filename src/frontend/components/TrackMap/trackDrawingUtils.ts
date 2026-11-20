@@ -1,8 +1,72 @@
-import { getColor } from '@irdashies/utils/colors';
+import {
+  getColor,
+  getTailwindStyle,
+  textColorOn,
+  colorNumToHex,
+} from '@irdashies/utils/colors';
 import { TrackDrawing, TrackDriver, TurnLabels } from './TrackCanvas';
+import type { Driver } from '@irdashies/types';
 import type { Sector } from '@irdashies/types';
 import type { SectorColor } from '@irdashies/context';
 import type { LapSpan } from '@irdashies/domain/track';
+import {
+  DEFAULT_CANVAS_THEME,
+  type CanvasTheme,
+} from '@irdashies/domain/widgetPresentation/canvasTheme';
+
+/** What the map paints in the palette's neutrals and the overlay's font. */
+export interface MapInk {
+  road: string;
+  edge: string;
+  /** A car in the pit lane. */
+  pit: string;
+  /** Turn labels, and the scrim behind them. */
+  label: string;
+  scrim: string;
+  font: string;
+}
+
+/**
+ * The map's neutrals from the palette: a light road on a dark edge, or the
+ * other way round when the driver inverts the track colours.
+ */
+export const mapInk = (theme: CanvasTheme, invert: boolean): MapInk => {
+  const light = theme.slate(300);
+  const dark = theme.slate(950);
+  return {
+    road: invert ? dark : light,
+    edge: invert ? light : dark,
+    pit: theme.slate(500),
+    label: theme.slate(200),
+    scrim: dark,
+    font: theme.font,
+  };
+};
+
+const DEFAULT_MAP_INK = mapInk(DEFAULT_CANVAS_THEME, false);
+
+/**
+ * Each car's marker fill and number colour, by car index: you in amber or
+ * your highlight colour, the rest in their class colour, the number dark on
+ * a light fill.
+ */
+export const markerColors = (
+  drivers: readonly { driver: Driver; isPlayer: boolean }[],
+  highlightColor: number | undefined
+) => {
+  const isMultiClass =
+    new Set(drivers.map(({ driver }) => driver.CarClassID)).size > 1;
+  const colors: Record<number, { fill: string; text: string }> = {};
+  for (const { driver, isPlayer } of drivers) {
+    const fill = isPlayer
+      ? ((highlightColor ? colorNumToHex(highlightColor) : undefined) ??
+        getColor('amber'))
+      : getTailwindStyle(driver.CarClassColor, undefined, isMultiClass)
+          .canvasFill;
+    colors[driver.CarIdx] = { fill, text: textColorOn(fill) };
+  }
+  return colors;
+};
 
 export interface TextMetricsCache {
   font: string;
@@ -48,25 +112,22 @@ export const setupCanvasContext = (
 export const drawTrack = (
   ctx: CanvasRenderingContext2D,
   path2DObjects: { inside: Path2D | null },
-  invertTrackColors: boolean,
+  ink: MapInk,
   trackLineWidth: number,
   trackOutlineWidth: number,
   isMinimal = false
 ) => {
   if (!path2DObjects.inside) return;
 
-  const outlineColor = invertTrackColors ? 'white' : 'black';
-  const trackColor = invertTrackColors ? 'black' : 'white';
-
   if (!isMinimal) {
     // Draw outline first
-    ctx.strokeStyle = outlineColor;
+    ctx.strokeStyle = ink.edge;
     ctx.lineWidth = trackOutlineWidth;
     ctx.stroke(path2DObjects.inside);
   }
 
   // Draw track on top
-  ctx.strokeStyle = trackColor;
+  ctx.strokeStyle = ink.road;
   ctx.lineWidth = trackLineWidth;
   ctx.stroke(path2DObjects.inside);
 };
@@ -103,7 +164,8 @@ export const drawStartFinishLine = (
 export const drawTurnNames = (
   ctx: CanvasRenderingContext2D,
   turns: TrackDrawing['turns'],
-  turnLabels: TurnLabels
+  turnLabels: TurnLabels,
+  ink: MapInk = DEFAULT_MAP_INK
 ) => {
   if (!turnLabels.enabled || !turns) return;
 
@@ -139,12 +201,14 @@ export const drawTurnNames = (
     const renderY = y + yOffset;
     drawnPositions.push({ x: renderX, y: renderY });
 
-    // add the label
-    const fontSize = 2 * scaleFactor;
+    // A name in small capitals, a number as it is: labels, not values.
+    const fontSize = 1.6 * scaleFactor;
+    const text = isNumeric ? content : content.toUpperCase();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = `${fontSize}rem sans-serif`;
-    const m = ctx.measureText(content);
+    ctx.font = `600 ${fontSize}rem ${ink.font}`;
+    ctx.letterSpacing = isNumeric ? '0px' : `${0.08 * fontSize}rem`;
+    const m = ctx.measureText(text);
 
     if (turnLabels.highContrast) {
       const padding = 20 * scaleFactor;
@@ -154,19 +218,22 @@ export const drawTurnNames = (
       const rectH = textHeight + padding;
       const rectX = renderX - rectW / 2;
       const rectY = renderY - rectH / 2;
-      const radius = Math.min(20 * scaleFactor, rectW / 2, rectH / 2);
+      const radius = Math.min(12 * scaleFactor, rectW / 2, rectH / 2);
       ctx.beginPath();
       ctx.roundRect(rectX, rectY, rectW, rectH, radius);
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+      ctx.fillStyle = ink.scrim;
+      ctx.globalAlpha = 0.7;
       ctx.fill();
+      ctx.globalAlpha = 1;
     }
 
-    ctx.fillStyle = 'white';
+    ctx.fillStyle = ink.label;
     // visual offset
     const visualOffset =
       (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 2;
-    ctx.fillText(content, renderX, renderY + visualOffset);
+    ctx.fillText(text, renderX, renderY + visualOffset);
   });
+  ctx.letterSpacing = '0px';
 };
 
 /** Pit-road cars first, then lower positions, with the player drawn last. */
@@ -200,7 +267,8 @@ export const drawDrivers = (
   displayMode: 'carNumber' | 'sessionPosition' | 'livePosition' = 'carNumber',
   driverLivePositions: Record<number, number>,
   carIdxIsOnPitRoad?: readonly boolean[],
-  hidePlayer?: boolean
+  hidePlayer?: boolean,
+  ink: MapInk = DEFAULT_MAP_INK
 ) => {
   // Arrays are pre-sorted by the RAF caller to avoid per-frame allocations.
   const positionedDrivers = Array.isArray(positionedDriverData)
@@ -231,7 +299,7 @@ export const drawDrivers = (
     // on pit road?
     const onPitRoad = !!carIdxIsOnPitRoad?.[driver.CarIdx];
     if (onPitRoad) {
-      fillColor = '#999999';
+      fillColor = ink.pit;
       textColor = 'white';
     }
 
@@ -260,7 +328,7 @@ export const drawDrivers = (
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = textColor;
-      ctx.font = `${fontSize}px sans-serif`;
+      ctx.font = `600 ${fontSize}px ${ink.font}`;
       const displayText = onPitRoad
         ? 'P'
         : displayMode === 'livePosition'
@@ -414,7 +482,9 @@ export const drawSectorColors = (
   sectors: Sector[],
   sectorColors: SectorColor[],
   trackLineWidth: number,
-  currentSectorIdx?: number
+  currentSectorIdx?: number,
+  /** The sector being driven: a neutral, the palette's when given. */
+  currentColor = SECTOR_COLOR_HEX.current
 ) => {
   if (trackPathPoints.length < 2 || sectors.length === 0) return;
 
@@ -439,7 +509,7 @@ export const drawSectorColors = (
   for (let i = 0; i < sectors.length; i++) {
     const isCurrent = currentSectorIdx !== undefined && i === currentSectorIdx;
     const color = isCurrent ? 'current' : (sectorColors[i] ?? 'default');
-    const hex = SECTOR_COLOR_HEX[color];
+    const hex = isCurrent ? currentColor : SECTOR_COLOR_HEX[color];
     if (!hex) continue; // skip 'default' sectors
 
     const startFloat = boundaryIndices[i];

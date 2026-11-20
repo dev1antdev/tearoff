@@ -1,4 +1,5 @@
 import type { RadarConfig } from '@irdashies/types';
+import { rgbToHex } from '@irdashies/utils/colors';
 
 /**
  * Licence colours as on the rating badge (its border shades, which read
@@ -28,26 +29,17 @@ const toRgb = (hex: string): [number, number, number] => {
   return [(value >> 16) & 0xff, (value >> 8) & 0xff, value & 0xff];
 };
 
-const toHex = (rgb: readonly number[]): string =>
-  `#${rgb.map((c) => Math.round(c).toString(16).padStart(2, '0')).join('')}`;
-
 /** Slate grey the player colour is washed towards. */
 const PALE_TARGET: readonly number[] = [148, 163, 184];
 const PALE_MIX = 0.35;
 
 /** A washed-out shade of `hex`, so rivals sit back from our own car. */
 export const paler = (hex: string): string =>
-  toHex(
+  rgbToHex(
     toRgb(hex).map(
       (channel, index) => channel + (PALE_TARGET[index] - channel) * PALE_MIX
     )
   );
-
-/** Black or white, whichever reads better on `hex`. */
-export const textColorFor = (hex: string): string => {
-  const [r, g, b] = toRgb(hex);
-  return r * 0.299 + g * 0.587 + b * 0.114 > 150 ? '#0f172a' : '#ffffff';
-};
 
 export interface RivalColorSource {
   license?: string;

@@ -81,7 +81,7 @@ export const TrackMapView = ({
         }
         invertLeaderColor={settings?.invertLeaderColor ?? false}
         isMinimalTrack={settings?.styling?.isMinimalTrack ?? false}
-        isMinimalCar={settings?.styling?.isMinimalCar ?? false}
+        isMinimalCar={settings?.styling?.isMinimalCar ?? true}
         sectors={drawnSectors}
         sectorColors={drawnSectors ? sectorColors : undefined}
         currentSectorIdx={drawnSectors ? currentSectorIdx : undefined}
