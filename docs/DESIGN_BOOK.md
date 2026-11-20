@@ -193,11 +193,15 @@ pixel of background, so no row is taller), the line under way
 `overlay-selected`, and its captions `overlay-label` (at the table's own `em`
 size where it is sized in `em`). The Strategy Timeline's statuses are tinted
 pills, `rounded-full`, the stint in the car the one bright neutral; its strip
-and its current row are neutrals, not sky (rain); behind plan is a caution,
-`amber-400`. The Race Log writes a car's number grey after a bar in its class
-colour, yours amber. Timelines and charts keep the driver and class colours;
-rivals' stints are dark greys, so our own car's driver colours are the bright
-spot. Their button groups are `rounded-md`.
+and its current row are neutrals, not sky (rain). Every caution in these
+widgets (behind plan, tyre wear, drive time owed, a clash ahead, an unplanned
+stop, laps not recorded) is `amber-400`; `amber-300` is only your car and
+your driver. The Race Log draws a car's number with the shared `CarNumber`,
+yours amber. Timelines and charts keep the driver and class colours; rivals'
+stints are dark greys, so our own car's driver colours are the bright spot.
+Crew's drive-time bar sits on a `slate-800` track, as Faster Cars' and Corner
+Names' do, since `slate-900/70` vanishes on the black panel. Their buttons and
+button groups, and the Race Charts readout over the chart, are `rounded-md`.
 
 ### 3.2 Neutrals follow the palette
 
