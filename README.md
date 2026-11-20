@@ -531,7 +531,7 @@ Displays a track map with the current position of the cars on track and the trac
 - Show/hide car numbers on driver circles
 - Configurable driver and player circle sizes (10-100px)
 - Configurable track line width (1-100px) and outline width (1-150px)
-- Option to invert track colors (black track with white outline)
+- Option to invert track colors (a dark road with a light edge instead of a light road with a dark one)
 - Option to use highlight color for player circle
 - Custom player car icon: upload an image (PNG, JPG, GIF, WebP, SVG) to replace your player circle
 - Option to use an inverted color for the leader to make them stand out
@@ -539,7 +539,8 @@ Displays a track map with the current position of the cars on track and the trac
 - Session visibility settings (Race, Lone Qualify, Open Qualify, Practice, Offline Testing)
 - Race positions: Driver circles can display their current race position
 - Off-track highlighting: Car markers highlight when a driver goes off the track (yellow outline)
-- Styling customizations: toggle minimal track outline and minimal car marker shadows
+- Styling customizations: toggle minimal track outline and minimal car marker shadows (car markers have no shadow by default)
+- Turn names in small capitals, car numbers dark on light class colours, and the road and labels in your palette's greys
 
 **In Le Mans Ultimate:**
 
@@ -634,7 +635,7 @@ Displays a simplified horizontal track map showing driver positions along a flat
 - Show/hide car numbers on driver circles
 - Configurable driver and player circle sizes (10-100px)
 - Configurable track line width (5-40px) and outline width (10-80px)
-- Option to invert track colors (black track with white outline)
+- Option to invert track colors (a dark road with a light edge instead of a light road with a dark one)
 - Option to use highlight color for player circle
 - Auto-scales to container width
 - Multi-class support
@@ -1407,7 +1408,7 @@ Displays the current track section (corner or named straight) along with corner 
 **Features:**
 
 - Section name display (e.g. "Eau Rouge", "Kemmel Straight", "La Source")
-- Corner number badge (e.g. T1, T12) when the section is a numbered turn
+- Corner number beside the name when the section is a numbered turn
 - Progress bar showing position within the current section
 - Optional overall lap-distance percentage
 - Configurable font size and background opacity
