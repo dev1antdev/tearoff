@@ -61,7 +61,7 @@ const EMPTY_SAMPLES: LapTraceSamples = {
 
 /** Classes for a gear label, positioned by `left` within its span. */
 const GEAR_LABEL_CLASS =
-  'absolute bottom-0 -translate-x-1/2 text-[10px] leading-none font-semibold text-slate-300 tabular-nums';
+  'absolute bottom-0 -translate-x-1/2 text-2xs leading-none font-semibold text-slate-300 tabular-nums';
 
 /**
  * The layers the frame loop draws into. Paths are found inside each layer by

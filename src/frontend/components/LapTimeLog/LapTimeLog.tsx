@@ -17,7 +17,9 @@ import {
   TargetIcon,
   UserSwitchIcon,
   XIcon,
+  IconContext,
 } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import {
   DELTA_CELL_CLASS,
   FUEL_CELL_CLASS,
@@ -236,243 +238,245 @@ export const LapTimeLogDisplay = ({
   const olderSide = settings.reverse ? 'top' : 'bottom';
 
   return (
-    <div className={`h-full flex ${alignment}`}>
-      <div
-        className={`w-full text-sm overlay-panel text-white ${!isCompact ? 'p-2' : 'p-0.5'}`}
-        style={
-          {
-            '--bg-opacity': `${settings.background.opacity}%`,
-          } as React.CSSProperties
-        }
-      >
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div className={`h-full flex ${alignment}`}>
         <div
-          className={`w-full flex gap-0.5 ${reverse}`}
-          style={{ fontSize: `${settings.scale}%` } as React.CSSProperties}
+          className={`w-full text-sm overlay-panel text-white ${!isCompact ? 'p-2' : 'p-0.5'}`}
+          style={
+            {
+              '--bg-opacity': `${settings.background.opacity}%`,
+            } as React.CSSProperties
+          }
         >
-          {/* Current Lap Timer (The Big One) */}
-          {settings.showCurrentLap && (
-            <div
-              id="current-lap"
-              className={`text-[1.8em] min-h-[2em] w-full p-1 ${bgColor} flex relative items-center justify-center rounded-md transition-colors duration-500 ease-in-out`}
-              style={
-                {
-                  '--fg-alpha': `${settings.foreground.opacity}%`,
-                } as React.CSSProperties
-              }
-            >
-              <div className="absolute left-2">
-                <TimerIcon weight="bold" />
-              </div>
-              <div className="w-full text-center tabular-nums">
-                {formatTime(
-                  current === undefined
-                    ? undefined
-                    : current > FREEZE_TIME || (current > 0 && !lastlap)
-                      ? current
-                      : lastlap
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Predicted (With Delta) */}
-          {settings.showPredictedLap && (
-            <div
-              id="predicted-lap"
-              className={`text-[1.3em] min-h-[2em] w-full p-1 ${dirty ? 'text-slate-400' : 'text-white'} bg-slate-900/[var(--fg-alpha)] flex relative items-center justify-center rounded-md`}
-              style={
-                {
-                  '--fg-alpha': `${settings.foreground.opacity / 2}%`,
-                } as React.CSSProperties
-              }
-            >
-              <div className="absolute left-3">
-                {dirty ? (
-                  <XIcon weight="regular" />
-                ) : (
-                  <TargetIcon weight="regular" />
-                )}
-              </div>
-              <div className="w-full text-center tabular-nums">
-                {formatTime(
-                  current === undefined
-                    ? undefined
-                    : current > FREEZE_TIME
-                      ? predicted
-                      : lastlap
-                )}
-              </div>
-              {settings.delta.enabled && (
-                <div
-                  className={`absolute right-2 text-[0.8em] text-center tabular-nums ${
-                    !dirty && delta && deltaIsGreen
-                      ? 'text-green-400'
-                      : !dirty && delta && deltaIsRed
-                        ? 'text-red-400'
-                        : 'text-slate-400'
-                  }`}
-                >
-                  {formatDelta(hasPredictedDelta ? delta : 0)}
+          <div
+            className={`w-full flex gap-0.5 ${reverse}`}
+            style={{ fontSize: `${settings.scale}%` } as React.CSSProperties}
+          >
+            {/* Current Lap Timer (The Big One) */}
+            {settings.showCurrentLap && (
+              <div
+                id="current-lap"
+                className={`text-[1.8em] min-h-[2em] w-full p-1 ${bgColor} flex relative items-center justify-center rounded-md transition-colors duration-500 ease-in-out`}
+                style={
+                  {
+                    '--fg-alpha': `${settings.foreground.opacity}%`,
+                  } as React.CSSProperties
+                }
+              >
+                <div className="absolute left-2">
+                  <TimerIcon weight="bold" />
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Main Stats */}
-          <div className="flex w-full gap-1">
-            {settings.showAllTimeLap && (
-              <LapTimeCell
-                label="PERSONAL"
-                time={alltimelap}
-                alltime={alltimelap}
-                settings={settings}
-              />
+                <div className="w-full text-center tabular-nums">
+                  {formatTime(
+                    current === undefined
+                      ? undefined
+                      : current > FREEZE_TIME || (current > 0 && !lastlap)
+                        ? current
+                        : lastlap
+                  )}
+                </div>
+              </div>
             )}
-            {settings.showBestLap && (
-              <LapTimeCell
-                label="SESSION"
-                time={bestlap}
-                best={bestlap}
-                overall={overall}
-                alltime={alltimelap}
-                settings={settings}
-              />
-            )}
-            {settings.showLastLap && (
-              <LapTimeCell
-                label="LAST LAP"
-                time={lastlap}
-                best={bestlap}
-                overall={overall}
-                alltime={alltimelap}
-                settings={settings}
-              />
-            )}
-          </div>
 
-          {/* The list stands still while a team-mate drives: say so. */}
-          {settings.history.enabled && teamMateDriving && (
-            <div
-              data-testid="lap-history-note"
-              className="flex w-full items-center justify-center gap-[0.4em] py-0.5 text-[0.7em] uppercase leading-none text-slate-400"
-            >
-              <UserSwitchIcon />
-              <span>Team-mate driving · your laps</span>
-            </div>
-          )}
-
-          {/* History List / Chart */}
-          {settings.history.enabled &&
-            (settings.history.style === 'chart' ? (
-              <LapHistoryChart
-                history={sortedHistory}
-                best={bestlap}
-                overall={overall}
-                alltime={alltimelap}
-                foregroundOpacity={settings.foreground.opacity}
-              />
-            ) : (
-              <>
-                {/* What the extra cells count, once for the whole list. */}
-                {(showStintLap || showFuel || showWear) && (
+            {/* Predicted (With Delta) */}
+            {settings.showPredictedLap && (
+              <div
+                id="predicted-lap"
+                className={`text-[1.3em] min-h-[2em] w-full p-1 ${dirty ? 'text-slate-400' : 'text-white'} bg-slate-900/[var(--fg-alpha)] flex relative items-center justify-center rounded-md`}
+                style={
+                  {
+                    '--fg-alpha': `${settings.foreground.opacity / 2}%`,
+                  } as React.CSSProperties
+                }
+              >
+                <div className="absolute left-3">
+                  {dirty ? (
+                    <XIcon weight="regular" />
+                  ) : (
+                    <TargetIcon weight="regular" />
+                  )}
+                </div>
+                <div className="w-full text-center tabular-nums">
+                  {formatTime(
+                    current === undefined
+                      ? undefined
+                      : current > FREEZE_TIME
+                        ? predicted
+                        : lastlap
+                  )}
+                </div>
+                {settings.delta.enabled && (
                   <div
-                    data-testid="lap-history-header"
-                    className={`flex w-full items-center uppercase leading-none text-slate-400 ${!isCompact ? 'px-1' : ''}`}
+                    className={`absolute right-2 text-[0.8em] text-center tabular-nums ${
+                      !dirty && delta && deltaIsGreen
+                        ? 'text-green-400'
+                        : !dirty && delta && deltaIsRed
+                          ? 'text-red-400'
+                          : 'text-slate-400'
+                    }`}
                   >
-                    <div
-                      className={`flex w-full items-center ${isUltra ? 'px-1' : 'px-2'}`}
-                    >
-                      <span className="flex-1 whitespace-nowrap text-[0.6em]">
-                        {showStintLap ? 'Lap · Stint' : 'Lap'}
-                      </span>
-                      {showFuel && (
-                        <span className={FUEL_CELL_CLASS}>
-                          <span className="whitespace-nowrap text-[0.6em]">
-                            {onEnergy ? 'NRG %' : `Fuel ${fuelUnits}`}
-                          </span>
-                        </span>
-                      )}
-                      {showWear && (
-                        <span className={WEAR_CELL_CLASS}>
-                          <span className="whitespace-nowrap text-[0.6em]">
-                            Wear
-                          </span>
-                        </span>
-                      )}
-                      {settings.delta.enabled && (
-                        <span
-                          className={
-                            tabular ? DELTA_CELL_CLASS : 'flex-1 text-center'
-                          }
-                        >
-                          <span className="text-[0.6em]">Delta</span>
-                        </span>
-                      )}
-                      <span
-                        className={
-                          tabular ? TIME_CELL_CLASS : 'flex-1 text-right'
-                        }
-                      >
-                        <span className="text-[0.6em]">Time</span>
-                      </span>
-                    </div>
+                    {formatDelta(hasPredictedDelta ? delta : 0)}
                   </div>
                 )}
-                {rows.map((row, index) => {
-                  const live = row === liveRow;
-                  const older = rows[index + 1];
-                  const time = 'time' in row ? row.time : current;
-                  return (
-                    <LapTimeRow
-                      key={live ? 'live' : row.lap} // Critical for React performance
-                      label={`LAP ${row.lap ?? '--'}`}
-                      time={time}
-                      delta={
-                        'time' in row
-                          ? row.delta
-                          : hasPredictedDelta
-                            ? delta
-                            : 0
-                      }
-                      dirty={row.dirty}
-                      best={live ? undefined : bestlap}
-                      overall={live ? undefined : overall}
-                      alltime={live ? undefined : alltimelap}
-                      settings={settings}
-                      live={live}
-                      tabular={tabular}
-                      stintLap={
-                        showStintLap && row.stintLap ? `S${row.stintLap}` : ''
-                      }
-                      fuel={showFuel ? fuelText(row) : undefined}
-                      wear={showWear ? formatShare(row.wear, 1) : undefined}
-                      wearHigh={
-                        !live &&
-                        typeof row.wear === 'number' &&
-                        usualWear !== null &&
-                        row.wear > usualWear * HIGH_WEAR_RATIO
-                      }
-                      pitted={showFlags && row.pitted}
-                      voided={showFlags && row.dirty}
-                      yellow={showFlags && row.yellow}
-                      caution={showFlags && row.caution}
-                      wet={showFlags && row.wet}
-                      fromStart={showFlags && row.fromStart}
-                      stintEdge={
-                        older !== undefined &&
-                        row.stintId !== undefined &&
-                        older.stintId !== undefined &&
-                        row.stintId !== older.stintId
-                          ? olderSide
-                          : undefined
-                      }
-                    />
-                  );
-                })}
-              </>
-            ))}
+              </div>
+            )}
+
+            {/* Main Stats */}
+            <div className="flex w-full gap-1">
+              {settings.showAllTimeLap && (
+                <LapTimeCell
+                  label="PERSONAL"
+                  time={alltimelap}
+                  alltime={alltimelap}
+                  settings={settings}
+                />
+              )}
+              {settings.showBestLap && (
+                <LapTimeCell
+                  label="SESSION"
+                  time={bestlap}
+                  best={bestlap}
+                  overall={overall}
+                  alltime={alltimelap}
+                  settings={settings}
+                />
+              )}
+              {settings.showLastLap && (
+                <LapTimeCell
+                  label="LAST LAP"
+                  time={lastlap}
+                  best={bestlap}
+                  overall={overall}
+                  alltime={alltimelap}
+                  settings={settings}
+                />
+              )}
+            </div>
+
+            {/* The list stands still while a team-mate drives: say so. */}
+            {settings.history.enabled && teamMateDriving && (
+              <div
+                data-testid="lap-history-note"
+                className="flex w-full items-center justify-center gap-[0.4em] py-0.5 text-[0.7em] uppercase leading-none text-slate-400"
+              >
+                <UserSwitchIcon />
+                <span>Team-mate driving · your laps</span>
+              </div>
+            )}
+
+            {/* History List / Chart */}
+            {settings.history.enabled &&
+              (settings.history.style === 'chart' ? (
+                <LapHistoryChart
+                  history={sortedHistory}
+                  best={bestlap}
+                  overall={overall}
+                  alltime={alltimelap}
+                  foregroundOpacity={settings.foreground.opacity}
+                />
+              ) : (
+                <>
+                  {/* What the extra cells count, once for the whole list. */}
+                  {(showStintLap || showFuel || showWear) && (
+                    <div
+                      data-testid="lap-history-header"
+                      className={`flex w-full items-center uppercase leading-none text-slate-400 ${!isCompact ? 'px-1' : ''}`}
+                    >
+                      <div
+                        className={`flex w-full items-center ${isUltra ? 'px-1' : 'px-2'}`}
+                      >
+                        <span className="flex-1 whitespace-nowrap text-[0.6em]">
+                          {showStintLap ? 'Lap · Stint' : 'Lap'}
+                        </span>
+                        {showFuel && (
+                          <span className={FUEL_CELL_CLASS}>
+                            <span className="whitespace-nowrap text-[0.6em]">
+                              {onEnergy ? 'NRG %' : `Fuel ${fuelUnits}`}
+                            </span>
+                          </span>
+                        )}
+                        {showWear && (
+                          <span className={WEAR_CELL_CLASS}>
+                            <span className="whitespace-nowrap text-[0.6em]">
+                              Wear
+                            </span>
+                          </span>
+                        )}
+                        {settings.delta.enabled && (
+                          <span
+                            className={
+                              tabular ? DELTA_CELL_CLASS : 'flex-1 text-center'
+                            }
+                          >
+                            <span className="text-[0.6em]">Delta</span>
+                          </span>
+                        )}
+                        <span
+                          className={
+                            tabular ? TIME_CELL_CLASS : 'flex-1 text-right'
+                          }
+                        >
+                          <span className="text-[0.6em]">Time</span>
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                  {rows.map((row, index) => {
+                    const live = row === liveRow;
+                    const older = rows[index + 1];
+                    const time = 'time' in row ? row.time : current;
+                    return (
+                      <LapTimeRow
+                        key={live ? 'live' : row.lap} // Critical for React performance
+                        label={`LAP ${row.lap ?? '--'}`}
+                        time={time}
+                        delta={
+                          'time' in row
+                            ? row.delta
+                            : hasPredictedDelta
+                              ? delta
+                              : 0
+                        }
+                        dirty={row.dirty}
+                        best={live ? undefined : bestlap}
+                        overall={live ? undefined : overall}
+                        alltime={live ? undefined : alltimelap}
+                        settings={settings}
+                        live={live}
+                        tabular={tabular}
+                        stintLap={
+                          showStintLap && row.stintLap ? `S${row.stintLap}` : ''
+                        }
+                        fuel={showFuel ? fuelText(row) : undefined}
+                        wear={showWear ? formatShare(row.wear, 1) : undefined}
+                        wearHigh={
+                          !live &&
+                          typeof row.wear === 'number' &&
+                          usualWear !== null &&
+                          row.wear > usualWear * HIGH_WEAR_RATIO
+                        }
+                        pitted={showFlags && row.pitted}
+                        voided={showFlags && row.dirty}
+                        yellow={showFlags && row.yellow}
+                        caution={showFlags && row.caution}
+                        wet={showFlags && row.wet}
+                        fromStart={showFlags && row.fromStart}
+                        stintEdge={
+                          older !== undefined &&
+                          row.stintId !== undefined &&
+                          older.stintId !== undefined &&
+                          row.stintId !== older.stintId
+                            ? olderSide
+                            : undefined
+                        }
+                      />
+                    );
+                  })}
+                </>
+              ))}
+          </div>
         </div>
       </div>
-    </div>
+    </IconContext.Provider>
   );
 };

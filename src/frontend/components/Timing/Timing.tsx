@@ -4,6 +4,7 @@ import {
   useSessionVisibility,
   type SectorColor,
 } from '@irdashies/context';
+import { SECTOR_TINT } from '../shared/sectorTint';
 import {
   deltaTone,
   formatDelta,
@@ -26,23 +27,20 @@ import { useTimingReadings } from './hooks/useTimingReadings';
 import { useTimingSettings } from './hooks/useTimingSettings';
 import { DEMO_TIMING_READINGS, type TimingReadings } from './timingReadings';
 
-/** The text size every `em` in the panel is measured from, at 100 % scale. */
+/**
+ * The text size every `em` in the panel is measured from, at 100 % scale.
+ * Timing has its own Text Scale instead of the overlay Font size, on
+ * purpose: its tiles are sized in em, so a general Font size change would
+ * resize every saved Timing window. The scale is the driver's control.
+ */
 const BASE_FONT_PX = 14;
 
-/**
- * A hairline in the middle of each gap, drawn by a pseudo-element so it adds
- * no size: between the readings of a row, and between the rows.
- */
-const RULE_BESIDE =
-  '[&>*+*]:relative [&>*+*]:after:absolute [&>*+*]:after:inset-y-0 [&>*+*]:after:-left-[0.1875rem] [&>*+*]:after:w-px [&>*+*]:after:bg-white/5';
-const RULE_ABOVE =
-  '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-x-0 [&>*+*]:before:-top-[0.1875rem] [&>*+*]:before:h-px [&>*+*]:before:bg-white/5';
-
 /** The first row carries the two largest figures and takes a larger share. */
-const ROW_LARGE = `flex min-h-0 flex-[5] gap-1.5 ${RULE_BESIDE}`;
-const ROW_NORMAL = `flex min-h-0 flex-[4] gap-1.5 ${RULE_BESIDE}`;
+const ROW_LARGE = 'flex min-h-0 flex-[5] gap-1.5 overlay-rules-x';
+const ROW_NORMAL = 'flex min-h-0 flex-[4] gap-1.5 overlay-rules-x';
 /** More than four sector tiles sit closer together, to leave them width. */
-const ROW_DENSE = 'flex min-h-0 flex-[4] gap-1';
+const ROW_DENSE =
+  'flex min-h-0 flex-[4] gap-1 overlay-rules-x [--rule-gap:0.25rem]';
 
 /** The readings sit on the panel; no tiles inside it. */
 const TILE = 'px-2.5 py-1';
@@ -73,15 +71,6 @@ const LAP_TONE_CLASS: Record<LapTimeTone, string> = {
   personalBest: 'text-green-400',
   slower: 'text-white',
   none: PLACEHOLDER,
-};
-
-/** A sector's colour is a light tint of its reading, not a frame. */
-const SECTOR_TINT: Record<SectorColor, string> = {
-  purple: 'bg-purple-500/15',
-  green: 'bg-green-500/15',
-  yellow: 'bg-yellow-500/15',
-  red: 'bg-red-500/15',
-  default: '',
 };
 
 const sectorValueClass = (state: SectorTileState, color: SectorColor) => {
@@ -154,7 +143,7 @@ export const TimingView = ({ settings, readings }: TimingViewProps) => {
   return (
     <div
       data-testid="timing"
-      className={`flex h-full w-full flex-col gap-1.5 overlay-panel p-2 font-medium text-white ${RULE_ABOVE}`}
+      className={`flex h-full w-full flex-col gap-1.5 overlay-panel p-2 font-medium text-white overlay-rules-y`}
       style={{
         ['--bg-opacity' as string]: `${settings.background.opacity}%`,
         fontSize: `${(BASE_FONT_PX * settings.scale) / 100}px`,
@@ -203,8 +192,16 @@ export const TimingView = ({ settings, readings }: TimingViewProps) => {
               label="Best Lap"
               value={formatLapTime(bestLapTime, lapTimeDecimals)}
               boxClassName={`flex-1 ${TILE}`}
+              // The one rule for lap times: a personal best green, purple
+              // when it is the session's as well (and crowned).
               valueClassName={`${MEDIUM} ${
-                bestLapTime === null ? 'text-purple-300/40' : 'text-purple-300'
+                LAP_TONE_CLASS[
+                  lapTimeTone({
+                    time: bestLapTime,
+                    sessionBest: sessionBestLapTime,
+                    personalBest: bestLapTime,
+                  })
+                ]
               }${dim}`}
               labelIcon={bestIsSessionBest ? 'crown' : undefined}
             />

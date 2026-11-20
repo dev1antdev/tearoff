@@ -36,12 +36,6 @@ type WeatherColumnId =
   | 'wetness'
   | 'trackState';
 
-/** Hairlines between the readings, by layout (gap-2 down, gap-1 across). */
-const RULE_ABOVE =
-  '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-x-0 [&>*+*]:before:-top-1 [&>*+*]:before:h-px [&>*+*]:before:bg-white/5';
-const RULE_BESIDE =
-  '[&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-y-0 [&>*+*]:before:-left-0.5 [&>*+*]:before:w-px [&>*+*]:before:bg-white/5';
-
 export const Weather = () => {
   const { isDemoMode } = useDashboard();
   const settings = useWeatherSettings();
@@ -229,8 +223,8 @@ export const Weather = () => {
           // it adds no size: beside each reading in a row, above it in a column.
           className={
             layout === 'horizontal'
-              ? `flex flex-row flex-wrap w-full gap-1 ${RULE_BESIDE}`
-              : `flex flex-col w-full gap-2 ${RULE_ABOVE}`
+              ? 'flex flex-row flex-wrap w-full gap-1 overlay-rules-x [--rule-gap:0.25rem]'
+              : 'flex flex-col w-full gap-2 overlay-rules-y [--rule-gap:0.5rem]'
           }
         >
           {visibleColumnIds.map(renderColumn)}

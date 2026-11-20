@@ -63,7 +63,7 @@ export const CarLapCaptions = memo(
     <div
       data-testid="car-laps-captions"
       // Stays put while the laps scroll under it, so it is opaque.
-      className={`${ROW} sticky top-0 z-10 border-b overlay-divider bg-slate-900 py-1.5 text-xs leading-none font-semibold tracking-wider text-slate-400 uppercase`}
+      className={`${ROW} sticky top-0 z-10 border-b overlay-divider bg-slate-900 py-1.5 overlay-label text-xs leading-none`}
       style={carLapGrid({ sectors, energy })}
     >
       <span>Lap</span>

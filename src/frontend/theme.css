@@ -233,6 +233,38 @@ layer(base);
   border-color: rgb(255 255 255 / 5%);
 }
 
+/* Hairlines between the children of a flex row (-x) or column (-y), each in
+   the middle of the gap, drawn by a pseudo-element so they add no size. Set
+   --rule-gap to the gap when it is not gap-1.5. */
+@utility overlay-rules-x {
+  & > * + * {
+    position: relative;
+  }
+  & > * + *::before {
+    content: '';
+    position: absolute;
+    inset-block: 0;
+    left: calc(var(--rule-gap, 0.375rem) / -2);
+    width: 1px;
+    background: rgb(255 255 255 / 5%);
+    pointer-events: none;
+  }
+}
+@utility overlay-rules-y {
+  & > * + * {
+    position: relative;
+  }
+  & > * + *::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: calc(var(--rule-gap, 0.375rem) / -2);
+    height: 1px;
+    background: rgb(255 255 255 / 5%);
+    pointer-events: none;
+  }
+}
+
 /* The chosen or recommended line of a table, or column of a strip. */
 @utility overlay-selected {
   @apply rounded-md bg-slate-800/60;

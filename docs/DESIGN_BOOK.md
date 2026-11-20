@@ -50,16 +50,16 @@ The app is dark only (`color-scheme: dark`).
 
 ### 3.1 Panel and rows
 
-| Element          | Classes                                                                                                                                                                                           |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Widget panel     | `overlay-panel` (`theme.css`): `bg-slate-950/(--bg-opacity)`, a 1px edge drawn as an inset `white/9` shadow so it takes no room, `rounded-xl` (12px); `p-2` (compact mode drops it), `text-white` |
-| Rows             | No background. A hairline between them: `border-t overlay-divider first:border-t-0`; on a table row, on its cells (`[&>td]:border-t [&>td]:overlay-divider`)                                      |
-| The player's row | An amber tint (`bg-amber-500/(--player-row-opacity)` in Standings and Relative) and `text-amber-300`, the position included                                                                       |
-| Divider          | `overlay-divider` (a `white/5` border colour), between sections of one panel                                                                                                                      |
-| Selected row     | `overlay-selected` (`bg-slate-800/60 rounded-md`): the chosen or recommended line of a table or column of a strip (the Fuel Calculator's average, its best pit lap)                               |
-| Bar track        | `bg-slate-900/70`, `rounded-full` when thin, `rounded-md` when tall (Pitlane Helper); the fill inside takes its meaning's colour                                                                  |
-| Chip / scrim     | `bg-slate-950/NN` (behind a chip, a warning pill, a readout over a graphic)                                                                                                                       |
-| Inner tile       | Avoid a tile inside a panel: group with space and a divider. Where one is needed, `bg-slate-900/70`, `rounded-md`                                                                                 |
+| Element          | Classes                                                                                                                                                                                                                                          |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Widget panel     | `overlay-panel` (`theme.css`): `bg-slate-950/(--bg-opacity)`, a 1px edge drawn as an inset `white/9` shadow so it takes no room, `rounded-xl` (12px); `p-2` (compact mode drops it), `text-white`                                                |
+| Rows             | No background. A hairline between them: `border-t overlay-divider first:border-t-0`; on a table row, on its cells (`[&>td]:border-t [&>td]:overlay-divider`)                                                                                     |
+| The player's row | An amber tint (`bg-amber-500/(--player-row-opacity)` in Standings and Relative) and `text-amber-300`, the position included                                                                                                                      |
+| Divider          | `overlay-divider` (a `white/5` border colour), between sections of one panel; between the children of a row or column, `overlay-rules-x` / `-y`, a line in the middle of the gap that adds no size (`--rule-gap` for a gap other than `gap-1.5`) |
+| Selected row     | `overlay-selected` (`bg-slate-800/60 rounded-md`): the chosen or recommended line of a table or column of a strip (the Fuel Calculator's average, its best pit lap)                                                                              |
+| Bar track        | `bg-slate-900/70`, `rounded-full` when thin, `rounded-md` when tall (Pitlane Helper); the fill inside takes its meaning's colour                                                                                                                 |
+| Chip / scrim     | `bg-slate-950/NN` (behind a chip, a warning pill, a readout over a graphic)                                                                                                                                                                      |
+| Inner tile       | Avoid a tile inside a panel: group with space and a divider. Where one is needed, `bg-slate-900/70`, `rounded-md`                                                                                                                                |
 
 `--bg-opacity` comes from the widget's own `background.opacity` setting
 (0–100). At low opacity the game is the ground, so values stay `text-white`.
@@ -133,13 +133,15 @@ stroke. The Information Bar's items stand in columns with a hairline in the midd
 each gap (a pseudo-element, so the bar is no wider); it keeps its tinted strip inside
 its panel on purpose, the strip being what its Foreground Opacity setting sets. Flags keep their exact colours.
 
-Timing: readings sit on the panel with a hairline between them (a
-pseudo-element in the gap, no size). A sector's colour (session best purple,
-personal best green, slower yellow, red) is a light tint of its reading, not a
-bar under it. Deltas are signed, a gain `green-400`, a loss `red-400`. A
-yellow flag on a lap is the flag's yellow. The Lap Timer's current and
-predicted lap keep their tinted tiles: they are what its Foreground Opacity
-setting sets.
+Timing: readings sit on the panel with `overlay-rules-x` / `-y` between them.
+A sector's colour (session best purple, personal best green, slower yellow,
+red) is a light tint of its reading (`SECTOR_TINT`, 20%), not a bar under it.
+The Lap Timer's current and
+predicted lap and its stat cells keep their tinted tiles: they are what its
+Foreground Opacity setting sets. The Lap Timer keeps its own record colours,
+session best green, overall best purple and all-time best yellow, flashed on
+the current lap when set. Timing keeps its own Text Scale instead of the
+Font size: a general change would resize every saved Timing window.
 
 ### 3.2 Neutrals follow the palette
 

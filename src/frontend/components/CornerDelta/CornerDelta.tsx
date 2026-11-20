@@ -180,9 +180,8 @@ export const CornerDeltaView = ({
         {formatTimeDelta(reading.timeDeltaSec, decimals)}
       </div>
       {(showEntrySpeed || showExitSpeed) && (
-        // Entry and exit on the panel, a hairline between them (a
-        // pseudo-element in the gap, no size).
-        <div className="flex gap-1.5 [&>*+*]:relative [&>*+*]:before:absolute [&>*+*]:before:inset-y-0 [&>*+*]:before:-left-[0.1875rem] [&>*+*]:before:w-px [&>*+*]:before:bg-white/5">
+        // Entry and exit on the panel, a hairline between them.
+        <div className="flex gap-1.5 overlay-rules-x">
           {showEntrySpeed && (
             <SpeedCell
               label="Entry"
@@ -210,7 +209,7 @@ export const CornerDeltaView = ({
           data-testid="corner-delta-history"
           className="flex flex-col gap-0.5 border-t overlay-divider pt-1 text-xs leading-tight tabular-nums text-slate-300"
         >
-          <div className="text-2xs uppercase tracking-wide text-slate-500">
+          <div className="overlay-label">
             <HistoryRow
               label="Earlier"
               time="Time"

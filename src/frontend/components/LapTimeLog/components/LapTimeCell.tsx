@@ -48,7 +48,7 @@ export const LapTimeCell = memo(
             } as React.CSSProperties
           }
         >
-          <span className="text-[0.6em] @[10em]:text-[0.8em] mx-2">
+          <span className="text-[0.6em] @[10em]:text-[0.8em] mx-2 uppercase tracking-wider text-slate-400">
             {label}
           </span>
           <span className={`text-[1em] tabular-nums ${getLapColor()}`}>
