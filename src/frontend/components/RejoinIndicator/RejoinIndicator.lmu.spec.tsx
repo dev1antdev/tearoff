@@ -117,6 +117,15 @@ describe('the Rejoin Indicator on a recorded LMU race', () => {
     expect(container.textContent).toContain('Clear');
   });
 
+  it('staged: an imported Care Gap that is not a number leaves the Stop Gap red', () => {
+    // A dashboard file can carry "2,0"; 2.45 s is inside the 3 s stop gap.
+    const container = rejoin(staged(race, crawling), {
+      careGap: '2,0' as unknown as number,
+      stopGap: 3,
+    });
+    expect(container.textContent).toContain('Do Not Rejoin');
+  });
+
   it('staged: slow in the pit lane, stays hidden', () => {
     expect(rejoin(staged(race, crawlingInPitLane)).textContent).toBe('');
   });

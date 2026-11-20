@@ -1,7 +1,4 @@
-import {
-  stateOf,
-  type RejoinState,
-} from '@irdashies/domain/traffic/pitExitTraffic';
+import type { RejoinState } from '@irdashies/domain/traffic/pitExitTraffic';
 // Demo data for Rejoin Indicator component
 
 export interface RejoinIndicatorSettings {
@@ -26,15 +23,21 @@ export interface RejoinIndicatorDemoData {
 }
 
 /**
- * The state a gap behind puts a rejoin in, the clear threshold checked first
- * as this widget always has: a Care Gap set below the Stop Gap leaves no
- * caution band rather than turning gaps it calls clear red. Traffic's own
- * `stateOf` checks danger first; the min gives the same answer here.
+ * The state a gap behind puts a rejoin in, by this widget's own ladder, the
+ * clear threshold first (Traffic's `stateOf` checks danger first). A Care Gap
+ * set below the Stop Gap leaves no caution band rather than turning gaps it
+ * calls clear red, and a Care Gap that is not a number never hides a red the
+ * Stop Gap calls.
  */
 export const rejoinStateOf = (
   gap: number | undefined,
   { careGap, stopGap }: { careGap: number; stopGap: number }
-): RejoinState => stateOf(gap, careGap, Math.min(stopGap, careGap));
+): RejoinState =>
+  gap === undefined || gap >= careGap
+    ? 'clear'
+    : gap >= stopGap
+      ? 'caution'
+      : 'danger';
 
 // Demo data for rejoin indicator
 export const getDemoRejoinData = (
