@@ -115,7 +115,7 @@ const signedSeconds = (offsetS: number): string =>
  * Who is coming, and when.
  *
  * On track in a race it is the mirror: the cars closing from behind, each
- * with its number on the class colour, the gap, and an arrow for how fast
+ * with its number by its class colour, the gap, and an arrow for how fast
  * it is closing; under them a line that says when and where the one that
  * is catching the player arrives; and a table of laps until the player
  * meets the car ahead, the leader and the car behind.
@@ -220,7 +220,7 @@ export const Traffic = () => {
             </span>
             <span
               data-testid="traffic-rejoin-state"
-              className={`rounded px-1.5 py-0.5 text-xs font-bold uppercase ${REJOIN_LOOK[rejoin.state].pill}`}
+              className={`px-2 py-0.5 text-xs font-bold uppercase ${REJOIN_LOOK[rejoin.state].pill}`}
             >
               {REJOIN_WORD[rejoin.state]}
             </span>

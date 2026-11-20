@@ -179,7 +179,7 @@ export default defineWidgetManifest({
       type: 'number',
       label: 'Caution Gap',
       description:
-        'A car arriving closer behind than this turns the block amber.',
+        'A car arriving closer behind than this makes it a caution: the state word amber and the block ringed.',
       min: 0,
       max: 10,
       step: 0.5,
@@ -188,7 +188,7 @@ export default defineWidgetManifest({
     dangerGap: {
       type: 'number',
       label: 'Danger Gap',
-      description: 'Closer than this turns it red.',
+      description: 'Closer than this makes it a danger, in red.',
       min: 0,
       max: 10,
       step: 0.5,

@@ -57,8 +57,10 @@ describe('FasterCarsFromBehind', () => {
       render(<FasterCarsFromBehind />);
 
       const card = screen.getByRole('listitem');
-      expect(card.querySelector('span[aria-hidden]')).toHaveClass(expected);
-      expect(card).not.toHaveClass(expected);
+      // The class as the standings draw it: a bar in its colour.
+      const border = expected.replace('bg-', 'border-');
+      expect(card.querySelector('[role="group"]')).toHaveClass(border);
+      expect(card).not.toHaveClass(border);
       expect(card).not.toHaveClass('animate-pulse');
     }
   );

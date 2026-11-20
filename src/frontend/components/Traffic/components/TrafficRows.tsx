@@ -9,7 +9,7 @@ import type { TrafficRelation } from '@irdashies/types';
 import type { ClosingLevel } from '@irdashies/domain/traffic/trafficText';
 import { CarNumber } from '../../shared/CarNumberCell/CarNumberCell';
 
-/** The car number on its class colour, as every block of the widget draws it. */
+/** The car number by its class colour, as every block of the widget draws it. */
 export const CarChip = memo(
   ({
     number,
@@ -33,7 +33,7 @@ export const CarChip = memo(
       isMultiClass={isMultiClass}
       className={`flex-none py-0.5 text-xs leading-none tabular-nums ${
         outlined
-          ? 'rounded-sm pr-1 outline-2 outline-offset-1 outline-sky-500'
+          ? 'rounded-sm pr-1 outline-2 outline-offset-1 outline-blue-500'
           : ''
       }`}
     />
@@ -150,7 +150,7 @@ export const MirrorRow = memo(
         data-relation={relation}
         className={`flex min-w-0 items-center gap-2 rounded px-1.5 ${
           isHead ? 'py-1' : 'py-0.5'
-        } ${relation === 'lapping' ? 'ring-1 ring-inset ring-sky-500/70' : ''} ${
+        } ${relation === 'lapping' ? 'ring-1 ring-inset ring-blue-500/70' : ''} ${
           isTraffic ? '' : 'text-slate-300'
         }`}
       >
@@ -166,7 +166,7 @@ export const MirrorRow = memo(
         {relation === 'lapping' && (
           <span
             data-testid="traffic-laps"
-            className="flex-none rounded bg-sky-500/20 px-1 py-0.5 text-2xs leading-none font-bold text-sky-300 uppercase"
+            className="flex-none rounded bg-blue-500/20 px-1 py-0.5 text-2xs leading-none font-bold text-blue-300 uppercase"
           >
             +{Math.max(1, lapsAhead)} lap{lapsAhead > 1 ? 's' : ''}
           </span>

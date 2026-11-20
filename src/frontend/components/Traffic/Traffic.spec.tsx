@@ -273,7 +273,7 @@ describe('Traffic', () => {
       expect(row?.dataset.relation).toBe('position');
       expect(text(container, 'traffic-tag')).toBe('Rival');
       expect(one(container, 'traffic-laps')).toBeNull();
-      expect(row?.className).not.toContain('ring-sky');
+      expect(row?.className).not.toContain('ring-blue');
       // Under a second is urgent for traffic, not for a car being raced.
       expect(one(container, 'traffic-gap')?.className).not.toContain('red');
     });
@@ -470,7 +470,7 @@ describe('Traffic', () => {
       expect(one(tiles[2], 'traffic-contact-laps')?.className).toContain(
         'text-amber-400'
       );
-      expect(one(tiles[2], 'car-number')?.className).toContain('outline-sky');
+      expect(one(tiles[2], 'car-number')?.className).toContain('outline-blue');
       expect(one(tiles[1], 'traffic-contact-laps')?.className).not.toContain(
         'amber'
       );
@@ -530,7 +530,7 @@ describe('Traffic', () => {
       expect(block?.dataset.block).toBe('exit');
       expect(block?.dataset.state).toBe('caution');
       // One bright spot: the state's word, and an outline in its colour.
-      expect(block?.className).toContain('outline-amber-400');
+      expect(block?.className).toContain('outline-amber-500');
       expect(one(container, 'traffic-rejoin-state')?.className).toContain(
         'bg-amber-500'
       );

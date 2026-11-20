@@ -98,7 +98,7 @@ describe('the Rejoin Indicator on a recorded LMU race', () => {
     expect(caution.textContent).toContain('Caution');
     // The word filled, the panel ringed in the caution's colour.
     expect(caution.querySelector('.bg-amber-500')).not.toBeNull();
-    expect(caution.querySelector('.outline-amber-400')).not.toBeNull();
+    expect(caution.querySelector('.outline-amber-500')).not.toBeNull();
     cleanup();
 
     const stop = rejoin(staged(race, crawling), { careGap: 4, stopGap: 3 });
