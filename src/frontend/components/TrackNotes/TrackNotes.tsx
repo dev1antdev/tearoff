@@ -99,10 +99,11 @@ const LINE_ICONS = {
   pit: WrenchIcon,
 } as const;
 
+// Neutral, but the pit lane's caution; sky is rain and amber-300 is you.
 const ICON_CLASS: Record<LineKind, string> = {
-  pace: 'text-sky-300',
+  pace: 'text-slate-300',
   track: 'text-slate-400',
-  pit: 'text-amber-300',
+  pit: 'text-amber-400',
 };
 
 /** One note on one line: its icon, its text cut short with an ellipsis. */
@@ -115,7 +116,7 @@ const NoteLine = memo(
           large
             ? 'text-lg font-bold leading-tight'
             : 'text-sm leading-tight text-slate-300'
-        } ${kind === 'pit' ? 'text-amber-300' : ''}`}
+        } ${kind === 'pit' ? 'text-amber-400' : ''}`}
         data-testid={`track-notes-${kind}`}
       >
         <LineIcon

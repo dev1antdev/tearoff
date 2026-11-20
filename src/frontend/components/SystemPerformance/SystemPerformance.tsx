@@ -1,6 +1,7 @@
 import { Fragment, memo } from 'react';
 import {
   CpuIcon,
+  IconContext,
   GaugeIcon,
   GraphicsCardIcon,
   MemoryIcon,
@@ -18,6 +19,7 @@ import {
   type PerformanceMetricKind,
   type PerformanceTone,
 } from './systemPerformanceDisplay';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 
 const METRIC_ICON: Record<PerformanceMetricKind, Icon> = {
   cpu: CpuIcon,
@@ -38,7 +40,7 @@ const METRIC_NAME: Record<PerformanceMetricKind, string> = {
 const TONE_CLASS: Record<PerformanceTone, string> = {
   none: 'text-slate-500',
   normal: 'text-white',
-  caution: 'text-amber-300',
+  caution: 'text-amber-400',
   critical: 'text-red-400',
 };
 
@@ -67,7 +69,7 @@ const Metric = memo(({ group, kind, value, unit, tone, wide }: MetricProps) => {
     >
       <MetricIcon
         size="1em"
-        className="flex-none text-white/50"
+        className="flex-none text-slate-400"
         aria-hidden="true"
       />
       <span
@@ -76,7 +78,7 @@ const Metric = memo(({ group, kind, value, unit, tone, wide }: MetricProps) => {
         {value}
         {/* A unit after the placeholder would read as a value. */}
         {tone !== 'none' && (
-          <span className="ml-0.5 text-[0.8em] font-normal text-white/50">
+          <span className="ml-0.5 text-[0.8em] font-normal text-slate-400">
             {unit}
           </span>
         )}
@@ -109,66 +111,68 @@ export const SystemPerformance = () => {
   const inline = settings.layout === 'inline';
 
   return (
-    <div
-      data-testid="system-performance"
-      data-layout={settings.layout}
-      className="flex h-full w-full flex-col justify-center overflow-hidden overlay-panel p-2 text-sm leading-none text-white"
-      style={{
-        ['--bg-opacity' as string]: `${settings.background.opacity}%`,
-      }}
-    >
-      {inline ? (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-          {groups.map((group) => (
-            <div
-              key={group.key}
-              data-testid={`system-performance-${group.key}`}
-              className="flex items-center gap-2"
-            >
-              <span className="text-xs text-white/60">{group.label}</span>
-              {group.metrics.map((metric) => (
-                <Metric
-                  key={metric.kind}
-                  group={group.key}
-                  kind={metric.kind}
-                  value={metric.value}
-                  unit={metric.unit}
-                  tone={metric.tone}
-                  wide={false}
-                />
-              ))}
-            </div>
-          ))}
-        </div>
-      ) : (
-        // One grid for every row, so the figures line up in columns: equal
-        // ones while there is room, and never narrower than a figure, so a
-        // tight window clips at its edge rather than running figures together.
-        // A row of two figures gives its second the room of a third.
-        <div className="grid grid-cols-[auto_repeat(3,minmax(max-content,1fr))] items-center gap-x-2.5 gap-y-1.5">
-          {groups.map((group) => (
-            <Fragment key={group.key}>
-              <span
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        data-testid="system-performance"
+        data-layout={settings.layout}
+        className="flex h-full w-full flex-col justify-center overflow-hidden overlay-panel p-2 text-sm leading-none text-white"
+        style={{
+          ['--bg-opacity' as string]: `${settings.background.opacity}%`,
+        }}
+      >
+        {inline ? (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            {groups.map((group) => (
+              <div
+                key={group.key}
                 data-testid={`system-performance-${group.key}`}
-                className="text-xs text-white/60"
+                className="flex items-center gap-2"
               >
-                {group.label}
-              </span>
-              {group.metrics.map((metric, index) => (
-                <Metric
-                  key={metric.kind}
-                  group={group.key}
-                  kind={metric.kind}
-                  value={metric.value}
-                  unit={metric.unit}
-                  tone={metric.tone}
-                  wide={group.metrics.length === 2 && index === 1}
-                />
-              ))}
-            </Fragment>
-          ))}
-        </div>
-      )}
-    </div>
+                <span className="text-xs text-slate-400">{group.label}</span>
+                {group.metrics.map((metric) => (
+                  <Metric
+                    key={metric.kind}
+                    group={group.key}
+                    kind={metric.kind}
+                    value={metric.value}
+                    unit={metric.unit}
+                    tone={metric.tone}
+                    wide={false}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        ) : (
+          // One grid for every row, so the figures line up in columns: equal
+          // ones while there is room, and never narrower than a figure, so a
+          // tight window clips at its edge rather than running figures together.
+          // A row of two figures gives its second the room of a third.
+          <div className="grid grid-cols-[auto_repeat(3,minmax(max-content,1fr))] items-center gap-x-2.5 gap-y-1.5">
+            {groups.map((group) => (
+              <Fragment key={group.key}>
+                <span
+                  data-testid={`system-performance-${group.key}`}
+                  className="text-xs text-slate-400"
+                >
+                  {group.label}
+                </span>
+                {group.metrics.map((metric, index) => (
+                  <Metric
+                    key={metric.kind}
+                    group={group.key}
+                    kind={metric.kind}
+                    value={metric.value}
+                    unit={metric.unit}
+                    tone={metric.tone}
+                    wide={group.metrics.length === 2 && index === 1}
+                  />
+                ))}
+              </Fragment>
+            ))}
+          </div>
+        )}
+      </div>
+    </IconContext.Provider>
   );
 };

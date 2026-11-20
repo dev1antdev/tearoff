@@ -331,7 +331,7 @@ describe('TrackNotes', () => {
       expect(lines('pit')).toEqual(['Pit exit: stay right']);
       expect(line('track')).toBeNull();
       expect(line('pace')).toBeNull();
-      expect(line('pit')?.className).toContain('text-amber-300');
+      expect(line('pit')?.className).toContain('text-amber-400');
     });
 
     it('says "Pit lane" on a track with no note for them', () => {

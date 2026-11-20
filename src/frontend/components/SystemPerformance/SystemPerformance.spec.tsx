@@ -154,7 +154,7 @@ describe('SystemPerformance', () => {
     it('turns a CPU figure amber from the warning and red from 95', () => {
       show(snapshot({ systemCpuPercent: 85, simCpuPercent: 95 }));
 
-      expect(figure('system', 'cpu').value).toHaveClass('text-amber-300');
+      expect(figure('system', 'cpu').value).toHaveClass('text-amber-400');
       expect(figure('sim', 'cpu').value).toHaveClass('text-red-400');
       // The ones still under it stay white.
       expect(figure('app', 'cpu').value).toHaveClass('text-white');
@@ -170,7 +170,7 @@ describe('SystemPerformance', () => {
 
     it('turns the frame rate amber below the warning and red below half of it', () => {
       const { unmount } = show(snapshot({ simFps: 59 }));
-      expect(figure('sim', 'fps').value).toHaveClass('text-amber-300');
+      expect(figure('sim', 'fps').value).toHaveClass('text-amber-400');
       unmount();
 
       show(snapshot({ simFps: 29 }));
@@ -182,8 +182,8 @@ describe('SystemPerformance', () => {
         config: { warn: { cpuPercent: 60, fps: 120 } },
       });
 
-      expect(figure('system', 'cpu').value).toHaveClass('text-amber-300');
-      expect(figure('sim', 'fps').value).toHaveClass('text-amber-300');
+      expect(figure('system', 'cpu').value).toHaveClass('text-amber-400');
+      expect(figure('sim', 'fps').value).toHaveClass('text-amber-400');
     });
 
     it('never colours memory', () => {
@@ -304,7 +304,7 @@ describe('SystemPerformance', () => {
 
       expect(rows()).toEqual(['system', 'app', 'sim']);
       // The default warning of 85 applies.
-      expect(figure('system', 'cpu').value).toHaveClass('text-amber-300');
+      expect(figure('system', 'cpu').value).toHaveClass('text-amber-400');
       expect(defaults.warn.cpuPercent).toBe(85);
     });
   });
