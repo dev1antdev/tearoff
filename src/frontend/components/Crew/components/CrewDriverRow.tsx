@@ -81,7 +81,7 @@ export const CrewDriverRow = memo(
         <div className="mt-1 flex items-center gap-x-2 px-3">
           <div
             data-testid="crew-driver-bar"
-            className="relative h-2 min-w-0 flex-1 rounded-full bg-slate-600/60"
+            className="relative h-2 min-w-0 flex-1 rounded-full bg-slate-800"
           >
             <div
               className={`h-full rounded-full ${
@@ -113,9 +113,7 @@ CrewDriverRow.displayName = 'CrewDriverRow';
 
 /** The captions over the drivers. */
 export const CrewDriverCaptions = memo(() => (
-  <div
-    className={`${CREW_DRIVER_GRID} py-1.5 text-xs leading-none font-medium tracking-wide text-slate-400 uppercase`}
-  >
+  <div className={`${CREW_DRIVER_GRID} py-1.5 overlay-label leading-none`}>
     <span>Driver</span>
     <span className="text-right">Stints</span>
     <span className="text-right">Drive</span>

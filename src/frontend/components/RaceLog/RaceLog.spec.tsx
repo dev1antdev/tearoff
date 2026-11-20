@@ -190,9 +190,10 @@ describe('RaceLog', () => {
         'text-amber-300'
       );
     }
+    // Another car's number is grey after its class bar, as in the standings.
     const other = screen.getAllByTestId('race-log-row')[0];
     expect(other.querySelector('[data-testid="race-log-car"]')).toHaveClass(
-      'text-white'
+      'text-slate-400'
     );
     expect(
       other.querySelector('[data-testid="race-log-text"]')

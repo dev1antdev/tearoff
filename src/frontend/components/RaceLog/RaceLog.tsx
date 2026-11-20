@@ -27,12 +27,12 @@ import { useRaceLogSettings } from './hooks/useRaceLogSettings';
 interface GridCar {
   carNumber: string;
   classId: number;
-  /** The badge of its number, in its class colour. */
+  /** The bar before its number, in its class colour. */
   badgeClass: string;
 }
 
 /** A car the session no longer names: a number that is not known. */
-const UNKNOWN_BADGE = 'bg-slate-600/30 border-slate-500';
+const UNKNOWN_BADGE = 'border-slate-500';
 
 /** The switches as one word: what tells one setting of them from another. */
 const kindsKey = (kinds: RaceLogKinds): string =>
@@ -97,7 +97,7 @@ export const RaceLog = () => {
         classId: driver.CarClassID,
         // The class colour as the Standings takes it from the session.
         badgeClass: getTailwindStyle(driver.CarClassColor, undefined, true)
-          .driverIcon,
+          .borderColor,
       });
     }
     return cars;
@@ -196,7 +196,7 @@ export const RaceLog = () => {
               data-testid="race-log-earlier"
               disabled={loading}
               onClick={loadEarlier}
-              className="rounded border border-slate-600 px-2 py-0.5 text-xs text-slate-300 hover:bg-slate-700/70 disabled:opacity-50"
+              className="rounded-md border border-slate-600 px-2 py-0.5 text-xs text-slate-300 hover:bg-slate-700/70 disabled:opacity-50"
             >
               {loading ? 'Reading earlier events' : 'Earlier events'}
             </button>

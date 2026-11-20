@@ -82,7 +82,7 @@ export const StintTimeline = () => {
                   data-testid="stint-timeline-car"
                   data-own={row.own}
                   className={`flex items-center font-bold leading-none ${
-                    row.own ? 'text-amber-300' : 'text-white'
+                    row.own ? 'text-amber-300' : 'text-slate-400'
                   }`}
                   style={{ height: TIMELINE_BAR_PX }}
                 >

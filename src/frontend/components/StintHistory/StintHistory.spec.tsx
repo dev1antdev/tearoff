@@ -123,6 +123,17 @@ describe('StintHistory', () => {
       expect(finished.className).toContain('text-slate-300');
     });
 
+    it('selects the stint under way and stripes none of the others', () => {
+      const [current, ...finished] = all(draw(), 'stint-row');
+
+      expect(current.className).toContain('overlay-selected');
+      for (const row of finished) {
+        expect(row.className).not.toMatch(/bg-slate-(800|900)\/70/);
+      }
+      // A hairline between finished stints, drawn in no extra height.
+      expect(finished[1].className).toContain('bg-[length:100%_1px]');
+    });
+
     it('gives each stint its time, what it used, its wear and its best', () => {
       const [current, third] = table(draw());
 

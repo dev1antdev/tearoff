@@ -37,6 +37,9 @@ interface Column {
   cell: (row: StintRow) => ReactNode;
 }
 
+const HAIRLINE =
+  'bg-[linear-gradient(rgb(255_255_255/0.05),rgb(255_255_255/0.05))] bg-[length:100%_1px] bg-no-repeat';
+
 /** The second line of a cell: a figure that explains the one above it. */
 const Below = ({ children }: { children: ReactNode }) => (
   <div className="text-[0.75em] font-normal leading-none text-slate-400">
@@ -204,9 +207,6 @@ export const StintHistoryDisplay = ({
   teamMateDriving = false,
 }: StintHistoryDisplayProps) => {
   const columns = columnsOf(settings, rows[0]?.budget ?? budget ?? 'fuel');
-  // Finished stints alternate between two shades, wherever the stint under
-  // way sits among them.
-  const finished = rows.filter((row) => !row.current);
 
   return (
     <div
@@ -221,7 +221,7 @@ export const StintHistoryDisplay = ({
       >
         <div
           data-testid="stint-header"
-          className="col-span-full grid grid-cols-subgrid items-end px-1 pb-0.5 text-[0.75em] uppercase leading-none text-slate-400"
+          className="col-span-full grid grid-cols-subgrid items-end px-1 pb-0.5 overlay-label text-[0.75em] leading-none"
         >
           {columns.map((column) => (
             <div key={column.id} className={column.align}>
@@ -232,22 +232,25 @@ export const StintHistoryDisplay = ({
         {teamMateDriving && (
           <div
             data-testid="stint-note"
-            className="col-span-full flex items-center gap-[0.4em] rounded-sm bg-slate-700/50 px-1 py-0.5 text-[0.8em] uppercase text-slate-300"
+            className="col-span-full flex items-center gap-[0.4em] px-1 py-0.5 overlay-label text-[0.8em] text-slate-300"
           >
             <UserSwitchIcon />
             <span>Team-mate driving · your stints</span>
           </div>
         )}
-        {rows.map((row) => {
+        {rows.map((row, index) => {
+          // No stripes: the stint under way is the selected line, and a
+          // hairline above the others is their top pixel of background, so
+          // no row is taller.
           const shade = row.current
-            ? 'bg-slate-700/50 font-bold'
-            : `text-slate-300 ${finished.indexOf(row) % 2 === 0 ? 'bg-slate-800/70' : 'bg-slate-900/70'}`;
+            ? 'overlay-selected font-bold'
+            : `text-slate-300 ${index > 0 && !rows[index - 1].current ? HAIRLINE : ''}`;
           return (
             <div
               key={row.id}
               data-testid="stint-row"
               data-current={row.current}
-              className={`col-span-full grid grid-cols-subgrid items-center rounded-sm px-1 py-0.5 ${shade}`}
+              className={`col-span-full grid grid-cols-subgrid items-center px-1 py-0.5 ${shade}`}
             >
               {columns.map((column) => (
                 <div key={column.id} className={column.align}>

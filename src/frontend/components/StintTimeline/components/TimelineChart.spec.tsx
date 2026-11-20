@@ -82,13 +82,14 @@ describe('TimelineChart', () => {
   it('leaves a rival’s bars grey, one shade and the other after each change', () => {
     render(<TimelineChart axis={axis} rows={[row(false)]} showDrivers />);
 
+    // Restrained greys, so our own car's driver colours stand out.
     expect(classesOf('driven')).toEqual([
-      'fill-slate-500',
-      'fill-slate-400',
-      'fill-slate-500',
-      'fill-slate-400',
-      'fill-slate-500',
-      'fill-slate-400',
+      'fill-slate-700',
+      'fill-slate-600',
+      'fill-slate-700',
+      'fill-slate-600',
+      'fill-slate-700',
+      'fill-slate-600',
     ]);
   });
 });

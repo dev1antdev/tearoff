@@ -88,8 +88,10 @@ export const RaceLogRow = memo(
         ) : (
           <span
             data-testid="race-log-car"
-            className={`rounded-sm border-l-4 px-1 text-right font-bold leading-snug ${badgeClass} ${
-              own ? 'text-amber-300' : 'text-white'
+            // As the standings draw a number: grey, after a bar in its class
+            // colour; yours amber.
+            className={`border-l-4 pl-1 text-right leading-snug ${badgeClass} ${
+              own ? 'text-amber-300' : 'text-slate-400'
             }`}
           >
             #{carNumber}
