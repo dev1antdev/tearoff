@@ -4,3 +4,4 @@ export const useHighlightColor = () => {
   const { currentDashboard } = useDashboard();
   return currentDashboard?.generalSettings?.highlightColor;
 };
+
