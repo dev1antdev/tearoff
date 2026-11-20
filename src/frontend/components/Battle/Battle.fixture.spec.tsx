@@ -93,6 +93,23 @@ describe('Battle on a recorded LMU race', () => {
     expect(text('behind', 'driverName')).toBe('Alberto Ascari');
   });
 
+  it('draws its rows as the standings do: no stripes, the player tinted, numbers grey', () => {
+    const { container, cell } = battle(race);
+    const row = (side: string) =>
+      container.querySelector(`[data-row="${side}"]`)?.className ?? '';
+
+    expect(row('ahead')).not.toContain('bg-slate');
+    expect(row('behind')).not.toContain('bg-slate');
+    // A hairline over the row behind, inside its cells; none on the first.
+    expect(row('behind')).toContain('bg-[linear-gradient');
+    expect(row('ahead')).not.toContain('bg-[linear-gradient');
+    expect(row('focus')).toContain('bg-amber-500/20');
+    // The focus car's place in its amber, not on its class colour.
+    expect(cell('focus', 'position')?.className).not.toMatch(/\bbg-/);
+    expect(cell('ahead', 'carNumber')?.className).toContain('text-slate-400');
+    expect(cell('ahead', 'carNumber')?.className).toContain('border-l-4');
+  });
+
   it('prints each rival’s gap, and none for the player’s own row', () => {
     const { text } = battle(race);
 

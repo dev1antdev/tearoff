@@ -15,6 +15,15 @@ interface StatusBadgeProps {
   style?: CSSProperties;
 }
 
+/** Each status's outline colour; the Timing Tower's tags take the same. */
+export const STATUS_BORDER = {
+  dnf: 'border-red-500',
+  tow: 'border-orange-500',
+  out: 'border-green-700',
+  pit: 'border-yellow-500',
+  garage: 'border-slate-500',
+} as const;
+
 const StatusBadge = ({
   textColor = 'text-white',
   borderColorClass,
@@ -249,28 +258,26 @@ export const DriverStatusBadges = memo(
           </StatusBadge>
         )}
         {dnf && (
-          <StatusBadge borderColorClass={isMinimal ? muted : 'border-red-500'}>
+          <StatusBadge borderColorClass={isMinimal ? muted : STATUS_BORDER.dnf}>
             DNF
           </StatusBadge>
         )}
         {tow && (
           <StatusBadge
-            borderColorClass={isMinimal ? muted : 'border-orange-500'}
+            borderColorClass={isMinimal ? muted : STATUS_BORDER.tow}
             animate
           >
             TOW
           </StatusBadge>
         )}
         {out && (
-          <StatusBadge
-            borderColorClass={isMinimal ? muted : 'border-green-700'}
-          >
+          <StatusBadge borderColorClass={isMinimal ? muted : STATUS_BORDER.out}>
             OUT {pitDuration}
           </StatusBadge>
         )}
         {pit && (
           <StatusBadge
-            borderColorClass={isMinimal ? muted : 'border-yellow-500'}
+            borderColorClass={isMinimal ? muted : STATUS_BORDER.pit}
             animate
           >
             PIT
@@ -279,15 +286,13 @@ export const DriverStatusBadges = memo(
         )}
         {garage && (
           <StatusBadge
-            borderColorClass={isMinimal ? muted : 'border-slate-500'}
+            borderColorClass={isMinimal ? muted : STATUS_BORDER.garage}
           >
             GAR
           </StatusBadge>
         )}
         {lastPit && !out && (
-          <StatusBadge
-            borderColorClass={isMinimal ? muted : 'border-yellow-500'}
-          >
+          <StatusBadge borderColorClass={isMinimal ? muted : STATUS_BORDER.pit}>
             L {pitLap} {pitDuration}
           </StatusBadge>
         )}

@@ -1,3 +1,5 @@
+import { IconContext } from '@phosphor-icons/react';
+import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
 import { resolveSpeedUnit } from '@irdashies/utils/units';
 import {
   useDrivingState,
@@ -80,44 +82,46 @@ export const Battle = () => {
     carIdx === undefined ? undefined : carSpeeds[carIdx];
 
   return (
-    <div
-      className={`w-full overlay-panel ${!isCompact ? 'p-2' : ''} overflow-hidden text-white`}
-      style={{
-        ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 80}%`,
-      }}
-    >
-      <table
-        className={`w-full table-auto text-sm border-separate ${tableBorderSpacing}`}
+    <IconContext.Provider value={OVERLAY_ICONS}>
+      <div
+        className={`w-full overlay-panel ${!isCompact ? 'p-2' : ''} overflow-hidden text-white`}
+        style={{
+          ['--bg-opacity' as string]: `${settings?.background?.opacity ?? 80}%`,
+        }}
       >
-        {(settings?.header?.enabled ?? true) && (
-          <RivalsHeader columns={columns} speedUnit={speedUnit} />
-        )}
-        <tbody>
-          <RivalRow
-            {...rowProps}
-            side="ahead"
-            car={rivals.ahead}
-            rival={rivals.ahead}
-            speedKph={speedOf(rivals.ahead?.carIdx)}
-            rowIndex={0}
-          />
-          <RivalRow
-            {...rowProps}
-            side="focus"
-            car={rivals.focus}
-            speedKph={speedOf(rivals.focus?.carIdx)}
-            rowIndex={1}
-          />
-          <RivalRow
-            {...rowProps}
-            side="behind"
-            car={rivals.behind}
-            rival={rivals.behind}
-            speedKph={speedOf(rivals.behind?.carIdx)}
-            rowIndex={2}
-          />
-        </tbody>
-      </table>
-    </div>
+        <table
+          className={`w-full table-auto text-sm border-separate ${tableBorderSpacing}`}
+        >
+          {(settings?.header?.enabled ?? true) && (
+            <RivalsHeader columns={columns} speedUnit={speedUnit} />
+          )}
+          <tbody>
+            <RivalRow
+              {...rowProps}
+              side="ahead"
+              car={rivals.ahead}
+              rival={rivals.ahead}
+              speedKph={speedOf(rivals.ahead?.carIdx)}
+              rowIndex={0}
+            />
+            <RivalRow
+              {...rowProps}
+              side="focus"
+              car={rivals.focus}
+              speedKph={speedOf(rivals.focus?.carIdx)}
+              rowIndex={1}
+            />
+            <RivalRow
+              {...rowProps}
+              side="behind"
+              car={rivals.behind}
+              rival={rivals.behind}
+              speedKph={speedOf(rivals.behind?.carIdx)}
+              rowIndex={2}
+            />
+          </tbody>
+        </table>
+      </div>
+    </IconContext.Provider>
   );
 };

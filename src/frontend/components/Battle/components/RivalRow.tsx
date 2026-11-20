@@ -40,7 +40,7 @@ export interface RivalRowProps {
   rowIndex: number;
 }
 
-const MUTED = 'text-white/55';
+const MUTED = 'text-slate-400';
 const FIGURE = 'whitespace-nowrap tabular-nums';
 
 /**
@@ -73,10 +73,11 @@ export const RivalRow = ({
   const rowClasses = [
     outOfIt ? 'text-white/60' : '',
     isFocus ? 'text-amber-300 bg-amber-500/20' : '',
-    !isFocus
-      ? rowIndex % 2 === 0
-        ? 'bg-slate-800/70'
-        : 'bg-slate-900/70'
+    // A hairline over each row after the first, painted as the cells' top
+    // pixel of background so the rows are no taller (and no shadow on
+    // figures that change); none on the tinted focus row.
+    !isFocus && rowIndex > 0
+      ? '[&>td]:bg-[linear-gradient(rgb(255_255_255/0.05),rgb(255_255_255/0.05))] [&>td]:bg-[length:100%_1px] [&>td]:bg-no-repeat'
       : '',
   ]
     .filter(Boolean)
@@ -87,12 +88,12 @@ export const RivalRow = ({
   for (const key of columns) {
     switch (key) {
       case 'position': {
-        // As the standings draw it: a plain number, the class colour behind
-        // the focus car's, yellow for a car off the track.
+        // As the standings draw it: a plain number, the focus car's in its
+        // amber, yellow for a car off the track.
         const background = car?.offTrack
           ? 'bg-yellow-400 text-yellow-900'
           : isFocus
-            ? `${tailwindStyles.classHeader} text-white`
+            ? ''
             : 'text-white';
         cells.push(
           <td
@@ -117,7 +118,9 @@ export const RivalRow = ({
           <td
             key={key}
             data-column="carNumber"
-            className={`w-0 ${car ? `${tailwindStyles.driverIcon} border-l-4` : ''} text-white text-right px-1 whitespace-nowrap`}
+            // CarNumberCell's look, grey after the class colour, at Battle's
+            // own width: the shared cell keeps 4ch, more than "#7" needs.
+            className={`w-0 ${car ? `${tailwindStyles.borderColor} border-l-4` : ''} text-slate-400 text-right px-1 whitespace-nowrap`}
           >
             {car ? `#${car.carNumber}` : ''}
           </td>
@@ -200,7 +203,7 @@ export const RivalRow = ({
             <span
               className={
                 car?.pitRequested
-                  ? 'inline-block min-w-5 px-1 rounded-sm bg-green-600 text-white'
+                  ? 'inline-block min-w-5 px-1 rounded-full ring-1 ring-inset ring-green-500 text-green-300'
                   : MUTED
               }
             >

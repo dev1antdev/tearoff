@@ -83,8 +83,8 @@ const FinishColumnCell = ({
     <div
       data-testid="finish-column"
       data-kind={column.kind}
-      className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded py-0.5 ${
-        column.kind === 'now' ? 'bg-slate-900/70' : ''
+      className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 py-0.5 ${
+        column.kind === 'now' ? 'overlay-selected' : ''
       }`}
     >
       <span
@@ -100,7 +100,7 @@ const FinishColumnCell = ({
           column.leaderMarginS === null
             ? 'text-slate-500'
             : column.leaderNear
-              ? 'text-amber-300'
+              ? 'text-amber-400'
               : 'text-slate-300'
         }`}
       >
@@ -110,7 +110,7 @@ const FinishColumnCell = ({
         data-testid="finish-laps"
         data-near={column.near ?? 'none'}
         className={`${ROW.laps} relative text-lg font-semibold ${
-          column.near ? 'text-amber-300' : ''
+          column.near ? 'text-amber-400' : ''
         }`}
       >
         {formatLapsToGo(column.lapsToGo)}

@@ -185,7 +185,15 @@ describe('the list it opens on', () => {
     expect(own).toHaveLength(1);
     expect(text(own[0], 'carNumber')).toBe('#77');
     expect(own[0].className).toContain('text-amber-300');
+    expect(own[0].className).toContain('bg-amber-500/20');
     expect(rowOf(container, '33').className).not.toContain('text-amber-300');
+    // No stripes: a hairline under each row; numbers grey by their class.
+    expect(rowOf(container, '33').className).not.toContain('bg-slate');
+    expect(rowOf(container, '33').className).toContain('overlay-divider');
+    expect(
+      rowOf(container, '33').querySelector('[data-column="carNumber"]')
+        ?.className
+    ).toContain('text-slate-400');
   });
 
   it('names every column in the header row, in order', () => {
@@ -352,6 +360,11 @@ describe('what a row says of its car', () => {
 
     expect(tag(rowOf(container, '23'))).toBe('PIT');
     expect(tag(rowOf(container, '88'))).toBe('GAR');
+    // A thin outline in the status colour, as the standings' badges.
+    expect(
+      rowOf(container, '23').querySelector('[data-testid="tower-tag"]')
+        ?.className
+    ).toContain('border-yellow-500');
     expect(tag(rowOf(container, '77'))).toBeNull();
 
     press('Hypercar');

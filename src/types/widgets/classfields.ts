@@ -89,7 +89,7 @@ export default defineWidgetManifest({
       type: 'boolean',
       label: 'Highlight Your Class',
       description:
-        'Outlines the class of your car, or of the car you are watching.',
+        'Shades the class of your car, or of the car you are watching.',
     },
     showOnlyWhenOnTrack: {
       type: 'boolean',

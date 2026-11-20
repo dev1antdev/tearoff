@@ -83,7 +83,7 @@ export default defineWidgetManifest({
     'carNumber.enabled': {
       type: 'boolean',
       label: 'Car Number (#)',
-      description: 'On the colour of the car’s class.',
+      description: 'Grey, after a bar in the colour of the car’s class.',
     },
     'driver.enabled': {
       type: 'boolean',
