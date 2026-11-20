@@ -102,7 +102,7 @@ Displays the throttle, clutch, and brake input traces, as well as the current ge
 - Option to show only when on track
 - Session visibility settings (Race, Lone Qualify, Open Qualify, Practice, Offline Testing)
 
-![Input Trace](./docs/assets/input.png)
+<img src="./docs/assets/input.png" alt="Input Trace" width="444">
 
 ### Lap Trace
 
@@ -552,7 +552,7 @@ Displays a track map with the current position of the cars on track and the trac
 - Cars are never outlined as off track: the game does not report it for other cars
 - With "show only when on track" the map stays up while you watch a car on track, such as a team-mate's stint
 
-![Track Map](./docs/assets/trackmap.png)
+<img src="./docs/assets/trackmap.png" alt="Track Map" width="688">
 
 ### Minimap
 
@@ -647,7 +647,7 @@ Displays a simplified horizontal track map showing driver positions along a flat
 - A sector under a local yellow flag is painted yellow on the line, once one clean lap of the circuit has shown where the game's sectors start
 - With "show only when on track" it stays up while you watch a car on track, such as a team-mate's stint
 
-![Flat Track Map](./docs/assets/flattrackmap.png)
+<img src="./docs/assets/flattrackmap.png" alt="Flat Track Map" width="592">
 
 ### Weather
 
@@ -670,7 +670,7 @@ Displays the weather information for the current session.
 
 **Horizontal layout:**
 
-![Weather in the horizontal layout](./docs/assets/weather-horizontal.png)
+<img src="./docs/assets/weather-horizontal.png" alt="Weather in the horizontal layout" width="664">
 
 ### Weather Forecast
 
@@ -716,7 +716,7 @@ Displays information about faster cars approaching from behind, including driver
 - Automatically hidden when on pit road
 - Multiple driver display settings for more control over what's shown
 
-![Faster Cars From Behind](./docs/assets/fastercarsfrombehind.png)
+<img src="./docs/assets/fastercarsfrombehind.png" alt="Faster Cars From Behind" width="252">
 
 ### Fuel Calculator
 
@@ -993,7 +993,7 @@ Displays visual indicators on the left and right sides of the screen when cars a
 - Real-time position tracking based on lap distance
 - Standard bar or compact Simple mode, with configurable indicator size, position, car count, and colours
 
-![Blind Spot Monitor](./docs/assets/blindspot-monitor.png)
+<img src="./docs/assets/blindspot-monitor.png" alt="Blind Spot Monitor" width="524">
 
 ### Radar
 
@@ -1007,7 +1007,7 @@ Shows nearby rivals ahead, behind, and alongside your car. iRacing positions are
 - Appearance presets, road or oval profiles, colours, distance rings, car numbers, and warning labels
 - Live settings preview and configurable session visibility, including warmup
 
-![Radar showing nearby cars and hazard warnings](./docs/assets/radar.gif)
+<img src="./docs/assets/radar.png" alt="Radar showing nearby cars and hazard warnings" width="344">
 
 ### Battle
 
@@ -1043,7 +1043,7 @@ Displays a warning indicator when a slower car is detected ahead on the track. T
 - Adjustable bar thickness
 - Automatically hidden when on pit road
 
-![Slow Car Ahead](docs/assets/slow-car-ahead.png)
+<img src="./docs/assets/slow-car-ahead.png" alt="Slow Car Ahead" width="274">
 
 ### Garage Cover
 
@@ -1141,7 +1141,7 @@ Displays per-sector timing deltas for the current lap, colour-coded by performan
 - Time format with configurable decimal precision
 - Adjustable background opacity
 
-![Sector Delta](./docs/assets/sector-delta.png)
+<img src="./docs/assets/sector-delta.png" alt="Sector Delta" width="358">
 
 ### Lap Delta
 
@@ -1243,7 +1243,7 @@ Displays racing flags in an LED-matrix style, automatically showing the most rel
 - Adjustable background opacity
 - Session visibility settings (Race, Lone Qualify, Open Qualify, Practice, Offline Testing)
 
-![Flag Widget](./docs/assets/flags.png)
+<img src="./docs/assets/flags.png" alt="Flag Widget" width="444">
 
 ### Flag Panel
 
