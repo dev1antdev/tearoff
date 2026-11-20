@@ -29,7 +29,7 @@ export default defineWidgetManifest({
     showCornerNumber: {
       type: 'boolean',
       label: 'Show Corner Number',
-      description: 'Display the corner number badge (e.g. T1, T3)',
+      description: 'Show the corner number before the name',
     },
     showProgressBar: {
       type: 'boolean',

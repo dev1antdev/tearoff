@@ -1,5 +1,5 @@
 import type { RadarArcStyle } from '@irdashies/types';
-import { withAlpha } from '../shared/canvasTheme';
+import { withAlpha } from '@irdashies/domain/widgetPresentation/canvasTheme';
 
 /** Segments in the `segments` style; they light from the middle out. */
 const SEGMENTS = 3;

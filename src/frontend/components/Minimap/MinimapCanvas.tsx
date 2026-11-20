@@ -21,7 +21,7 @@ import {
   useCanvasTheme,
   withAlpha,
   type CanvasTheme,
-} from '../shared/canvasTheme';
+} from '@irdashies/domain/widgetPresentation/canvasTheme';
 
 /** One car on the map, in the order its progress is animated. */
 export interface MinimapCar {

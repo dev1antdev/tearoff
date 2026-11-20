@@ -3,7 +3,7 @@ import { TrackDrawing, TrackDriver, TurnLabels } from './TrackCanvas';
 import type { Sector } from '@irdashies/types';
 import type { SectorColor } from '@irdashies/context';
 import type { LapSpan } from '@irdashies/domain/track';
-import type { CanvasTheme } from '../shared/canvasTheme';
+import type { CanvasTheme } from '@irdashies/domain/widgetPresentation/canvasTheme';
 
 /** What the map paints in the palette's neutrals and the overlay's font. */
 export interface MapInk {

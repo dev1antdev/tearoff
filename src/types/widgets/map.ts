@@ -63,7 +63,7 @@ export default defineWidgetManifest({
     invertTrackColors: {
       type: 'boolean',
       label: 'Invert Track Colors',
-      description: 'Swap black and white colors for the track',
+      description: 'Swap the light road and its dark edge',
     },
     'turnLabels.labelType': {
       type: 'enum',

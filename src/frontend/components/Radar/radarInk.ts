@@ -1,4 +1,7 @@
-import { withAlpha, type CanvasTheme } from '../shared/canvasTheme';
+import {
+  withAlpha,
+  type CanvasTheme,
+} from '@irdashies/domain/widgetPresentation/canvasTheme';
 
 /** The radar's neutrals and type: what the palette and the font change. */
 export interface RadarInk {

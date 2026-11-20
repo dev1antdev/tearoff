@@ -12,7 +12,7 @@ import {
   getTailwindStyle,
   textColorOn,
 } from '@irdashies/utils/colors';
-import { useCanvasTheme } from '../shared/canvasTheme';
+import { useCanvasTheme } from '@irdashies/domain/widgetPresentation/canvasTheme';
 import { validateImageDataUrl } from '@irdashies/utils/imageDataUrl';
 import { shouldShowTrack } from '@irdashies/domain/track/tracks/brokenTracks';
 import { TrackDebug } from './TrackDebug';

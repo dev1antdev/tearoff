@@ -6,7 +6,7 @@ import {
   getTailwindStyle,
   textColorOn,
 } from '@irdashies/utils/colors';
-import { useCanvasTheme } from '../shared/canvasTheme';
+import { useCanvasTheme } from '@irdashies/domain/widgetPresentation/canvasTheme';
 import { useCarIdxOffTrack, usePaintingPaused } from '@irdashies/context';
 import {
   progressToFlatX,

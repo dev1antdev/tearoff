@@ -21,7 +21,7 @@ import {
 } from '../radarDraw';
 import { cornerInside, DiveTracker, type DiveHint } from '../radarHints';
 import type { RadarHazard } from '@irdashies/types';
-import { useCanvasTheme } from '../../shared/canvasTheme';
+import { useCanvasTheme } from '@irdashies/domain/widgetPresentation/canvasTheme';
 import { radarInkFrom } from '../radarInk';
 
 export interface RadarFrameCar {
