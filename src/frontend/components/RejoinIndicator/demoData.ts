@@ -24,7 +24,7 @@ export interface RejoinIndicatorDemoData {
 
 /**
  * The state a gap behind puts a rejoin in, by this widget's own ladder, the
- * clear threshold first (Traffic's `stateOf` checks danger first). A Care Gap
+ * clear threshold first (Traffic's pit-exit state checks danger first). A Care Gap
  * set below the Stop Gap leaves no caution band rather than turning gaps it
  * calls clear red, and a Care Gap that is not a number never hides a red the
  * Stop Gap calls.

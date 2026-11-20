@@ -116,8 +116,7 @@ export const metresToPitExit = (
   return ahead * trackLengthM;
 };
 
-/** The state a gap to the nearest car behind puts a rejoin in. */
-export const stateOf = (
+const stateOf = (
   nearestBehindS: number | undefined,
   careGap: number,
   dangerGap: number
