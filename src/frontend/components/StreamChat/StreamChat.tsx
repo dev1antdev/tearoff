@@ -114,6 +114,8 @@ export const ChatMessageList = ({
               key={m.id}
               style={{
                 marginBottom: 8,
+                // The chat's own Font size, in pixels, as Timing keeps its
+                // Text Scale: the overlay's would resize every saved chat.
                 fontSize: `${fontSize}px`,
                 opacity: fading ? 0 : 1,
                 transition: fading

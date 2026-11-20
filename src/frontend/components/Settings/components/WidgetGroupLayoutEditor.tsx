@@ -125,7 +125,7 @@ const Tile = ({ tile, scale, bounds, siblings, onChange }: TileProps) => {
     <div
       {...dragHandleProps}
       data-member-tile={id}
-      className={`absolute touch-none select-none rounded-md border bg-slate-800 text-slate-200 hover:border-accent-400 ${
+      className={`absolute touch-none select-none overlay-panel [--bg-opacity:100%] border text-slate-200 hover:border-accent-400 ${
         isDragging || isResizing
           ? 'border-accent-400'
           : 'border-settings-boundary'
