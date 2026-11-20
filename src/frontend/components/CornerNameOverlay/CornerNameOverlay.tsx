@@ -66,7 +66,7 @@ export const CornerNameOverlay = ({
 
       {/* Progress bar */}
       {showProgressBar && (
-        <div className="mt-1.5 h-1 w-full bg-slate-900/70 rounded-full overflow-hidden">
+        <div className="mt-1.5 h-1 w-full bg-slate-800 rounded-full overflow-hidden">
           <div
             className="h-full bg-slate-300 rounded-full transition-[width] duration-200 ease-linear"
             style={{ width: `${progress * 100}%` }}

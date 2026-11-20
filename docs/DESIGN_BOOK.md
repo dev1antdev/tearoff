@@ -93,7 +93,7 @@ too; your own car stays white there, since amber is its close warning, so the
 warning is the one bright spot. Elevation tints the driven part of the lap a
 light neutral, not sky (rain), and its reading carries no shadow; Corner
 Names writes the corner number as a grey label and its progress is a neutral
-bar on a bar track. Corner Names keeps its own font size in pixels, as Timing
+bar on a `slate-800` track, as Faster Cars' is. Corner Names keeps its own font size in pixels, as Timing
 keeps its Text Scale. The Tachometer's and Shift
 Light's readout boxes are overlay panels; the Tachometer's rev lights are
 rounded segments, unlit `slate-800`, lit at once in their own colours (the
