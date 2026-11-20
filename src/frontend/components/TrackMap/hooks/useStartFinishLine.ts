@@ -40,8 +40,8 @@ export const useStartFinishLine = ({
     for (let i = 0; i < trackPathPoints.length; i++) {
       const point = trackPathPoints[i];
       const distance = Math.sqrt(
-        Math.pow(point.x - startFinishPoint.x, 2) + 
-        Math.pow(point.y - startFinishPoint.y, 2)
+        Math.pow(point.x - startFinishPoint.x, 2) +
+          Math.pow(point.y - startFinishPoint.y, 2)
       );
       if (distance < minDistance) {
         minDistance = distance;
@@ -84,4 +84,4 @@ export const useStartFinishLine = ({
       perpendicular,
     };
   }, [startFinishPoint, trackPathPoints]);
-}; 
+};

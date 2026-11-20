@@ -1,4 +1,5 @@
-import { rivalFill, textColorFor, type RivalColorSource } from './radarColors';
+import { textColorOn } from '@irdashies/utils/colors';
+import { rivalFill, type RivalColorSource } from './radarColors';
 import type { RadarCarAppearance, RadarFrame } from './components/RadarDisplay';
 import type { CarSize } from '@irdashies/domain/radar/carSizes';
 import type { RadarConfig } from '@irdashies/types';
@@ -118,7 +119,7 @@ export const demoAppearance = (
     const fill = rivalFill(colorMode, customFill, DEMO_RIVALS[+carIdx]);
     map.set(Number(carIdx), {
       fill,
-      textColor: textColorFor(fill),
+      textColor: textColorOn(fill),
       label,
       length: size.length,
       width: size.width,

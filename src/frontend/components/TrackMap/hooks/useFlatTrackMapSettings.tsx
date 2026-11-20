@@ -3,8 +3,7 @@ import { useDashboard } from '@irdashies/context';
 import { FlatTrackMapWidgetSettings } from '@irdashies/types';
 
 export const useFlatTrackMapSettings = ():
-  | FlatTrackMapWidgetSettings['config']
-  | undefined => {
+  FlatTrackMapWidgetSettings['config'] | undefined => {
   const { currentDashboard } = useDashboard();
 
   return useMemo(() => {

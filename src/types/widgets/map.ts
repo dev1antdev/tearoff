@@ -35,7 +35,8 @@ export default defineWidgetManifest({
       practice: true,
       offlineTesting: true,
     },
-    styling: { isMinimalTrack: false, isMinimalCar: false },
+    // No drop shadow on the cars: they move every frame.
+    styling: { isMinimalTrack: false, isMinimalCar: true },
     sectorColoring: { enabled: false },
     playerIcon: { enabled: false, fileName: '' },
   },

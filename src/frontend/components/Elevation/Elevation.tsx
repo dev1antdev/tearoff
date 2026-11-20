@@ -202,7 +202,7 @@ const ElevationProfile = memo(
             {showProgress && hasProfile && (
               <path
                 d={paths.area}
-                className="fill-sky-400/30"
+                className="fill-slate-300/20"
                 clipPath={`url(#${clipId})`}
               />
             )}
@@ -287,15 +287,17 @@ const ElevationProfile = memo(
         )}
 
         {showReading && (
-          <div className="absolute left-2 top-1 flex items-baseline gap-1 text-sm font-bold leading-tight tabular-nums [text-shadow:0_1px_2px_rgb(15_23_42)]">
+          // No shadow: the reading changes every frame.
+          <div className="absolute left-2 top-1 flex items-baseline gap-1 text-sm font-bold leading-tight tabular-nums">
             <MountainsIcon
               size={12}
-              className="flex-none self-center text-slate-300"
+              weight="light"
+              className="flex-none self-center text-slate-400"
             />
             <span ref={readingRef} data-testid="elevation-reading">
               {NO_READING}
             </span>
-            <span className="text-xs font-normal text-slate-300">{unit}</span>
+            <span className="text-xs font-normal text-slate-400">{unit}</span>
           </div>
         )}
         {showRange && hasProfile && (
@@ -322,7 +324,7 @@ const ElevationProfile = memo(
             aria-valuenow={Math.round(recordingProgress * 100)}
           >
             <div
-              className="h-full bg-sky-400"
+              className="h-full bg-slate-300"
               style={{ width: `${recordingProgress * 100}%` }}
             />
           </div>

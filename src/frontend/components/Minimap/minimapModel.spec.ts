@@ -6,7 +6,6 @@ import {
   labelFontSize,
   markerLabel,
   project,
-  textColorOn,
   updateView,
 } from './minimapModel';
 
@@ -99,18 +98,6 @@ describe('markerLabel', () => {
     expect(
       markerLabel('classPosition', { ...source, classPosition: undefined })
     ).toBe('');
-  });
-});
-
-describe('textColorOn', () => {
-  it('picks dark text on a light marker and light text on a dark one', () => {
-    expect(textColorOn('#ffffff')).toBe('#0f172a');
-    expect(textColorOn('#facc15')).toBe('#0f172a');
-    expect(textColorOn('#1e3a8a')).toBe('#ffffff');
-  });
-
-  it('falls back to dark text for a colour it cannot read', () => {
-    expect(textColorOn('red')).toBe('#0f172a');
   });
 });
 

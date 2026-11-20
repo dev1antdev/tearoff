@@ -15,7 +15,7 @@ import {
   useTrackDrawing,
 } from '@irdashies/domain/track';
 import type { RadarSnapshot } from '@irdashies/types';
-import { colorNumToHex } from '@irdashies/utils/colors';
+import { colorNumToHex, textColorOn } from '@irdashies/utils/colors';
 import {
   RadarDisplay,
   type RadarCarAppearance,
@@ -30,7 +30,7 @@ import {
 } from './radarModel';
 import { demoAppearance } from './radarDemo';
 import { useDemoRadarFrame } from './hooks/useDemoRadarFrame';
-import { paler, rivalFill, textColorFor } from './radarColors';
+import { paler, rivalFill } from './radarColors';
 import { hazardWanted, type RadarStyle } from './radarDraw';
 import { radarStyleFrom } from './radarStyle';
 import { isOvalTrack } from '@irdashies/domain/radar/radarProfile';
@@ -64,7 +64,7 @@ const appearanceFor = (
   size: CarSize
 ): RadarCarAppearance => ({
   fill,
-  textColor: textColorFor(fill),
+  textColor: textColorOn(fill),
   label,
   length: size.length,
   width: size.width,

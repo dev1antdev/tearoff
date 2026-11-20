@@ -1,4 +1,5 @@
 import { RadarProjector, type ScreenPose } from './radarProjection';
+import { ink } from './radarInk';
 
 /** Smallest ring label and pointer text, whatever the label setting. */
 export const MIN_TEXT_PX = 8;
@@ -25,7 +26,7 @@ export const drawCarBody = (
   ctx.fillStyle = fill;
   ctx.fill();
   ctx.lineWidth = 1;
-  ctx.strokeStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.strokeStyle = ink.bodyEdge;
   ctx.stroke();
   ctx.restore();
 };

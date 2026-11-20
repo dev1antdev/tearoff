@@ -125,20 +125,6 @@ export const markerLabel = (
 
 /** Marker fill when class colours are off, or a class has none. */
 export const NEUTRAL_MARKER = '#e2e8f0';
-const DARK_TEXT = '#0f172a';
-const LIGHT_TEXT = '#ffffff';
-
-/** Black or white, whichever reads on `hex` (`#rrggbb`). */
-export const textColorOn = (hex: string): string => {
-  const value = Number.parseInt(hex.slice(1), 16);
-  if (!Number.isFinite(value) || hex.length !== 7) return DARK_TEXT;
-  const red = (value >> 16) & 0xff;
-  const green = (value >> 8) & 0xff;
-  const blue = value & 0xff;
-  return red * 0.299 + green * 0.587 + blue * 0.114 > 150
-    ? DARK_TEXT
-    : LIGHT_TEXT;
-};
 
 /**
  * Font size that fits a label inside a marker: two characters fill it, and

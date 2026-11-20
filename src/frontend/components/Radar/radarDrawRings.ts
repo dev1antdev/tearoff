@@ -1,8 +1,8 @@
 import type { RadarStyle } from './radarDrawTypes';
 import { formatDistance } from './radarStyle';
 import { MIN_TEXT_PX } from './radarDrawShared';
+import { ink } from './radarInk';
 
-export const GUIDE_STROKE = 'rgba(148, 163, 184, 0.35)';
 export const GUIDE_DASH = [4, 4];
 
 export const drawRadarRings = (
@@ -14,7 +14,7 @@ export const drawRadarRings = (
 ) => {
   if (style.ringSpacing <= 0) return;
   const fontSize = Math.max(MIN_TEXT_PX, Math.round(radius / 14));
-  ctx.font = `${fontSize}px Lato, sans-serif`;
+  ctx.font = `${fontSize}px ${ink.font}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'bottom';
   ctx.lineWidth = 1;
@@ -24,13 +24,13 @@ export const drawRadarRings = (
     metres += style.ringSpacing
   ) {
     const ringRadius = metres * pixelsPerMetre;
-    ctx.strokeStyle = GUIDE_STROKE;
+    ctx.strokeStyle = ink.guide;
     ctx.setLineDash(GUIDE_DASH);
     ctx.beginPath();
     ctx.arc(centre, centre, ringRadius, 0, Math.PI * 2);
     ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle = 'rgba(203, 213, 225, 0.6)';
+    ctx.fillStyle = ink.guideText;
     ctx.fillText(
       formatDistance(metres, style.metric),
       centre,
@@ -46,6 +46,8 @@ export class RadarRingsLayer {
   private range = -1;
   private spacing = -1;
   private metric: boolean | undefined;
+  /** The ink the layer was drawn in: a palette or font change redraws it. */
+  private inked = '';
   private readonly fonts =
     typeof document === 'undefined' ? undefined : document.fonts;
   private readonly invalidate = () => {
@@ -74,7 +76,8 @@ export class RadarRingsLayer {
       this.size !== size ||
       this.range !== style.range ||
       this.spacing !== style.ringSpacing ||
-      this.metric !== style.metric
+      this.metric !== style.metric ||
+      this.inked !== ink.guide + ink.guideText + ink.font
     ) {
       const canvas = (this.canvas ??= this.createCanvas());
       canvas.width = canvas.height = Math.round(size * this.pixelRatio);
@@ -89,6 +92,7 @@ export class RadarRingsLayer {
       this.range = style.range;
       this.spacing = style.ringSpacing;
       this.metric = style.metric;
+      this.inked = ink.guide + ink.guideText + ink.font;
     }
     // Copy device pixels 1:1, including fractional DPR/widget-scale ratios.
     // The caller's existing device-space disc clip stays in effect.
@@ -99,14 +103,14 @@ export class RadarRingsLayer {
     ctx.drawImage(canvas, 0, 0);
     ctx.restore();
     // Preserve the context state left by the uncached ring draw for later layers.
-    ctx.font = `${Math.max(MIN_TEXT_PX, Math.round(radius / 14))}px Lato, sans-serif`;
+    ctx.font = `${Math.max(MIN_TEXT_PX, Math.round(radius / 14))}px ${ink.font}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.lineWidth = 1;
     if (style.ringSpacing < style.range - 0.01) {
-      ctx.strokeStyle = GUIDE_STROKE;
+      ctx.strokeStyle = ink.guide;
       ctx.setLineDash([]);
-      ctx.fillStyle = 'rgba(203, 213, 225, 0.6)';
+      ctx.fillStyle = ink.guideText;
     }
   }
 }

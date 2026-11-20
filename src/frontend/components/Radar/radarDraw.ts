@@ -1,9 +1,4 @@
-import {
-  drawRadarRings,
-  RadarRingsLayer,
-  GUIDE_STROKE,
-  GUIDE_DASH,
-} from './radarDrawRings';
+import { drawRadarRings, RadarRingsLayer, GUIDE_DASH } from './radarDrawRings';
 import { drawPoleSideNotice } from './radarDrawNotice';
 import { overlapOf } from './radarHints';
 import { formatDistance, speedIn } from './radarStyle';
@@ -35,11 +30,11 @@ import {
 } from './radarDrawHazards';
 import { drawDebug, queueDebugLabel, resetDebugLabels } from './radarDrawDebug';
 import {
-  PACE_CAR_FILL,
   drawFollowLine,
   drawFollowOutline,
   drawFollowPointer,
 } from './radarDrawFollow';
+import { DEFAULT_RADAR_INK, ink, paintWith } from './radarInk';
 
 export * from './radarDrawTypes';
 export { followLineEnds } from './radarDrawFollow';
@@ -74,12 +69,14 @@ const drawRoad = (
   const roadWidth = style.trackWidth * pixelsPerMetre;
   ctx.lineJoin = 'round';
   ctx.lineCap = 'butt';
-  ctx.strokeStyle = `rgba(226, 232, 240, ${opacity})`;
+  ctx.globalAlpha = opacity;
+  ctx.strokeStyle = ink.roadEdge;
   ctx.lineWidth = roadWidth;
   ctx.stroke();
-  ctx.strokeStyle = `rgba(71, 85, 105, ${opacity})`;
+  ctx.strokeStyle = ink.roadSurface;
   ctx.lineWidth = Math.max(roadWidth - Math.max(2, pixelsPerMetre * 0.4), 1);
   ctx.stroke();
+  ctx.globalAlpha = 1;
 };
 
 /** Dash and gap of the moving line, in metres, so it runs at true speed. */
@@ -101,7 +98,7 @@ const drawCrosshair = (
   travelled: number
 ) => {
   ctx.lineWidth = 1;
-  ctx.strokeStyle = GUIDE_STROKE;
+  ctx.strokeStyle = ink.guide;
   ctx.setLineDash(GUIDE_DASH);
   ctx.beginPath();
   ctx.moveTo(centre - radius, centre);
@@ -180,8 +177,10 @@ const drawBackdrop = (
   // Slide the background in underneath, then fade the whole disc towards
   // the rim, so cars and the disc itself ease out at the edge of the range.
   ctx.globalCompositeOperation = 'destination-over';
-  ctx.fillStyle = `rgba(15, 23, 42, ${style.backgroundOpacity / 100})`;
+  ctx.globalAlpha = style.backgroundOpacity / 100;
+  ctx.fillStyle = ink.backdrop;
   ctx.fillRect(0, 0, size, size);
+  ctx.globalAlpha = 1;
   const fadeShare = Math.min(Math.max(style.edgeFade, 0), 100) / 100;
   if (fadeShare > 0) {
     const fade = ctx.createRadialGradient(
@@ -207,6 +206,7 @@ export const drawRadar = (
   ringsLayer?: RadarRingsLayer
 ) => {
   const { size, style } = scene;
+  paintWith(scene.ink ?? DEFAULT_RADAR_INK);
   const centre = size / 2;
   const radius = size / 2 - 1;
   const pixelsPerMetre = radius / style.range;
@@ -247,7 +247,7 @@ export const drawRadar = (
   const labelSize = Math.round(Math.min(width * 0.85, length * 0.5));
   const showLabels = style.showCarNumbers && labelSize >= style.minLabelPx;
   if (showLabels) {
-    ctx.font = `bold ${labelSize}px Lato, sans-serif`;
+    ctx.font = `bold ${labelSize}px ${ink.font}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
   }
@@ -294,7 +294,7 @@ export const drawRadar = (
       );
       // The triangle changed the font; put the car-number one back.
       if (showLabels) {
-        ctx.font = `bold ${labelSize}px Lato, sans-serif`;
+        ctx.font = `bold ${labelSize}px ${ink.font}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
       }
@@ -494,17 +494,9 @@ export const drawRadar = (
     } else {
       projector.project(follow.dist, roadX, pose);
       drawFollowLine(ctx, centre, pose, length, length);
-      drawCarBody(
-        ctx,
-        pose.x,
-        pose.y,
-        pose.angle,
-        length,
-        width,
-        PACE_CAR_FILL
-      );
+      drawCarBody(ctx, pose.x, pose.y, pose.angle, length, width, ink.light);
       if (showLabels) {
-        ctx.fillStyle = '#0f172a';
+        ctx.fillStyle = ink.dark;
         ctx.fillText(
           follow.carIdx === null ? 'PC' : follow.label,
           pose.x,

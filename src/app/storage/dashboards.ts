@@ -146,6 +146,19 @@ const moveOldWheelDefault = (saved: unknown): unknown => {
   };
 };
 
+/**
+ * The Track Map's car markers lost their drop shadow with the new look:
+ * nothing that moves every frame carries one. A stored `false`, the old
+ * default, is dropped once so the new default fills in.
+ */
+const dropOldMarkerShadow = (saved: unknown): unknown => {
+  if (!isRecord(saved) || !isRecord(saved.styling)) return saved;
+  if (saved.styling.isMinimalCar !== false) return saved;
+  const styling = { ...saved.styling };
+  delete styling.isMinimalCar;
+  return { ...saved, styling };
+};
+
 const isDashboardChanged = (
   oldDashboard: DashboardLayout | undefined,
   newDashboard: DashboardLayout
@@ -300,8 +313,9 @@ export const withDashboardDefaults = (
   }
   // The 2.3 overlay look changed defaults a stored value cannot be told
   // apart from: Lato was the default font before Figtree, the Relative
-  // cells were filled (OLD_FILL_DEFAULTS), and the Input wheel was the
-  // Default picture (moveOldWheelDefault). A profile moves onto
+  // cells were filled (OLD_FILL_DEFAULTS), the Input wheel was the
+  // Default picture (moveOldWheelDefault), and the Track Map's markers had a
+  // drop shadow (dropOldMarkerShadow). A profile moves onto
   // the new defaults once. Read from the stored settings, not the merged ones,
   // so the defaults cannot mark a profile as already moved.
   const movesToNewLook =
@@ -332,7 +346,9 @@ export const withDashboardDefaults = (
               ? dropOldFillDefaults(widget.config)
               : type === 'input'
                 ? moveOldWheelDefault(widget.config)
-                : widget.config;
+                : type === 'map'
+                  ? dropOldMarkerShadow(widget.config)
+                  : widget.config;
       const merged = deepMergeConfig(defaults, saved) as Record<
         string,
         unknown

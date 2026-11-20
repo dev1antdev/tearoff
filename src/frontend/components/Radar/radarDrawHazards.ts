@@ -4,6 +4,7 @@ import { MIN_TEXT_PX, pose, projector } from './radarDrawShared';
 import { arcThicknessPx, paintRimArc } from './radarArcs';
 import { drawHintText, drawWarningOutline } from './radarDrawWarnings';
 import { formatDistance, speedIn, speedUnit } from './radarStyle';
+import { ink } from './radarInk';
 
 const HAZARD_YELLOW = '#facc15';
 const HAZARD_LABELS: Record<RadarHazardKind, string> = {
@@ -70,14 +71,14 @@ const drawHazardTriangle = (
   ctx.closePath();
   ctx.lineJoin = 'round';
   ctx.lineWidth = Math.max(1, size * 0.08);
-  ctx.strokeStyle = '#0f172a';
+  ctx.strokeStyle = ink.dark;
   ctx.fillStyle = color;
   ctx.fill();
   ctx.stroke();
-  ctx.font = `bold ${Math.round(size * 0.6)}px Lato, sans-serif`;
+  ctx.font = `bold ${Math.round(size * 0.6)}px ${ink.font}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = '#0f172a';
+  ctx.fillStyle = ink.dark;
   ctx.fillText('!', x, y + height * 0.1);
 };
 
@@ -154,7 +155,7 @@ export const drawHazardMarker = (
       `+${others}`,
       centre + cos * triangleAt + size * 0.6,
       centre + sin * triangleAt - size * 0.4,
-      '#e2e8f0',
+      ink.light,
       Math.max(MIN_TEXT_PX, fontSize - 2),
       'left'
     );
@@ -179,7 +180,7 @@ export const drawHazardMarker = (
       `${speedIn(hazard.speed, style.metric)} ${speedUnit(style.metric)}`,
       labelX,
       labelY + fontSize * 1.15,
-      '#e2e8f0',
+      ink.light,
       Math.max(MIN_TEXT_PX, fontSize - 2),
       'center'
     );

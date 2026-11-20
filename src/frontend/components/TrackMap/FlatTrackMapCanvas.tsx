@@ -1,13 +1,18 @@
 import { useWidgetScale } from '@irdashies/domain/widgetPresentation/WidgetScale';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TrackDriver, TrackDrawing } from './TrackCanvas';
-import { getColor, getTailwindStyle } from '@irdashies/utils/colors';
+import {
+  getColor,
+  getTailwindStyle,
+  textColorOn,
+} from '@irdashies/utils/colors';
+import { useCanvasTheme } from '../shared/canvasTheme';
 import { useCarIdxOffTrack, usePaintingPaused } from '@irdashies/context';
 import {
   progressToFlatX,
   useProgressAnimation,
 } from '@irdashies/domain/track/useProgressAnimation';
-import { getCachedTextVisualOffset } from './trackDrawingUtils';
+import { getCachedTextVisualOffset, mapInk } from './trackDrawingUtils';
 import type { LapSpan } from '@irdashies/domain/track';
 
 const NO_SPANS: readonly LapSpan[] = [];
@@ -60,6 +65,11 @@ export const FlatTrackMapCanvas = ({
   const paintingPaused = usePaintingPaused();
   const canvasInvalidatedRef = useRef(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const theme = useCanvasTheme(canvasRef);
+  const ink = useMemo(
+    () => mapInk(theme, invertTrackColors),
+    [theme, invertTrackColors]
+  );
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const driversOffTrack = useCarIdxOffTrack();
   const debounceResizeRef = useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -77,21 +87,14 @@ export const FlatTrackMapCanvas = ({
   const driverColors = useMemo(() => {
     const colors: Record<number, { fill: string; text: string }> = {};
     drivers?.forEach(({ driver, isPlayer }) => {
-      if (isPlayer) {
-        if (highlightColor) {
-          const highlightColorHex = `#${highlightColor.toString(16).padStart(6, '0')}`;
-          colors[driver.CarIdx] = { fill: highlightColorHex, text: 'white' };
-        } else {
-          colors[driver.CarIdx] = { fill: getColor('amber'), text: 'white' };
-        }
-      } else {
-        const style = getTailwindStyle(
-          driver.CarClassColor,
-          undefined,
-          isMultiClass
-        );
-        colors[driver.CarIdx] = { fill: style.canvasFill, text: 'white' };
-      }
+      // As on the track map: you in amber, a number dark on a light fill.
+      const fill = isPlayer
+        ? highlightColor
+          ? `#${highlightColor.toString(16).padStart(6, '0')}`
+          : getColor('amber')
+        : getTailwindStyle(driver.CarClassColor, undefined, isMultiClass)
+            .canvasFill;
+      colors[driver.CarIdx] = { fill, text: textColorOn(fill) };
     });
     return colors;
   }, [drivers, isMultiClass, highlightColor]);
@@ -168,16 +171,13 @@ export const FlatTrackMapCanvas = ({
     const trackStartX = HORIZONTAL_PADDING;
     const trackEndX = canvasSize.width - HORIZONTAL_PADDING;
 
-    const outlineColor = invertTrackColors ? 'white' : 'black';
-    const trackColor = invertTrackColors ? 'black' : 'white';
-
     // Draw horizontal track line with outline (matching curved track map)
     const circleScale = 0.25; // Scale factor to match curved map coordinate space
     const scaledTrackLineWidth = trackLineWidth * circleScale;
     const scaledOutlineWidth = trackOutlineWidth * circleScale;
 
     // First draw outline
-    ctx.strokeStyle = outlineColor;
+    ctx.strokeStyle = ink.edge;
     ctx.lineWidth = scaledOutlineWidth;
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -186,7 +186,7 @@ export const FlatTrackMapCanvas = ({
     ctx.stroke();
 
     // Then draw track on top
-    ctx.strokeStyle = trackColor;
+    ctx.strokeStyle = ink.road;
     ctx.lineWidth = scaledTrackLineWidth;
     ctx.lineCap = 'round';
     ctx.beginPath();
@@ -277,7 +277,7 @@ export const FlatTrackMapCanvas = ({
       // on pit road?
       const onPitRoad = !!carIdxIsOnPitRoad?.[driver.CarIdx];
       if (onPitRoad) {
-        fillColor = '#999999';
+        fillColor = ink.pit;
         textColor = 'white';
       }
 
@@ -299,7 +299,7 @@ export const FlatTrackMapCanvas = ({
 
       if (showCarNumbers) {
         ctx.fillStyle = textColor;
-        ctx.font = `${fontSize}px sans-serif`;
+        ctx.font = `600 ${fontSize}px ${ink.font}`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         let displayText;

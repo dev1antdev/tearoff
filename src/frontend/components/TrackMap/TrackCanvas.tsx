@@ -7,7 +7,12 @@ import {
   type TrackDrawing,
 } from '@irdashies/domain/track';
 export type { TrackDrawing } from '@irdashies/domain/track';
-import { getColor, getTailwindStyle } from '@irdashies/utils/colors';
+import {
+  getColor,
+  getTailwindStyle,
+  textColorOn,
+} from '@irdashies/utils/colors';
+import { useCanvasTheme } from '../shared/canvasTheme';
 import { validateImageDataUrl } from '@irdashies/utils/imageDataUrl';
 import { shouldShowTrack } from '@irdashies/domain/track/tracks/brokenTracks';
 import { TrackDebug } from './TrackDebug';
@@ -22,6 +27,7 @@ import {
   drawSectorDividers,
   drawLapSpans,
   compareDriverDrawOrder,
+  mapInk,
   type PositionedTrackDriver,
 } from './trackDrawingUtils';
 import {
@@ -155,6 +161,11 @@ const LoadedTrackCanvas = ({
   const widgetScale = useWidgetScale();
   const paintingPaused = usePaintingPaused();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const theme = useCanvasTheme(canvasRef);
+  const ink = useMemo(
+    () => mapInk(theme, invertTrackColors),
+    [theme, invertTrackColors]
+  );
   const canvasInvalidatedRef = useRef(false);
   const cacheCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const debounceResizeRef = useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -205,21 +216,14 @@ const LoadedTrackCanvas = ({
     const colors: Record<number, { fill: string; text: string }> = {};
 
     resolvedIdentities?.forEach(({ driver, isPlayer }) => {
-      if (isPlayer) {
-        if (highlightColor) {
-          const highlightColorHex = `#${highlightColor.toString(16).padStart(6, '0')}`;
-          colors[driver.CarIdx] = { fill: highlightColorHex, text: 'white' };
-        } else {
-          colors[driver.CarIdx] = { fill: getColor('amber'), text: 'white' };
-        }
-      } else {
-        const style = getTailwindStyle(
-          driver.CarClassColor,
-          undefined,
-          isMultiClass
-        );
-        colors[driver.CarIdx] = { fill: style.canvasFill, text: 'white' };
-      }
+      // You in amber, a number dark on a light fill.
+      const fill = isPlayer
+        ? highlightColor
+          ? `#${highlightColor.toString(16).padStart(6, '0')}`
+          : getColor('amber')
+        : getTailwindStyle(driver.CarClassColor, undefined, isMultiClass)
+            .canvasFill;
+      colors[driver.CarIdx] = { fill, text: textColorOn(fill) };
     });
 
     return colors;
@@ -357,7 +361,7 @@ const LoadedTrackCanvas = ({
     drawTrack(
       cacheCtx,
       path2DObjects,
-      invertTrackColors,
+      ink,
       trackLineWidth,
       trackOutlineWidth,
       isMinimalTrack
@@ -379,7 +383,8 @@ const LoadedTrackCanvas = ({
           sectors,
           sectorColors,
           trackLineWidth,
-          currentSectorIdx
+          currentSectorIdx,
+          ink.pit
         );
       }
       if (yellowSpans && yellowSpans.length > 0) {
@@ -412,7 +417,7 @@ const LoadedTrackCanvas = ({
     }
 
     drawStartFinishLine(cacheCtx, startFinishLine);
-    drawTurnNames(cacheCtx, trackDrawing.turns, turnLabels);
+    drawTurnNames(cacheCtx, trackDrawing.turns, turnLabels, ink);
 
     cacheCtx.restore();
 
@@ -433,7 +438,7 @@ const LoadedTrackCanvas = ({
     turnLabels,
     canvasSize,
     widgetScale,
-    invertTrackColors,
+    ink,
     trackLineWidth,
     trackOutlineWidth,
     trackmapFontSize,
@@ -513,7 +518,8 @@ const LoadedTrackCanvas = ({
         displayMode,
         driverLivePositions,
         carIdxIsOnPitRoad,
-        hasIconOverlay
+        hasIconOverlay,
+        ink
       );
       ctx.restore();
 
@@ -578,12 +584,8 @@ const LoadedTrackCanvas = ({
         />
         <div
           ref={playerPitBadgeRef}
-          className="absolute top-0 left-0 pointer-events-none flex items-center justify-center font-bold text-white origin-top-left will-change-transform"
-          style={{
-            display: 'none',
-            background: 'rgba(0, 0, 0, 0.6)',
-            borderRadius: '50%',
-          }}
+          className="absolute top-0 left-0 pointer-events-none flex items-center justify-center rounded-full bg-slate-950/60 font-bold text-white origin-top-left will-change-transform"
+          style={{ display: 'none' }}
         >
           P
         </div>

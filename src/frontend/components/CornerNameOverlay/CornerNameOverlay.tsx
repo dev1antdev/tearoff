@@ -30,11 +30,12 @@ export const CornerNameOverlay = ({
     >
       {/* Main content */}
       <div className="flex items-center gap-2">
-        {/* Corner number badge */}
+        {/* Corner number: a grey label before the name, not a tile. Its
+            padding stays, so the name sits where it did. */}
         {showCornerNumber && section.corner_number && (
-          <div className="flex items-center justify-center px-1.5 py-0.5 rounded bg-sky-500/30 border border-sky-400/50">
+          <div className="flex items-center justify-center px-1.5 py-0.5">
             <span
-              className="text-sky-300 font-bold tabular-nums"
+              className="text-slate-400 font-semibold tabular-nums"
               style={{ fontSize: `${fontSize - 4}px` }}
             >
               {section.corner_number}
@@ -65,9 +66,9 @@ export const CornerNameOverlay = ({
 
       {/* Progress bar */}
       {showProgressBar && (
-        <div className="mt-1.5 h-1 w-full bg-slate-700/60 rounded-full overflow-hidden">
+        <div className="mt-1.5 h-1 w-full bg-slate-900/70 rounded-full overflow-hidden">
           <div
-            className="h-full bg-sky-400 rounded-full transition-[width] duration-200 ease-linear"
+            className="h-full bg-slate-300 rounded-full transition-[width] duration-200 ease-linear"
             style={{ width: `${progress * 100}%` }}
           />
         </div>

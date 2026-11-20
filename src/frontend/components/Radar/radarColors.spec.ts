@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { licenceColor, paler, rivalFill, textColorFor } from './radarColors';
+import { licenceColor, paler, rivalFill } from './radarColors';
 
 describe('radarColors', () => {
   it('colours rivals by licence like the rating badge', () => {
@@ -24,10 +24,5 @@ describe('radarColors', () => {
     expect(rivalFill('class', '#aaaaaa', source)).toBe('#33ceff');
     expect(rivalFill('class', '#aaaaaa', {})).toBe('#aaaaaa');
     expect(rivalFill('custom', '#aaaaaa', source)).toBe('#aaaaaa');
-  });
-
-  it('keeps numbers readable on light and dark fills', () => {
-    expect(textColorFor('#ffffff')).toBe('#0f172a');
-    expect(textColorFor('#1e40af')).toBe('#ffffff');
   });
 });
