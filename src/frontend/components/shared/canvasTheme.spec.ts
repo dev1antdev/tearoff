@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { readCanvasTheme, withAlpha } from './canvasTheme';
+import { readCanvasTheme, toHex, withAlpha } from './canvasTheme';
 
 describe('readCanvasTheme', () => {
   afterEach(() => document.body.replaceChildren());
@@ -14,8 +14,29 @@ describe('readCanvasTheme', () => {
     document.body.append(overlay);
 
     const theme = readCanvasTheme(canvas);
+    // As read: this test's DOM has no canvas to turn it into hex with.
     expect(theme.slate(300)).toBe('oklch(0.8 0 0)');
     expect(theme.font).toBe('Figtree, sans-serif');
+  });
+});
+
+describe('toHex', () => {
+  it('reads a colour back from the pixel it paints', () => {
+    const painted: string[] = [];
+    const probe = {
+      set fillStyle(color: string) {
+        painted.push(color);
+      },
+      fillRect: () => undefined,
+      getImageData: () => ({ data: [204, 204, 204, 255] }),
+    } as unknown as CanvasRenderingContext2D;
+
+    expect(toHex('oklch(0.8 0 0)', probe)).toBe('#cccccc');
+    expect(painted.at(-1)).toBe('oklch(0.8 0 0)');
+  });
+
+  it('leaves the colour as it is with nothing to paint on', () => {
+    expect(toHex('oklch(0.8 0 0)', null)).toBe('oklch(0.8 0 0)');
   });
 });
 

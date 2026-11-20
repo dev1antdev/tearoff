@@ -144,7 +144,7 @@ const LoadedTrackCanvas = ({
   invertLeaderColor = false,
   debug,
   isMinimalTrack = false,
-  isMinimalCar = false,
+  isMinimalCar = true,
   sectors,
   sectorColors,
   currentSectorIdx,

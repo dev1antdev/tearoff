@@ -8,7 +8,7 @@ import { getColor } from '@irdashies/utils/colors';
  * from the element it sits in when they change, not on every frame.
  */
 export interface CanvasTheme {
-  /** `--color-slate-<shade>` as CSS can paint it. */
+  /** `--color-slate-<shade>`, as `#rrggbb` where it can be read. */
   slate: (shade: 200 | 300 | 400 | 500 | 600 | 900 | 950) => string;
   /** The overlay's font family, for `ctx.font`. */
   font: string;
@@ -24,8 +24,31 @@ export const withAlpha = (color: string, alpha: number): string =>
 
 const SHADES = [200, 300, 400, 500, 600, 900, 950] as const;
 
+/**
+ * A CSS colour as `#rrggbb`, painted once on a one-pixel canvas and read
+ * back. The palette's colours are `oklch(…)`, which a canvas parses more
+ * slowly than hex each time a frame sets one. Left as it is where nothing
+ * can be painted.
+ */
+export const toHex = (
+  color: string,
+  probe: CanvasRenderingContext2D | null
+) => {
+  if (!probe || !color) return color;
+  probe.fillStyle = '#000000';
+  probe.fillStyle = color;
+  probe.fillRect(0, 0, 1, 1);
+  const [r, g, b] = probe.getImageData(0, 0, 1, 1).data;
+  return `#${[r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+};
+
 export const readCanvasTheme = (from: Element): CanvasTheme => {
-  const shades = new Map(SHADES.map((s) => [s, getColor('slate', s, from)]));
+  const probe = document
+    .createElement('canvas')
+    .getContext('2d', { willReadFrequently: true });
+  const shades = new Map(
+    SHADES.map((s) => [s, toHex(getColor('slate', s, from), probe)])
+  );
   return {
     slate: (shade) => shades.get(shade) ?? '',
     font: getComputedStyle(from).fontFamily || 'sans-serif',
