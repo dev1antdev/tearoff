@@ -137,7 +137,7 @@ Timing: readings sit on the panel with `overlay-rules-x` / `-y` between them.
 A sector's colour (session best purple, personal best green, slower yellow,
 red) is a light tint of its reading (`SECTOR_TINT`, 20%), not a bar under it.
 The Lap Timer's current and
-predicted lap and its stat cells keep their tinted tiles: they are what its
+predicted lap and its stat cells (their captions grey in their own type, so a cell is no wider) keep their tinted tiles: they are what its
 Foreground Opacity setting sets. The Lap Timer keeps its own record colours,
 session best green, overall best purple and all-time best yellow, flashed on
 the current lap when set. Timing keeps its own Text Scale instead of the
