@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
   ChannelSnapshotDecorator,
+  TelemetryDecorator,
   trackStateStorySnapshot,
 } from '@irdashies/storybook';
 import { GarageCover } from './GarageCover';
@@ -10,6 +11,7 @@ export default {
   component: GarageCover,
   title: 'widgets/GarageCover',
   decorators: [
+    TelemetryDecorator(),
     ChannelSnapshotDecorator({
       'track-state.snapshot': {
         ...trackStateStorySnapshot,
