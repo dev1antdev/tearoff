@@ -38,7 +38,10 @@ export const toHex = (
   probe.fillStyle = '#000000';
   probe.fillStyle = color;
   probe.fillRect(0, 0, 1, 1);
-  const [r, g, b] = probe.getImageData(0, 0, 1, 1).data;
+  // A stand-in canvas (a test's) may paint nothing to read back.
+  const pixel = probe.getImageData(0, 0, 1, 1)?.data;
+  if (!pixel) return color;
+  const [r, g, b] = pixel;
   return `#${[r, g, b].map((c) => c.toString(16).padStart(2, '0')).join('')}`;
 };
 

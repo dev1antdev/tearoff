@@ -18,7 +18,7 @@ export interface MapInk {
 }
 
 /** Until the overlay has been read (and in tests): the old fixed colours. */
-export const DEFAULT_MAP_INK: MapInk = {
+const DEFAULT_MAP_INK: MapInk = {
   road: 'white',
   edge: 'black',
   pit: '#999999',
