@@ -34,8 +34,8 @@ describe('VirtualEnergyCell', () => {
     const tone = (remaining: number) =>
       cell({ remaining }).querySelector('span')?.className ?? '';
     expect(tone(0.5)).not.toMatch(/text-(amber|red)-/);
-    expect(tone(0.3)).toContain('text-amber-300');
-    expect(tone(0.2)).toContain('text-amber-300');
+    expect(tone(0.3)).toContain('text-amber-400');
+    expect(tone(0.2)).toContain('text-amber-400');
     expect(tone(0.1)).toContain('text-red-400');
     expect(tone(0)).toContain('text-red-400');
   });

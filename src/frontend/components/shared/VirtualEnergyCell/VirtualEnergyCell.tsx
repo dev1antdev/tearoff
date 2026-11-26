@@ -33,7 +33,7 @@ const CRITICAL_FRACTION = 0.1;
 
 const toneFor = (remaining: number): string => {
   if (remaining <= CRITICAL_FRACTION) return 'text-red-400';
-  if (remaining <= LOW_FRACTION) return 'text-amber-300';
+  if (remaining <= LOW_FRACTION) return 'text-amber-400';
   return '';
 };
 

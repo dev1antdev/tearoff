@@ -43,7 +43,7 @@ describe('LastTimeCell', () => {
     const icon = td.querySelector('svg');
     expect(icon).not.toBeNull();
     expect(icon?.getAttribute('aria-label')).toBe('Did not count');
-    expect(icon?.getAttribute('class')).toContain('text-amber-300');
+    expect(icon?.getAttribute('class')).toContain('text-amber-400');
   });
 
   it.each(['session-fastest', 'personal-best'] as const)(
