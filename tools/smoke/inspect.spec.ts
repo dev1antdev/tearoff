@@ -2,8 +2,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { backupsOfSchema, inspectLapLibrary, type DbInfo } from './inspect.ts';
+
+// Every case here writes, copies and compares whole lap libraries, which
+// takes seconds apiece; the default ten ran out on a loaded runner.
+vi.setConfig({ testTimeout: 60_000 });
 
 /**
  * A lap library as far as the inspection reads one: a schema number, the
