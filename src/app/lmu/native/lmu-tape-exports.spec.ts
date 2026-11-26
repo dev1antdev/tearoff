@@ -356,11 +356,20 @@ describe.skipIf(!available)('LMU exports on a recorded race', () => {
 
   it('reads the recording to its end, with every export on every frame', () => {
     expect(tape.complete).toBe(true);
-    // The recording holds 15,430 player frames. start() captures the first
-    // to answer whether the sim is there, so read() begins at the second.
-    expect(tape.frames).toBe(15_429);
     expect(tape.incomplete).toBe(0);
-    expectNear(tape.firstClock, 139.9325, 0.001);
+    // The recording holds 15,430 player frames. start() captures the first to
+    // answer whether the sim is there, so a read begins at the second one --
+    // unless it comes before that frame's recorded moment, when the addon
+    // hands the first back again, as shared memory would. Which of the two a
+    // run sees first is the machine's timing, not the recording's, so both
+    // are accepted and the count follows from it.
+    const startedOnTheFirstFrame = Math.abs(tape.firstClock - 139.9125) < 0.001;
+    expect(tape.frames).toBe(startedOnTheFirstFrame ? 15_430 : 15_429);
+    expectNear(
+      tape.firstClock,
+      startedOnTheFirstFrame ? 139.9125 : 139.9325,
+      0.001
+    );
     expectNear(tape.lastClock, 379.9025, 0.001);
   });
 
