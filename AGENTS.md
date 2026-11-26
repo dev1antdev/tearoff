@@ -20,6 +20,7 @@ Code identifiers keep the old name on purpose: the `@irdashies/*` path aliases, 
 - The installed app updates itself from this repository's GitHub releases. Three places name the repository and must agree: `repository.url` in `package.json` (auto-updater), `publishers` in `forge.config.mts` (release upload), and `GITHUB_REPOSITORY` in `src/types/repository.ts` (release notes).
 - `src/main.ts` only enables auto-update when `app.getName()` is `tearoff`; keep it in step with `package.json`.
 - Releases must stay published and non-prerelease (`draft: false`, `prerelease: false`) or the updater will not see them. Builds are not code signed.
+- The release is published before its files are uploaded, so the release job ends by comparing every built file (RELEASES, the .nupkg files, the installer) with the size the release holds and re-uploading a missing or short one. Without that, a broken upload leaves a file with the right name behind, and a re-run skips it.
 - Analytics is off: `POSTHOG_KEY` is never set at build time, so `src/app/analytics.ts` never creates a client.
 
 ---
