@@ -38,4 +38,16 @@ describe('WindDirection', () => {
     expect(arrow?.querySelector('path')?.getAttribute('d')).toContain('30 1l');
     expect(arrow).toHaveClass('overflow-visible');
   });
+
+  it('turns the drawing inside the svg, where the turn cannot reach past the square', () => {
+    const { container } = render(<WindDirection speedMs={5} direction={1} />);
+    const arrow = container.querySelector('svg');
+
+    // A rotated svg element is a rotated box: its corners reach past the
+    // square it fills, which the smoke run reads as content larger than the
+    // box. A rotated group repaints only, so the box stays the square.
+    expect(arrow?.getAttribute('style') ?? '').not.toContain('rotate');
+    const turn = arrow?.querySelector('g');
+    expect(turn?.getAttribute('style')).toContain('rotate');
+  });
 });
