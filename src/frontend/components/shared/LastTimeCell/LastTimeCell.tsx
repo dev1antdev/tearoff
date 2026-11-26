@@ -58,7 +58,7 @@ export const LastTimeCell = memo(
               aria-label="Did not count"
               size={10}
               weight="fill"
-              className="shrink-0 text-amber-300"
+              className="shrink-0 text-amber-400"
             />
           </span>
         ) : (

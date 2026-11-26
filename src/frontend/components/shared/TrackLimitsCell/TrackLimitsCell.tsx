@@ -21,7 +21,7 @@ const toneFor = (points: number, max: number | undefined): string => {
   if (points <= 0) return 'text-white/50';
   if (!max || max <= 0) return '';
   if (points >= max) return 'text-red-400';
-  if (points >= max * WARN_FRACTION) return 'text-amber-300';
+  if (points >= max * WARN_FRACTION) return 'text-amber-400';
   return '';
 };
 

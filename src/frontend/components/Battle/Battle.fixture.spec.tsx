@@ -151,7 +151,7 @@ describe('Battle on a recorded LMU race', () => {
     // The class leader's 30 % is at the amber threshold.
     expect(
       cell('ahead', 'lmuVirtualEnergy')?.querySelector('span')?.className
-    ).toContain('text-amber-300');
+    ).toContain('text-amber-400');
   });
 
   it('has no stops column where the fixture carries no count, and one once it does (staged)', () => {
