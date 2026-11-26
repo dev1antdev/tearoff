@@ -27,7 +27,11 @@ describe('generateMockData', () => {
     expect(frames.length).toBeGreaterThan(0);
     for (const frame of frames) {
       expect(frame.SessionState.value[0]).toBe(SessionState.Racing);
-      expect(frame.SessionFlags.value[0]).toBe(GlobalFlags.Green);
+      // Green, or the demonstration's caution and nothing else.
+      expect([
+        GlobalFlags.Green,
+        GlobalFlags.Yellow | GlobalFlags.Caution,
+      ]).toContain(frame.SessionFlags.value[0]);
       expect(frame.SessionLapsRemainEx.value).toEqual(
         frame.SessionLapsRemain.value
       );
@@ -197,6 +201,42 @@ describe('generateMockData', () => {
     expect(last.WindVel.value[0]).toBeGreaterThanOrEqual(0);
     expect(last.RelativeHumidity.value[0]).toBeGreaterThan(0);
     expect(last.RelativeHumidity.value[0]).toBeLessThan(1);
+
+    bridge.stop();
+  });
+
+  it('runs a caution and takes cars through the pit lane', () => {
+    const bridge = generateMockData();
+    const frames: Telemetry[] = [];
+    bridge.onTelemetry((frame) => frames.push(frame));
+    // Past the first caution of the cycle (200 to 225 seconds in).
+    vi.advanceTimersByTime(240_000);
+
+    const flags = frames.map((frame) => frame.SessionFlags.value[0]);
+    expect(flags).toContain(GlobalFlags.Green);
+    expect(
+      flags.some(
+        (value) => value === (GlobalFlags.Yellow | GlobalFlags.Caution)
+      )
+    ).toBe(true);
+
+    // Cars go through the pit lane where the demo puts it, and none of them
+    // stays there for good; the player drives through.
+    const pitWindows = frames.flatMap((frame) =>
+      (frame.CarIdxOnPitRoad.value as boolean[])
+        .map((onPitRoad, idx) => (onPitRoad ? idx : -1))
+        .filter((idx) => idx >= 0)
+    );
+    expect(pitWindows.length).toBeGreaterThan(0);
+    expect(new Set(pitWindows).size).toBeGreaterThan(1);
+    expect(frames.every((frame) => !frame.CarIdxOnPitRoad.value[4])).toBe(true);
+
+    // Incidents are counted up as the session runs.
+    const incidents = frames.map(
+      (frame) => frame.PlayerCarMyIncidentCount.value[0]
+    );
+    expect(incidents[incidents.length - 1]).toBeGreaterThan(incidents[0]);
+    expect(new Set(incidents).size).toBeGreaterThan(1);
 
     bridge.stop();
   });
