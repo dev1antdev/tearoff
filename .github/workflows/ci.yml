@@ -230,3 +230,69 @@ jobs:
         run: npx electron-forge release --from-make
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # The release is published before its files are uploaded, because the
+      # auto-updater only looks at published releases. An upload that breaks
+      # off leaves a file behind with its name on it, and a re-run of this job
+      # would find that name and skip it. So every built file is compared with
+      # what the release holds, and a missing or short one is uploaded again.
+      - name: Verify the release holds every built file
+        if: inputs.build_smoke_test != true
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $tag = "v$version"
+          $dir = 'out/make/squirrel.windows/x64'
+          # RELEASES is the list the updater reads, the .nupkg files are what it
+          # downloads, and the installer is what a person runs.
+          $built = @('RELEASES') `
+            + (Get-ChildItem -LiteralPath $dir -Filter '*.nupkg' -File | ForEach-Object Name) `
+            + (Get-ChildItem -LiteralPath $dir -Filter '*.exe' -File | ForEach-Object Name)
+          if ($built.Count -lt 3) {
+            throw "Expected RELEASES, a .nupkg and an installer in $dir, found: $($built -join ', ')"
+          }
+
+          function Get-ReleaseAssets($tag) {
+            $json = gh release view $tag --json assets
+            if ($LASTEXITCODE -ne 0) { throw "Could not read release $tag" }
+            ($json | ConvertFrom-Json).assets
+          }
+
+          $assets = Get-ReleaseAssets $tag
+          $broken = @()
+          foreach ($name in $built) {
+            $local = Get-Item -LiteralPath (Join-Path $dir $name) -ErrorAction Stop
+            $asset = $assets | Where-Object { $_.name -eq $name }
+            if (-not $asset) {
+              Write-Host "Not in release $tag, uploading again: $name"
+              $broken += $name
+            } elseif ($asset.size -ne $local.Length) {
+              Write-Host "Release $tag holds $name at $($asset.size) of $($local.Length) bytes, uploading again"
+              $broken += $name
+            }
+          }
+
+          if ($broken.Count -gt 0) {
+            $broken | ForEach-Object { Join-Path $dir $_ } | ForEach-Object {
+              gh release upload $tag $_ --clobber
+              if ($LASTEXITCODE -ne 0) { throw "Upload failed: $_" }
+            }
+
+            $assets = Get-ReleaseAssets $tag
+            $short = @()
+            foreach ($name in $built) {
+              $local = Get-Item -LiteralPath (Join-Path $dir $name)
+              $asset = $assets | Where-Object { $_.name -eq $name }
+              if (-not $asset -or $asset.size -ne $local.Length) {
+                $short += "$name (expected $($local.Length) bytes, found $($asset.size))"
+              }
+            }
+            if ($short.Count -gt 0) {
+              throw "Release $tag still does not hold every file whole: $($short -join '; ')"
+            }
+          }
+
+          Write-Host "Release $tag holds all $($built.Count) built files, whole."
+
