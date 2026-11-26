@@ -14,6 +14,13 @@ import {
   type RaceLogKindGroup,
 } from '@irdashies/domain/raceLog';
 import type { RaceLogScope } from '@irdashies/types';
+import {
+  buttonGroupButtonClass,
+  buttonGroupClass,
+} from '../../shared/buttonGroup';
+
+/** This bar's type step: its buttons are as tall as its own text. */
+const SIZE = 'px-2 py-0.5 leading-snug';
 
 const KIND_ICONS: Record<RaceLogKindGroup, Icon> = {
   pits: WrenchIcon,
@@ -59,22 +66,14 @@ export const RaceLogFilters = memo(
       data-testid="race-log-filters"
       className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 border-b overlay-divider px-2 py-1 text-xs"
     >
-      <div
-        role="group"
-        aria-label="Cars listed"
-        className="flex overflow-hidden rounded-md border border-slate-600"
-      >
+      <div role="group" aria-label="Cars listed" className={buttonGroupClass}>
         {RACE_LOG_SCOPES.map(({ id, label }) => (
           <button
             key={id}
             type="button"
             aria-pressed={scope === id}
             onClick={() => onScope(id)}
-            className={`px-2 py-0.5 leading-snug ${
-              scope === id
-                ? 'bg-slate-600 font-semibold text-white'
-                : 'text-slate-300 hover:bg-slate-700/70'
-            }`}
+            className={buttonGroupButtonClass(scope === id, SIZE)}
           >
             {label}
           </button>
