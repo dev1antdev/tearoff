@@ -5,6 +5,7 @@ import {
   DropIcon,
   FlagIcon,
   GarageIcon,
+  TrophyIcon,
   XCircleIcon,
 } from '@phosphor-icons/react';
 import { memo } from 'react';
@@ -101,9 +102,11 @@ export const LapTimeRow = memo(
       left > 0 &&
       Math.abs(left - right) < 0.001;
 
-    const isGreen = isSameLapTime(time, best);
+    const isOwnBest = isSameLapTime(time, best);
     const isPurple = isSameLapTime(time, overall);
-    const isYellow = isSameLapTime(time, alltime);
+    // Your best of all time: the same green as any best of yours, and a
+    // trophy, since the list has no label to say which it is.
+    const isRecord = isSameLapTime(time, alltime);
 
     const isDirty = dirty ?? false;
 
@@ -113,16 +116,18 @@ export const LapTimeRow = memo(
     const deltaIsRed =
       time !== undefined && time > 0 && delta !== undefined && delta > 0;
 
+    // Records by their shared meanings: the session's overall best is
+    // purple, your own best green. Yellow is a flag, not a record.
     const getLapColor = () => {
       if (live) return 'text-slate-300';
       if (isDirty) return 'text-slate-400';
-      if (isYellow) return 'text-yellow-400';
       if (isPurple) return 'text-purple-400';
-      if (isGreen) return 'text-green-400';
+      if (isOwnBest || isRecord) return 'text-green-400';
       return 'text-white';
     };
 
-    const hasMarks = pitted || voided || yellow || caution || wet || fromStart;
+    const hasMarks =
+      pitted || voided || yellow || caution || wet || fromStart || isRecord;
 
     return (
       <div
@@ -148,6 +153,13 @@ export const LapTimeRow = memo(
                 data-testid="lap-marks"
                 className="flex items-center gap-[0.2em] text-[0.9em]"
               >
+                {isRecord && (
+                  <TrophyIcon
+                    data-mark="record"
+                    weight="fill"
+                    className="text-green-400"
+                  />
+                )}
                 {fromStart && (
                   <FlagIcon
                     data-mark="start"

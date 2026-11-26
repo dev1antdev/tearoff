@@ -25,16 +25,16 @@ export const LapTimeCell = memo(
       left > 0 &&
       Math.abs(left - right) < 0.001;
 
-    const isGreen = isSameLapTime(time, best);
+    const isOwnBest = isSameLapTime(time, best) || isSameLapTime(time, alltime);
     const isPurple = isSameLapTime(time, overall);
-    const isYellow = isSameLapTime(time, alltime);
 
     const opacity = settings?.foreground?.opacity ?? 0;
 
+    // The label above the figure says which best it is (PERSONAL, SESSION);
+    // the colour only says whose: the session's overall best or your own.
     const getLapColor = () => {
-      if (isYellow) return 'text-yellow-400';
       if (isPurple) return 'text-purple-400';
-      if (isGreen) return 'text-green-400';
+      if (isOwnBest) return 'text-green-400';
       return 'text-white';
     };
 

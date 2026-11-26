@@ -155,9 +155,12 @@ A sector's colour (session best purple, personal best green, slower yellow,
 red) is a light tint of its reading (`SECTOR_TINT`, 20%), not a bar under it.
 The Lap Timer's current and
 predicted lap and its stat cells (their captions grey in their own type, so a cell is no wider) keep their tinted tiles: they are what its
-Foreground Opacity setting sets. The Lap Timer keeps its own record colours,
-session best green, overall best purple and all-time best yellow, flashed on
-the current lap when set. Timing keeps its own Text Scale instead of the
+Foreground Opacity setting sets. The Lap Timer colours its records by the shared meanings —
+the session's overall best `purple-400`, your own best of the session or of
+all time `green-400` — and flashes them on the current lap when set
+(`bg-purple-800`, `bg-green-700`). A lap in its list that is your all-time
+best also carries a trophy, since the list has no label to say which best it
+is; yellow is left to flags. Timing keeps its own Text Scale instead of the
 Font size: a general change would resize every saved Timing window.
 
 Rival tables (Battle, Class Rivals, Finish Projection's rivals) are drawn as
