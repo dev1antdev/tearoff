@@ -69,12 +69,19 @@ export const WindDirection = memo(
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 60 60"
-            className="absolute overflow-visible stroke-current stroke-[1.5] w-full h-full box-border fill-none origin-center transform-gpu transition-transform duration-1000 ease-out"
-            style={{
-              rotate: `calc(${normalizedAngle} * 1rad + 0.5turn)`,
-            }}
+            className="absolute overflow-visible stroke-current stroke-[1.5] w-full h-full box-border fill-none"
           >
-            <path d="M48 8A28 28 90 0158 30c0 15.464-12.536 28-28 28S2 45.464 2 30A28 28 90 0112 8M22 9 30 1l8 8" />
+            {/* The turn happens inside the drawing: a rotated svg element
+                reaches past its square, which the smoke run reads as content
+                larger than the box, while a rotated group only repaints. */}
+            <g
+              className="origin-center transform-gpu transition-transform duration-1000 ease-out"
+              style={{
+                rotate: `calc(${normalizedAngle} * 1rad + 0.5turn)`,
+              }}
+            >
+              <path d="M48 8A28 28 90 0158 30c0 15.464-12.536 28-28 28S2 45.464 2 30A28 28 90 0112 8M22 9 30 1l8 8" />
+            </g>
           </svg>
 
           <div
