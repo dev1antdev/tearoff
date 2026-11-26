@@ -241,6 +241,29 @@ const floatValue = (value: unknown): number =>
   new Float32Array(value as ArrayBuffer)[0];
 const intValue = (value: unknown): number =>
   new Int32Array(value as ArrayBuffer)[0];
+
+/**
+ * A speed from the pass a looping tape has just begun.
+ *
+ * The replay holds each frame until its recorded moment, as shared memory
+ * does, so a read made straight after the loop reports itself running again
+ * still hands out the last frame of the pass before. Waiting for the speed to
+ * fall below the recording's last frame takes the timing out of the case; the
+ * frame it lands on is the recording's first or second, depending on how long
+ * the read took.
+ */
+const speedInTheNewPass = (sdk: {
+  waitForData(milliseconds: number): boolean;
+  getTelemetryData(): { Speed: { value: unknown } };
+}): number => {
+  const deadline = Date.now() + 5_000;
+  let speed = floatValue(sdk.getTelemetryData().Speed.value);
+  while (speed >= 52 && Date.now() < deadline) {
+    sdk.waitForData(20);
+    speed = floatValue(sdk.getTelemetryData().Speed.value);
+  }
+  return speed;
+};
 const addonPath = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   '..',
@@ -402,7 +425,9 @@ describe('tape-backed native SDK', () => {
       expect(sdk.waitForData(20)).toBe(false);
       expect(sdk.isRunning()).toBe(false);
       expect(sdk.waitForData(20)).toBe(true);
-      expect(floatValue(sdk.getTelemetryData().Speed.value)).toBeCloseTo(50, 5);
+      const restart = speedInTheNewPass(sdk);
+      expect(restart).toBeGreaterThanOrEqual(50);
+      expect(restart).toBeLessThan(52);
     } finally {
       sdk.stopSDK();
     }
@@ -430,7 +455,9 @@ describe('tape-backed native SDK', () => {
       expect(sdk.waitForData(20)).toBe(false);
       expect(sdk.isRunning()).toBe(false);
       expect(sdk.waitForData(20)).toBe(true);
-      expect(floatValue(sdk.getTelemetryData().Speed.value)).toBeCloseTo(50, 5);
+      const restart = speedInTheNewPass(sdk);
+      expect(restart).toBeGreaterThanOrEqual(50);
+      expect(restart).toBeLessThan(52);
     } finally {
       sdk.stopSDK();
     }
