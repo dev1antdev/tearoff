@@ -4,6 +4,10 @@ import {
   type RaceChartsLaps,
   type RaceChartsTab,
 } from '@irdashies/types';
+import {
+  buttonGroupButtonClass,
+  buttonGroupClass,
+} from '../../shared/buttonGroup';
 
 const TAB_LABELS: Record<RaceChartsTab, string> = {
   pace: 'Pace',
@@ -14,15 +18,10 @@ const TAB_LABELS: Record<RaceChartsTab, string> = {
 const lapsLabel = (laps: RaceChartsLaps): string =>
   laps === 0 ? 'All' : `${laps}`;
 
-const GROUP =
-  'flex flex-none overflow-hidden rounded-md border border-slate-600';
+const GROUP = `${buttonGroupClass} flex-none`;
 
-const buttonClass = (on: boolean): string =>
-  `px-2.5 py-0.5 leading-5 ${
-    on
-      ? 'bg-slate-600 font-semibold text-white'
-      : 'text-slate-300 hover:bg-slate-700/70'
-  }`;
+/** This bar's type step: its buttons are as tall as its own text. */
+const SIZE = 'px-2.5 py-0.5 leading-5';
 
 export interface ChartControlsProps {
   /** The charts on offer: Usage is left out where nothing is published. */
@@ -75,7 +74,7 @@ export const ChartControls = memo(
               data-testid={`race-charts-tab-${id}`}
               aria-pressed={tab === id}
               onClick={() => onTab(id)}
-              className={buttonClass(tab === id)}
+              className={buttonGroupButtonClass(tab === id, SIZE)}
             >
               {TAB_LABELS[id]}
             </button>
@@ -116,7 +115,7 @@ export const ChartControls = memo(
                   count === 0 ? 'The whole race' : `Last ${count} laps`
                 }
                 onClick={() => onLaps(count)}
-                className={buttonClass(laps === count)}
+                className={buttonGroupButtonClass(laps === count, SIZE)}
               >
                 {lapsLabel(count)}
               </button>
