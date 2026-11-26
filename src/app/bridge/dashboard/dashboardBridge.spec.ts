@@ -187,6 +187,52 @@ describe('opening a widget settings page from another window', () => {
   });
 });
 
+describe('a save from a window bound to another profile', () => {
+  const otherDashboard: DashboardLayout = {
+    widgets: [
+      {
+        id: 'relative',
+        enabled: true,
+        layout: { x: 0, y: 0, width: 200, height: 100 },
+      },
+    ],
+  };
+
+  it('writes to that profile, not the one on screen', () => {
+    // The app is on 'race'; a browser view opens 'practice' and saves there.
+    // A profile switch makes the window's save arrive after the app's own
+    // profile has changed, so the options carry the window's profile.
+    mocks.listeners.get('saveDashboard')?.(null, otherDashboard, {
+      profileId: 'practice',
+    });
+
+    const [key, dashboards] = mocks.writeData.mock.lastCall as [
+      string,
+      Record<string, DashboardLayout>,
+    ];
+    expect(key).toBe('dashboards');
+    expect(dashboards.practice).toBe(otherDashboard);
+    // The profile on screen keeps what it had, and its overlays are untouched.
+    expect(dashboards.race.widgets).toEqual([]);
+    expect(mocks.publish).not.toHaveBeenCalled();
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(mocks.closeOrCreate).not.toHaveBeenCalled();
+  });
+
+  it('writes to the profile on screen when the window names it', () => {
+    mocks.listeners.get('saveDashboard')?.(null, otherDashboard, {
+      profileId: 'race',
+    });
+
+    const [, dashboards] = mocks.writeData.mock.lastCall as [
+      string,
+      Record<string, DashboardLayout>,
+    ];
+    // Stored as the app stores a dashboard: with its defaults filled in.
+    expect(dashboards.race.widgets).toEqual(otherDashboard.widgets);
+  });
+});
+
 describe('dashboard import scaling', () => {
   it.each([
     'null',
