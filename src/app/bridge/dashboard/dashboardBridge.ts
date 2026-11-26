@@ -329,10 +329,21 @@ export async function publishDashboardUpdates(
       const dashboard = options?.forceReload
         ? withDashboardDefaults(savedDashboard)
         : savedDashboard;
+      const currentProfileId = getCurrentProfileId();
+      // A window can be bound to a profile the app is not showing: a browser
+      // view whose page names it. Switching profiles changes the app's at
+      // once, so a save from the old page can arrive after the switch; it
+      // belongs to its own profile, never to the one now on screen.
+      const targetProfileId = options?.profileId ?? currentProfileId;
+      if (targetProfileId !== currentProfileId) {
+        const dashboards = listDashboards();
+        dashboards[targetProfileId] = dashboard;
+        writeData('dashboards', dashboards);
+        return;
+      }
       // For layout-only changes (drag/resize), skip the window refresh
       if (options?.skipWindowRefresh) {
         // Save without emitting event to avoid window recreation
-        const currentProfileId = getCurrentProfileId();
         const existingDashboards = listDashboards();
         existingDashboards[currentProfileId] = dashboard;
         writeData('dashboards', existingDashboards);
@@ -343,7 +354,6 @@ export async function publishDashboardUpdates(
         return;
       }
 
-      const currentProfileId = getCurrentProfileId();
       saveDashboard(currentProfileId, dashboard);
       if (options?.forceReload) {
         overlayManager.forceRefreshOverlays(dashboard);
