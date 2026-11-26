@@ -6,6 +6,34 @@ import mockTelemetry from '../../../irsdk/node/utils/mock-data/telemetry.json';
 /** How far round the lap every demo car moves in one tick at 60 Hz. */
 const LAP_DISTANCE_INC = 0.0007;
 
+/**
+ * Where the demo's pit lane is, as a share of the lap, and how slowly a car
+ * goes through it: the AI cars stop there now and then, so the tables and the
+ * traffic widgets have stops to show.
+ */
+const PIT_WINDOW: readonly [number, number] = [0.02, 0.09];
+const PIT_PACE = 0.3;
+
+/** A car in the pit lane of this demo lap. */
+const inPitWindow = (pct: number) =>
+  pct >= PIT_WINDOW[0] && pct < PIT_WINDOW[1];
+
+/**
+ * The demo's session flags at a given session time: green, then a full-course
+ * caution every few minutes and green again after it, so the flag widgets and
+ * the Race Log have something to show.
+ */
+const DEMO_FLAG_CYCLE_SECONDS = 240;
+const DEMO_CAUTION_START_SECONDS = 200;
+const DEMO_CAUTION_END_SECONDS = 225;
+const demoSessionFlags = (sessionTime: number): GlobalFlags => {
+  const intoCycle = sessionTime % DEMO_FLAG_CYCLE_SECONDS;
+  return intoCycle >= DEMO_CAUTION_START_SECONDS &&
+    intoCycle < DEMO_CAUTION_END_SECONDS
+    ? GlobalFlags.Yellow | GlobalFlags.Caution
+    : GlobalFlags.Green;
+};
+
 const MOCK_TEAM_NAMES = [
   'Apex Racing',
   'Northstar Motorsport',
@@ -257,9 +285,10 @@ export function generateMockData(sessionData?: {
               if (i === PLAYER_CAR_IDX) {
                 carLapDistPcts[i] = mockState.lapDistPct;
               } else {
+                const pace = inPitWindow(carLapDistPcts[i]) ? PIT_PACE : 1;
                 carLapDistPcts[i] =
                   (carLapDistPcts[i] +
-                    LAP_DISTANCE_INC * carSpeedMultipliers[i]) %
+                    LAP_DISTANCE_INC * carSpeedMultipliers[i] * pace) %
                   1;
               }
             }
@@ -288,6 +317,21 @@ export function generateMockData(sessionData?: {
               distance: pct < 0 || carLaps[idx] < 0 ? -1 : carLaps[idx] + pct,
               lapSeconds: demoLapSeconds(carSpeedMultipliers[idx]),
             }));
+            // A car is in the pit lane while the demo has it there; the
+            // player drives through, so it is never the player.
+            const carIdxOnPitRoad = carLapDistPcts.map(
+              (pct, idx) =>
+                idx !== PLAYER_CAR_IDX && pct >= 0 && inPitWindow(pct)
+            );
+            const sessionFlags = demoSessionFlags(state.sessionTime);
+            const incidents =
+              Number(
+                (
+                  prevTelemetry.PlayerCarMyIncidentCount?.value as number[]
+                )?.[0] ?? 0
+              ) +
+              2 * Math.floor(state.sessionTime / 90);
+
             const onTrack = placement
               .filter(({ distance }) => distance >= 0)
               .sort((a, b) => b.distance - a.distance);
@@ -373,7 +417,7 @@ export function generateMockData(sessionData?: {
               },
               SessionFlags: {
                 ...prevTelemetry.SessionFlags,
-                value: [GlobalFlags.Green],
+                value: [sessionFlags],
               },
               Brake: {
                 ...prevTelemetry.Brake,
@@ -447,6 +491,18 @@ export function generateMockData(sessionData?: {
               CarIdxBestLapTime: {
                 ...prevTelemetry.CarIdxBestLapTime,
                 value: [...carBestLap],
+              },
+              CarIdxOnPitRoad: {
+                ...prevTelemetry.CarIdxOnPitRoad,
+                value: carIdxOnPitRoad,
+              },
+              PlayerCarMyIncidentCount: {
+                ...prevTelemetry.PlayerCarMyIncidentCount,
+                value: [incidents],
+              },
+              PlayerCarDriverIncidentCount: {
+                ...prevTelemetry.PlayerCarDriverIncidentCount,
+                value: [incidents],
               },
               AirTemp: { ...prevTelemetry.AirTemp, value: [weather.airTemp] },
               TrackTemp: {
