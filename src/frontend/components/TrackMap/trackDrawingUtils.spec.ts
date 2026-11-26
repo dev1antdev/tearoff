@@ -382,5 +382,45 @@ describe('trackDrawingUtils', () => {
       // Should not display empty text when sessionPosition is undefined or 0
       expect(fillTextCalls.length).toBeLessThanOrEqual(0);
     });
+
+    describe('a leader in the pit lane', () => {
+      const leader = {
+        1: {
+          driver: { CarIdx: 1, CarNumber: '2', CarClassID: 1 } as any,
+          position: { x: 200, y: 100 },
+          isPlayer: false,
+          progress: 0.4,
+          sessionPosition: 1,
+        },
+      };
+      const leaderLivePositions = { 1: 1 };
+
+      const draw = (carIdxIsOnPitRoad: boolean[]) =>
+        drawDrivers(
+          ctx,
+          leader,
+          driverColors,
+          true,
+          driversOffTrack,
+          40,
+          40,
+          100,
+          true,
+          'carNumber',
+          leaderLivePositions,
+          carIdxIsOnPitRoad
+        );
+
+      it('keeps the outline that marks the leader', () => {
+        draw([false, false]);
+        expect(ctx.stroke).toHaveBeenCalledTimes(1);
+      });
+
+      it('loses the outline on the pit lane, as on the Track Map', () => {
+        draw([false, true]);
+        expect(ctx.stroke).not.toHaveBeenCalled();
+        expect(ctx.fillText).toHaveBeenCalledWith('P', 200, expect.any(Number));
+      });
+    });
   });
 });
