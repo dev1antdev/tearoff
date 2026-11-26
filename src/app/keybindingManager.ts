@@ -13,7 +13,11 @@ import {
   nextProfileIndex,
   widgetIdFromToggleActionId,
 } from '@irdashies/shared';
-import { getKeybindings, findKeybindingConflict } from './storage/keybindings';
+import {
+  getKeybindings,
+  findKeybindingConflict,
+  keybindingActionLabel,
+} from './storage/keybindings';
 import { OverlayManager } from './overlayManager';
 import logger from './logger';
 import { toggleWidgetHidden } from './widgetVisibility';
@@ -214,7 +218,12 @@ export class KeybindingManager {
       if (isGamepadBinding(entry.accelerator)) continue;
 
       const id = actionId as KeybindingActionId;
-      const owner = findKeybindingConflict(owners, id, entry.accelerator);
+      const owner = findKeybindingConflict(
+        owners,
+        id,
+        entry.accelerator,
+        keybindingActionLabel
+      );
       if (owner !== undefined) {
         errors[id] =
           `Shortcut already bound to "${owner}" in Tearoff. Choose another combination.`;

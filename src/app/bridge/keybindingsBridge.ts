@@ -12,6 +12,7 @@ import {
 import {
   getKeybindings,
   findKeybindingConflict,
+  keybindingActionLabel,
   KeybindingConflictError,
   updateKeybinding,
   resetKeybinding,
@@ -74,7 +75,8 @@ export function setupKeybindingsBridge(
         const conflict = findKeybindingConflict(
           getKeybindings(),
           actionId,
-          accelerator
+          accelerator,
+          keybindingActionLabel
         );
         if (conflict !== undefined) {
           return {

@@ -1,10 +1,17 @@
-import type { KeybindingActionId, KeybindingsMap } from '@irdashies/types';
+import type {
+  KeybindingActionId,
+  KeybindingEntry,
+  KeybindingsMap,
+} from '@irdashies/types';
 import { DEFAULT_KEYBINDINGS } from '@irdashies/types';
 import {
   isGamepadBinding,
+  isWidgetToggleActionId,
   isValidWidgetToggleActionId,
+  widgetToggleLabel,
 } from '@irdashies/shared';
 import { readData, writeData, writeDataAsync } from './storage';
+import { getCurrentProfileId, getDashboard } from './dashboards';
 import { migrateLegacyStreamChatKeybindings } from './streamChatMigration';
 
 const STORAGE_KEY = 'keybindings';
@@ -75,23 +82,53 @@ function normalizeKeyboardAccelerator(
 
 export class KeybindingConflictError extends Error {}
 
-/** Find app-owned duplicates before attempting an OS registration. */
+/**
+ * What an action is called where a person sees it. A widget toggle goes by the
+ * widget in the profile on screen -- a group by the number it has now -- and
+ * only where that widget is not there does the name saved with the key stand,
+ * which is what the settings page shows for a key of another profile's widget.
+ */
+export const keybindingActionLabel = (
+  actionId: KeybindingActionId,
+  entry: KeybindingEntry
+): string => {
+  if (isWidgetToggleActionId(actionId)) {
+    const live = widgetToggleLabel(
+      actionId,
+      getDashboard(getCurrentProfileId())?.widgets ?? []
+    );
+    if (live) return live;
+  }
+  return entry.label;
+};
+
+/**
+ * Find app-owned duplicates before attempting an OS registration.
+ *
+ * The name comes from `labelOf` where a caller has a better one than the label
+ * saved with the key: a widget toggle is named by the widget, and a group is
+ * numbered as the dashboard has it now.
+ */
 export function findKeybindingConflict(
   bindings: Partial<KeybindingsMap>,
   actionId: KeybindingActionId,
-  accelerator: string
+  accelerator: string,
+  labelOf?: (actionId: KeybindingActionId, entry: KeybindingEntry) => string
 ): string | undefined {
   if (!accelerator) return;
   const normalize = (value: string) =>
     isGamepadBinding(value)
       ? value
       : normalizeKeyboardAccelerator(value, process.platform === 'darwin');
-  return Object.entries(bindings).find(
+  const owner = Object.entries(bindings).find(
     ([id, entry]) =>
       entry &&
       id !== actionId &&
       normalize(entry.accelerator) === normalize(accelerator)
-  )?.[1]?.label;
+  );
+  if (!owner || !owner[1]) return undefined;
+  const [id, entry] = owner;
+  return labelOf ? labelOf(id as KeybindingActionId, entry) : entry.label;
 }
 
 export function updateKeybinding(
