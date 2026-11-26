@@ -1,4 +1,5 @@
 import { memo, type ReactNode } from 'react';
+import { LoadBar } from '../shared/LoadBar/LoadBar';
 import type { ChassisConfig } from '@irdashies/types';
 import {
   useDrivingState,
@@ -118,31 +119,6 @@ const Row = ({
   );
 };
 
-interface BarProps {
-  /** 0..1. */
-  fill: number;
-  warn: boolean;
-  /** The side of the car the bar is on: it grows away from the centre. */
-  side: 'left' | 'right';
-}
-
-/**
- * A thin bar growing outwards from the car's centreline. A warning turns the
- * whole track red, not just the fill: a corner that is bottoming has next to
- * no fill left to colour.
- */
-const Bar = memo(({ fill, warn, side }: BarProps) => (
-  <div
-    className={`flex h-[0.4em] overflow-hidden rounded-full ${warn ? 'bg-red-500' : 'bg-slate-900/70'} ${side === 'left' ? 'justify-end' : 'justify-start'}`}
-  >
-    <div
-      className={`h-full rounded-full ${warn ? 'bg-red-500' : 'bg-slate-300'}`}
-      style={{ width: `${Math.round(fill * 100)}%` }}
-    />
-  </div>
-));
-Bar.displayName = 'Bar';
-
 interface RideHeightLineProps {
   leftText: string;
   leftFill: number;
@@ -172,8 +148,8 @@ const RideHeightLine = memo(
       <span className={`text-right ${leftBottoming ? 'text-red-400' : ''}`}>
         {leftText}
       </span>
-      <Bar fill={leftFill} warn={leftBottoming} side="left" />
-      <Bar fill={rightFill} warn={rightBottoming} side="right" />
+      <LoadBar fill={leftFill} warn={leftBottoming} side="left" />
+      <LoadBar fill={rightFill} warn={rightBottoming} side="right" />
       <span className={rightBottoming ? 'text-red-400' : ''}>{rightText}</span>
     </div>
   )
