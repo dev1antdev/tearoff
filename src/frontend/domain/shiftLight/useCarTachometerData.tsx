@@ -1,5 +1,5 @@
 import { usePlayerCar } from '@irdashies/domain/shiftLight/usePlayerCar';
-import { getGearKey } from '../../../utils/carData';
+import { getGearKey } from '@irdashies/utils/carData';
 
 /**
  * Hook for car-specific tachometer data from lovely-car-data

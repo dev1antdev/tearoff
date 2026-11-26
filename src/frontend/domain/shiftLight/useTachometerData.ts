@@ -1,17 +1,24 @@
 import { useDriverControlsSnapshot, useSessionStore } from '@irdashies/context';
 import { useCarTachometerData } from './useCarTachometerData';
+import { usePlayerCar } from './usePlayerCar';
 
 /**
- * Hook for tachometer-specific telemetry data.
- * Encapsulates all RPM and shift light logic with car-specific data integration.
+ * What the Tachometer and the Shift Light read: the engine's revs and gear,
+ * the car's redline and shift thresholds, and the car itself for its bundled
+ * data and its shift points.
+ *
+ * One hook, because both widgets read the same numbers from the same
+ * channels; where one needs more (the Shift Light's pedals and gear count),
+ * the extra is here rather than in a copy that would drift.
  */
 export const useTachometerData = () => {
   const snapshot = useDriverControlsSnapshot();
   const rpm = snapshot?.rpm ?? 0;
   const gear = snapshot?.gear ?? 1;
   const shiftGrindRpm = snapshot?.shiftGrindRpm ?? 0;
-  const oilTemp = snapshot?.oilTemp ?? 0;
-  const waterTemp = snapshot?.waterTemp ?? 0;
+  // Absent, not 0, where the sim sends none: a car the user is not in.
+  const oilTemp = snapshot?.oilTemp;
+  const waterTemp = snapshot?.waterTemp;
   const engineWarnings = snapshot?.engineWarnings ?? 0;
   // Pedal positions, not the sim's processed values: an automatic blip on a
   // downshift moves the processed throttle without the driver touching it.
@@ -26,22 +33,7 @@ export const useTachometerData = () => {
   const gearCount = useSessionStore(
     (state) => state.session?.DriverInfo?.DriverCarGearNumForward ?? 0
   );
-  const driverCarIdx = useSessionStore(
-    (state) => state.session?.DriverInfo?.DriverCarIdx
-  );
-  const carPath = useSessionStore((state) => {
-    const drivers = state.session?.DriverInfo?.Drivers;
-    if (!drivers || driverCarIdx === undefined) return undefined;
-    const driver = drivers.find((d) => d.CarIdx === driverCarIdx);
-    return driver?.CarPath;
-  });
-  // The key custom shift points are saved under where the sim sets it. LMU's
-  // CarPath names the livery rather than the car, so the model stands in.
-  const carModel = useSessionStore((state) => {
-    const drivers = state.session?.DriverInfo?.Drivers;
-    if (!drivers || driverCarIdx === undefined) return undefined;
-    return drivers.find((d) => d.CarIdx === driverCarIdx)?.CarModel;
-  });
+  const { carPath, carModel } = usePlayerCar();
 
   // Use car-specific maximum RPM from multiple sources in order of preference
   const maxRpm =

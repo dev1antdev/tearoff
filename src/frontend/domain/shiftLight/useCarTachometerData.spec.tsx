@@ -2,7 +2,7 @@ import { renderHook } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useCarTachometerData } from './useCarTachometerData';
 import * as Context from '@irdashies/context';
-import { loadCarData, type CarData } from '../../../utils/carData';
+import { loadCarData, type CarData } from '@irdashies/utils/carData';
 
 // Mock the dependencies
 vi.mock('@irdashies/context', async (importOriginal) => {
@@ -15,7 +15,7 @@ vi.mock('@irdashies/context', async (importOriginal) => {
     useDriverControlsSnapshot: vi.fn(),
   };
 });
-vi.mock('../../../utils/carData');
+vi.mock('@irdashies/utils/carData');
 
 const mockUseSessionStore = vi.mocked(Context.useSessionStore);
 const mockUseDriverCarIdx = vi.mocked(Context.useDriverCarIdx);

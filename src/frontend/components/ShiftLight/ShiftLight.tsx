@@ -1,4 +1,4 @@
-import { useTachometerData } from './hooks/useTachometerData';
+import { useTachometerData } from '@irdashies/domain/shiftLight/useTachometerData';
 import { useShiftLightSettings } from './hooks/useShiftLightSettings';
 import { ShiftLight as ShiftLightComponent } from './ShiftLightComponent/ShiftLightComponent';
 import {
