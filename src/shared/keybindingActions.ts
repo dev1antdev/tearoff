@@ -1,11 +1,4 @@
-import {
-  WIDGET_GROUP_ID,
-  WIDGET_MANIFESTS,
-  isWidgetGroup,
-  widgetGroups,
-  type DashboardWidget,
-  type WidgetToggleActionId,
-} from '@irdashies/types';
+import type { WidgetToggleActionId } from '@irdashies/types';
 
 /**
  * Prefix marking a keybinding action as a per-widget show/hide toggle. The text
@@ -41,35 +34,6 @@ export function isValidWidgetToggleActionId(actionId: string): boolean {
     isWidgetToggleActionId(actionId) &&
     widgetIdFromToggleActionId(actionId).length > 0
   );
-}
-
-/** What the settings menu calls a widget of this type. */
-const widgetName = (widgetType: string): string => {
-  const manifest = WIDGET_MANIFESTS.find(({ id }) => id === widgetType);
-  return manifest ? (manifest.menuLabel ?? manifest.name) : widgetType;
-};
-
-/**
- * What a widget toggle is called where a person sees it, or undefined when the
- * widget is not in the given dashboard -- another profile's, or a deleted one,
- * where only the name saved with the key is left to go by.
- *
- * A group goes by its number, counted from the widgets as they are now: the
- * saved name says the number the group had when the key was set, and deleting
- * one group renumbers those after it.
- */
-export function widgetToggleLabel(
-  actionId: WidgetToggleActionId,
-  widgets: readonly DashboardWidget[]
-): string | undefined {
-  const widgetId = widgetIdFromToggleActionId(actionId);
-  const widget = widgets.find((candidate) => candidate.id === widgetId);
-  if (!widget) return undefined;
-  if (!isWidgetGroup(widget)) return widgetName(widget.type ?? widget.id);
-
-  const index = widgetGroups(widgets).findIndex(({ id }) => id === widgetId);
-  const name = widgetName(WIDGET_GROUP_ID);
-  return index > 0 ? `${name} ${index + 1}` : name;
 }
 
 /**

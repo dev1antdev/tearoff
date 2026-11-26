@@ -12,13 +12,13 @@ import {
 import {
   getKeybindings,
   findKeybindingConflict,
-  keybindingActionLabel,
   KeybindingConflictError,
   updateKeybinding,
   resetKeybinding,
   resetAllKeybindings,
   persistKeybindingMigrations,
 } from '../storage/keybindings';
+import { keybindingActionLabel } from '../keybindingActionLabels';
 import { KeybindingManager } from '../keybindingManager';
 import { rebuildTaskbarMenu } from '../setupTaskbar';
 import logger from '../logger';

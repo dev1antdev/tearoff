@@ -13,11 +13,8 @@ import {
   nextProfileIndex,
   widgetIdFromToggleActionId,
 } from '@irdashies/shared';
-import {
-  getKeybindings,
-  findKeybindingConflict,
-  keybindingActionLabel,
-} from './storage/keybindings';
+import { getKeybindings, findKeybindingConflict } from './storage/keybindings';
+import { keybindingActionLabel } from './keybindingActionLabels';
 import { OverlayManager } from './overlayManager';
 import logger from './logger';
 import { toggleWidgetHidden } from './widgetVisibility';

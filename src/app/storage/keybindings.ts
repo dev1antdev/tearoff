@@ -6,12 +6,9 @@ import type {
 import { DEFAULT_KEYBINDINGS } from '@irdashies/types';
 import {
   isGamepadBinding,
-  isWidgetToggleActionId,
   isValidWidgetToggleActionId,
-  widgetToggleLabel,
 } from '@irdashies/shared';
 import { readData, writeData, writeDataAsync } from './storage';
-import { getCurrentProfileId, getDashboard } from './dashboards';
 import { migrateLegacyStreamChatKeybindings } from './streamChatMigration';
 
 const STORAGE_KEY = 'keybindings';
@@ -81,26 +78,6 @@ function normalizeKeyboardAccelerator(
 }
 
 export class KeybindingConflictError extends Error {}
-
-/**
- * What an action is called where a person sees it. A widget toggle goes by the
- * widget in the profile on screen -- a group by the number it has now -- and
- * only where that widget is not there does the name saved with the key stand,
- * which is what the settings page shows for a key of another profile's widget.
- */
-export const keybindingActionLabel = (
-  actionId: KeybindingActionId,
-  entry: KeybindingEntry
-): string => {
-  if (isWidgetToggleActionId(actionId)) {
-    const live = widgetToggleLabel(
-      actionId,
-      getDashboard(getCurrentProfileId())?.widgets ?? []
-    );
-    if (live) return live;
-  }
-  return entry.label;
-};
 
 /**
  * Find app-owned duplicates before attempting an OS registration.

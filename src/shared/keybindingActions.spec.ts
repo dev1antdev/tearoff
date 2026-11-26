@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { WIDGET_GROUP_ID, type DashboardWidget } from '@irdashies/types';
 import {
   WIDGET_TOGGLE_PREFIX,
   isWidgetToggleActionId,
@@ -8,45 +7,7 @@ import {
   widgetIdFromToggleActionId,
   nextProfileIndex,
   unplacedWidgetToggleIds,
-  widgetToggleLabel,
 } from './keybindingActions';
-
-const widget = (id: string, type: string): DashboardWidget =>
-  ({
-    id,
-    type,
-    enabled: true,
-    layout: { x: 0, y: 0, width: 1, height: 1 },
-  }) as DashboardWidget;
-
-describe('widgetToggleLabel', () => {
-  it('names a widget as the settings menu names it', () => {
-    expect(
-      widgetToggleLabel(widgetToggleActionId('fuel'), [widget('fuel', 'fuel')])
-    ).toBe('Fuel Calculator');
-  });
-
-  it('numbers a group as the dashboard has it now', () => {
-    const widgets = [
-      widget('group-a', WIDGET_GROUP_ID),
-      widget('group-b', WIDGET_GROUP_ID),
-    ];
-
-    expect(widgetToggleLabel(widgetToggleActionId('group-b'), widgets)).toBe(
-      'Widget Group 2'
-    );
-  });
-
-  it('has no name for a widget the dashboard does not hold', () => {
-    // Another profile's widget, or a deleted one: the settings page shows the
-    // name saved with the key then, and so must a conflict message.
-    expect(
-      widgetToggleLabel(widgetToggleActionId('deleted'), [
-        widget('fuel', 'fuel'),
-      ])
-    ).toBeUndefined();
-  });
-});
 
 describe('widget toggle action id helpers', () => {
   it('builds a toggle action id from a widget id', () => {

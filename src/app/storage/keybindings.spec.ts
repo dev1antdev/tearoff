@@ -7,8 +7,8 @@ import {
   resetKeybinding,
   persistKeybindingMigrations,
   findKeybindingConflict,
-  keybindingActionLabel,
 } from './keybindings';
+import { keybindingActionLabel } from '../keybindingActionLabels';
 
 const mockReadData = vi.hoisted(() => vi.fn());
 const mockWriteData = vi.hoisted(() => vi.fn());
