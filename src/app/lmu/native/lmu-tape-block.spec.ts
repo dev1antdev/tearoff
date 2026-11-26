@@ -317,6 +317,15 @@ const gearSpeedCorrelation = ({ frames, sums }: Seen): number => {
 interface Recording {
   /** False when the read stopped at its deadline rather than the tape's end. */
   complete: boolean;
+  /**
+   * The first two clocks the tape handed out after start(), in order.
+   *
+   * Taken by reading until the clock moves, because the tape repeats its last
+   * snapshot until the next frame's moment comes round -- at the speed these
+   * specs play at, that moment is a fifth of a millisecond away, so whether
+   * one read lands before or after it says nothing about the tape.
+   */
+  firstTwo: number[];
   seen: Record<string, Seen>;
   /** Session reads taken part-way through, by the argument they were given. */
   sessions: Record<string, LmuRawSession>;
@@ -324,6 +333,7 @@ interface Recording {
 
 const emptyRecording = (): Recording => ({
   complete: false,
+  firstTwo: [],
   seen: Object.fromEntries(READ_NAMES.map((name) => [name, emptySeen()])),
   sessions: {},
 });
@@ -340,6 +350,17 @@ const readRecording = async (): Promise<Recording> => {
   const tape = emptyRecording();
   try {
     if (!sdk.start()) return tape;
+    // The recording's first two frames, by reading until the clock moves
+    // rather than by trusting how long the first read takes.
+    const probeDeadline = performance.now() + 10_000;
+    while (tape.firstTwo.length < 2 && performance.now() < probeDeadline) {
+      const frame = sdk.read();
+      const clock = frame.elapsedTime;
+      if (!frame.running || clock === undefined) continue;
+      if (tape.firstTwo.length === 0 || clock !== tape.firstTwo[0]) {
+        tape.firstTwo.push(clock);
+      }
+    }
     const deadline = performance.now() + 100_000;
     let reads = 0;
     while (!tape.complete && performance.now() < deadline) {
@@ -414,11 +435,16 @@ describe.skipIf(!available)(
         expect(read.dialMaxima.max).toBe(11);
       });
 
-      it('starts on the recording’s second frame, as it always did', () => {
-        // The first read of all is one with no argument. start() takes the
-        // first recorded frame for itself; lmu-tape-exports.spec.ts pins the
-        // same clock.
-        expect(seen('no argument').firstClock).toBeCloseTo(139.9325, 3);
+      it('starts at the recording’s first frame and carries on from there', () => {
+        // start() takes the first recorded frame and the tape repeats it
+        // until the second one is due, so the pair below is the recording's
+        // own beginning: no frame before it, and the next one a frame later.
+        // lmu-tape-exports.spec.ts pins the same clock. Reading until the
+        // clock moves, rather than trusting the first read's timing, is what
+        // keeps a loaded machine from choosing which frame the read sees.
+        expect(tape.firstTwo).toHaveLength(2);
+        expect(tape.firstTwo[0]).toBeCloseTo(139.9125, 3);
+        expect(tape.firstTwo[1]).toBeCloseTo(139.9325, 3);
         expect(seen('no argument').clock.max).toBeGreaterThan(379);
       });
 
