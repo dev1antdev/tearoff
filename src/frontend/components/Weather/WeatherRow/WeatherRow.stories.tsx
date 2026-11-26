@@ -1,13 +1,13 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { ThermometerIcon } from '@phosphor-icons/react';
-import { WeatherTemp } from './WeatherTemp';
+import { WeatherRow } from './WeatherRow';
 
 export default {
-  component: WeatherTemp,
-  title: 'widgets/Weather/components/WeatherTemp',
+  component: WeatherRow,
+  title: 'widgets/Weather/components/WeatherRow',
 } as Meta;
 
-type Story = StoryObj<typeof WeatherTemp>;
+type Story = StoryObj<typeof WeatherRow>;
 
 export const Primary: Story = {
   args: {

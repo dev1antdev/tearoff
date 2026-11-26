@@ -1,4 +1,5 @@
-import { memo, useRef, useEffect, useState } from 'react';
+import { memo } from 'react';
+import { useWindAngle } from './useWindAngle';
 
 interface WindArrowProps {
   direction?: number;
@@ -7,22 +8,7 @@ interface WindArrowProps {
 
 export const WindArrow = memo(
   ({ direction, className = 'w-3.5 h-4' }: WindArrowProps) => {
-    const [normalizedAngle, setNormalizedAngle] = useState<number>(0);
-    const prevAngleRef = useRef<number>(0);
-
-    useEffect(() => {
-      if (direction === undefined) return;
-
-      const currentAngle = direction;
-      const prevAngle = prevAngleRef.current;
-
-      let diff = currentAngle - prevAngle;
-      while (diff > Math.PI) diff -= 2 * Math.PI;
-      while (diff < -Math.PI) diff += 2 * Math.PI;
-
-      setNormalizedAngle((prev) => prev + diff);
-      prevAngleRef.current = currentAngle;
-    }, [direction]);
+    const normalizedAngle = useWindAngle(direction);
 
     return (
       <svg
