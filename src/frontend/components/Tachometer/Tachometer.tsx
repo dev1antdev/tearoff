@@ -1,4 +1,4 @@
-import { useTachometerData } from './hooks/useTachometerData';
+import { useTachometerData } from '@irdashies/domain/shiftLight/useTachometerData';
 import { useTachometerSettings } from './hooks/useTachometerSettings';
 import { Tachometer as TachometerComponent } from './TachometerComponent/TachometerComponent';
 import {

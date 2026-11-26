@@ -11,7 +11,7 @@ import type {
 import { useSessionStore } from '@irdashies/context';
 import { loadCarData } from '@irdashies/utils/carData';
 import { DriverControlsProcessor } from '../../src/app/processors/DriverControlsProcessor';
-import { useTachometerData } from '../../src/frontend/components/ShiftLight/hooks/useTachometerData';
+import { useTachometerData } from '../../src/frontend/domain/shiftLight/useTachometerData';
 import { ShiftLight } from '../../src/frontend/components/ShiftLight/ShiftLightComponent/ShiftLightComponent';
 import metadata from '../../test-data/telemetry/ai-race-10min.json';
 import { validateReplay, type ReplayProbe } from './validator';

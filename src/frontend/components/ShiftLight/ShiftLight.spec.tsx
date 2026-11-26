@@ -41,7 +41,7 @@ vi.mock('./hooks/useShiftLightSettings', async () => {
     }),
   };
 });
-vi.mock('./hooks/useTachometerData', () => ({
+vi.mock('@irdashies/domain/shiftLight/useTachometerData', () => ({
   // The own car at 7,200 revs in fourth, as the channel has it.
   useTachometerData: () => ({
     rpm: 7200,

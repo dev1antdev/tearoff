@@ -42,7 +42,7 @@ vi.mock('./hooks/useTachometerSettings', async () => {
     }),
   };
 });
-vi.mock('./hooks/useTachometerData', () => ({
+vi.mock('@irdashies/domain/shiftLight/useTachometerData', () => ({
   useTachometerData: () => ({
     rpm: 7200,
     gear: 4,

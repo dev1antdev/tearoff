@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { CarData } from '@irdashies/utils/carData';
 import type { ShiftPointSettings } from '@irdashies/types';
-import { useCustomShiftPoints } from '../hooks/useCustomShiftPoints';
+import { useCustomShiftPoints } from '@irdashies/domain/shiftLight/useCustomShiftPoints';
 
 /** Pedal travel that counts as accelerating, and as braking. */
 const UPSHIFT_MIN_THROTTLE = 0.05;
