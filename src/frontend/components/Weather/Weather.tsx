@@ -11,21 +11,44 @@ import {
 } from '@irdashies/context';
 import { useTrackTemperature } from './hooks/useTrackTemperature';
 import { useWindDemoData } from '../../domain/weather/useWindDemoData';
-import { WeatherTemp } from './WeatherTemp/WeatherTemp';
+import { WeatherRow } from './WeatherRow/WeatherRow';
 import { WeatherTrackWetness } from './WeatherTrackWetness/WeatherTrackWetness';
 import { WeatherTrackRubbered } from './WeatherTrackRubbered/WeatherTrackRubbered';
 import { WindDirection } from './WindDirection/WindDirection';
 import { useTrackRubberedState } from '@irdashies/domain/weather/useTrackRubberedState';
 import { useWeatherSettings } from './hooks/useWeatherSettings';
-import { WeatherHumidity } from './WeatherHumidity/WeatherHumidity';
-import { WeatherPrecipitation } from './WeatherPrecipitation/WeatherPrecipitation';
 import { useMemo } from 'react';
 import {
+  CloudRainIcon,
+  DropHalfIcon,
+  DropIcon,
   IconContext,
   RoadHorizonIcon,
   ThermometerIcon,
 } from '@phosphor-icons/react';
 import { OVERLAY_ICONS } from '@irdashies/utils/overlayIcons';
+
+/**
+ * A reading of the air, as the weather widget's row shows it: its own figure
+ * and, for humidity, the icon its level calls for. A sim that publishes no
+ * humidity reads "- %" rather than a dry 0%.
+ */
+const humidityReading = (humidity: number | undefined | null) => {
+  const known = humidity !== undefined && humidity !== null;
+  const percent = known ? Math.round(Number(humidity.toFixed(2)) * 100) : 0;
+  return {
+    icon: percent <= 50 ? DropIcon : DropHalfIcon,
+    value: known ? `${percent}%` : '- %',
+  };
+};
+
+/** iRacing gives precipitation as a fraction of 1. */
+const precipitationReading = (
+  precipitation: number | undefined | null
+): string => {
+  const known = precipitation !== undefined && precipitation !== null;
+  return known ? `${Math.round(precipitation * 100)}%` : '- %';
+};
 
 type WeatherColumnId =
   | 'trackTemp'
@@ -65,6 +88,7 @@ export const Weather = () => {
     trackTempUnit: actualUnit,
   });
   const trackRubbered = useTrackRubberedState();
+  const humidity = humidityReading(weather.humidity);
 
   // Derived values
   const relativeWindDirection =
@@ -139,7 +163,7 @@ export const Weather = () => {
     switch (id) {
       case 'trackTemp':
         return (
-          <WeatherTemp
+          <WeatherRow
             key={id}
             title="Track"
             value={trackTemp}
@@ -149,7 +173,7 @@ export const Weather = () => {
         );
       case 'airTemp':
         return (
-          <WeatherTemp
+          <WeatherRow
             key={id}
             title="Air"
             value={airTemp}
@@ -169,17 +193,21 @@ export const Weather = () => {
         );
       case 'humidity':
         return (
-          <WeatherHumidity
+          <WeatherRow
             key={id}
-            humidity={weather.humidity}
+            title="Humidity"
+            value={humidity.value}
+            icon={humidity.icon}
             variant={componentVariant}
           />
         );
       case 'precipitation':
         return (
-          <WeatherPrecipitation
+          <WeatherRow
             key={id}
-            precipitation={weather.precipitation}
+            title="Precipitation"
+            value={precipitationReading(weather.precipitation)}
+            icon={CloudRainIcon}
             variant={componentVariant}
           />
         );

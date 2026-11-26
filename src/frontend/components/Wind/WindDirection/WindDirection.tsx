@@ -1,6 +1,7 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useLayoutEffect, useRef, useState } from 'react';
 import { getWindIntensityClass } from '../../../domain/weather/wind';
 import { speedFromMs } from '@irdashies/utils/units';
+import { WindCompass } from '../../shared/WindCompass';
 
 export interface WindDirectionProps {
   speedMs?: number;
@@ -14,24 +15,9 @@ export const WindDirection = memo(
       speedMs !== undefined
         ? speedFromMs(speedMs, metric ? 'km/h' : 'mph')
         : undefined;
-    const [normalizedAngle, setNormalizedAngle] = useState(0);
-    const prevAngleRef = useRef(0);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const [size, setSize] = useState<number | null>(null);
     const windIntensityClass = getWindIntensityClass(speed);
-
-    useEffect(() => {
-      if (direction === undefined) return;
-
-      const prevAngle = prevAngleRef.current;
-      let diff = direction - prevAngle;
-
-      while (diff > Math.PI) diff -= 2 * Math.PI;
-      while (diff < -Math.PI) diff += 2 * Math.PI;
-
-      setNormalizedAngle((prev) => prev + diff);
-      prevAngleRef.current = direction;
-    }, [direction]);
 
     useLayoutEffect(() => {
       const node = containerRef.current;
@@ -66,23 +52,10 @@ export const WindDirection = memo(
         >
           {/* The arrow's point is drawn a little outside the view box (the
               stroke's mitre), which cut it flat: let it show. */}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 60 60"
-            className="absolute overflow-visible stroke-current stroke-[1.5] w-full h-full box-border fill-none"
-          >
-            {/* The turn happens inside the drawing: a rotated svg element
-                reaches past its square, which the smoke run reads as content
-                larger than the box, while a rotated group only repaints. */}
-            <g
-              className="origin-center transform-gpu transition-transform duration-1000 ease-out"
-              style={{
-                rotate: `calc(${normalizedAngle} * 1rad + 0.5turn)`,
-              }}
-            >
-              <path d="M48 8A28 28 90 0158 30c0 15.464-12.536 28-28 28S2 45.464 2 30A28 28 90 0112 8M22 9 30 1l8 8" />
-            </g>
-          </svg>
+          <WindCompass
+            direction={direction}
+            className="absolute overflow-visible w-full h-full"
+          />
 
           <div
             className="absolute flex h-full w-full items-center justify-center leading-none"

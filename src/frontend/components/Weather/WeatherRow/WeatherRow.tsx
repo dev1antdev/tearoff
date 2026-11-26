@@ -1,14 +1,14 @@
 import { memo } from 'react';
 
-export interface WeatherTempProps {
+export interface WeatherRowProps {
   title: string;
   value: string;
   icon: React.ElementType;
   variant?: 'default' | 'compact' | 'inline';
 }
 
-export const WeatherTemp = memo(
-  ({ title, value, icon: Icon, variant = 'default' }: WeatherTempProps) => {
+export const WeatherRow = memo(
+  ({ title, value, icon: Icon, variant = 'default' }: WeatherRowProps) => {
     if (variant === 'compact') {
       return (
         <div className="px-2 py-1 min-w-0" title={title}>
@@ -49,4 +49,4 @@ export const WeatherTemp = memo(
     );
   }
 );
-WeatherTemp.displayName = 'WeatherTemp';
+WeatherRow.displayName = 'WeatherRow';
