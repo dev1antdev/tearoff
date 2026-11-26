@@ -181,13 +181,14 @@ export const LapTimeLogDisplay = ({
       value !== undefined &&
       value > 0 &&
       Math.abs(lastlap - value) < 0.001;
-    const isSessionBest = isMatchingLap(bestlap);
+    // Records by their shared meanings: the session's overall best is
+    // purple, your own best -- of the session or of all time -- is green.
+    // Yellow is a flag, not a record.
+    const isOwnBest = isMatchingLap(bestlap) || isMatchingLap(alltimelap);
     const isOverallBest = isMatchingLap(overall);
-    const isPersonalBest = isMatchingLap(alltimelap);
     bgColor = 'bg-slate-900';
-    if (isSessionBest) bgColor = 'bg-green-700';
+    if (isOwnBest) bgColor = 'bg-green-700';
     if (isOverallBest) bgColor = 'bg-purple-800';
-    if (isPersonalBest) bgColor = 'bg-yellow-600';
   }
 
   const generalSettings = useGeneralSettings();

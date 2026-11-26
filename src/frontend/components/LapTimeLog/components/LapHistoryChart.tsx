@@ -75,11 +75,14 @@ export const LapHistoryChart = memo(
       };
     }, [laps]);
 
+    // Records by their shared meanings: the session's overall best purple,
+    // your own best -- of the session or of all time -- green. Yellow is a
+    // flag's colour.
     const pointColor = (entry: LapEntry) => {
       if (entry.dirty) return getColor('zinc', 400);
-      if (isSameLapTime(entry.time, alltime)) return getColor('yellow', 400);
       if (isSameLapTime(entry.time, overall)) return getColor('purple', 400);
-      if (isSameLapTime(entry.time, best)) return getColor('green', 400);
+      if (isSameLapTime(entry.time, best) || isSameLapTime(entry.time, alltime))
+        return getColor('green', 400);
       if (chart && entry.time > chart.average) return getColor('red', 400);
       return getColor('slate', 200);
     };

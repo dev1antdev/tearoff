@@ -124,6 +124,26 @@ describe('LapTimeRow', () => {
     expect(timeElement).toHaveClass('text-green-400');
   });
 
+  it('applies the same green to a lap that is your best of all time', () => {
+    // Yellow is a flag's colour: a record is a personal best, however old.
+    render(
+      <LapTimeRow
+        label="LAST"
+        time={90}
+        best={92}
+        alltime={90}
+        settings={mockSettings()}
+      />
+    );
+    const timeElement = screen.getByText('1:30.000');
+    expect(timeElement).toHaveClass('text-green-400');
+    expect(timeElement).not.toHaveClass('text-yellow-400');
+    // The list has no label to say which best it is: the trophy does.
+    expect(
+      screen.getByTestId('lap-marks').querySelector('[data-mark="record"]')
+    ).not.toBeNull();
+  });
+
   it('applies purple color for overall best lap', () => {
     render(
       <LapTimeRow
@@ -201,6 +221,21 @@ describe('LapTimeLogDisplay', () => {
     );
     const mainTimerWrapper = container.querySelector('#current-lap');
     expect(mainTimerWrapper).toHaveClass('bg-green-700');
+  });
+
+  it('flashes green for the all-time record too, not yellow', () => {
+    const { container } = render(
+      <LapTimeLogDisplay
+        {...defaultProps}
+        current={4.9}
+        lastlap={91.5}
+        bestlap={92.0}
+        alltimelap={91.5}
+      />
+    );
+    const mainTimerWrapper = container.querySelector('#current-lap');
+    expect(mainTimerWrapper).toHaveClass('bg-green-700');
+    expect(mainTimerWrapper).not.toHaveClass('bg-yellow-600');
   });
 
   it('flashes purple for a new session best lap', () => {
