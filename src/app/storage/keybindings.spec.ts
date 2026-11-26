@@ -6,7 +6,9 @@ import {
   updateKeybinding,
   resetKeybinding,
   persistKeybindingMigrations,
+  findKeybindingConflict,
 } from './keybindings';
+import { keybindingActionLabel } from '../keybindingActionLabels';
 
 const mockReadData = vi.hoisted(() => vi.fn());
 const mockWriteData = vi.hoisted(() => vi.fn());
@@ -17,6 +19,70 @@ vi.mock('./storage', () => ({
   writeData: mockWriteData,
   writeDataAsync: mockWriteDataAsync,
 }));
+
+describe('the name a conflict message gives an action', () => {
+  const group = (id: string) =>
+    ({
+      id,
+      type: 'widgetgroup',
+      enabled: true,
+      layout: { x: 0, y: 0, width: 1, height: 1 },
+    }) as never;
+
+  const dashboards = {
+    race: { widgets: [group('group-a'), group('group-b')] },
+  };
+
+  const stored = {
+    'toggle-widget:group-b': {
+      accelerator: 'Alt+7',
+      // The number the group had when the key was set: another group has
+      // been deleted since, and this one is the second now.
+      label: 'Widget Group 3',
+      description: '',
+      isDefault: false,
+    },
+  };
+
+  beforeEach(() => {
+    mockReadData.mockImplementation((key: string) =>
+      key === 'currentProfile'
+        ? 'race'
+        : key === 'dashboards'
+          ? dashboards
+          : undefined
+    );
+  });
+
+  it('numbers a widget group as the dashboard has it now', () => {
+    const label = findKeybindingConflict(
+      stored,
+      'toggle-hide-ui',
+      'Alt+7',
+      keybindingActionLabel
+    );
+
+    expect(label).toBe('Widget Group 2');
+  });
+
+  it('keeps the saved name for a widget the profile does not hold', () => {
+    const label = findKeybindingConflict(
+      {
+        'toggle-widget:fuel': {
+          accelerator: 'Alt+8',
+          label: 'Fuel Calculator',
+          description: '',
+          isDefault: false,
+        },
+      },
+      'toggle-hide-ui',
+      'Alt+8',
+      keybindingActionLabel
+    );
+
+    expect(label).toBe('Fuel Calculator');
+  });
+});
 
 describe('keybindings storage', () => {
   beforeEach(() => {

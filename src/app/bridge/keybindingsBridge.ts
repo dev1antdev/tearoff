@@ -18,6 +18,7 @@ import {
   resetAllKeybindings,
   persistKeybindingMigrations,
 } from '../storage/keybindings';
+import { keybindingActionLabel } from '../keybindingActionLabels';
 import { KeybindingManager } from '../keybindingManager';
 import { rebuildTaskbarMenu } from '../setupTaskbar';
 import logger from '../logger';
@@ -74,7 +75,8 @@ export function setupKeybindingsBridge(
         const conflict = findKeybindingConflict(
           getKeybindings(),
           actionId,
-          accelerator
+          accelerator,
+          keybindingActionLabel
         );
         if (conflict !== undefined) {
           return {

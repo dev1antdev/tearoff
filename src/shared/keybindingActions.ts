@@ -48,7 +48,9 @@ export function unplacedWidgetToggleIds(
   const placed = new Set(widgetIds.map(widgetToggleActionId));
   return Object.keys(bindings).filter(
     (id): id is WidgetToggleActionId =>
-      isWidgetToggleActionId(id) && !placed.has(id) && !!bindings[id].accelerator
+      isWidgetToggleActionId(id) &&
+      !placed.has(id) &&
+      !!bindings[id].accelerator
   );
 }
 
