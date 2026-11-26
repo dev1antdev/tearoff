@@ -1,3 +1,5 @@
+import { trackLimitsTone as toneFor } from '../../../shared/trackLimitsTone';
+
 /**
  * LMU's track-limits penalty points, in the sim's own form.
  *
@@ -11,9 +13,6 @@
  * the Incident Count item -- so the two cannot drift apart.
  */
 
-/** Amber from two thirds of the ceiling, red at it. Matches TrackLimitsCell. */
-const WARN_FRACTION = 2 / 3;
-
 /**
  * `0.25 / 3.00`, or `0.25 / –` when the session has not stated a ceiling.
  *
@@ -24,13 +23,11 @@ export const formatTrackLimits = (
   max: number | undefined
 ): string => `${points.toFixed(2)} / ${max ? max.toFixed(2) : '–'}`;
 
-/** The Tailwind text colour for how close the figure is to the ceiling. */
+/**
+ * The Tailwind text colour for how close the figure is to the ceiling: the
+ * table's rule, with nothing said for a clean car, which the bar shows plain.
+ */
 export const trackLimitsTone = (
   points: number,
   max: number | undefined
-): string => {
-  if (!max || max <= 0) return '';
-  if (points >= max) return 'text-red-400';
-  if (points >= max * WARN_FRACTION) return 'text-amber-300';
-  return '';
-};
+): string => toneFor(points, max);
