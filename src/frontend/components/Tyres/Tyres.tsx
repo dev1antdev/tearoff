@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { LoadBar } from '../shared/LoadBar/LoadBar';
 import { DiscIcon } from '@phosphor-icons/react';
 import {
   useDrivingState,
@@ -150,20 +151,14 @@ const Tyre = memo(
           >
             {load}
           </span>
-          {/*
-            Grows outwards from the car's centreline. A low load turns the
-            whole track red, not just the fill: a wheel carrying next to
-            nothing has no fill left to colour.
-          */}
-          <div
-            className={`flex h-[0.4em] min-w-0 flex-1 overflow-hidden rounded-full ${loadLow ? 'bg-red-500' : 'bg-slate-900/70'} ${isLeft ? 'justify-end' : 'justify-start'}`}
-          >
-            <div
-              data-testid="tyre-load-fill"
-              className={`h-full rounded-full ${loadLow ? 'bg-red-500' : 'bg-slate-300'}`}
-              style={{ width: `${Math.round(loadFill * 100)}%` }}
-            />
-          </div>
+          {/* Grows outwards from the car's centreline. */}
+          <LoadBar
+            fill={loadFill}
+            warn={loadLow}
+            side={isLeft ? 'left' : 'right'}
+            testId="tyre-load-fill"
+            className="min-w-0 flex-1"
+          />
         </div>
       )}
     </div>
