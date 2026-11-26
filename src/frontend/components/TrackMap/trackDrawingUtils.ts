@@ -311,7 +311,8 @@ export const drawDrivers = (
     // draw a border?
     if (driversOffTrack[driver.CarIdx]) {
       ctx.strokeStyle = getColor('yellow', 400);
-      ctx.lineWidth = 10;
+      // A quarter of the circle, whichever map and circle size draws it.
+      ctx.lineWidth = circleRadius * 0.25;
       ctx.stroke();
     } else if (
       !isPlayer &&
@@ -320,7 +321,7 @@ export const drawDrivers = (
       livePosition === 1
     ) {
       ctx.strokeStyle = originalColor;
-      ctx.lineWidth = 4;
+      ctx.lineWidth = circleRadius * 0.1;
       ctx.stroke();
     }
 

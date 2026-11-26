@@ -9,7 +9,7 @@ import {
   useProgressAnimation,
 } from '@irdashies/domain/track/useProgressAnimation';
 import {
-  getCachedTextVisualOffset,
+  drawDrivers,
   mapInk,
   markerColors,
 } from './trackDrawingUtils';
@@ -228,89 +228,38 @@ export const FlatTrackMapCanvas = ({
     ctx.lineWidth = 1;
     ctx.strokeRect(flagX, flagY, flagSize * 2, flagSize * 2);
 
-    // Draw drivers
-    // Apply scale factor to match curved track map proportions
-    for (const orderedDriver of orderedDrivers) {
-      const { driver, isPlayer, classPosition, interpolationIndex } =
-        orderedDriver;
-      if (interpolationIndex >= count) continue;
-      const color = driverColors[driver.CarIdx];
-      if (!color) continue;
+    // Draw drivers: the Track Map's markers, on the straight.
+    const positionedDrivers = orderedDrivers
+      .filter(({ interpolationIndex }) => interpolationIndex < count)
+      .map((orderedDriver) => ({
+        ...orderedDriver,
+        position: {
+          x: progressToFlatX(
+            progressValues[orderedDriver.interpolationIndex],
+            HORIZONTAL_PADDING,
+            usableWidth
+          ),
+          y: centerY,
+        },
+        sessionPosition: orderedDriver.classPosition,
+      }));
 
-      const x = progressToFlatX(
-        progressValues[interpolationIndex],
-        HORIZONTAL_PADDING,
-        usableWidth
-      );
-      const radius =
-        (isPlayer ? playerCircleSize : driverCircleSize) * circleScale;
-      const fontSize = radius * (trackmapFontSize / 100);
-      const originalColor = color.fill;
-      let fillColor = color.fill;
-      let textColor = color.text;
-      const livePosition = driverLivePositions[driver.CarIdx] ?? classPosition;
-
-      // highlight leader?
-      if (!isPlayer && invertLeaderColor && livePosition === 1) {
-        fillColor = 'white';
-        textColor = originalColor;
-      }
-
-      // on pit road?
-      const onPitRoad = !!carIdxIsOnPitRoad?.[driver.CarIdx];
-      if (onPitRoad) {
-        fillColor = ink.pit;
-        textColor = 'white';
-      }
-
-      ctx.fillStyle = fillColor;
-      ctx.beginPath();
-      ctx.arc(x, centerY, radius, 0, 2 * Math.PI);
-      ctx.fill();
-
-      // draw a border?
-      if (driversOffTrack[driver.CarIdx]) {
-        ctx.strokeStyle = getColor('yellow', 400);
-        ctx.lineWidth = 4;
-        ctx.stroke();
-      } else if (!isPlayer && invertLeaderColor && livePosition === 1) {
-        ctx.strokeStyle = originalColor;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-
-      if (showCarNumbers) {
-        ctx.fillStyle = textColor;
-        ctx.font = `600 ${fontSize}px ${ink.font}`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        let displayText;
-        if (onPitRoad) {
-          displayText = 'P';
-        } else if (displayMode === 'livePosition') {
-          displayText =
-            livePosition !== undefined && livePosition > 0
-              ? livePosition.toString()
-              : '';
-        } else if (displayMode === 'sessionPosition') {
-          displayText =
-            classPosition !== undefined && classPosition > 0
-              ? classPosition.toString()
-              : '';
-        } else {
-          displayText = driver.CarNumber;
-        }
-        if (displayText) {
-          const cache = orderedDriver.textMetricsCache;
-          const visualOffset = getCachedTextVisualOffset(
-            ctx,
-            displayText,
-            cache
-          );
-          ctx.fillText(displayText, x, centerY + visualOffset);
-        }
-      }
-    }
+    drawDrivers(
+      ctx,
+      positionedDrivers,
+      driverColors,
+      invertLeaderColor,
+      driversOffTrack,
+      driverCircleSize * circleScale,
+      playerCircleSize * circleScale,
+      trackmapFontSize,
+      showCarNumbers,
+      displayMode,
+      driverLivePositions,
+      carIdxIsOnPitRoad,
+      false,
+      ink
+    );
   };
   useProgressAnimation(
     drivers,

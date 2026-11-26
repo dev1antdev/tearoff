@@ -373,6 +373,31 @@ export const InvertedTrackColors: Story = {
   },
 };
 
+export const LeaderOnPitRoad: Story = {
+  args: {
+    drivers: sampleData,
+    showCarNumbers: true,
+    driverCircleSize: 40,
+    playerCircleSize: 40,
+    trackmapFontSize: 100,
+    trackLineWidth: 20,
+    trackOutlineWidth: 40,
+    invertTrackColors: false,
+    highlightColor: undefined,
+    // The class leader and the car behind, in the pit lane: their markers
+    // take the pit neutral and 'P', and the leader loses its outline there,
+    // as on the Track Map.
+    driverLivePositions: { 28: 1, 29: 2, 30: 3 },
+    carIdxIsOnPitRoad: [
+      ...Array.from({ length: 28 }, () => false),
+      true,
+      true,
+      false,
+    ],
+    invertLeaderColor: true,
+  },
+};
+
 export const SingleClass: Story = {
   args: {
     drivers: sampleData.filter(({ driver }) => driver.CarClassID === 2),
