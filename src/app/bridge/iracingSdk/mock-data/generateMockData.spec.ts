@@ -76,6 +76,51 @@ describe('generateMockData', () => {
     bridge.stop();
   });
 
+  it('drives laps, so the lap times a widget shows move', () => {
+    const bridge = generateMockData();
+    const frames: Telemetry[] = [];
+    bridge.onTelemetry((frame) => frames.push(frame));
+    // Two demo laps: a lap is 1 / (0.0007 * 60) seconds long, about 24 s.
+    vi.advanceTimersByTime(50_000);
+    expect(frames.length).toBeGreaterThan(2_000);
+
+    const first = frames[0];
+    const last = frames[frames.length - 1];
+    const lapsDone = last.LapCompleted.value[0] - first.LapCompleted.value[0];
+    expect(lapsDone).toBeGreaterThanOrEqual(1);
+
+    // The player's own lap time is the time it actually took, not the
+    // recording's figure, and the car's best follows it.
+    expect(last.LapLastLapTime.value[0]).toBeGreaterThan(20);
+    expect(last.LapLastLapTime.value[0]).toBeLessThan(30);
+    expect(last.CarIdxLastLapTime.value[4]).toBeCloseTo(
+      last.LapLastLapTime.value[0],
+      6
+    );
+    expect(last.LapBestLapTime.value[0]).toBeGreaterThan(0);
+    expect(last.LapBestLapTime.value[0]).toBeLessThanOrEqual(
+      last.LapLastLapTime.value[0] + 0.001
+    );
+    // The lap under way is timed from the last crossing, so it is shorter
+    // than a whole lap.
+    expect(last.LapCurrentLapTime.value[0]).toBeGreaterThan(0);
+    expect(last.LapCurrentLapTime.value[0]).toBeLessThan(30);
+
+    // Cars other than the player set laps too, and their count follows.
+    const others = (last.CarIdxLapCompleted.value as number[])
+      .map((laps, idx) => ({ laps, idx }))
+      .filter(({ idx, laps }) => idx !== 4 && laps >= 0);
+    expect(others.length).toBeGreaterThan(5);
+    expect(
+      others.some(
+        ({ idx }) => (last.CarIdxLastLapTime.value[idx] as number) > 0
+      )
+    ).toBe(true);
+    expect(last.CarIdxLap.value[4]).toBe(last.LapCompleted.value[0] + 1);
+
+    bridge.stop();
+  });
+
   it('emits a team racing session with distinct team names for the running mock app', () => {
     const bridge = generateMockData();
     const onSession = vi.fn();

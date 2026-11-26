@@ -3,6 +3,9 @@ import { GlobalFlags, SessionState } from '@irdashies/types';
 import mockSessionInfo from '../../../irsdk/node/utils/mock-data/session.json';
 import mockTelemetry from '../../../irsdk/node/utils/mock-data/telemetry.json';
 
+/** How far round the lap every demo car moves in one tick at 60 Hz. */
+const LAP_DISTANCE_INC = 0.0007;
+
 const MOCK_TEAM_NAMES = [
   'Apex Racing',
   'Northstar Motorsport',
@@ -97,6 +100,29 @@ export function generateMockData(sessionData?: {
   let playerSectorMultipliers = newSectorMultipliers();
   let playerCurrentSectorIdx = getPlayerSectorIdx(mockState.lapDistPct);
 
+  // Lap timing of the demo, per car: how many laps each has done, when its
+  // current lap began and the last laps it has set, all carried tick to tick
+  // so that lap times in the demo move instead of standing at the recording's.
+  const carLaps = [
+    ...((prevTelemetry.CarIdxLapCompleted?.value as number[]) ?? []),
+  ];
+  const carLastLap = [
+    ...((prevTelemetry.CarIdxLastLapTime?.value as number[]) ?? []),
+  ];
+  const carBestLap = [
+    ...((prevTelemetry.CarIdxBestLapTime?.value as number[]) ?? []),
+  ];
+  /** Seconds for one lap at a car's own pace in the demo. */
+  const demoLapSeconds = (multiplier: number) =>
+    1 / (LAP_DISTANCE_INC * (multiplier || 1) * 60);
+  /** When each car's current lap began, by the mock's session clock. */
+  const carLapStart = carLapDistPcts.map((pct, idx) =>
+    pct < 0
+      ? mockState.sessionTime
+      : mockState.sessionTime - pct * demoLapSeconds(carSpeedMultipliers[idx])
+  );
+  carLaps[PLAYER_CAR_IDX] = mockState.currentLap;
+
   // P2P demo: carIdx 1-4 are overridden to Dallara IR18 (CarID 99) in demo session
   const P2P_DEMO_CAR_IDXS = [1, 2, 3, 4];
   const P2P_IR18_CAR_ID = 99;
@@ -165,7 +191,6 @@ export function generateMockData(sessionData?: {
             // Constants for simulation
             const FUEL_TANK_MAX = 60.0;
             const FUEL_PER_LAP = 2.2;
-            const LAP_DISTANCE_INC = 0.0007; // Increment per tick for ~24s lap at 60Hz (fast mock lap)
             const SESSION_TIME_INC = 1 / 60; // Seconds per tick
 
             // Update Lap Distance — apply this sector's speed multiplier so
@@ -206,6 +231,7 @@ export function generateMockData(sessionData?: {
             // --- Fuel Calculator Mock Logic End ---
 
             // Animate all on-track cars forward; sync player car with mockState
+            const pctBeforeTick = [...carLapDistPcts];
             for (let i = 0; i < carLapDistPcts.length; i++) {
               if (carLapDistPcts[i] < 0) continue; // not on track
               if (i === PLAYER_CAR_IDX) {
@@ -219,6 +245,19 @@ export function generateMockData(sessionData?: {
             }
 
             const state = mockState;
+
+            // A car whose distance fell back has crossed the line: it sets a
+            // lap time, keeps it as its best if it is, and starts the next.
+            for (let i = 0; i < carLapDistPcts.length; i++) {
+              if (carLapDistPcts[i] < 0 || pctBeforeTick[i] < 0) continue;
+              if (carLapDistPcts[i] >= pctBeforeTick[i]) continue;
+              const lap = state.sessionTime - carLapStart[i];
+              carLapStart[i] = state.sessionTime;
+              carLastLap[i] = lap;
+              carBestLap[i] =
+                carBestLap[i] > 0 ? Math.min(carBestLap[i], lap) : lap;
+              carLaps[i] = Math.max(0, carLaps[i]) + 1;
+            }
 
             // Enable ABS when brake force is above 80% in demo mode
             const absActive = jitteredBrakeValue > 0.8;
@@ -295,6 +334,46 @@ export function generateMockData(sessionData?: {
               Lap: {
                 ...prevTelemetry.Lap,
                 value: [state.currentLap],
+              },
+              LapCompleted: {
+                ...prevTelemetry.LapCompleted,
+                value: [carLaps[PLAYER_CAR_IDX]],
+              },
+              LapCurrentLapTime: {
+                ...prevTelemetry.LapCurrentLapTime,
+                value: [state.sessionTime - carLapStart[PLAYER_CAR_IDX]],
+              },
+              LapLastLapTime: {
+                ...prevTelemetry.LapLastLapTime,
+                value: [
+                  carLastLap[PLAYER_CAR_IDX] > 0
+                    ? carLastLap[PLAYER_CAR_IDX]
+                    : prevTelemetry.LapLastLapTime?.value?.[0],
+                ],
+              },
+              LapBestLapTime: {
+                ...prevTelemetry.LapBestLapTime,
+                value: [
+                  carBestLap[PLAYER_CAR_IDX] > 0
+                    ? carBestLap[PLAYER_CAR_IDX]
+                    : prevTelemetry.LapBestLapTime?.value?.[0],
+                ],
+              },
+              CarIdxLapCompleted: {
+                ...prevTelemetry.CarIdxLapCompleted,
+                value: [...carLaps],
+              },
+              CarIdxLap: {
+                ...prevTelemetry.CarIdxLap,
+                value: carLaps.map((laps) => (laps < 0 ? laps : laps + 1)),
+              },
+              CarIdxLastLapTime: {
+                ...prevTelemetry.CarIdxLastLapTime,
+                value: [...carLastLap],
+              },
+              CarIdxBestLapTime: {
+                ...prevTelemetry.CarIdxBestLapTime,
+                value: [...carBestLap],
               },
               LapDistPct: {
                 ...prevTelemetry.LapDistPct,
