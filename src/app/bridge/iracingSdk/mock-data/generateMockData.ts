@@ -122,6 +122,10 @@ export function generateMockData(sessionData?: {
       : mockState.sessionTime - pct * demoLapSeconds(carSpeedMultipliers[idx])
   );
   carLaps[PLAYER_CAR_IDX] = mockState.currentLap;
+  /** Each car's class, from the recording: only cars in a class are placed. */
+  const carClasses = [
+    ...((prevTelemetry.CarIdxClass?.value as number[]) ?? []),
+  ];
 
   // P2P demo: carIdx 1-4 are overridden to Dallara IR18 (CarID 99) in demo session
   const P2P_DEMO_CAR_IDXS = [1, 2, 3, 4];
@@ -259,6 +263,34 @@ export function generateMockData(sessionData?: {
               carLaps[i] = Math.max(0, carLaps[i]) + 1;
             }
 
+            // Where each car stands in the field, and how long it has to go
+            // to the line: from the distances the demo moves, so the order
+            // and the gaps follow the cars instead of the recording's.
+            const placement = carLapDistPcts.map((pct, idx) => ({
+              idx,
+              pct,
+              distance: pct < 0 || carLaps[idx] < 0 ? -1 : carLaps[idx] + pct,
+              lapSeconds: demoLapSeconds(carSpeedMultipliers[idx]),
+            }));
+            const onTrack = placement
+              .filter(({ distance }) => distance >= 0)
+              .sort((a, b) => b.distance - a.distance);
+            const carIdxPosition = new Array(carLapDistPcts.length).fill(0);
+            const carIdxClassPosition = new Array(carLapDistPcts.length).fill(
+              0
+            );
+            const carIdxEstTime = [...carLapDistPcts].map((pct, idx) =>
+              pct < 0 ? 0 : (1 - pct) * demoLapSeconds(carSpeedMultipliers[idx])
+            );
+            const classCounts = new Map<number, number>();
+            onTrack.forEach(({ idx }, place) => {
+              carIdxPosition[idx] = place + 1;
+              const classId = carClasses[idx] ?? 0;
+              const inClass = (classCounts.get(classId) ?? 0) + 1;
+              classCounts.set(classId, inClass);
+              carIdxClassPosition[idx] = inClass;
+            });
+
             // Enable ABS when brake force is above 80% in demo mode
             const absActive = jitteredBrakeValue > 0.8;
             const prevAbs =
@@ -374,6 +406,26 @@ export function generateMockData(sessionData?: {
               CarIdxBestLapTime: {
                 ...prevTelemetry.CarIdxBestLapTime,
                 value: [...carBestLap],
+              },
+              CarIdxPosition: {
+                ...prevTelemetry.CarIdxPosition,
+                value: carIdxPosition,
+              },
+              CarIdxClassPosition: {
+                ...prevTelemetry.CarIdxClassPosition,
+                value: carIdxClassPosition,
+              },
+              CarIdxEstTime: {
+                ...prevTelemetry.CarIdxEstTime,
+                value: carIdxEstTime,
+              },
+              PlayerCarPosition: {
+                ...prevTelemetry.PlayerCarPosition,
+                value: [carIdxPosition[PLAYER_CAR_IDX]],
+              },
+              PlayerCarClassPosition: {
+                ...prevTelemetry.PlayerCarClassPosition,
+                value: [carIdxClassPosition[PLAYER_CAR_IDX]],
               },
               LapDistPct: {
                 ...prevTelemetry.LapDistPct,

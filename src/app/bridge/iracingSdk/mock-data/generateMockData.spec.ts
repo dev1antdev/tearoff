@@ -121,6 +121,59 @@ describe('generateMockData', () => {
     bridge.stop();
   });
 
+  it('places the field by where its cars are, with the time each has to the line', () => {
+    const bridge = generateMockData();
+    const frames: Telemetry[] = [];
+    bridge.onTelemetry((frame) => frames.push(frame));
+    vi.advanceTimersByTime(5_000);
+    const frame = frames[frames.length - 1];
+
+    const pcts = frame.CarIdxLapDistPct.value as number[];
+    const laps = frame.CarIdxLapCompleted.value as number[];
+    const positions = frame.CarIdxPosition.value as number[];
+    const classPositions = frame.CarIdxClassPosition.value as number[];
+    const estTimes = frame.CarIdxEstTime.value as number[];
+    const classes = frame.CarIdxClass.value as number[];
+
+    const onTrack = pcts
+      .map((pct, idx) => ({ idx, pct, distance: laps[idx] + pct }))
+      .filter(({ pct, idx }) => pct >= 0 && laps[idx] >= 0);
+
+    // Every car on track has its own place, and the places run 1..n in the
+    // order the distances do.
+    const places = onTrack
+      .map(({ idx }) => positions[idx])
+      .sort((a, b) => a - b);
+    expect(places).toEqual(onTrack.map((_, place) => place + 1));
+    const byDistance = [...onTrack].sort((a, b) => b.distance - a.distance);
+    expect(byDistance.map(({ idx }) => positions[idx])).toEqual(
+      byDistance.map((_, place) => place + 1)
+    );
+
+    // A class places its own cars, also from 1.
+    for (const classId of new Set(onTrack.map(({ idx }) => classes[idx]))) {
+      const inClass = onTrack.filter(({ idx }) => classes[idx] === classId);
+      expect(
+        inClass
+          .map(({ idx }) => classPositions[idx])
+          .sort((a, b) => a - b)
+          .every((place, index) => place === index + 1)
+      ).toBe(true);
+    }
+
+    // The time to the line is what a lap at that car's pace leaves it, and
+    // the player's own positions are the field's for the player's car.
+    onTrack.forEach(({ idx, pct }) => {
+      expect(estTimes[idx]).toBeGreaterThanOrEqual(0);
+      expect(estTimes[idx]).toBeLessThanOrEqual(30);
+      if (pct > 0.99) expect(estTimes[idx]).toBeLessThan(1);
+    });
+    expect(frame.PlayerCarPosition.value[0]).toBe(positions[4]);
+    expect(frame.PlayerCarClassPosition.value[0]).toBe(classPositions[4]);
+
+    bridge.stop();
+  });
+
   it('emits a team racing session with distinct team names for the running mock app', () => {
     const bridge = generateMockData();
     const onSession = vi.fn();
