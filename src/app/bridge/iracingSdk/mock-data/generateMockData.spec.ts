@@ -174,6 +174,33 @@ describe('generateMockData', () => {
     bridge.stop();
   });
 
+  it('moves the weather, so the air and track widgets are not one frame', () => {
+    const bridge = generateMockData();
+    const frames: Telemetry[] = [];
+    bridge.onTelemetry((frame) => frames.push(frame));
+    vi.advanceTimersByTime(60_000);
+    const first = frames[0];
+    const last = frames[frames.length - 1];
+
+    // Air warms or cools within a few degrees of where the recording left it,
+    // the track drifts further, and neither runs away.
+    expect(last.AirTemp.value[0]).not.toBeCloseTo(first.AirTemp.value[0], 3);
+    expect(last.AirTemp.value[0]).toBeGreaterThan(first.AirTemp.value[0] - 4);
+    expect(last.AirTemp.value[0]).toBeLessThan(first.AirTemp.value[0] + 4);
+    expect(last.TrackTemp.value[0]).toBeGreaterThan(
+      first.TrackTemp.value[0] - 6
+    );
+    expect(last.TrackTemp.value[0]).toBeLessThan(first.TrackTemp.value[0] + 6);
+
+    // The wind veers and eases, and the humidity stays a fraction.
+    expect(last.WindDir.value[0]).not.toBeCloseTo(first.WindDir.value[0], 3);
+    expect(last.WindVel.value[0]).toBeGreaterThanOrEqual(0);
+    expect(last.RelativeHumidity.value[0]).toBeGreaterThan(0);
+    expect(last.RelativeHumidity.value[0]).toBeLessThan(1);
+
+    bridge.stop();
+  });
+
   it('emits a team racing session with distinct team names for the running mock app', () => {
     const bridge = generateMockData();
     const onSession = vi.fn();

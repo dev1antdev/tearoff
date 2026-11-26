@@ -122,6 +122,22 @@ export function generateMockData(sessionData?: {
       : mockState.sessionTime - pct * demoLapSeconds(carSpeedMultipliers[idx])
   );
   carLaps[PLAYER_CAR_IDX] = mockState.currentLap;
+  // The air and the track as the recording left them: the demo drifts from
+  // these, so the weather widgets are not one still frame.
+  const reading = (key: keyof Telemetry) => {
+    const value = (prevTelemetry[key] as { value?: unknown[] } | undefined)
+      ?.value?.[0];
+    return typeof value === 'number' ? value : 0;
+  };
+  const demoWeather = {
+    airTemp: reading('AirTemp'),
+    trackTemp: reading('TrackTemp'),
+    crewTemp: reading('TrackTempCrew'),
+    humidity: reading('RelativeHumidity'),
+    windSpeed: reading('WindVel'),
+    windDirection: reading('WindDir'),
+  };
+
   /** Each car's class, from the recording: only cars in a class are placed. */
   const carClasses = [
     ...((prevTelemetry.CarIdxClass?.value as number[]) ?? []),
@@ -291,6 +307,31 @@ export function generateMockData(sessionData?: {
               carIdxClassPosition[idx] = inClass;
             });
 
+            // The air and the track drift through the session at their own
+            // paces, as a real afternoon's do: a few degrees of air, more of
+            // track, the wind veering and easing.
+            const drift = (
+              baseline: number,
+              amplitude: number,
+              periodSeconds: number
+            ) =>
+              baseline +
+              amplitude *
+                Math.sin((2 * Math.PI * state.sessionTime) / periodSeconds);
+            const weather = {
+              airTemp: drift(demoWeather.airTemp, 3, 300),
+              trackTemp: drift(demoWeather.trackTemp, 5, 240),
+              crewTemp: drift(demoWeather.crewTemp, 4, 240),
+              humidity: Math.min(
+                0.95,
+                Math.max(0.1, drift(demoWeather.humidity, 0.08, 400))
+              ),
+              windSpeed: Math.max(0, drift(demoWeather.windSpeed, 1.5, 120)),
+              windDirection:
+                demoWeather.windDirection +
+                (2 * Math.PI * state.sessionTime) / 600,
+            };
+
             // Enable ABS when brake force is above 80% in demo mode
             const absActive = jitteredBrakeValue > 0.8;
             const prevAbs =
@@ -406,6 +447,24 @@ export function generateMockData(sessionData?: {
               CarIdxBestLapTime: {
                 ...prevTelemetry.CarIdxBestLapTime,
                 value: [...carBestLap],
+              },
+              AirTemp: { ...prevTelemetry.AirTemp, value: [weather.airTemp] },
+              TrackTemp: {
+                ...prevTelemetry.TrackTemp,
+                value: [weather.trackTemp],
+              },
+              TrackTempCrew: {
+                ...prevTelemetry.TrackTempCrew,
+                value: [weather.crewTemp],
+              },
+              RelativeHumidity: {
+                ...prevTelemetry.RelativeHumidity,
+                value: [weather.humidity],
+              },
+              WindVel: { ...prevTelemetry.WindVel, value: [weather.windSpeed] },
+              WindDir: {
+                ...prevTelemetry.WindDir,
+                value: [weather.windDirection],
               },
               CarIdxPosition: {
                 ...prevTelemetry.CarIdxPosition,
