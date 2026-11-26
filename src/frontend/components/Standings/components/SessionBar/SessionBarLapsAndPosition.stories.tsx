@@ -149,12 +149,15 @@ interface StoryOptions {
   /** Where the player started; undefined leaves him off the grid list. */
   grid?: { overall: number; inClass: number } | null;
   width?: number;
+  /** What the strip reads besides the race's own numbers. */
+  sessionBar?: Partial<SessionBarSnapshot>;
 }
 
 const story = ({
   timing = {},
   grid = { overall: 17, inClass: 5 },
   width = 430,
+  sessionBar: readings = {},
 }: StoryOptions = {}) => ({
   loaders: [
     async () => {
@@ -172,7 +175,7 @@ const story = ({
     ),
     ChannelSnapshotDecorator({
       'standings.snapshot': lmuEnduranceGrid.standings,
-      'session-bar.snapshot': sessionBar,
+      'session-bar.snapshot': { ...sessionBar, ...readings },
       'session-timing.snapshot': { ...timedRace, ...timing },
     }),
   ],
@@ -224,6 +227,15 @@ export const FinalLap: Story = {
       extraLaps: 0,
     },
   }),
+  args: { settings: strip, standalone: true },
+};
+
+/**
+ * Past two thirds of the way to a drive-through: the track-limits item warns,
+ * in the warning's amber rather than the player's, as the table's cell does.
+ */
+export const TrackLimitsNearTheCeiling: Story = {
+  ...story({ sessionBar: { trackLimitsPoints: 4.5 } }),
   args: { settings: strip, standalone: true },
 };
 

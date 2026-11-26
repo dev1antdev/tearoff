@@ -51,7 +51,7 @@ describe('TrackLimitsItem', () => {
       return spans[0]?.className ?? '';
     };
     expect(tone(0.25)).toBe('');
-    expect(tone(2)).toContain('text-amber-300');
+    expect(tone(2)).toContain('text-amber-400');
     expect(tone(3)).toContain('text-red-400');
   });
 });

@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { trackLimitsTone } from '../trackLimitsTone';
 
 interface TrackLimitsCellProps {
   /** Points, not the sim's infringement steps. Undefined when unknown. */
@@ -8,22 +9,9 @@ interface TrackLimitsCellProps {
   compactMode?: string;
 }
 
-/**
- * Where the escalation starts, as a fraction of the ceiling.
- *
- * Two thresholds rather than a gradient: the number already says how close a
- * car is, and the colour is there to be caught out of the corner of an eye.
- * Amber from two thirds, red at the ceiling.
- */
-const WARN_FRACTION = 2 / 3;
-
-const toneFor = (points: number, max: number | undefined): string => {
-  if (points <= 0) return 'text-white/50';
-  if (!max || max <= 0) return '';
-  if (points >= max) return 'text-red-400';
-  if (points >= max * WARN_FRACTION) return 'text-amber-400';
-  return '';
-};
+/** A clean car is dimmed, not coloured: nothing to warn about. */
+const toneFor = (points: number, max: number | undefined): string =>
+  points <= 0 ? 'text-white/50' : trackLimitsTone(points, max);
 
 /**
  * LMU's track-limits penalty points for one car.
