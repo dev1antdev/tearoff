@@ -30,6 +30,8 @@ declare global {
     /** Absent outside the Electron preload, e.g. the browser server. */
     trackProfileBridge?: import('./types/trackProfileBridge').TrackProfileBridge;
     /** Absent outside the Electron preload, e.g. the browser server. */
+    setupLibraryBridge?: import('./types/setupLibrary').SetupLibraryBridge;
+    /** Absent outside the Electron preload, e.g. the browser server. */
     overlayVisibilityBridge?: import('./types/overlayVisibility').OverlayVisibilityBridge;
     channelBridge: ChannelBridge;
     windowVisibilityBridge?: import('./types/windowVisibility').WindowVisibilityBridge;

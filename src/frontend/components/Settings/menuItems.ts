@@ -9,6 +9,7 @@ import {
   InfoIcon,
   NewspaperIcon,
   FlagCheckeredIcon,
+  FolderOpenIcon,
 } from '@phosphor-icons/react';
 import type { Icon } from '@phosphor-icons/react';
 import { WIDGET_GROUP_ID, WIDGET_MANIFESTS } from '@irdashies/types';
@@ -67,6 +68,12 @@ export const toolItems: MenuItem[] = [
     path: '/car-setup',
     label: 'Setup Comparison',
     icon: ScalesIcon,
+  },
+  {
+    to: '/settings/setups',
+    path: '/setups',
+    label: 'Setups',
+    icon: FolderOpenIcon,
   },
   {
     to: '/settings/laps',
