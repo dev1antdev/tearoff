@@ -2,6 +2,7 @@ import { setupStorageStatusBridge } from './app/bridge/storageStatusBridge';
 import { setupWidgetPreviewBridge } from './app/bridge/widgetPreviewBridge';
 import { setupWindowVisibilityBridge } from './app/bridge/windowVisibilityBridge';
 import { app, autoUpdater, BrowserWindow, ipcMain } from 'electron';
+import path from 'node:path';
 import { setupReleaseNotesBridge } from './app/bridge/releaseNotesBridge';
 import log from './app/logger';
 import {
@@ -24,8 +25,12 @@ import {
 } from './app/storage/dashboards';
 import {
   getHideOverlayWhenPaused,
+  getLmuGameFolder,
+  getLmuSetupAutoInstall,
   getSessionProfileMap,
   setHideOverlayWhenPaused,
+  setLmuGameFolder,
+  setLmuSetupAutoInstall,
 } from './app/storage/appSettings';
 import { createOverlayVisibility } from './app/overlayVisibility';
 import { watchGamePause } from './app/overlayPauseWatch';
@@ -109,6 +114,19 @@ import {
   startTrackProfiles,
 } from './app/trackProfileRecording';
 import { setupTrackProfileBridge } from './app/bridge/trackProfileBridge';
+import { createSetupLibrary } from './app/lmu/setupLibrary/setupLibrary';
+import { detectLmuInstall } from './app/lmu/setupLibrary/lmuInstall';
+import { createLmuRestTransport } from './app/lmu/rest/httpJson';
+import { lmuRestOrigin } from './app/lmu/rest/constants';
+import {
+  createLmuSetupAutoInstall,
+  readSessionTrackFolder,
+} from './app/services/lmuSetupAutoInstall';
+import { createSetupLibraryBridge } from './app/bridge/setupLibraryBridge';
+import {
+  flushSetupInstallLedgerOnShutdown,
+  getSetupInstallLedger,
+} from './app/storage/setupInstallLedger';
 import { setupChromiumFlagsBridge } from './app/bridge/chromiumFlagsBridge';
 import { getHiddenWidgets } from './app/widgetVisibility';
 import { setupRaceControlBridge } from './app/bridge/raceControlBridge';
@@ -257,6 +275,7 @@ let disposeStreamChat: (() => void) | undefined;
 let disposeReplayContextRuntime: (() => void) | undefined;
 const knownLocalUserIds = createKnownLocalUserIdStore();
 let disposeGarage61SearchSession: (() => void) | undefined;
+let disposeSetupLibrary: (() => Promise<void>) | undefined;
 let racePlan: ReturnType<typeof setupRacePlanBridge> | undefined;
 // Resolved per call: a runtime outlives any single SDK bridge, so it must
 // not hold a reference to a metrics instance that has stopped reporting.
@@ -499,6 +518,55 @@ function setupTrackProfiles(replayContext: ReplayContextRuntime): void {
   disposeTrackProfileRecording = () => {
     disposeBridge();
     disposeRecording();
+  };
+}
+
+/**
+ * The LMU setup library: the Settings page, and the copies made into the
+ * game for the track being driven. Files only: nothing is loaded into the
+ * car, no REST endpoint is written, and nothing is ever deleted.
+ *
+ * Hosted like the track profiles, beside the ProcessorHost: what it does
+ * must not depend on a window looking. Its own loop is gated on a live LMU
+ * connection, so a tape, a replay and demo mode never reach it.
+ */
+function setupSetupLibrary(): void {
+  const libraryRoot = path.join(
+    app.getPath('documents'),
+    'Tearoff',
+    'Setups',
+    'LMU'
+  );
+  const library = createSetupLibrary({
+    libraryRoot,
+    ledger: getSetupInstallLedger(),
+    getChosenGameFolder: getLmuGameFolder,
+    detectGameFolder: () => detectLmuInstall(),
+  });
+  const transport = createLmuRestTransport(lmuRestOrigin());
+  const autoInstall = createLmuSetupAutoInstall({
+    onConnectedSimulatorChanged,
+    readTrackFolder: () => readSessionTrackFolder(transport),
+    syncTrack: (folder) =>
+      library.syncTrack(folder, { createGameFolder: true }),
+    isEnabled: getLmuSetupAutoInstall,
+  });
+  const disposeBridge = createSetupLibraryBridge({
+    library,
+    autoInstall,
+    libraryRoot,
+    getAutoInstall: getLmuSetupAutoInstall,
+    setAutoInstall: setLmuSetupAutoInstall,
+    setChosenGameFolder: setLmuGameFolder,
+  });
+  disposeSetupLibrary = async () => {
+    disposeBridge();
+    // No new ticks, no new writes from anything already awaiting a scan,
+    // then let a write in progress finish before the ledger is flushed, so a
+    // publish is never left half-recorded at quit.
+    autoInstall.dispose();
+    library.close();
+    await library.drain();
   };
 }
 
@@ -943,6 +1011,7 @@ void app.whenReady().then(async () => {
   setupLapHistoryRuntime(dashboard, replayContextRuntime);
   setupLapLibraryRecording(replayContextRuntime);
   setupTrackProfiles(replayContextRuntime);
+  setupSetupLibrary();
   setupPitStopRuntime(dashboard, replayContextRuntime);
   const raceHistory = setupRaceHistory(dashboard, replayContextRuntime);
   // After the race history, whose records it reads on the same frame.
@@ -1184,6 +1253,9 @@ const handleBeforeQuit = createBeforeQuitHandler({
     disposeStreamChat?.();
     disposeReplayContextRuntime?.();
     disposeGarage61SearchSession?.();
+    // Started here so its drain runs while the other flushes do; the ledger
+    // is flushed only once the last write has finished.
+    const setupLibraryStopped = disposeSetupLibrary?.();
     racePlan?.dispose();
     channelBus.dispose();
     // Storage writes are debounced, so drain all pending queues within the
@@ -1209,6 +1281,9 @@ const handleBeforeQuit = createBeforeQuitHandler({
       flushSimulatorUsageOnShutdown(),
       flushTrackCarStoreOnShutdown(),
       flushTrackProfilesOnShutdown(),
+      (setupLibraryStopped ?? Promise.resolve()).then(() =>
+        flushSetupInstallLedgerOnShutdown()
+      ),
     ]);
   },
   quit: () => app.quit(),

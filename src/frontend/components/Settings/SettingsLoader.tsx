@@ -37,6 +37,7 @@ import { FlagSettings } from './sections/FlagSettings';
 import { FlagPanelSettings } from './sections/FlagPanelSettings';
 import { TrafficSettings } from './sections/TrafficSettings';
 import { CarSetupSettings } from './sections/CarSetupSettings';
+import { SetupLibrarySettings } from './sections/SetupLibrary/SetupLibrarySettings';
 import { LapLibrarySettings } from './sections/LapLibrary/LapLibrarySettings';
 import { StreamChatSettings } from './sections/StreamChatSettings';
 import { DriverTagsSettings } from './sections/DriverTagsSettings';
@@ -176,6 +177,7 @@ export const SettingsLoader = ({ previewMode }: SettingsLoaderProps = {}) => {
   if (widgetId === 'profiles') return <ProfileSettings />;
   if (widgetId === 'advanced') return <AdvancedSettings />;
   if (widgetId === 'car-setup') return <CarSetupSettings />;
+  if (widgetId === 'setups') return <SetupLibrarySettings />;
   if (widgetId === 'laps') return <LapLibrarySettings />;
   if (widgetId === 'about') return <AboutSettings />;
   if (widgetId === 'release-notes') return <ReleaseNotesSettings />;

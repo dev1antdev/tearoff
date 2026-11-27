@@ -1,12 +1,21 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { getSessionProfileMap, setSessionProfileMap } from './appSettings';
+import {
+  getLmuGameFolder,
+  getLmuSetupAutoInstall,
+  getSessionProfileMap,
+  setLmuGameFolder,
+  setLmuSetupAutoInstall,
+  setSessionProfileMap,
+} from './appSettings';
 
 const mockReadData = vi.hoisted(() => vi.fn());
 const mockWriteData = vi.hoisted(() => vi.fn());
+const mockWriteDataAsync = vi.hoisted(() => vi.fn());
 
 vi.mock('./storage', () => ({
   readData: mockReadData,
   writeData: mockWriteData,
+  writeDataAsync: mockWriteDataAsync,
 }));
 
 const KEY = 'sessionProfileMap';
@@ -15,6 +24,7 @@ describe('session profile map', () => {
   beforeEach(() => {
     mockReadData.mockReset();
     mockWriteData.mockReset();
+    mockWriteDataAsync.mockReset();
   });
 
   /**
@@ -58,5 +68,47 @@ describe('session profile map', () => {
         spotting: 'b',
       });
     });
+  });
+});
+
+describe('Le Mans Ultimate setup settings', () => {
+  beforeEach(() => {
+    mockReadData.mockReset();
+    mockWriteData.mockReset();
+    mockWriteDataAsync.mockReset();
+  });
+
+  it('has no chosen game folder until one is set', () => {
+    mockReadData.mockReturnValue(undefined);
+    expect(getLmuGameFolder()).toBeUndefined();
+    mockReadData.mockReturnValue('');
+    expect(getLmuGameFolder()).toBeUndefined();
+  });
+
+  it('persists the chosen game folder asynchronously', () => {
+    setLmuGameFolder('C:\\Games\\LMU');
+    expect(mockWriteDataAsync).toHaveBeenCalledWith(
+      'lmuGameFolder',
+      'C:\\Games\\LMU'
+    );
+    expect(mockWriteData).not.toHaveBeenCalled();
+  });
+
+  it('installs automatically unless that was turned off', () => {
+    mockReadData.mockReturnValue(undefined);
+    expect(getLmuSetupAutoInstall()).toBe(true);
+    mockReadData.mockReturnValue(true);
+    expect(getLmuSetupAutoInstall()).toBe(true);
+    mockReadData.mockReturnValue(false);
+    expect(getLmuSetupAutoInstall()).toBe(false);
+  });
+
+  it('persists the automatic install choice asynchronously', () => {
+    setLmuSetupAutoInstall(false);
+    expect(mockWriteDataAsync).toHaveBeenCalledWith(
+      'lmuSetupAutoInstall',
+      false
+    );
+    expect(mockWriteData).not.toHaveBeenCalled();
   });
 });

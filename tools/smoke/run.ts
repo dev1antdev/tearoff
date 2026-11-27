@@ -416,6 +416,7 @@ const FIXED_PAGES = [
   'driver-tags',
   'race-plan',
   'car-setup',
+  'setups',
   'laps',
   'advanced',
   'release-notes',

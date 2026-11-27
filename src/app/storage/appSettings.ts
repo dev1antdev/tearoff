@@ -1,5 +1,5 @@
 import type { SessionProfileMap } from '@irdashies/types';
-import { readData, writeData } from './storage';
+import { readData, writeData, writeDataAsync } from './storage';
 
 const CYCLE_PROFILES_KEY = 'cycleProfiles';
 const SHOW_PROFILE_BANNER_KEY = 'showProfileBanner';
@@ -7,6 +7,8 @@ const SESSION_PROFILE_MAP_KEY = 'sessionProfileMap';
 const GARAGE61_LAST_FOLDER_KEY = 'garage61LastFolder';
 const IBT_LAST_FOLDER_KEY = 'ibtLastFolder';
 const HIDE_OVERLAY_WHEN_PAUSED_KEY = 'hideOverlayWhenPaused';
+const LMU_GAME_FOLDER_KEY = 'lmuGameFolder';
+const LMU_SETUP_AUTO_INSTALL_KEY = 'lmuSetupAutoInstall';
 
 /**
  * Whether a paused game takes the overlay off the screen. On unless it has
@@ -76,3 +78,26 @@ export const getIbtLastFolder = (): string | undefined => {
 export const setIbtLastFolder = (folderPath: string): void => {
   writeData(IBT_LAST_FOLDER_KEY, folderPath);
 };
+
+/**
+ * The Le Mans Ultimate folder the person chose, if they did. A stored value
+ * is not trusted: it is only used while it still is a game folder.
+ */
+export const getLmuGameFolder = (): string | undefined => {
+  const stored = readData<string>(LMU_GAME_FOLDER_KEY);
+  return typeof stored === 'string' && stored !== '' ? stored : undefined;
+};
+
+export const setLmuGameFolder = (folder: string): Promise<void> =>
+  writeDataAsync(LMU_GAME_FOLDER_KEY, folder);
+
+/**
+ * Whether the setups of the track being driven are copied into the game
+ * while LMU runs. On unless it has been turned off: the library starts
+ * empty, so an untouched install copies nothing.
+ */
+export const getLmuSetupAutoInstall = (): boolean =>
+  readData<boolean>(LMU_SETUP_AUTO_INSTALL_KEY) !== false;
+
+export const setLmuSetupAutoInstall = (enabled: boolean): Promise<void> =>
+  writeDataAsync(LMU_SETUP_AUTO_INSTALL_KEY, enabled);
